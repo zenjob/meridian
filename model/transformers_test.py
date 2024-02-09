@@ -1,0 +1,188 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#    https://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from absl.testing import absltest
+from meridian.model import transformers
+import numpy as np
+import tensorflow as tf
+import tensorflow_probability as tfp
+
+tfd = tfp.distributions
+
+
+class MediaTransformerTest(absltest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+
+    # Data dimensions for default parameter values.
+    self._n_geos = 4
+    self._n_media_times = 10
+    self._n_media_channels = 3
+
+    # Generate random data based on dimensions specified above.
+    tf.random.set_seed(1)
+    self._media1 = tfd.HalfNormal(1).sample(
+        [self._n_geos, self._n_media_times, self._n_media_channels]
+    )
+    self._media2 = tfd.HalfNormal(1).sample(
+        [self._n_geos, self._n_media_times, self._n_media_channels]
+    )
+    self._population = tfd.Uniform(100, 1000).sample([self._n_geos])
+
+  def test_output_shape_and_range(self):
+    transformer = transformers.MediaTransformer(
+        media=self._media1, population=self._population
+    )
+    transformed_media = transformer.forward(self._media2)
+    tf.debugging.assert_equal(
+        transformed_media.shape,
+        self._media2.shape,
+        message="Shape of `media` not preserved by `MediaTransform.forward()`.",
+    )
+    tf.debugging.assert_all_finite(
+        transformed_media, message="Infinite values found in transformed media."
+    )
+    tf.debugging.assert_non_negative(
+        transformed_media, message="Negative values found in transformed media."
+    )
+
+  def test_forward_inverse_is_identity(self):
+    transformer = transformers.MediaTransformer(
+        media=self._media1, population=self._population
+    )
+    transformed_media = transformer.inverse(transformer.forward(self._media2))
+    tf.debugging.assert_near(
+        transformed_media,
+        self._media2,
+        message="`inverse(forward(media))` not equal to `media`.",
+    )
+
+  def test_median_of_transformed_media_is_one(self):
+    transformer = transformers.MediaTransformer(
+        media=self._media1, population=self._population
+    )
+    transformed_media = transformer.forward(self._media1)
+    median = np.nanmedian(
+        tf.where(transformed_media == 0, np.nan, transformed_media), axis=[0, 1]
+    )
+    tf.debugging.assert_near(median, np.ones(self._n_media_channels))
+
+
+class ControlsTransformerTest(absltest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+
+    # Data dimensions for default parameter values.
+    self._n_geos = 10
+    self._n_times = 1
+    self._n_controls = 5
+
+    # Generate random data based on dimensions specified above.
+    tf.random.set_seed(1)
+    self._controls1 = tfd.Normal(2, 1).sample(
+        [self._n_geos, self._n_times, self._n_controls]
+    )
+    self._controls2 = tfd.Normal(2, 1).sample(
+        [self._n_geos, self._n_times, self._n_controls]
+    )
+    self._controls3 = np.ones((self._n_geos, 1, self._n_controls))
+
+  def test_output_shape_and_range(self):
+    transformer = transformers.ControlsTransformer(controls=self._controls1)
+
+    transformed_controls = transformer.forward(self._controls2)
+    tf.debugging.assert_equal(
+        transformed_controls.shape,
+        self._controls2.shape,
+        message=(
+            "Shape of `controls` not preserved by"
+            " `ControlsTransform.forward()`."
+        ),
+    )
+    tf.debugging.assert_all_finite(
+        transformed_controls,
+        message="Infinite values found in transformed controls.",
+    )
+
+  def test_forward_no_variation(self):
+    transformer = transformers.ControlsTransformer(controls=self._controls3)
+    transformed_controls = transformer.forward(self._controls3)
+    tf.debugging.assert_near(
+        transformed_controls,
+        np.zeros_like(transformed_controls),
+        message="`forward(controls)` not equal to `[[[0, 0, ..., 0]]]`.",
+    )
+
+  def test_forward_inverse_is_identity(self):
+    transformer = transformers.ControlsTransformer(controls=self._controls1)
+    transformed_controls = transformer.inverse(
+        transformer.forward(self._controls2)
+    )
+    tf.debugging.assert_near(
+        transformed_controls,
+        self._controls2,
+        message="`inverse(forward(controls))` not equal to `controls`.",
+    )
+
+
+class KpiTransformerTest(absltest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+
+    # Data dimensions for default parameter values.
+    self._n_geos = 5
+    self._n_times = 20
+
+    # Generate random data based on dimensions specified above.
+    tf.random.set_seed(1)
+    self._kpi1 = tfd.HalfNormal(10).sample([self._n_geos, self._n_times])
+    self._kpi2 = tfd.HalfNormal(10).sample([self._n_geos, self._n_times])
+    self._population = tfd.Uniform(100, 1000).sample([self._n_geos])
+
+  def test_output_shape_and_range(self):
+    transformer = transformers.KpiTransformer(
+        kpi=self._kpi1, population=self._population
+    )
+    transformed_kpi = transformer.forward(self._kpi2)
+    tf.debugging.assert_equal(
+        transformed_kpi.shape,
+        self._kpi2.shape,
+        message=(
+            "Shape of `kpi` not preserved by `KpiTransform.forward()`."
+        ),
+    )
+    tf.debugging.assert_all_finite(
+        transformed_kpi,
+        message="Infinite values found in transformed kpi.",
+    )
+
+  def test_forward_inverse_is_identity(self):
+    transformer = transformers.KpiTransformer(
+        kpi=self._kpi1, population=self._population
+    )
+    transformed_kpi = transformer.inverse(
+        transformer.forward(self._kpi2)
+    )
+    tf.debugging.assert_near(
+        transformed_kpi,
+        self._kpi2,
+        message="`inverse(forward(kpi))` not equal to `kpi`.",
+    )
+
+
+if __name__ == "__main__":
+  absltest.main()
