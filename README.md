@@ -67,10 +67,10 @@ Resource                                                                        
 ------------------------------------------------------------------------------------------------------------------------------- | -----------
 [Meridian documentation](https://developers.google.com/meridian)                                                                | Main landing page for Meridian documentation.
 [Meridian basics](https://developers.google.com/meridian/docs/basics/about-the-product)                                         | Learn about Meridian features, methodologies, and the model math.
-[Getting started colab](https://colab.corp.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q)                                  | Install and quickly learn how to use Meridian with this colab tutorial using sample data.
+[Getting started colab](https://colab.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q)                                  | Install and quickly learn how to use Meridian with this colab tutorial using sample data.
 [User guide](https://developers.google.com/meridian/docs/user-guide/overview)                                                   | A detailed walk-through of how to use Meridian and generating visualizations using your own data.
-[Advanced modeling considerations](https://developers.devsite.corp.google.com/meridian/docs/advanced-modeling/model-fit)        | Advanced modeling guidance for model refinement and edge cases.
-[Model debugging and troubleshooting](https://developers.devsite.corp.google.com/meridian/docs/model-debugging/model-debugging) | Guidance for coding errors, model debugging, and troubleshooting.
+[Advanced modeling considerations](https://developers.google.com/meridian/docs/advanced-modeling/model-fit)        | Advanced modeling guidance for model refinement and edge cases.
+[Model debugging and troubleshooting](https://developers.google.com/meridian/docs/model-debugging/model-debugging) | Guidance for coding errors, model debugging, and troubleshooting.
 [Migrate from LMMM](https://developers.google.com/meridian/docs/migrate)                                                        | Learn about the differences between Meridian and LightweightMMM as you consider migrating.
 [API Reference](https://developers.google.com/meridian/docs/api)                                                                | API reference documentation for the Meridian package.
 [Reference list](https://developers.google.com/meridian/docs/reference-list)                                                    | White papers and other referenced material.
