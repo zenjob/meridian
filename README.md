@@ -49,7 +49,7 @@ $ pip install --upgrade google-meridian
 
 To get started with Meridian, you can run the code programmatically using sample
 data with the
-[Getting Started Colab](https://colab.corp.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q).
+[Getting Started Colab](https://colab.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q).
 
 The Meridian model uses a holistic MCMC sampling approach called
 [No U Turn Sampler (NUTS)](https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/NoUTurnSampler)
