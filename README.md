@@ -33,15 +33,14 @@ Run the following command to automatically install the most recent version from
 GitHub:
 
 ```sh
-$ git clone https://github.com/google/meridian/google_mmm.git
+$ git clone https://github.com/google/meridian.git
 $ pip install .
 ```
 
 ## How to use the Meridian library
 
 To get started with Meridian, you can run the code programmatically using sample
-data with the
-[Getting Started Colab](https://colab.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q).
+data with the [Getting Started Colab][3].
 
 The Meridian model uses a holistic MCMC sampling approach called
 [No U Turn Sampler (NUTS)](https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/NoUTurnSampler)
@@ -55,14 +54,33 @@ significantly reduce training time.
 The following documentation, colab, and video resources will help you get
 started quickly with using Meridian:
 
-Resource                                                                                                                        | Description
-------------------------------------------------------------------------------------------------------------------------------- | -----------
-[Meridian documentation](https://developers.google.com/meridian)                                                                | Main landing page for Meridian documentation.
-[Meridian basics](https://developers.google.com/meridian/docs/basics/about-the-project)                                         | Learn about Meridian features, methodologies, and the model math.
-[Getting started colab](https://colab.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q)                                  | Install and quickly learn how to use Meridian with this colab tutorial using sample data.
-[User guide](https://developers.google.com/meridian/docs/user-guide/overview)                                                   | A detailed walk-through of how to use Meridian and generating visualizations using your own data.
-[Advanced modeling considerations](https://developers.google.com/meridian/docs/advanced-modeling/model-fit)        | Advanced modeling guidance for model refinement and edge cases.
-[Model debugging and troubleshooting](https://developers.google.com/meridian/docs/model-debugging/model-debugging) | Guidance for coding errors, model debugging, and troubleshooting.
-[Migrate from LMMM](https://developers.google.com/meridian/docs/migrate)                                                        | Learn about the differences between Meridian and LightweightMMM as you consider migrating.
-[API Reference](https://developers.google.com/meridian/docs/api)                                                                | API reference documentation for the Meridian package.
-[Reference list](https://developers.google.com/meridian/docs/reference-list)                                                    | White papers and other referenced material.
+| Resource                    | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| [Meridian documentation][1] | Main landing page for Meridian documentation.  |
+| [Meridian basics][2]        | Learn about Meridian features, methodologies,  |
+:                             : and the model math.                            :
+| [Getting started colab][3]  | Install and quickly learn how to use Meridian  |
+:                             : with this colab tutorial using sample data.    :
+| [User guide][4]             | A detailed walk-through of how to use Meridian |
+:                             : and generating visualizations using your own   :
+:                             : data.                                          :
+| [Advanced modeling          | Advanced modeling guidance for model           |
+: considerations][5]          : refinement and edge cases.                     :
+| [Model debugging and        | Guidance for coding errors, model debugging,   |
+: troubleshooting][6]         : and troubleshooting.                           :
+| [Migrate from LMMM][7]      | Learn about the differences between Meridian   |
+:                             : and LightweightMMM as you consider migrating.  :
+| [API Reference][8]          | API reference documentation for the Meridian   |
+:                             : package.                                       :
+| [Reference list][9]         | White papers and other referenced material.    |
+
+[1]: https://developers.google.com/meridian
+[2]: https://developers.google.com/meridian/docs/basics/about-the-project
+ <!-- TODO: this colab link is a placeholder -->
+[3]: https://colab.research.google.com/
+[4]: https://developers.google.com/meridian/docs/user-guide/overview
+[5]: https://developers.google.com/meridian/docs/advanced-modeling/model-fit
+[6]: https://developers.google.com/meridian/docs/model-debugging/model-debugging
+[7]: https://developers.google.com/meridian/docs/migrate
+[8]: https://developers.google.com/meridian/docs/api
+[9]: https://developers.google.com/meridian/docs/reference-list

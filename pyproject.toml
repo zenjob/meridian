@@ -1,0 +1,83 @@
+[project]
+# Project metadata. Available keys are documented at:
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata
+name = "meridian"
+description = """\
+  Google's open source mixed marketing model library, helps you understand \
+  your return on investment and direct your ad spend with confidence. \
+  """
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+  {name = "The Meridian Authors", email="1p-mmm-eng@google.com"},
+]
+classifiers = [  # List of https://pypi.org/classifiers/
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Other/Nonlisted Topic",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+keywords = [
+  "mmm",
+]
+
+# pip dependencies of the project
+# Installed locally with `pip install -e .`
+dependencies = [
+  "arviz",
+  "altair",
+  "immutabledict",
+  "joblib",
+  "numpy",
+  "pandas",
+  "tensorflow>=2.15",
+  "tensorflow-probability",
+  "xarray",
+]
+
+# `version` is automatically set by flit to use `meridian.__version__`
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/google/meridian"
+repository = "https://github.com/google/meridian"
+changelog = "https://github.com/google/meridian/blob/main/CHANGELOG.md"
+documentation = "https://developers.google.com/meridian"
+
+[project.optional-dependencies]
+# Development deps (unittest, linting, formating,...)
+# Installed through `pip install -e .[dev]`
+dev = [
+    "pytest",
+    "pytest-xdist",
+    "pylint>=2.6.0",
+    "pyink",
+]
+
+[tool.pyink]
+# Formatting configuration to follow Google style-guide
+line-length = 80
+preview = true
+pyink-indentation = 2
+pyink-use-majority-quotes = true
+
+[build-system]
+# Build system specify which backend is used to build/install the project (flit,
+# poetry, setuptools,...). All backends are supported by `pip install`
+requires = [
+  "setuptools >= 61.0.0",
+  "libsass",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["meridian*"]
+exclude = ["*test"]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
