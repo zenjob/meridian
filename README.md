@@ -29,20 +29,12 @@ you understand the differences between these MMM projects.
 
 # Install Meridian
 
-#### During Limited Beta Launch
-
 Run the following command to automatically install the most recent version from
 GitHub:
 
 ```sh
 $ git clone https://github.com/google/meridian/google_mmm.git
 $ pip install .
-```
-
-#### During Post GA Launch
-
-```sh
-$ pip install --upgrade google-meridian
 ```
 
 ## How to use the Meridian library
