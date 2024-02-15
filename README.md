@@ -25,7 +25,7 @@ optimize target ad frequency by utilizing reach and frequency data.
 
 If you are using LightweightMMM, see the
 [migration guide](https://developers.google.com/meridian/docs/migrate) to help
-you understand the differences between these MMM products.
+you understand the differences between these MMM projects.
 
 # Install Meridian
 
@@ -66,7 +66,7 @@ started quickly with using Meridian:
 Resource                                                                                                                        | Description
 ------------------------------------------------------------------------------------------------------------------------------- | -----------
 [Meridian documentation](https://developers.google.com/meridian)                                                                | Main landing page for Meridian documentation.
-[Meridian basics](https://developers.google.com/meridian/docs/basics/about-the-product)                                         | Learn about Meridian features, methodologies, and the model math.
+[Meridian basics](https://developers.google.com/meridian/docs/basics/about-the-project)                                         | Learn about Meridian features, methodologies, and the model math.
 [Getting started colab](https://colab.google.com/drive/1rl4bZu4fXRqkVrFWmvAH6TeLxMPXU12q)                                  | Install and quickly learn how to use Meridian with this colab tutorial using sample data.
 [User guide](https://developers.google.com/meridian/docs/user-guide/overview)                                                   | A detailed walk-through of how to use Meridian and generating visualizations using your own data.
 [Advanced modeling considerations](https://developers.google.com/meridian/docs/advanced-modeling/model-fit)        | Advanced modeling guidance for model refinement and edge cases.
