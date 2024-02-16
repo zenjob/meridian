@@ -178,6 +178,7 @@ class BudgetOptimizer:
       target_roi: float | None = None,
       target_mroi: float | None = None,
       gtol: float = 0.0001,
+      use_optimal_frequency: bool = True,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ):
     """Finds the optimal budget allocation that maximizes impact.
@@ -219,6 +220,8 @@ class BudgetOptimizer:
         in the grid setup. The budget will be rounded by 10*n, where n is the
         smallest int such that (budget - rounded_budget) is less than or equal
         to (budget * gtol). gtol must be less than 1.
+      use_optimal_frequency: If True use optimal_frequency calculated by trained
+        meridian model for optimization, otherwise use historical frequency.
       batch_size: Max draws per chain in each batch. The calculation is run in
         batches to avoid memory exhaustion. If a memory error occurs, try
         reducing `batch_size`. The calculation will generally be faster with
@@ -237,7 +240,7 @@ class BudgetOptimizer:
     round_factor = _get_round_factor(budget, gtol)
     step_size = 10 ** (-round_factor)
     rounded_spend = np.round(spend, round_factor).astype(int)
-    if self._meridian.n_rf_channels > 0:
+    if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
       optimal_frequency = tf.convert_to_tensor(
           self._analyzer.optimal_freq().optimal_frequency, dtype=tf.float32
       )
@@ -857,7 +860,11 @@ class BudgetOptimizer:
     Args:
       hist_spend: historical spend data.
       spend: new optimized spend data.
-      optimal_frequency: optimal frequency for rf channels in self._meridian.
+      optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
+        the optimal frequency per channel, that maximizes posterior mean roi.
+        Value is `None` if the model does not contain reach and frequency data,
+        or if the model does contain reach and frequency data, but historical
+        frequency is used for the optimization scenario.
 
     Returns:
       Tuple of tf.tensors (new_media, new_media_spend, new_reach, new_frequency,
@@ -1053,7 +1060,9 @@ class BudgetOptimizer:
         `meridian.input_data.time` to use for optimization.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
-        Value is `None` if the model does not contain reach and frequency data.
+        Value is `None` if the model does not contain reach and frequency data,
+        or if the model does contain reach and frequency data, but historical
+        frequency is used for the optimization scenario.
       batch_size: Max draws per chain in each batch. The calculation is run in
         batches to avoid memory exhaustion. If a memory error occurs, try
         reducing `batch_size`. The calculation will generally be faster with
@@ -1124,7 +1133,9 @@ class BudgetOptimizer:
         `meridian.input_data.time` to use for optimization.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
-        Value is `None` if the model does not contain reach and frequency data.
+        Value is `None` if the model does not contain reach and frequency data,
+        or if the model does contain reach and frequency data, but historical
+        frequency is used for the optimization scenario.
       batch_size: Max draws per chain in each batch. The calculation is run in
         batches to avoid memory exhaustion. If a memory error occurs, try
         reducing `batch_size`. The calculation will generally be faster with

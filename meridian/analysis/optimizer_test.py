@@ -697,6 +697,45 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = self.budget_optimizer_media_and_rf.optimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='optimal_frequency',
+          expected_incremental_impact=np.array(
+              [544.2629, 1122.9128, 411.21844, 1196.8931, 1037.8674]),
+          expected_spend=np.array([227.0, 306.0, 201.0, 399.0, 419.0]),
+          expected_mroi=np.array([1.329, 1.94, 1.156, 2.928, 2.44]),
+          use_optimal_frequency=True,
+      ),
+      dict(
+          testcase_name='historical_frequency',
+          expected_incremental_impact=np.array(
+              [572.5, 1291.739, 411.2, 664.9, 369.8]
+              ),
+          expected_spend=np.array([249.0, 404.0, 201.0, 399.0, 299.0]),
+          expected_mroi=np.array([1.231, 1.519, 1.156, 0.603, 0.435]),
+          use_optimal_frequency=False,
+      ),
+  )
+  def test_optimized_data_use_optimal_frequency(
+      self,
+      expected_incremental_impact,
+      expected_spend,
+      expected_mroi,
+      use_optimal_frequency,
+      ):
+    expected_data = _create_budget_data(
+        spend=expected_spend,
+        inc_impact=expected_incremental_impact,
+        mroi=expected_mroi,
+        channels=self.input_data_media_and_rf.get_all_channels(),
+        attrs={c.FIXED_BUDGET: True},
+    )
+    self.budget_optimizer_media_and_rf.optimize(
+        use_optimal_frequency=use_optimal_frequency
+        )
+    actual_data = self.budget_optimizer_media_and_rf.optimized_data
+    _verify_actual_vs_expected_budget_data(actual_data, expected_data)
+
   def test_get_round_factor_gtol_raise_error(self):
     with self.assertRaisesWithLiteralMatch(
         expected_exception=ValueError,
