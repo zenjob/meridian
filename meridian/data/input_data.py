@@ -86,7 +86,7 @@ class InputData:
       Typically this is impressions, but it can be any metric (e.g., cost or
       clicks). It is required that `n_media_times` >= `n_times`, and the final
       `n_times` time periods must align with the time window of `kpi` and
-      `controls. Due to lagged effects, it is recommended that the time window
+      `controls`. Due to lagged effects, it is recommended that the time window
       for media includes up to `max_lag` additional periods prior to this
       window. If `n_media_times` < `n_times` + `max_lag`, the model effectively
       imputes media history. If `n_media_times` > `n_times` + `max_lag`, then
@@ -116,7 +116,7 @@ class InputData:
     frequency: An optional DataArray of dimensions (`n_geos` x `n_media_times` x
       `n_rf_channels`) containing non-negative frequency values. It is required
       that `n_media_times` >= `n_times`, and the final `n_times` time periods
-      must align with the time window of `kpi` and `controls. The time window
+      must align with the time window of `kpi` and `controls`. The time window
       must include the time window of the kpi and controls data, but it is
       optional to include lagged time periods prior to the time window of the
       kpi and controls data. If lagged frequency is not included (or if the
