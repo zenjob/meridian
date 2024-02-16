@@ -57,21 +57,13 @@ started quickly with using Meridian:
 | Resource                    | Description                                    |
 | --------------------------- | ---------------------------------------------- |
 | [Meridian documentation][1] | Main landing page for Meridian documentation.  |
-| [Meridian basics][2]        | Learn about Meridian features, methodologies,  |
-:                             : and the model math.                            :
-| [Getting started colab][3]  | Install and quickly learn how to use Meridian  |
-:                             : with this colab tutorial using sample data.    :
-| [User guide][4]             | A detailed walk-through of how to use Meridian |
-:                             : and generating visualizations using your own   :
-:                             : data.                                          :
-| [Advanced modeling          | Advanced modeling guidance for model           |
-: considerations][5]          : refinement and edge cases.                     :
-| [Model debugging and        | Guidance for coding errors, model debugging,   |
-: troubleshooting][6]         : and troubleshooting.                           :
-| [Migrate from LMMM][7]      | Learn about the differences between Meridian   |
-:                             : and LightweightMMM as you consider migrating.  :
-| [API Reference][8]          | API reference documentation for the Meridian   |
-:                             : package.                                       :
+| [Meridian basics][2]        | Learn about Meridian features, methodologies, and the model math. |
+| [Getting started colab][3]  | Install and quickly learn how to use Meridian with this colab tutorial using sample data. |
+| [User guide][4]             | A detailed walk-through of how to use Meridian and generating visualizations using your own data. |
+| [Advanced modeling considerations][5]    | Advanced modeling guidance for model refinement and edge cases. |
+| [Model debugging and troubleshooting][6] | Guidance for coding errors, model debugging, and troubleshooting. |
+| [Migrate from LMMM][7]      | Learn about the differences between Meridian and LightweightMMM as you consider migrating. |
+| [API Reference][8]          | API reference documentation for the Meridian package. |
 | [Reference list][9]         | White papers and other referenced material.    |
 
 [1]: https://developers.google.com/meridian
