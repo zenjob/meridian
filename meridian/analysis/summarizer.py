@@ -41,9 +41,9 @@ ROI_BREAKDOWN_CARD_SPEC = formatter.CardSpec(
     id=summary_text.ROI_BREAKDOWN_CARD_ID,
     title=summary_text.ROI_BREAKDOWN_CARD_TITLE,
 )
-OPTIMAL_ANALYST_CARD_SPEC = formatter.CardSpec(
-    id=summary_text.OPTIMAL_ANALYST_CARD_ID,
-    title=summary_text.OPTIMAL_ANALYST_CARD_TITLE,
+BUDGET_OPTIMIZATION_CARD_SPEC = formatter.CardSpec(
+    id=summary_text.BUDGET_OPTIMIZATION_CARD_ID,
+    title=summary_text.BUDGET_OPTIMIZATION_CARD_TITLE,
 )
 
 
@@ -180,7 +180,7 @@ class Summarizer:
         ),
         self._create_sales_contrib_card_html(template_env, media_summary),
         self._create_roi_breakdown_card_html(template_env, media_summary),
-        self._create_optimal_analyst_card_html(
+        self._create_budget_optimization_card_html(
             template_env,
             media_summary,
             media_effects,
@@ -363,7 +363,7 @@ class Summarizer:
         [roi_effectiveness_chart, roi_marginal_chart, roi_channel_chart],
     )
 
-  def _create_optimal_analyst_card_html(
+  def _create_budget_optimization_card_html(
       self,
       template_env: jinja2.Environment,
       media_summary: visualizer.MediaSummary,
@@ -385,7 +385,7 @@ class Summarizer:
     )
 
     if reach_frequency is None:
-      insights = summary_text.OPTIMAL_ANALYST_INSIGHTS_NO_RF
+      insights = summary_text.BUDGET_OPTIMIZATION_INSIGHTS_NO_RF
     else:
       assert self._meridian.n_rf_channels > 0
       optimal_rf = self._select_optimal_rf_data(media_summary, reach_frequency)
@@ -402,13 +402,13 @@ class Summarizer:
           )
       )
 
-      insights = summary_text.OPTIMAL_ANALYST_INSIGHTS_FORMAT.format(
+      insights = summary_text.BUDGET_OPTIMIZATION_INSIGHTS_FORMAT.format(
           rf_channel=channel_name,
           opt_freq=opt_freq,
       )
 
     return formatter.create_card_html(
-        template_env, OPTIMAL_ANALYST_CARD_SPEC, insights, charts
+        template_env, BUDGET_OPTIMIZATION_CARD_SPEC, insights, charts
     )
 
   def _select_optimal_rf_data(

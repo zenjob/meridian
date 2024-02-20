@@ -47,9 +47,7 @@ what drove your sales. {lead_sales_channels} drove the most overall sales.
 ${lead_roi_ratio:.1f} in sales."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
-CHANNEL_DRIVERS_CHART_TITLE = (
-    'Contribution by baseline, price promotions, and marketing channels'
-)
+CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'
 CHANNEL_DRIVERS_CHART_DESCRIPTION = """Note: This graphic encompasses all of
 your sales drivers, but breaks down your marketing actives by channel."""
 
@@ -60,9 +58,7 @@ SPEND_SALES_CHART_DESCRIPTION = """Note: Return on investment is calculated by
 dividing the sales attributed to a channel by marketing costs."""
 
 SALES_CONTRIBUTION_CHART_ID = 'sales-contribution-chart'
-CONTRIBUTION_CHART_TITLE = (
-    'Contribution by baseline, pricing promotions, and marketing channels'
-)
+CONTRIBUTION_CHART_TITLE = 'Contribution by baseline and marketing channels'
 SALES_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage
 breakdown of all your contributions of sales."""
 
@@ -93,12 +89,12 @@ ROI_CHANNEL_CHART_TITLE_FORMAT = 'Return on investment by channel {ci}'
 ROI_CHANNEL_CHART_DESCRIPTION = """Note: This is your return on investment with
 a confidence interval for each channel."""
 
-OPTIMAL_ANALYST_CARD_ID = 'optimal-analyst'
-OPTIMAL_ANALYST_CARD_TITLE = 'Optimal analyst'
-OPTIMAL_ANALYST_INSIGHTS_FORMAT = """Your response curves and optimal frequency
-with budget planning. Your optimal frequency for {rf_channel} is {opt_freq} per
-week."""
-OPTIMAL_ANALYST_INSIGHTS_NO_RF = 'Your response curves with budget planning.'
+BUDGET_OPTIMIZATION_CARD_ID = 'budget-optimization'
+BUDGET_OPTIMIZATION_CARD_TITLE = 'Response curves'
+BUDGET_OPTIMIZATION_INSIGHTS_FORMAT = """Your response curves and optimal
+frequency for budget planning. Your optimal frequency for {rf_channel} is
+{opt_freq} per week."""
+BUDGET_OPTIMIZATION_INSIGHTS_NO_RF = 'Your response curves for budget planning.'
 
 RESPONSE_CURVES_CHART_ID = 'response-curves-chart'
 RESPONSE_CURVES_CHART_TITLE = (

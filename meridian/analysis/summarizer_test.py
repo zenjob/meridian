@@ -273,7 +273,7 @@ class SummarizerTest(parameterized.TestCase):
       summarizer.MODEL_FIT_CARD_SPEC,
       summarizer.SALES_CONTRIB_CARD_SPEC,
       summarizer.ROI_BREAKDOWN_CARD_SPEC,
-      summarizer.OPTIMAL_ANALYST_CARD_SPEC,
+      summarizer.BUDGET_OPTIMIZATION_CARD_SPEC,
   )
   def test_output_card_static_chart_spec(self, card_spec):
     summary_html_dom = self._get_output_model_results_summary_html_dom()
@@ -329,7 +329,7 @@ class SummarizerTest(parameterized.TestCase):
           ],
       ),
       (
-          summary_text.OPTIMAL_ANALYST_CARD_ID,
+          summary_text.BUDGET_OPTIMIZATION_CARD_ID,
           [
               (
                   summary_text.RESPONSE_CURVES_CHART_ID,
@@ -714,7 +714,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertIn('channel 4 had the highest\nmarginal return', insights_text)
     self.assertIn('marginal return on investment at 1.54', insights_text)
 
-  def test_optimal_analyst_card_plotters_called(self):
+  def test_budget_optimization_card_plotters_called(self):
     media_effects = self.media_effects
     reach_frequency = self.reach_frequency
 
@@ -739,7 +739,7 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.OPTIMAL_ANALYST_CARD_ID},
+        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
     )
     script_texts = [
         script.text.strip()
@@ -755,7 +755,7 @@ class SummarizerTest(parameterized.TestCase):
     )
     self.assertTrue(all([mock_spec_1_exists, mock_spec_2_exists]))
 
-  def test_optimal_analyst_card_insights_multiple_channels(self):
+  def test_budget_optimization_card_insights_multiple_channels(self):
     media_summary = self.media_summary
     reach_frequency = self.reach_frequency
 
@@ -777,14 +777,15 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.OPTIMAL_ANALYST_CARD_ID},
+        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn('for channel 1 is 2.3 ', insights_text)
+    self.assertIsNotNone(insights_text)
+    self.assertIn('for channel 1 is 2.3 ', insights_text.replace('\n', ' '))
 
-  def test_optimal_analyst_card_insights_no_rf(self):
+  def test_budget_optimization_card_insights_no_rf(self):
     self.mock_meridian.n_rf_channels = 0
     reach_frequency = self.reach_frequency
     reach_frequency.optimal_frequency_data = xr.Dataset(
@@ -805,12 +806,14 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.OPTIMAL_ANALYST_CARD_ID},
+        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn(summary_text.OPTIMAL_ANALYST_INSIGHTS_NO_RF, insights_text)
+    self.assertIn(
+        summary_text.BUDGET_OPTIMIZATION_INSIGHTS_NO_RF, insights_text
+    )
 
 
 if __name__ == '__main__':
