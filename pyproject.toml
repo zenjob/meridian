@@ -7,10 +7,10 @@ description = """\
   your return on investment and direct your ad spend with confidence. \
   """
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
-  {name = "The Meridian Authors", email="1p-mmm-eng@google.com"},
+  {name = "The Meridian Authors", email="no-reply@google.com"},
 ]
 classifiers = [  # List of https://pypi.org/classifiers/
     "License :: OSI Approved :: Apache Software License",
@@ -50,7 +50,7 @@ documentation = "https://developers.google.com/meridian"
 # Development deps (unittest, linting, formating,...)
 # Installed through `pip install -e .[dev]`
 dev = [
-    "pytest",
+    "pytest>=8.0.0",
     "pytest-xdist",
     "pylint>=2.6.0",
     "pyink",
