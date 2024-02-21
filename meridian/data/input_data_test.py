@@ -17,6 +17,7 @@ from absl.testing import parameterized
 from meridian import constants
 from meridian.data import input_data
 from meridian.data import test_utils
+import pandas as pd
 import xarray as xr
 
 
@@ -46,6 +47,15 @@ class InputDataTest(parameterized.TestCase):
         n_media_channels=self.n_media_channels,
         date_format="week-%U",
     )
+    self.not_lagged_media_invalid_timestamp_values = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        explicit_time_index=pd.date_range(
+            start="2022-01-01", periods=self.n_times, freq="W"
+        ),
+    )
     self.lagged_media = test_utils.random_media_da(
         n_geos=self.n_geos,
         n_times=self.n_times,
@@ -74,6 +84,15 @@ class InputDataTest(parameterized.TestCase):
             n_controls=self.n_controls,
             date_format="week-%U",
         )
+    )
+    self.not_lagged_controls_timestamp_values = test_utils.random_controls_da(
+        media=self.not_lagged_media,
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_controls=self.n_controls,
+        explicit_time_index=pd.date_range(
+            start="2022-01-01", periods=self.n_times, freq="W"
+        ),
     )
     self.lagged_controls = test_utils.random_controls_da(
         media=self.lagged_media,
@@ -145,12 +164,40 @@ class InputDataTest(parameterized.TestCase):
           media_spend=self.media_spend,
       )
 
+  def test_construct_media_only_invalid_media_time_values_type(self):
+    with self.assertRaisesRegex(
+        ValueError, expected_regex="Invalid media_time label:"
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=self.not_lagged_media_invalid_timestamp_values,
+          media_spend=self.media_spend,
+      )
+
   def test_construct_media_only_invalid_controls_time_values(self):
     with self.assertRaisesRegex(
         ValueError, expected_regex="Invalid time label: week-04"
     ):
       input_data.InputData(
           controls=self.not_lagged_controls_invalid_time_values,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
+  def test_construct_media_only_invalid_controls_time_values_type(self):
+    with self.assertRaisesRegex(
+        ValueError, expected_regex="Invalid time label:"
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls_timestamp_values,
           kpi=self.not_lagged_kpi,
           kpi_type=constants.REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
@@ -238,9 +285,7 @@ class InputDataTest(parameterized.TestCase):
     )
 
     xr.testing.assert_equal(data.geo, self.not_lagged_kpi[constants.GEO])
-    xr.testing.assert_equal(
-        data.time, self.not_lagged_kpi[constants.TIME]
-    )
+    xr.testing.assert_equal(data.time, self.not_lagged_kpi[constants.TIME])
     xr.testing.assert_equal(
         data.media_time, self.not_lagged_media[constants.MEDIA_TIME]
     )
@@ -266,9 +311,7 @@ class InputDataTest(parameterized.TestCase):
     )
 
     xr.testing.assert_equal(data.geo, self.not_lagged_kpi[constants.GEO])
-    xr.testing.assert_equal(
-        data.time, self.not_lagged_kpi[constants.TIME]
-    )
+    xr.testing.assert_equal(data.time, self.not_lagged_kpi[constants.TIME])
     xr.testing.assert_equal(
         data.media_time, self.not_lagged_reach[constants.MEDIA_TIME]
     )
@@ -296,9 +339,7 @@ class InputDataTest(parameterized.TestCase):
     )
 
     xr.testing.assert_equal(data.geo, self.not_lagged_kpi[constants.GEO])
-    xr.testing.assert_equal(
-        data.time, self.not_lagged_kpi[constants.TIME]
-    )
+    xr.testing.assert_equal(data.time, self.not_lagged_kpi[constants.TIME])
     xr.testing.assert_equal(
         data.media_time, self.not_lagged_media[constants.MEDIA_TIME]
     )
@@ -417,9 +458,7 @@ class InputDataTest(parameterized.TestCase):
 
     dataset = data.as_dataset()
 
-    xr.testing.assert_equal(
-        dataset[constants.KPI], self.not_lagged_kpi
-    )
+    xr.testing.assert_equal(dataset[constants.KPI], self.not_lagged_kpi)
     xr.testing.assert_equal(
         dataset[constants.REVENUE_PER_KPI], self.revenue_per_kpi
     )
@@ -448,9 +487,7 @@ class InputDataTest(parameterized.TestCase):
 
     dataset = data.as_dataset()
 
-    xr.testing.assert_equal(
-        dataset[constants.KPI], self.not_lagged_kpi
-    )
+    xr.testing.assert_equal(dataset[constants.KPI], self.not_lagged_kpi)
     xr.testing.assert_equal(
         dataset[constants.REVENUE_PER_KPI], self.revenue_per_kpi
     )
@@ -478,9 +515,7 @@ class InputDataTest(parameterized.TestCase):
 
     dataset = data.as_dataset()
 
-    xr.testing.assert_equal(
-        dataset[constants.KPI], self.not_lagged_kpi
-    )
+    xr.testing.assert_equal(dataset[constants.KPI], self.not_lagged_kpi)
     xr.testing.assert_equal(
         dataset[constants.REVENUE_PER_KPI], self.revenue_per_kpi
     )

@@ -359,8 +359,22 @@ def random_media_da(
     n_media_channels: int,
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
+    explicit_time_index=None,
 ) -> xr.DataArray:
-  """Generates a sample `media` DataArray."""
+  """Generates a sample `media` DataArray.
+
+  Args:
+    n_geos: Number of geos
+    n_times: Number of time periods
+    n_media_times: Number of media time periods
+    n_media_channels: Number of media channels
+    seed: Random seed used by `np.random.seed()`
+    date_format: The date format to use for time coordinate labels
+    explicit_time_index: If given, ignore `date_format` and use this as is
+
+  Returns:
+    A DataArray containing random data.
+  """
 
   np.random.seed(seed)
 
@@ -373,16 +387,21 @@ def random_media_da(
           np.random.normal(5, 5, size=(n_geos, n_media_times, n_media_channels))
       )
   )
+  if explicit_time_index is None:
+    media_time = _sample_times(
+        n_times=n_media_times,
+        start_date=start_date,
+        date_format=date_format,
+    )
+  else:
+    media_time = explicit_time_index
+
   return xr.DataArray(
       media,
       dims=['geo', 'media_time', 'media_channel'],
       coords={
           'geo': _sample_names(prefix='geo_', n_names=n_geos),
-          'media_time': _sample_times(
-              n_times=n_media_times,
-              start_date=start_date,
-              date_format=date_format,
-          ),
+          'media_time': media_time,
           'media_channel': _sample_names(
               prefix='ch_', n_names=n_media_channels
           ),
@@ -464,8 +483,22 @@ def random_controls_da(
     n_controls: int,
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
+    explicit_time_index=None,
 ) -> xr.DataArray:
-  """Generates a sample `controls` DataArray."""
+  """Generates a sample `controls` DataArray.
+
+  Args:
+    media: The media data array
+    n_geos: Number of geos
+    n_times: Number of time periods
+    n_controls: Number of controls
+    seed: Random seed used by `np.random.seed()`
+    date_format: The date format to use for time coordinate labels
+    explicit_time_index: If given, ignore `date_format` and use this as is
+
+  Returns:
+    A DataArray containing random controls variable.
+  """
 
   np.random.seed(seed)
 
@@ -481,7 +514,11 @@ def random_controls_da(
       dims=['geo', 'time', 'control_variable'],
       coords={
           'geo': _sample_names(prefix='geo_', n_names=n_geos),
-          'time': _sample_times(n_times=n_times, date_format=date_format),
+          'time': (
+              _sample_times(n_times=n_times, date_format=date_format)
+              if explicit_time_index is None
+              else explicit_time_index
+          ),
           'control_variable': _sample_names(
               prefix='control_', n_names=n_controls
           ),

@@ -348,7 +348,7 @@ class InputData:
       for time in time_values:
         try:
           _ = datetime.strptime(time.item(), constants.DATE_FORMAT)
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
           raise ValueError(
               f"Invalid time label: {time.item()}. Expected format:"
               f" {constants.DATE_FORMAT}"
@@ -359,7 +359,7 @@ class InputData:
       for time in media_time_values:
         try:
           _ = datetime.strptime(time.item(), constants.DATE_FORMAT)
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
           raise ValueError(
               f"Invalid media_time label: {time.item()}. Expected format:"
               f" {constants.DATE_FORMAT}"
