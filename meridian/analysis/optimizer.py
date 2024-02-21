@@ -366,7 +366,7 @@ class BudgetOptimizer:
     # start at 0. Calculate the total decrease in incremental impact to pad the
     # y-axis from the current total incremental impact value.
     sum_decr = sum(df[df.incremental_impact < 0].incremental_impact)
-    y_padding = float(f'1e{int(math.log10(-sum_decr))}')
+    y_padding = float(f'1e{int(math.log10(-sum_decr))}') if sum_decr < 0 else 2
     domain_scale = [
         self.nonoptimized_data.total_incremental_impact + sum_decr - y_padding,
         self.optimized_data.total_incremental_impact + y_padding,
