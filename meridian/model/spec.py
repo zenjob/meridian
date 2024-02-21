@@ -37,10 +37,10 @@ def _validate_roi_calibration_period(
 
 @dataclasses.dataclass(frozen=True)
 class ModelSpec:
-  """Model specification parameters for Calibra.
+  """Model specification parameters for Meridian.
 
   This class contains all model parameters that do not change between the runs
-  of Calibra.
+  of Meridian.
 
   Attributes:
     prior: A `PriorDistribution` object specifying the prior distribution of

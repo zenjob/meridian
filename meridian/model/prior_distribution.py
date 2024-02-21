@@ -65,7 +65,7 @@ class PriorDistribution:
     tau_g_excl_baseline: prior distribution on geo effects which represent the
       average KPI of each geo relative to the baseline geo. This parameter is
       broadcast to a vector of length `n_geos - 1`, preserving the geo order and
-      excluding the `baseline_geo`. After sampling, Calibra.inference_data
+      excluding the `baseline_geo`. After sampling, `Meridian.inference_data`
       includes a modified version of this parameter simply called `tau_g` which
       has length `n_geos` and contains a zero in the position corresponding to
       `baseline_geo`. Meridian ignores this distribution if `n_geos` = 1.
