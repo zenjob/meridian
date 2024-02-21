@@ -1480,6 +1480,39 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         meridian._get_joint_dist().log_prob(par)[0],
     )
 
+  def test_sample_prior_seed_same_seed(self):
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS, seed=[1, 1])
+    meridian2 = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian2.sample_prior(n_draws=self._N_DRAWS, seed=[1, 1])
+    self.assertEqual(
+        meridian.inference_data.prior, meridian2.inference_data.prior
+        )
+
+  def test_sample_prior_different_seed(self):
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS, seed=[1, 1])
+    meridian2 = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian2.sample_prior(n_draws=self._N_DRAWS, seed=[2, 2])
+
+    self.assertNotEqual(
+        meridian.inference_data.prior, meridian2.inference_data.prior
+        )
+
   def test_sample_prior_media_and_rf_returns_correct_shape(self):
     self.enter_context(
         mock.patch.object(

@@ -861,17 +861,30 @@ class Meridian:
     }
 
   @tf.function(autograph=False, jit_compile=True)
-  def _sample_prior_fn(self, n_draws: int) -> tfp.distributions.Distribution:
-    return self._get_joint_dist().sample_unpinned([1, n_draws])._asdict()
+  def _sample_prior_fn(
+      self,
+      n_draws: int,
+      seed: Sequence[int] | None = None,
+  ) -> tfp.distributions.Distribution:
+    return (
+        self._get_joint_dist()
+        .sample_unpinned(
+            [1, n_draws],
+            seed=seed,
+        )
+        ._asdict()
+    )
 
-  def sample_prior(self, n_draws: int):
+  def sample_prior(self, n_draws: int, seed: Sequence[int] | None = None):
     """Runs MCMC sampling of prior distribution.
 
     Args:
       n_draws: Number of samples drawn from the prior distribution.
+      seed: Used to set the seed for reproducible results. See
+        'https://github.com/tensorflow/probability/blob/main/PRNGS.md' for more
+        information on using seeds for reproducibility.
     """
-
-    prior_draws_sampled = self._sample_prior_fn(n_draws)
+    prior_draws_sampled = self._sample_prior_fn(n_draws, seed=seed)
     prior_draws = {
         k: v
         for k, v in prior_draws_sampled.items()
@@ -898,7 +911,7 @@ class Meridian:
       max_energy_diff: float = 500.0,
       unrolled_leapfrog_steps: int = 1,
       parallel_iterations: int = 10,
-      seed: int | None = None,
+      seed: Sequence[int] | None = None,
       **pins,
   ):
     """Runs MCMC sampling of posterior distribution.
@@ -931,7 +944,7 @@ class Meridian:
         maximum number of leapfrog steps is bounded by `2**max_tree_depth` i.e.
         the number of nodes in a binary tree `max_tree_depth` nodes deep. The
         default setting of 10 takes up to 1024 leapfrog steps.
-      max_energy_dif: Scalar threshold of energy differences at each leapfrog,
+      max_energy_diff: Scalar threshold of energy differences at each leapfrog,
         divergence samples are defined as leapfrog steps that exceed this
         threshold. Default to 1000.
       unrolled_leapfrog_steps: The number of leapfrogs to unroll per tree
@@ -939,11 +952,12 @@ class Meridian:
         trajectory length implied by max_tree_depth. Defaults to 1.
       parallel_iterations: The number of iterations allowed to run in parallel.
         It must be a positive integer. See `tf.while_loop` for more details.
-      seed: Optional integer used to set the seed for reproducible results.
+      seed: Used to set the seed for reproducible results. See
+        'https://github.com/tensorflow/probability/blob/main/PRNGS.md' for more
+        information on using seeds for reproducibility.
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
     """
-    seed = tfp.random.sanitize_seed(seed) if seed else None
 
     mcmc = _xla_windowed_adaptive_nuts(
         n_draws=n_burnin + n_keep,
