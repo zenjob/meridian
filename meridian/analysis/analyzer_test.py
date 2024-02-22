@@ -1162,6 +1162,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     media_summary = self.analyzer_media_and_rf.media_summary_metrics(
         confidence_level=0.9,
+        marginal_roi_by_reach=False,
         aggregate_geos=True,
         aggregate_times=True,
         selected_geos=None,
@@ -1220,6 +1221,32 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
     )
 
+  def test_by_reach_returns_correct_values(self):
+    type(self.meridian_rf_only).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_rf_only
+    )
+    mroi = self.analyzer_rf_only.marginal_roi(
+        use_posterior=True,
+        aggregate_geos=True,
+        aggregate_times=True,
+        selected_geos=None,
+        selected_times=None,
+        by_reach=True,
+    )
+    roi = self.analyzer_rf_only.roi(
+        use_posterior=True,
+        aggregate_geos=True,
+        aggregate_times=True,
+        selected_geos=None,
+        selected_times=None,
+    )
+    self.assertAllClose(
+        mroi,
+        roi,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+
   @parameterized.product(
       aggregate_geos=[False, True],
       aggregate_times=[False, True],
@@ -1256,6 +1283,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
     media_summary = analyzer.media_summary_metrics(
         confidence_level=0.8,
+        marginal_roi_by_reach=False,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
         selected_geos=selected_geos,
@@ -1298,6 +1326,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       warnings.simplefilter("always")
       media_summary = self.analyzer_rf_only.media_summary_metrics(
           confidence_level=0.8,
+          marginal_roi_by_reach=False,
           aggregate_geos=True,
           aggregate_times=False,
           selected_geos=None,
@@ -1720,11 +1749,14 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    response_curve_data = self.analyzer_media_and_rf.response_curves()
+    response_curve_data = self.analyzer_media_and_rf.response_curves(
+        by_reach=False
+    )
     response_data_spend = response_curve_data.spend.values
 
     media_summary_spend = self.analyzer_media_and_rf.media_summary_metrics(
-        confidence_level=0.9
+        confidence_level=0.9,
+        marginal_roi_by_reach=False,
     ).spend[:-1]
     self.assertAllEqual(
         media_summary_spend * 2,
@@ -1735,11 +1767,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     type(self.meridian_rf_only).inference_data = mock.PropertyMock(
         return_value=self.inference_data_rf_only
     )
-    response_curve_data = self.analyzer_rf_only.response_curves()
+    response_curve_data = self.analyzer_rf_only.response_curves(by_reach=False)
     response_data_spend = response_curve_data.spend.values
 
     media_summary_spend = self.analyzer_rf_only.media_summary_metrics(
-        confidence_level=0.9
+        confidence_level=0.9,
+        marginal_roi_by_reach=False,
     ).spend[:-1]
     self.assertAllEqual(
         media_summary_spend * 2,
