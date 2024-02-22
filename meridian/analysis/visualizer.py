@@ -1045,7 +1045,7 @@ class MediaEffects:
       self,
       include_prior: bool = True,
       include_ci: bool = True,
-  ):
+  ) -> alt.Chart | list[alt.Chart]:
     """Plots the Hill curves for each channel.
 
     Args:
@@ -1055,7 +1055,9 @@ class MediaEffects:
 
     Returns:
       A faceted Altair plot showing the histogram and prior+posterior lines and
-      bands for the Hill curves.
+      bands for the hill saturation curves. In the case that there are both
+      media and R&F channels, a list of 2 faceted Altair plots are returned, one
+      for the media channels and the next for the R&F channels.
     """
     channel_types = list(set(self._hill_curves_dataframe[c.CHANNEL_TYPE]))
     plot_media, plot_rf = None, None
@@ -1074,8 +1076,6 @@ class MediaEffects:
       ]
       plot_rf = self._plot_hill_curves_helper(rf_df, include_prior, include_ci)
 
-    if plot_media and plot_rf:
-      return [plot_media, plot_rf]
     if plot_media and plot_rf:
       return [plot_media, plot_rf]
     elif plot_media:
