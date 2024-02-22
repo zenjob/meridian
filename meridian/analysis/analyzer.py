@@ -1487,8 +1487,8 @@ class Analyzer:
       A xr.Dataset with coordinates: `channel`, `metric` (mean, ci_high,
       ci_low), `distribution` (prior, posterior) and containing the following
       data variables: `impressions`, `pct_of_impressions`, `spend`,
-      `pct_of_spend`, `spend_per_impression`, `incremental_impact`,
-      `pct_of_contribution`, `roi`, `effectiveness`, `mroi`.
+      `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
+      `effectiveness`, `mroi`.
     """
     dim_kwargs = {
         "selected_geos": selected_geos,
@@ -1652,12 +1652,12 @@ class Analyzer:
       mroi *= np.nan
       effectiveness *= np.nan
     return xr.merge([
-        roi,
-        mroi,
         spend_data,
-        effectiveness,
         incremental_impact,
         pct_of_contribution,
+        roi,
+        effectiveness,
+        mroi,
     ])
 
   def optimal_freq(
@@ -2642,7 +2642,7 @@ class Analyzer:
       * pct_of_impressions
       * spend
       * pct_of_spend
-      * spend_per_impression
+      * CPM (spend for every 1,000 impressions)
     """
     pct_of_impressions = (
         impressions_with_total / impressions_with_total[..., -1:] * 100
@@ -2655,9 +2655,9 @@ class Analyzer:
             constants.PCT_OF_IMPRESSIONS: (xr_dims, pct_of_impressions),
             constants.SPEND: (xr_dims, spend_with_total),
             constants.PCT_OF_SPEND: (xr_dims, pct_of_spend),
-            constants.SPEND_PER_IMPRESSION: (
+            constants.CPM: (
                 xr_dims,
-                spend_with_total / impressions_with_total,
+                spend_with_total / impressions_with_total * 1000,
             ),
         },
         coords=xr_coords,

@@ -15,7 +15,7 @@
 """Visualization module that creates analytical plots for the Meridian model."""
 
 from collections.abc import Sequence
-from functools import lru_cache
+import functools
 
 import altair as alt
 from meridian import constants as c
@@ -40,7 +40,7 @@ class ModelDiagnostics:
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
 
-  @lru_cache(maxsize=128)
+  @functools.lru_cache(maxsize=128)
   def _predictive_accuracy_dataset(
       self,
       selected_geos: frozenset[str] | None = None,
@@ -1257,11 +1257,76 @@ class MediaSummary:
     Coordinates:
       channel, metric (mean, ci_high, ci_low), distribution (prior, posterior)
     Data variables:
-      impressions, pct_of_impressions, spend, pct_of_spend,
-      spend_per_impressions, incremental_impact, pct_of_contribution, roi,
-      effectiveness, mroi.
+      impressions, pct_of_impressions, spend, pct_of_spend, CPM,
+      incremental_impact, pct_of_contribution, roi, effectiveness, mroi.
     """
     return self._media_summary_metrics
+
+  def summary_table(
+      self, include_prior: bool = True, include_posterior: bool = True
+  ) -> pd.DataFrame:
+    """Returns a formatted dataframe table of the media summary metrics.
+
+    Mean and credible interval summary metrics are formatted as text.
+
+    Args:
+      include_prior: If True, prior distribution summary metrics are included.
+        One of `include_prior` and `include_posterior` must be True.
+      include_posterior: If True, posterior distribution summary metrics are
+        included. One of `include_prior` and `include_posterior` must be True.
+
+    Returns:
+      pandas.DataFrame of formatted summary metrics.
+    """
+    if not (include_posterior or include_prior):
+      raise ValueError(
+          'At least one of `include_posterior` or `include_prior` must be True.'
+      )
+    use_revenue = self._meridian.input_data.revenue_per_kpi is not None
+    distribution = [c.PRIOR] * include_prior + [c.POSTERIOR] * include_posterior
+    df = self.media_summary_metrics.sel(
+        distribution=distribution
+    ).to_dataframe()
+
+    data_vars = self.media_summary_metrics.data_vars
+    digits = {k: 1 if min(abs(df[k])) < 1 else 0 for k in list(data_vars)}
+    digits[c.EFFECTIVENESS] = 2
+    for k, v in digits.items():
+      df[k] = df[k].apply(f'{{0:,.{v}f}}'.format)
+
+    # Format percentages.
+    for k in [
+        c.PCT_OF_IMPRESSIONS,
+        c.PCT_OF_SPEND,
+        c.PCT_OF_CONTRIBUTION,
+    ]:
+      df[k] = df[k].astype(str) + '%'
+
+    # Format monetary values.
+    monetary = [c.SPEND] + [c.INCREMENTAL_IMPACT] * use_revenue
+    for k in monetary:
+      df[k] = '$' + df[k].astype(str)
+
+    # Format the model result data variables as mean (ci_lo, ci_hi).
+    index_vars = [c.CHANNEL, c.DISTRIBUTION]
+    input_data = [k for k, v in data_vars.items() if len(v.shape) == 1]
+    return (
+        df.groupby(index_vars + input_data, sort=False)
+        .aggregate(lambda g: f'{g[0]} ({g[1]}, {g[2]})')
+        .reset_index()
+        .rename(
+            columns={
+                c.PCT_OF_IMPRESSIONS: summary_text.PCT_IMPRESSIONS_COL,
+                c.PCT_OF_SPEND: summary_text.PCT_SPEND_COL,
+                c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
+                c.INCREMENTAL_IMPACT: (
+                    summary_text.INC_REVENUE_COL
+                    if use_revenue
+                    else summary_text.INC_KPI_COL
+                ),
+            }
+        )
+    )
 
   def update_media_summary_metrics(
       self,

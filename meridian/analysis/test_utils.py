@@ -563,13 +563,13 @@ SAMPLE_PCT_OF_IMPRESSIONS = np.array([
     5.163425e01,
     1.000000e02,
 ])
-SAMPLE_SPEND_PER_IMPRESSION = np.array([
-    2.0234682e-01,
-    2.0265581e-01,
-    2.0089923e-01,
-    8.3189690e-05,
-    8.2318867e-05,
-    2.0500316e-04,
+SAMPLE_CPM = np.array([
+    2.023468e02,
+    2.026558e02,
+    2.008992e02,
+    8.318969e-02,
+    8.231886e-02,
+    2.050032e-01,
 ])
 
 
@@ -686,38 +686,40 @@ def generate_media_summary_metrics() -> xr.Dataset:
   pct_of_spend = np.random.randint(low=0, high=100, size=len(channel))
   spend = np.random.randint(low=10, high=1000, size=len(channel))
   impressions = np.random.randint(low=10, high=1000, size=len(channel))
-  spend_per_impression = np.random.random(size=len(channel))
+  cpm = np.random.random(size=len(channel))
   roi = np.random.lognormal(1, 1, size=shape)
   mroi = np.random.lognormal(0, 1, size=shape)
   incremental_impact = np.random.lognormal(10, 1, size=shape)
   effectiveness = np.random.lognormal(1, 1, size=shape)
   pct_of_contribution = np.random.randint(low=0, high=50, size=shape)
+  pct_of_impressions = np.random.randint(low=0, high=100, size=len(channel))
 
   return xr.Dataset(
       data_vars={
-          c.PCT_OF_SPEND: ([c.CHANNEL], pct_of_spend),
-          c.SPEND: ([c.CHANNEL], spend),
           c.IMPRESSIONS: ([c.CHANNEL], impressions),
-          c.SPEND_PER_IMPRESSION: ([c.CHANNEL], spend_per_impression),
-          c.ROI: (
-              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              roi,
-          ),
-          c.MROI: (
-              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              mroi,
-          ),
+          c.PCT_OF_IMPRESSIONS: ([c.CHANNEL], pct_of_impressions),
+          c.SPEND: ([c.CHANNEL], spend),
+          c.PCT_OF_SPEND: ([c.CHANNEL], pct_of_spend),
+          c.CPM: ([c.CHANNEL], cpm),
           c.INCREMENTAL_IMPACT: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
               incremental_impact,
+          ),
+          c.PCT_OF_CONTRIBUTION: (
+              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
+              pct_of_contribution,
+          ),
+          c.ROI: (
+              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
+              roi,
           ),
           c.EFFECTIVENESS: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
               effectiveness,
           ),
-          c.PCT_OF_CONTRIBUTION: (
+          c.MROI: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              pct_of_contribution,
+              mroi,
           ),
       },
       coords={

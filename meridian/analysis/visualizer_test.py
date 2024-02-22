@@ -26,6 +26,7 @@ from meridian.analysis import summary_text
 from meridian.analysis import test_utils
 from meridian.analysis import visualizer
 from meridian.data import input_data
+from meridian.data import test_utils as data_test_utils
 from meridian.model import model
 import numpy as np
 import xarray as xr
@@ -1291,6 +1292,9 @@ class MediaSummaryTest(parameterized.TestCase):
   def setUp(self):
     super(MediaSummaryTest, self).setUp()
     self.input_data = mock.create_autospec(input_data.InputData, instance=True)
+    type(self.input_data).revenue_per_kpi = mock.PropertyMock(
+        return_value=data_test_utils.constant_revenue_per_kpi(5, 5, 1)
+    )
     self.meridian = mock.create_autospec(
         model.Meridian, instance=True, input_data=self.input_data
     )
@@ -1308,6 +1312,77 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(
         self.media_summary.media_summary_metrics, self.mock_media_metrics
     )
+
+  def test_media_summary_summary_table_distribution_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "At least one of `include_posterior` or `include_prior` must be True.",
+    ):
+      self.media_summary.summary_table(
+          include_prior=False, include_posterior=False
+      )
+
+  def test_media_summary_summary_table_posterior_only(self):
+    df = self.media_summary.summary_table(include_prior=False)
+    self.assertNotIn(c.PRIOR, df[c.DISTRIBUTION])
+
+  def test_media_summary_summary_table_prior_only(self):
+    df = self.media_summary.summary_table(include_posterior=False)
+    self.assertNotIn(c.POSTERIOR, df[c.DISTRIBUTION])
+
+  # TODO(b/323002234): Add a test for the KPI scenario.
+  def test_media_summary_summary_table_revenue(self):
+    df = self.media_summary.summary_table()
+    self.assertListEqual(
+        list(df.columns),
+        [
+            c.CHANNEL,
+            c.DISTRIBUTION,
+            c.IMPRESSIONS,
+            summary_text.PCT_IMPRESSIONS_COL,
+            c.SPEND,
+            summary_text.PCT_SPEND_COL,
+            c.CPM,
+            summary_text.INC_REVENUE_COL,
+            summary_text.PCT_CONTRIBUTION_COL,
+            c.ROI,
+            c.EFFECTIVENESS,
+            c.MROI,
+        ],
+    )
+
+  def test_media_summary_summary_table_format_pct(self):
+    df = self.media_summary.summary_table()
+    self.assertTrue(
+        all("%" in pct for pct in df[summary_text.PCT_IMPRESSIONS_COL])
+    )
+    self.assertTrue(all("%" in pct for pct in df[summary_text.PCT_SPEND_COL]))
+    self.assertTrue(
+        all("%" in pct for pct in df[summary_text.PCT_CONTRIBUTION_COL])
+    )
+
+  def test_media_summary_summary_table_format_monetary(self):
+    df = self.media_summary.summary_table()
+    self.assertTrue(all("$" in dollar for dollar in df[c.SPEND]))
+    self.assertTrue(all("$" in pct for pct in df[summary_text.INC_REVENUE_COL]))
+
+  def test_media_summary_summary_table_format_credible_interval(self):
+    df = self.media_summary.summary_table()
+    inc_rev = self.mock_media_metrics.incremental_impact
+    expected_mean = inc_rev.sel(metric="mean", distribution="prior").values[0]
+    expected_ci_lo = inc_rev.sel(metric="ci_lo", distribution="prior").values[0]
+    expected_ci_hi = inc_rev.sel(metric="ci_hi", distribution="prior").values[0]
+    mean = "${0:,.0f}".format(expected_mean)
+    ci_lo = "${0:,.0f}".format(expected_ci_lo)
+    ci_hi = "${0:,.0f}".format(expected_ci_hi)
+    actual_inc_rev = df[summary_text.INC_REVENUE_COL][0]
+    self.assertEqual(actual_inc_rev, f"{mean} ({ci_lo}, {ci_hi})")
+    self.assertContainsInOrder(
+        ["(", ",", ")"], df[summary_text.PCT_CONTRIBUTION_COL][0]
+    )
+    self.assertContainsInOrder(["(", ",", ")"], df[c.ROI][0])
+    self.assertContainsInOrder(["(", ",", ")"], df[c.EFFECTIVENESS][0])
+    self.assertContainsInOrder(["(", ",", ")"], df[c.MROI][0])
 
   def test_media_summary_update_ci(self):
     self.assertEqual(

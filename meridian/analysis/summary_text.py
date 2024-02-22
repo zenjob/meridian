@@ -191,3 +191,10 @@ WMAPE_LABEL = 'wMAPE'
 TRAINING_DATA_LABEL = 'Training Data'
 TESTING_DATA_LABEL = 'Testing Data'
 ALL_DATA_LABEL = 'All Data'
+
+# Summary metrics table columns.
+PCT_IMPRESSIONS_COL = '% impressions'
+PCT_SPEND_COL = '% spend'
+PCT_CONTRIBUTION_COL = '% contribution'
+INC_REVENUE_COL = 'incremental revenue'
+INC_KPI_COL = 'incremental KPI'

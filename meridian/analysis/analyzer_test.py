@@ -1170,7 +1170,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNotNone(media_summary.impressions)
     self.assertIsNotNone(media_summary.spend)
     self.assertIsNotNone(media_summary.pct_of_spend)
-    self.assertIsNotNone(media_summary.spend_per_impression)
+    self.assertIsNotNone(media_summary.cpm)
     self.assertIsNotNone(media_summary.incremental_impact)
     self.assertIsNotNone(media_summary.pct_of_contribution)
     self.assertIsNotNone(media_summary.roi)
@@ -1192,8 +1192,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         rtol=1e-2,
     )
     self.assertAllClose(
-        media_summary.spend_per_impression,
-        test_utils.SAMPLE_SPEND_PER_IMPRESSION,
+        media_summary.cpm,
+        test_utils.SAMPLE_CPM,
     )
     self.assertAllClose(
         media_summary.incremental_impact,
@@ -1283,9 +1283,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(media_summary.spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.pct_of_spend.shape, expected_channel_shape)
-    self.assertEqual(
-        media_summary.spend_per_impression.shape, expected_channel_shape
-    )
+    self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
     self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
     self.assertEqual(media_summary.roi.shape, expected_shape)
