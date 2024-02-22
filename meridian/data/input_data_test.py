@@ -157,7 +157,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media_invalid_time_values,
@@ -185,7 +185,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls_invalid_time_values,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -210,7 +210,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -231,7 +231,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.not_lagged_reach,
@@ -253,7 +253,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -277,7 +277,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -302,7 +302,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.not_lagged_reach,
@@ -328,7 +328,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -365,7 +365,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -388,7 +388,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.not_lagged_reach,
@@ -404,7 +404,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.lagged_controls,
         kpi=self.lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.lagged_media,
@@ -428,7 +428,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -446,7 +446,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -478,7 +478,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -505,7 +505,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.not_lagged_reach,
@@ -545,7 +545,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=media2,
@@ -567,7 +567,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -587,7 +587,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -610,7 +610,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -632,7 +632,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=media_short,
@@ -654,7 +654,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -680,7 +680,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,
@@ -698,7 +698,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=population,
         media=self.not_lagged_media,
@@ -715,7 +715,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         media=self.not_lagged_media,
@@ -730,7 +730,7 @@ class InputDataTest(parameterized.TestCase):
     data = input_data.InputData(
         controls=self.not_lagged_controls,
         kpi=self.not_lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.not_lagged_reach,
@@ -748,7 +748,7 @@ class InputDataTest(parameterized.TestCase):
         media_spend=self.media_spend,
         controls=self.lagged_controls,
         kpi=self.lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.lagged_reach,
@@ -775,7 +775,7 @@ class InputDataTest(parameterized.TestCase):
         media_spend=self.media_spend,
         controls=self.lagged_controls,
         kpi=self.lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.lagged_reach,
@@ -802,7 +802,7 @@ class InputDataTest(parameterized.TestCase):
         media_spend=self.media_spend,
         controls=self.lagged_controls,
         kpi=self.lagged_kpi,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         revenue_per_kpi=self.revenue_per_kpi,
         population=self.population,
         reach=self.lagged_reach,

@@ -171,7 +171,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_media_channels=10,
         n_controls=5,
     )
-    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
     data = loader.load()
 
@@ -203,7 +203,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     })
 
     loader = load.XrDatasetDataLoader(
-        dataset_with_datetime_values, kpi_type=constants.REVENUE
+        dataset_with_datetime_values, kpi_type=constants.NON_REVENUE
     )
     data = loader.load()
 
@@ -236,7 +236,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         "Invalid time label: '2023-W4'. Expected format:"
         f" '{constants.DATE_FORMAT}'",
     ):
-      _ = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+      _ = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
   @parameterized.named_parameters(
       dict(
@@ -278,7 +278,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     with warnings.catch_warnings(record=True) as w:
       # Cause all warnings to always be triggered.
       warnings.simplefilter('always')
-      loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+      loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
       if has_population:
         self.assertLen(w, 1)
         self.assertTrue(issubclass(w[0].category, UserWarning))
@@ -312,7 +312,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_media_channels=10,
         n_controls=5,
     )
-    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
     data = loader.load()
 
@@ -337,7 +337,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_rf_channels=2,
         n_controls=5,
     )
-    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
     data = loader.load()
 
@@ -361,7 +361,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_rf_channels=2,
         n_controls=5,
     )
-    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.REVENUE)
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
     data = loader.load()
 
@@ -391,7 +391,8 @@ class InputDataLoaderTest(parameterized.TestCase):
         " 'name_mapping' argument to rename the arrays.",
     ):
       _ = load.XrDatasetDataLoader(
-          dataset.rename({constants.KPI: 'revenue'}), kpi_type=constants.REVENUE
+          dataset.rename({constants.KPI: 'conversions'}),
+          kpi_type=constants.NON_REVENUE,
       )
 
   def test_xr_dataset_data_loader_name_mapping_works(self):
@@ -404,9 +405,9 @@ class InputDataLoaderTest(parameterized.TestCase):
     )
 
     loader = load.XrDatasetDataLoader(
-        dataset.rename({constants.KPI: 'revenue', constants.GEO: 'group'}),
-        kpi_type=constants.REVENUE,
-        name_mapping={'revenue': constants.KPI, 'group': constants.GEO},
+        dataset.rename({constants.KPI: 'conversions', constants.GEO: 'group'}),
+        kpi_type=constants.NON_REVENUE,
+        name_mapping={'conversions': constants.KPI, 'group': constants.GEO},
     )
 
     data = loader.load()
@@ -479,10 +480,7 @@ class InputDataLoaderTest(parameterized.TestCase):
   )
   def test_xr_dataset_data_loader_missing_data_fails(self, data, error_message):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
-      _ = load.XrDatasetDataLoader(
-          data,
-          kpi_type=constants.REVENUE,
-      )
+      _ = load.XrDatasetDataLoader(data, kpi_type=constants.NON_REVENUE)
 
   def test_xr_dataset_data_loader_wrong_name_mapping_fails(self):
     dataset = test_utils.random_dataset(
@@ -505,7 +503,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     ):
       load.XrDatasetDataLoader(
           dataset.rename({constants.KPI: 'revenue'}),
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           name_mapping={constants.KPI: 'revenue'},
       )
 
@@ -537,7 +535,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.DataFrameDataLoader(
         df=df,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=self._correct_media_to_channel,
         media_spend_to_channel=self._correct_media_spend_to_channel,
         reach_to_channel=self._correct_reach_to_channel,
@@ -595,7 +593,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.DataFrameDataLoader(
         df=df,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=self._correct_media_to_channel,
         media_spend_to_channel=self._correct_media_spend_to_channel,
         reach_to_channel=self._correct_reach_to_channel,
@@ -639,7 +637,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=df,
           coord_to_columns=coord_to_columns,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
           reach_to_channel=self._correct_reach_to_channel,
@@ -686,7 +684,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.DataFrameDataLoader(
         df=df,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=media_to_channel,
         media_spend_to_channel=media_spend_to_channel,
     )
@@ -751,7 +749,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.DataFrameDataLoader(
         df=df,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         reach_to_channel=reach_to_channel,
         frequency_to_channel=frequency_to_channel,
         rf_spend_to_channel=rf_spend_to_channel,
@@ -832,7 +830,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.DataFrameDataLoader(
         df=df,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=media_to_channel,
         media_spend_to_channel=media_spend_to_channel,
         reach_to_channel=reach_to_channel,
@@ -897,7 +895,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       loader = load.DataFrameDataLoader(
           df=pd.DataFrame(dict(data)),
           coord_to_columns=coord_to_columns,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
       )
@@ -1031,7 +1029,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=self._sample_df_with_media_only,
           coord_to_columns=self._wrong_coord_test_parameters[coord_test_nr],
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
       )
@@ -1104,7 +1102,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=self._sample_df_with_media_and_rf,
           coord_to_columns=self._correct_coord_to_columns_media_and_rf,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=media_to_channel,
           media_spend_to_channel=media_spend_to_channel,
           reach_to_channel=reach_to_channel,
@@ -1132,7 +1130,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=self._geo_time_test_parameters[test_name],
           coord_to_columns=self._correct_coord_to_columns_media_only,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
       )
@@ -1154,7 +1152,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     load.DataFrameDataLoader(
         df=df,
         coord_to_columns=self._coord_to_columns_missing_media,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=self._correct_media_to_channel,
         media_spend_to_channel=self._correct_media_spend_to_channel,
     )
@@ -1205,7 +1203,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=self.lagged_media_test_parameters[test_name],
           coord_to_columns=self._correct_coord_to_columns_media_and_rf,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
           reach_to_channel=self._correct_reach_to_channel,
@@ -1223,7 +1221,7 @@ class InputDataLoaderTest(parameterized.TestCase):
       load.DataFrameDataLoader(
           df=self._sample_df_not_continuous_na_period,
           coord_to_columns=self._correct_coord_to_columns_media_only,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           media_to_channel=self._correct_media_to_channel,
           media_spend_to_channel=self._correct_media_spend_to_channel,
       )
@@ -1308,7 +1306,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.CsvDataLoader(
         csv_path=csv_file,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=media_to_channel,
         media_spend_to_channel=media_spend_to_channel,
         reach_to_channel=reach_to_channel,
@@ -1385,7 +1383,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     loader = load.CsvDataLoader(
         csv_path=csv_file,
         coord_to_columns=coord_to_columns,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=self._correct_media_to_channel,
         media_spend_to_channel=self._correct_media_spend_to_channel,
     )
@@ -1396,7 +1394,7 @@ class InputDataLoaderTest(parameterized.TestCase):
             os.path.dirname(__file__), 'sample', 'expected_national_data.csv'
         ),
         coord_to_columns=test_utils.NATIONAL_COORD_TO_COLUMNS_W_POPULATION_W_GEO,
-        kpi_type=constants.REVENUE,
+        kpi_type=constants.NON_REVENUE,
         media_to_channel=self._correct_media_to_channel,
         media_spend_to_channel=self._correct_media_spend_to_channel,
     )

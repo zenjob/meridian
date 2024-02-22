@@ -952,11 +952,11 @@ def sample_coord_to_columns(
   )
 
 
-def sample_input_data_from_dataset(dataset: xr.Dataset):
+def sample_input_data_from_dataset(dataset: xr.Dataset, kpi_type: str):
   """Generates a sample InputData from a full Dataset."""
   return input_data.InputData(
       kpi=dataset.kpi,
-      kpi_type=c.REVENUE,
+      kpi_type=kpi_type,
       revenue_per_kpi=dataset.revenue_per_kpi,
       population=dataset.population,
       controls=dataset.controls,
@@ -989,7 +989,7 @@ def sample_input_data(
   )
   return input_data.InputData(
       kpi=dataset.kpi,
-      kpi_type=c.REVENUE,
+      kpi_type=c.NON_REVENUE,
       revenue_per_kpi=dataset.revenue_per_kpi,
       population=dataset.population,
       controls=dataset.controls,

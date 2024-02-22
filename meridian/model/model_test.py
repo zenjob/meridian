@@ -624,7 +624,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         f" periods: {dims_bad}",
     ):
       model.Meridian(
-          input_data=test_utils.sample_input_data_from_dataset(dataset)
+          input_data=test_utils.sample_input_data_from_dataset(
+              dataset, kpi_type=constants.NON_REVENUE
+          )
       )
 
   def test_broadcast_prior_distribution_is_called_in_meridian_init(self):

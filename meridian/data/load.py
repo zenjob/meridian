@@ -46,7 +46,7 @@ class XrDatasetDataLoader(InputDataLoader):
   """Reads data from an xarray.Dataset object.
 
   Attributes:
-    dataset: A xr.Dataset object containing the input data.
+    dataset: An xr.Dataset object containing the input data.
     kpi_type: A string denoting whether the kpi is of a `revenue` or `non-
       revenue` type. When the `kpi_type` is `non-revenue` and there exists a
       `revenue_per_kpi`, we use ROI calibration and the analysis is run on
@@ -124,10 +124,11 @@ class XrDatasetDataLoader(InputDataLoader):
     Args:
       dataset: A xarray.Dataset object containing the input data.
       kpi_type: A string denoting whether the kpi is of a `revenue` or `non-
-      revenue` type. When the `kpi_type` is `non-revenue` and there exists a
-      `revenue_per_kpi`, we use ROI calibration and the analysis is run on
-      `revenue`, and when the revenue_per_kpi doesn't exist for the same
-      `kpi_type`, we use custom ROI calibration and the analysis is run on KPI.
+        revenue` type. When the `kpi_type` is `non-revenue` and there exists a
+        `revenue_per_kpi`, we use ROI calibration and the analysis is run on
+        `revenue`, and when the revenue_per_kpi doesn't exist for the same
+        `kpi_type`, we use custom ROI calibration and the analysis is run on
+        KPI.
       name_mapping: An optional dictionary whose keys are the current
         coordinates or array names in the input dataset and whose values are the
         desired coordinates (geo, time, media_time, media_channel and/or
