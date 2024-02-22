@@ -15,6 +15,7 @@
 import datetime as dt
 import os
 import tempfile
+from unittest import mock
 from xml.etree import ElementTree as ET
 
 from absl.testing import absltest
@@ -25,7 +26,6 @@ from meridian.analysis import summarizer
 from meridian.analysis import summary_text
 from meridian.analysis import test_utils
 from meridian.model import model
-import mock
 import xarray as xr
 
 

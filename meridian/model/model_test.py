@@ -17,6 +17,7 @@
 import collections
 from collections.abc import Collection, Sequence
 import os
+from unittest import mock
 import warnings
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -27,7 +28,6 @@ from meridian.model import knots as knots_module
 from meridian.model import model
 from meridian.model import prior_distribution
 from meridian.model import spec
-import mock
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -91,10 +91,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   _ROI_CALIBRATION_PERIOD = tf.cast(
       tf.ones((_N_MEDIA_TIMES_SHORT, _N_MEDIA_CHANNELS)),
       dtype=tf.bool,
-      )
+  )
   _RF_ROI_CALIBRATION_PERIOD = tf.cast(
-      tf.ones((_N_MEDIA_TIMES_SHORT, _N_RF_CHANNELS)), dtype=tf.bool,
-      )
+      tf.ones((_N_MEDIA_TIMES_SHORT, _N_RF_CHANNELS)),
+      dtype=tf.bool,
+  )
 
   def setUp(self):
     super().setUp()
@@ -1496,7 +1497,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     meridian2.sample_prior(n_draws=self._N_DRAWS, seed=[1, 1])
     self.assertEqual(
         meridian.inference_data.prior, meridian2.inference_data.prior
-        )
+    )
 
   def test_sample_prior_different_seed(self):
     model_spec = spec.ModelSpec()
@@ -1513,7 +1514,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertNotEqual(
         meridian.inference_data.prior, meridian2.inference_data.prior
-        )
+    )
 
   def test_sample_prior_media_and_rf_returns_correct_shape(self):
     self.enter_context(
