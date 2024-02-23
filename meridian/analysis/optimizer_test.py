@@ -143,30 +143,36 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
   def setUp(self):
     super(OptimizerAlgorithmTest, self).setUp()
-    self.input_data_media_and_rf = data_test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        n_rf_channels=self._N_RF_CHANNELS,
-        n_controls=self._N_CONTROLS,
-        seed=0,
+    self.input_data_media_and_rf = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            n_controls=self._N_CONTROLS,
+            seed=0,
+        )
     )
-    self.input_data_media_only = data_test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        n_controls=self._N_CONTROLS,
-        seed=0,
+    self.input_data_media_only = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_controls=self._N_CONTROLS,
+            seed=0,
+        )
     )
-    self.input_data_rf_only = data_test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_rf_channels=self._N_RF_CHANNELS,
-        n_controls=self._N_CONTROLS,
-        seed=0,
+    self.input_data_rf_only = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_rf_channels=self._N_RF_CHANNELS,
+            n_controls=self._N_CONTROLS,
+            seed=0,
+        )
     )
     self.inference_data_media_and_rf = az.InferenceData(
         prior=xr.open_dataset(
@@ -701,7 +707,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       dict(
           testcase_name='optimal_frequency',
           expected_incremental_impact=np.array(
-              [544.2629, 1122.9128, 411.21844, 1196.8931, 1037.8674]),
+              [544.2629, 1122.9128, 411.21844, 1196.8931, 1037.8674]
+          ),
           expected_spend=np.array([227.0, 306.0, 201.0, 399.0, 419.0]),
           expected_mroi=np.array([1.329, 1.94, 1.156, 2.928, 2.44]),
           use_optimal_frequency=True,
@@ -710,7 +717,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           testcase_name='historical_frequency',
           expected_incremental_impact=np.array(
               [572.5, 1291.739, 411.2, 664.9, 369.8]
-              ),
+          ),
           expected_spend=np.array([249.0, 404.0, 201.0, 399.0, 299.0]),
           expected_mroi=np.array([1.231, 1.519, 1.156, 1.666, 1.237]),
           use_optimal_frequency=False,

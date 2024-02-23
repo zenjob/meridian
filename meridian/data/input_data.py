@@ -20,6 +20,7 @@ The InputData class is used to store all the input data to the model.
 from collections.abc import Collection
 import dataclasses
 from datetime import datetime
+import warnings
 
 from meridian import constants
 import numpy as np
@@ -60,7 +61,7 @@ def _check_dim_match(dim, arrays):
     )
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class InputData:
   """A data container for advertisers' data in the proper format.
 
@@ -73,14 +74,14 @@ class InputData:
       `revenue_per_kpi`, we use ROI calibration and the analysis is run on
       `revenue`, and when the revenue_per_kpi doesn't exist for the same
       `kpi_type`, we use custom ROI calibration and the analysis is run on KPI.
-    revenue_per_kpi: A DataArray of dimensions (`n_geos` x `n_times`) containing
-      the average sale price per KPI unit. Although modeling is done on `kpi`,
-      optimization is done on `KPI * revenue_per_kpi` (i.e. revenue). If `kpi`
-      corresponds to revenue, then an array of ones should be passed.
     controls: A DataArray of dimensions (`n_geos` x `n_times` x `n_controls`)
       containing control variable values.
     population: A DataArray of dimension (`n_geos`) containing the population of
       each group. This variable is used to scale the kpi and media for modeling.
+    revenue_per_kpi: A DataArray of dimensions (`n_geos` x `n_times`) containing
+      the average sale price per KPI unit. Although modeling is done on `kpi`,
+      optimization is done on `KPI * revenue_per_kpi` (i.e. revenue). If `kpi`
+      corresponds to revenue, then an array of ones should be passed.
     media: An optional DataArray of dimensions (`n_geos` x `n_media_times` x
       `n_media_channels`) containing non-negative media execution values.
       Typically this is impressions, but it can be any metric (e.g., cost or
@@ -142,9 +143,9 @@ class InputData:
 
   kpi: xr.DataArray
   kpi_type: str
-  revenue_per_kpi: xr.DataArray
   controls: xr.DataArray
   population: xr.DataArray
+  revenue_per_kpi: xr.DataArray | None = None
   media: xr.DataArray | None = None
   media_spend: xr.DataArray | None = None
   reach: xr.DataArray | None = None
@@ -152,6 +153,8 @@ class InputData:
   rf_spend: xr.DataArray | None = None
 
   def __post_init__(self):
+    self._validate_kpi_type()
+    self._validate_scenarios()
     self._validate_names()
     self._validate_dimensions()
     self._validate_times()
@@ -221,6 +224,50 @@ class InputData:
   def rf_spend_has_time_dimension(self) -> bool:
     """Checks if the `rf_spend` array has a time dimension."""
     return self.rf_spend is not None and constants.TIME in self.rf_spend.coords
+
+  def _validate_scenarios(self):
+    """Verifies that calibration and analysis is set correctly."""
+    n_geos = len(self.kpi.coords[constants.GEO])
+    n_times = len(self.kpi.coords[constants.TIME])
+    if self.kpi_type == constants.REVENUE:
+      ones = np.ones((n_geos, n_times))
+      revenue_per_kpi = xr.DataArray(
+          ones,
+          dims=[constants.GEO, constants.TIME],
+          coords={
+              constants.GEO: self.geo,
+              constants.TIME: self.time,
+          },
+          name=constants.REVENUE_PER_KPI,
+      )
+      if not revenue_per_kpi.equals(
+          self.revenue_per_kpi
+      ):  # Not equal to all ones.
+        warnings.warn(
+            "Revenue from the `kpi` data is used when `kpi_type`=`revenue`."
+            " `revenue_per_kpi` is ignored.",
+            UserWarning,
+        )
+      self.revenue_per_kpi = revenue_per_kpi
+    else:
+      if self.revenue_per_kpi is None:
+        warnings.warn(
+            "Set custom ROI priors, as kpi_type was specified as `non_revenue`"
+            " with no `revenue_per_kpi` being set; further documentation"
+            " available at"
+            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi",
+            UserWarning,
+        )
+
+  def _validate_kpi_type(self):
+    if (
+        self.kpi_type != constants.REVENUE
+        and self.kpi_type != constants.NON_REVENUE
+    ):
+      raise ValueError(
+          f"Invalid kpi_type: {self.kpi_type}; must be one of"
+          f" {constants.REVENUE} or {constants.NON_REVENUE}."
+      )
 
   def _validate_names(self):
     """Verifies that the names of the data arrays are correct."""

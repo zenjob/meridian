@@ -233,6 +233,13 @@ class Analyzer:
         + tf.einsum("...gtc,...gc->...gt", controls_scaled, gamma_gc)
     )
 
+  def _check_revenue_data_exists(self, use_kpi: bool = False) -> None:
+    """Raise an error if `use_kpi` is False but revenue data does not exist."""
+    if not use_kpi and self._meridian.revenue_per_kpi is None:
+      raise ValueError(
+          "`use_kpi` must be True when `revenue_per_kpi` is not defined."
+      )
+
   def _get_adstock_dataframe(
       self,
       channel_type: str,
@@ -568,7 +575,8 @@ class Analyzer:
         transformed impact (i.e., what is modeled).
       use_kpi: Boolean. If True, then the expected KPI is calculated. If False,
         the expected revenue (KPI * revenue_per_kpi) are calculated. Only used
-        if inverse_transform_impact=True.
+        if inverse_transform_impact=True. `use_kpi` must be True when
+        `revenue_per_kpi` is not defined.
       batch_size: Integer representing max draws per chain in each batch. The
         calculation is run in batches to avoid memory exhaustion. If a memory
         error occurs, try reducing `batch_size`. The calculation will generally
@@ -584,6 +592,7 @@ class Analyzer:
         or `sample_prior()` (for `use_posterior=False`) has not been called
         prior to calling this method.
     """
+    self._check_revenue_data_exists(use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,
@@ -646,6 +655,7 @@ class Analyzer:
       impact_means = self._meridian.kpi_transformer.inverse(impact_means)
       if not use_kpi:
         impact_means *= self._meridian.revenue_per_kpi
+
     return self.filter_and_aggregate_geos_and_times(
         impact_means,
         selected_geos=selected_geos,
@@ -729,11 +739,13 @@ class Analyzer:
         parameter distributions.
       use_kpi: Boolean. If True, the incremental KPI is calculated. If False,
         incremental revenue `(KPI * revenue_per_kpi)` is calculated. Only used
-        if `inverse_transform_impact=True`.
+        if `inverse_transform_impact=True`. `use_kpi` must be True when
+        `revenue_per_kpi` is not defined.
 
     Returns:
        Tensor of incremental impact returned in terms of revenue or KPI.
     """
+    self._check_revenue_data_exists(use_kpi)
     t1 = self._meridian.kpi_transformer.inverse(
         tf.einsum("...m->m...", modeled_incremental_impact)
     )
@@ -742,12 +754,11 @@ class Analyzer:
 
     if use_kpi:
       return kpi
-    else:
-      return tf.einsum(
-          "gt,...gtm->...gtm",
-          self._meridian.revenue_per_kpi,
-          kpi,
-      )
+    return tf.einsum(
+        "gt,...gtm->...gtm",
+        self._meridian.revenue_per_kpi,
+        kpi,
+    )
 
   @tf.function(jit_compile=True)
   def _incremental_impact_impl(
@@ -801,7 +812,8 @@ class Analyzer:
         modeled).
       use_kpi: If True, the incremental KPI is calculated. If False, incremental
         revenue `(KPI * revenue_per_kpi)` is calculated. Only used if
-        `inverse_transform_impact=True`.
+        `inverse_transform_impact=True`. `use_kpi` must be True when
+        `revenue_per_kpi` is not defined.
       selected_geos: Contains a subset of geos to include. By default, all geos
         are included.
       selected_times: Contains a subset of dates to include. By default, all
@@ -814,6 +826,7 @@ class Analyzer:
     Returns:
       Tensor of incremental sales modeled from parameter distributions.
     """
+    self._check_revenue_data_exists(use_kpi)
     transformed_impact = self._get_modeled_incremental_kpi(
         media_scaled=media_scaled,
         reach_scaled=reach_scaled,
@@ -905,7 +918,8 @@ class Analyzer:
         what is modeled).
       use_kpi: Boolean. If True, the incremental KPI is calculated. If False,
         incremental revenue `(KPI * revenue_per_kpi)` is calculated. Only used
-        if `inverse_transform_impact=True`.
+        if `inverse_transform_impact=True`. `use_kpi` must be True when
+        `revenue_per_kpi` is not defined.
       batch_size: Integer representing max draws per chain in each batch. The
         calculation is run in batches to avoid memory exhaustion. If a memory
         error occurs, try reducing batch_size. The calculation will generally be
@@ -924,6 +938,7 @@ class Analyzer:
       ValueError: if `new_media` arguments does not have the same tensor shape
         as media.
     """
+    self._check_revenue_data_exists(use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,
@@ -1384,7 +1399,10 @@ class Analyzer:
         ],
         axis=-1,
     )
-    actual = mmm.kpi * mmm.revenue_per_kpi
+    if mmm.revenue_per_kpi is not None:
+      actual = mmm.kpi * mmm.revenue_per_kpi
+    else:
+      actual = mmm.kpi
 
     coords = {
         constants.GEO: ([constants.GEO], mmm.input_data.geo.data),
@@ -1832,8 +1850,12 @@ class Analyzer:
             [constants.GEO, constants.NATIONAL],
         ),
     }
+    if self._meridian.revenue_per_kpi is not None:
+      input_tensor = self._meridian.kpi * self._meridian.revenue_per_kpi
+    else:
+      input_tensor = self._meridian.kpi
     actual = self.filter_and_aggregate_geos_and_times(
-        tensor=self._meridian.kpi * self._meridian.revenue_per_kpi,
+        tensor=input_tensor,
         **dims_kwargs,
     ).numpy()
     expected = np.mean(

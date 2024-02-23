@@ -17,8 +17,10 @@ from absl.testing import parameterized
 from meridian import constants
 from meridian.data import input_data
 from meridian.data import test_utils
+import numpy as np
 import pandas as pd
 import xarray as xr
+import xarray.testing as xrt
 
 
 class InputDataTest(parameterized.TestCase):
@@ -171,10 +173,73 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media_invalid_timestamp_values,
+          media_spend=self.media_spend,
+      )
+
+  def test_scenarios_kpi_type_revenue_revenue_per_kpi_set_to_ones(self):
+    input_data_test = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.REVENUE,
+        population=self.population,
+        revenue_per_kpi=None,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+    n_geos = len(input_data_test.kpi.coords[constants.GEO])
+    n_times = len(input_data_test.kpi.coords[constants.TIME])
+
+    ones = np.ones((n_geos, n_times))
+    revenue_per_kpi = xr.DataArray(
+        ones,
+        dims=[constants.GEO, constants.TIME],
+        coords={
+            constants.GEO: input_data_test.geo,
+            constants.TIME: input_data_test.time,
+        },
+        name=constants.REVENUE_PER_KPI,
+    )
+    xrt.assert_equal(input_data_test.revenue_per_kpi, revenue_per_kpi)
+
+  def test_scenarios_kpi_type_revenue_incorrect_revenue_per_kpi_warning(self):
+    with self.assertWarnsRegex(
+        UserWarning,
+        expected_regex=(
+            "Revenue from the `kpi` data is used when `kpi_type`=`revenue`."
+            " `revenue_per_kpi` is ignored."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
+  def test_scenarios_kpi_type_non_revenue_no_revenue_per_kpi_warning(self):
+    with self.assertWarnsRegex(
+        UserWarning,
+        expected_regex=(
+            "Set custom ROI priors, as kpi_type was specified as `non_revenue`"
+            " with no `revenue_per_kpi` being set; further documentation"
+            " available at"
+            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.NON_REVENUE,
+          population=self.population,
+          revenue_per_kpi=None,
+          media=self.not_lagged_media,
           media_spend=self.media_spend,
       )
 
@@ -199,7 +264,7 @@ class InputDataTest(parameterized.TestCase):
       input_data.InputData(
           controls=self.not_lagged_controls_timestamp_values,
           kpi=self.not_lagged_kpi,
-          kpi_type=constants.REVENUE,
+          kpi_type=constants.NON_REVENUE,
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=self.not_lagged_media,

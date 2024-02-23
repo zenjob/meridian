@@ -173,12 +173,46 @@ class Meridian:
         is_national=self.is_national,
     )
 
-    self._kpi = tf.convert_to_tensor(
-        self.input_data.kpi, dtype=tf.float32
+    self._kpi = tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
+    # Check that custom priors were not set, by confirming that model_spec's
+    # `roi_m` and `roi_rf` properties equal the default `roi_m` and `roi_rf`
+    # properties. If the properties are equal then custom priors were not set.
+    default_model_spec = spec.ModelSpec()
+    default_roi_m = default_model_spec.prior.roi_m
+    default_roi_rf = default_model_spec.prior.roi_rf
+
+    # Check `roi_m` properties match default `roi_m` properties (that the
+    # distributions (e.g. Normal, Lognormal) and parameters (loc and scale) are
+    # equal).
+    roi_m_properties_equal = (
+        isinstance(self.model_spec.prior.roi_m, type(default_roi_m))
+        and self.model_spec.prior.roi_m.parameters == default_roi_m.parameters
     )
-    self._revenue_per_kpi = tf.convert_to_tensor(
-        self.input_data.revenue_per_kpi, dtype=tf.float32
+    # Check `roi_rf` properties match default `roi_rf` properties.
+    roi_rf_properties_equal = (
+        isinstance(self.model_spec.prior.roi_rf, type(default_roi_rf))
+        and self.model_spec.prior.roi_rf.parameters == default_roi_rf.parameters
     )
+
+    if (
+        self.input_data.revenue_per_kpi is None
+        and self.input_data.kpi_type == constants.NON_REVENUE
+        and roi_m_properties_equal
+        and roi_rf_properties_equal
+    ):
+      raise ValueError(
+          "Custom priors should be set during model creation since"
+          " `kpi_type`=`non_revenue` and `revenue_per_kpi` was not passed in."
+          " Further documentation available at"
+          " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
+      )
+
+    if input_data.revenue_per_kpi is not None:
+      self._revenue_per_kpi = tf.convert_to_tensor(
+          self.input_data.revenue_per_kpi, dtype=tf.float32
+      )
+    else:
+      self._revenue_per_kpi = None
     self._controls = tf.convert_to_tensor(
         self.input_data.controls, dtype=tf.float32
     )
@@ -324,7 +358,7 @@ class Meridian:
     return self._kpi
 
   @property
-  def revenue_per_kpi(self) -> tf.Tensor:
+  def revenue_per_kpi(self) -> tf.Tensor | None:
     return self._revenue_per_kpi
 
   @property
@@ -569,7 +603,6 @@ class Meridian:
       media_transformed: tf.Tensor,
   ) -> tf.float32:
     """Returns a value to be used in `beta_m`."""
-
     inc_revenue_m = roi_m * tf.reduce_sum(
         self.media_spend - self._media_spend_counterfactual,
         range(self.media_spend.ndim - 1),
@@ -583,13 +616,15 @@ class Meridian:
       )
     else:
       media_counterfactual_transformed = tf.zeros_like(media_transformed)
-
+    revenue_per_kpi = self.revenue_per_kpi
+    if self.input_data.revenue_per_kpi is None:
+      revenue_per_kpi = tf.ones([self.n_geos, self.n_times], dtype=tf.float32)
     media_contrib_gm = tf.einsum(
         "gtm,g,,gt->gm",
         media_transformed - media_counterfactual_transformed,
         self.population,
         self.kpi_transformer._population_scaled_stdev,  # pylint: disable=protected-access
-        self.revenue_per_kpi,
+        revenue_per_kpi,
     )
 
     if self.media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
@@ -632,15 +667,16 @@ class Meridian:
       )
     else:
       rf_counterfactual_transformed = tf.zeros_like(rf_transformed)
-
+    revenue_per_kpi = self.revenue_per_kpi
+    if self.input_data.revenue_per_kpi is None:
+      revenue_per_kpi = tf.ones([self.n_geos, self.n_times], dtype=tf.float32)
     media_contrib_grf = tf.einsum(
         "gtm,g,,gt->gm",
         rf_transformed - rf_counterfactual_transformed,
         self.population,
         self.kpi_transformer._population_scaled_stdev,  # pylint: disable=protected-access
-        self.revenue_per_kpi,
+        revenue_per_kpi,
     )
-
     if self.media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
       media_contrib_rf = tf.einsum("gm->m", media_contrib_grf)
       random_effect_rf = tf.einsum(
@@ -958,6 +994,7 @@ class Meridian:
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
     """
+    seed = tfp.random.sanitize_seed(seed) if seed else None
 
     mcmc = _xla_windowed_adaptive_nuts(
         n_draws=n_burnin + n_keep,

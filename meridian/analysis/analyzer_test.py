@@ -101,30 +101,36 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   def setUpClass(cls):
     super(AnalyzerTest, cls).setUpClass()
 
-    cls.input_data_media_and_rf = data_test_utils.sample_input_data(
-        n_geos=_N_GEOS,
-        n_times=_N_TIMES,
-        n_media_times=_N_MEDIA_TIMES,
-        n_controls=_N_CONTROLS,
-        n_media_channels=_N_MEDIA_CHANNELS,
-        n_rf_channels=_N_RF_CHANNELS,
-        seed=0,
+    cls.input_data_media_and_rf = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
     )
-    cls.input_data_media_only = data_test_utils.sample_input_data(
-        n_geos=_N_GEOS,
-        n_times=_N_TIMES,
-        n_media_times=_N_MEDIA_TIMES,
-        n_controls=_N_CONTROLS,
-        n_media_channels=_N_MEDIA_CHANNELS,
-        seed=0,
+    cls.input_data_media_only = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            seed=0,
+        )
     )
-    cls.input_data_rf_only = data_test_utils.sample_input_data(
-        n_geos=_N_GEOS,
-        n_times=_N_TIMES,
-        n_media_times=_N_MEDIA_TIMES,
-        n_controls=_N_CONTROLS,
-        n_rf_channels=_N_RF_CHANNELS,
-        seed=0,
+    cls.input_data_rf_only = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
     )
     model_spec = spec.ModelSpec(max_lag=15)
     cls.meridian_media_and_rf = model.Meridian(

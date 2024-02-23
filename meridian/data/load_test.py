@@ -929,9 +929,10 @@ class InputDataLoaderTest(parameterized.TestCase):
         expected_df.get(c) for c in loader.coord_to_columns.controls
     ]
     self.assertTrue((data.kpi.values == expected_kpi).all())
-    self.assertTrue(
-        (data.revenue_per_kpi.values == expected_revenue_per_kpi).all()
-    )
+    if data.revenue_per_kpi is not None:
+      self.assertTrue(
+          (data.revenue_per_kpi.values == expected_revenue_per_kpi).all()
+      )
     if data.media is not None:
       self.assertTrue(
           (

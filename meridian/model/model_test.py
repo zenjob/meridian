@@ -99,64 +99,87 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-
-    self.input_data_with_media_only = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_controls=self._N_CONTROLS,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        seed=0,
+    self.input_data_non_revenue_no_revenue_per_kpi = (
+        test_utils.sample_input_data_non_revenue_no_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            seed=0,
+        )
     )
-    self.input_data_with_rf_only = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_controls=self._N_CONTROLS,
-        n_rf_channels=self._N_RF_CHANNELS,
-        seed=0,
+    self.input_data_with_media_only = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            seed=0,
+        )
     )
-    self.input_data_with_media_and_rf = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_controls=self._N_CONTROLS,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        n_rf_channels=self._N_RF_CHANNELS,
-        seed=0,
+    self.input_data_with_rf_only = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
     )
-    self.short_input_data_with_media_only = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES_SHORT,
-        n_media_times=self._N_MEDIA_TIMES_SHORT,
-        n_controls=self._N_CONTROLS,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        seed=0,
+    self.input_data_with_media_and_rf = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
     )
-    self.short_input_data_with_rf_only = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES_SHORT,
-        n_media_times=self._N_MEDIA_TIMES_SHORT,
-        n_controls=self._N_CONTROLS,
-        n_rf_channels=self._N_RF_CHANNELS,
-        seed=0,
+    self.short_input_data_with_media_only = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES_SHORT,
+            n_media_times=self._N_MEDIA_TIMES_SHORT,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            seed=0,
+        )
     )
-    self.short_input_data_with_media_and_rf = test_utils.sample_input_data(
-        n_geos=self._N_GEOS,
-        n_times=self._N_TIMES_SHORT,
-        n_media_times=self._N_MEDIA_TIMES_SHORT,
-        n_controls=self._N_CONTROLS,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        n_rf_channels=self._N_RF_CHANNELS,
-        seed=0,
+    self.short_input_data_with_rf_only = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES_SHORT,
+            n_media_times=self._N_MEDIA_TIMES_SHORT,
+            n_controls=self._N_CONTROLS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
     )
-    self.national_input_data = test_utils.sample_input_data(
-        n_geos=self._N_GEOS_NATIONAL,
-        n_times=self._N_TIMES,
-        n_media_times=self._N_MEDIA_TIMES,
-        n_controls=self._N_CONTROLS,
-        n_media_channels=self._N_MEDIA_CHANNELS,
-        seed=0,
+    self.short_input_data_with_media_and_rf = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES_SHORT,
+            n_media_times=self._N_MEDIA_TIMES_SHORT,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    self.national_input_data = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS_NATIONAL,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            seed=0,
+        )
     )
 
     test_prior_media_and_rf = xr.open_dataset(
@@ -309,6 +332,19 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           self._N_TIMES, knots, is_national
       )
 
+  def test_custom_priors_not_passed_in(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Custom priors should be set during model creation since"
+        " `kpi_type`=`non_revenue` and `revenue_per_kpi` was not passed in."
+        " Further documentation available at"
+        " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi",
+    ):
+      model.Meridian(
+          input_data=self.input_data_non_revenue_no_revenue_per_kpi,
+          model_spec=spec.ModelSpec(),
+      )
+
   def test_get_knot_info_fails(self):
     error_msg = "Knots must be all non-negative."
     with mock.patch.object(
@@ -429,17 +465,19 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="media_only",
-          input_data=test_utils.sample_input_data(
+          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
               n_media_channels=_N_MEDIA_CHANNELS
           ),
       ),
       dict(
           testcase_name="rf_only",
-          input_data=test_utils.sample_input_data(n_rf_channels=_N_RF_CHANNELS),
+          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+              n_rf_channels=_N_RF_CHANNELS
+          ),
       ),
       dict(
           testcase_name="rf_and_media",
-          input_data=test_utils.sample_input_data(
+          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
               n_media_channels=_N_MEDIA_CHANNELS, n_rf_channels=_N_RF_CHANNELS
           ),
       ),
@@ -541,7 +579,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       self, n_geos, media_effects_dist, expected_media_effects_dist
   ):
     meridian = model.Meridian(
-        input_data=test_utils.sample_input_data(
+        input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=n_geos, n_media_channels=self._N_MEDIA_CHANNELS
         ),
         model_spec=spec.ModelSpec(media_effects_dist=media_effects_dist),
@@ -581,7 +619,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       expected_unique_sigma_for_each_geo,
   ):
     meridian = model.Meridian(
-        input_data=test_utils.sample_input_data(
+        input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=n_geos, n_media_channels=self._N_MEDIA_CHANNELS
         ),
         model_spec=spec.ModelSpec(

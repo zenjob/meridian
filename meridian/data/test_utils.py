@@ -733,6 +733,7 @@ def random_dataset(
     n_controls,
     n_media_channels=None,
     n_rf_channels=None,
+    revenue_per_kpi_all_ones=False,
     seed=0,
 ):
   """Generates a random dataset."""
@@ -795,8 +796,11 @@ def random_dataset(
       n_media_channels=n_media_channels or n_rf_channels or 0,
       n_controls=n_controls,
   )
+  revenue_per_kpi_value = 3.14
+  if revenue_per_kpi_all_ones:
+    revenue_per_kpi_value = 1.0
   revenue_per_kpi = constant_revenue_per_kpi(
-      n_geos=n_geos, n_times=n_times, value=3.14
+      n_geos=n_geos, n_times=n_times, value=revenue_per_kpi_value
   )
   population = random_population(n_geos=n_geos, seed=seed)
 
@@ -968,7 +972,8 @@ def sample_input_data_from_dataset(dataset: xr.Dataset, kpi_type: str):
   )
 
 
-def sample_input_data(
+# Scenario 1, where KPI is `revenue` with no `revenue_per_kpi`.
+def sample_input_data_revenue(
     n_geos: int = 10,
     n_times: int = 50,
     n_media_times: int = 53,
@@ -977,7 +982,42 @@ def sample_input_data(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates a sample InputData for testing."""
+  """Generates sample InputData for revenue_per_kpi and kpi_type=`revenue`."""
+  dataset = random_dataset(
+      n_geos=n_geos,
+      n_times=n_times,
+      n_media_times=n_media_times,
+      n_controls=n_controls,
+      n_media_channels=n_media_channels,
+      n_rf_channels=n_rf_channels,
+      revenue_per_kpi_all_ones=True,
+      seed=seed,
+  )
+  return input_data.InputData(
+      kpi=dataset.kpi,
+      kpi_type=c.NON_REVENUE,
+      revenue_per_kpi=dataset.revenue_per_kpi,
+      population=dataset.population,
+      controls=dataset.controls,
+      media=dataset.media if n_media_channels else None,
+      media_spend=dataset.media_spend if n_media_channels else None,
+      reach=dataset.reach if n_rf_channels else None,
+      frequency=dataset.frequency if n_rf_channels else None,
+      rf_spend=dataset.rf_spend if n_rf_channels else None,
+  )
+
+
+# Scenario 2, where KPI is `non_revenue` with `revenue_per_kpi`.
+def sample_input_data_non_revenue_revenue_per_kpi(
+    n_geos: int = 10,
+    n_times: int = 50,
+    n_media_times: int = 53,
+    n_controls: int = 2,
+    n_media_channels: int | None = None,
+    n_rf_channels: int | None = None,
+    seed: int = 0,
+):
+  """Generates sample InputData for revenue_per_kpi and kpi_type=`revenue`."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
@@ -991,6 +1031,40 @@ def sample_input_data(
       kpi=dataset.kpi,
       kpi_type=c.NON_REVENUE,
       revenue_per_kpi=dataset.revenue_per_kpi,
+      population=dataset.population,
+      controls=dataset.controls,
+      media=dataset.media if n_media_channels else None,
+      media_spend=dataset.media_spend if n_media_channels else None,
+      reach=dataset.reach if n_rf_channels else None,
+      frequency=dataset.frequency if n_rf_channels else None,
+      rf_spend=dataset.rf_spend if n_rf_channels else None,
+  )
+
+
+# Scenario 3, where KPI is `non_revenue` with no `revenue_per_kpi`.
+def sample_input_data_non_revenue_no_revenue_per_kpi(
+    n_geos: int = 10,
+    n_times: int = 50,
+    n_media_times: int = 53,
+    n_controls: int = 2,
+    n_media_channels: int | None = None,
+    n_rf_channels: int | None = None,
+    seed: int = 0,
+):
+  """Generates sample InputData for revenue_per_kpi=None and kpi_type=`non_revenue`."""
+  dataset = random_dataset(
+      n_geos=n_geos,
+      n_times=n_times,
+      n_media_times=n_media_times,
+      n_controls=n_controls,
+      n_media_channels=n_media_channels,
+      n_rf_channels=n_rf_channels,
+      seed=seed,
+  )
+  return input_data.InputData(
+      kpi=dataset.kpi,
+      kpi_type=c.NON_REVENUE,
+      revenue_per_kpi=None,
       population=dataset.population,
       controls=dataset.controls,
       media=dataset.media if n_media_channels else None,
