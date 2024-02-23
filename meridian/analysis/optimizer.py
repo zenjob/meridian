@@ -123,6 +123,7 @@ class BudgetOptimizer:
     self._nonoptimized_data = None
     self._optimized_data = None
     self._spend_bounds = None
+    self._use_optimal_frequency = True
 
   @property
   def nonoptimized_data(self) -> xr.Dataset:
@@ -232,6 +233,7 @@ class BudgetOptimizer:
           'Running budget optimization scenarios requires fitting the model.'
       )
     self._validate_budget(fixed_budget, budget, target_roi)
+    self._use_optimal_frequency = use_optimal_frequency
     selected_time_dims = self._get_selected_time_dims(selected_times)
     hist_spend = self._get_hist_spend(selected_time_dims)
     budget = budget or np.sum(hist_spend)
@@ -242,7 +244,10 @@ class BudgetOptimizer:
     rounded_spend = np.round(spend, round_factor).astype(int)
     if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
       optimal_frequency = tf.convert_to_tensor(
-          self._analyzer.optimal_freq().optimal_frequency, dtype=tf.float32
+          self._analyzer.optimal_freq(
+              selected_times=selected_time_dims
+          ).optimal_frequency,
+          dtype=tf.float32,
       )
     else:
       optimal_frequency = None
@@ -641,6 +646,7 @@ class BudgetOptimizer:
         spend_multipliers=spend_multiplier,
         selected_times=selected_times,
         by_reach=True,
+        use_optimal_frequency=self._use_optimal_frequency,
     )
     response_curves_df = (
         response_curves_ds.to_dataframe()

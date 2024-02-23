@@ -1703,9 +1703,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertGreaterEqual(mean, response_curves_df[constants.CI_LO][i])
       self.assertLessEqual(mean, response_curves_df[constants.CI_HI][i])
 
-  def test_response_curves_check_roi_change(
-      self,
-  ):
+  def test_response_curves_check_roi_change(self):
     type(self.meridian_media_only).inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_only
     )
@@ -1777,6 +1775,32 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         media_summary_spend * 2,
         response_data_spend[-1],
+    )
+
+  def test_response_curves_check_optimal_freq_data(self):
+    type(self.meridian_rf_only).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_rf_only
+    )
+    # Test the math for a sample of the incremental impact metrics.
+    ds = self.analyzer_rf_only.response_curves(use_optimal_frequency=True)
+    self.assertAllClose(
+        list(
+            ds.sel(spend_multiplier=1.0)[constants.INCREMENTAL_IMPACT].values[
+                :, 0
+            ]
+        ),
+        [394.36468506, 4321.82324219],
+        atol=1e-5,
+    )
+    ds_optimal = self.analyzer_rf_only.response_curves()
+    self.assertAllClose(
+        list(
+            ds_optimal.sel(spend_multiplier=1.0)[
+                constants.INCREMENTAL_IMPACT
+            ].values[:, 0]
+        ),
+        [236.10141, 1232.202148],
+        atol=1e-5,
     )
 
   def test_expected_vs_actual_correct_data(self):

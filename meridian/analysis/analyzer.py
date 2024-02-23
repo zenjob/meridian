@@ -2035,6 +2035,7 @@ class Analyzer:
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       by_reach: bool = True,
+      use_optimal_frequency: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Method to generate Response Curves XArray Dataset.
@@ -2061,6 +2062,8 @@ class Analyzer:
       by_reach: Boolean. For the channel w/ reach and frequency, plot the
         response curve by reach if true; plot the response curve by frequency if
         false.
+      use_optimal_frequency: If `True`, uses the optimal frequency to plot the
+        response curves. Defaults to False.
       batch_size: Integer representing max draws per chain in each batch. The
         calculation is run in batches to avoid memory exhaustion. If a memory
         error occurs, try reducing `batch_size`. The calculation will generally
@@ -2079,6 +2082,19 @@ class Analyzer:
         "aggregate_geos": True,
         "aggregate_times": True,
     }
+    if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
+      frequency = tf.ones_like(self._meridian.frequency) * tf.convert_to_tensor(
+          self.optimal_freq(
+              selected_geos=selected_geos, selected_times=selected_times
+          ).optimal_frequency,
+          dtype=tf.float32,
+      )
+      reach = tf.math.divide_no_nan(
+          self._meridian.reach * self._meridian.frequency, frequency
+      )
+    else:
+      frequency = self._meridian.frequency
+      reach = self._meridian.reach
     if spend_multipliers is None:
       spend_multipliers = list(np.arange(0, 2.2, 0.2))
     incremental_impact = np.zeros((
@@ -2094,8 +2110,8 @@ class Analyzer:
         continue
       tensor_kwargs = _scale_tensors_by_multiplier(
           self._meridian.media,
-          self._meridian.reach,
-          self._meridian.frequency,
+          reach,
+          frequency,
           multiplier=multiplier,
           by_reach=by_reach,
       )
