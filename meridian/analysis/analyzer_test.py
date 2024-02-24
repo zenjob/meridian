@@ -228,6 +228,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(modified_tensor.shape, expected_shape)
 
   def test_expected_impact_wrong_controls_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_controls.shape must match controls.shape",
@@ -237,6 +240,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_expected_impact_wrong_media_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_media.shape must match media.shape",
@@ -246,6 +252,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_expected_impact_wrong_reach_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_reach.shape must match reach.shape",
@@ -255,6 +264,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_expected_impact_wrong_frequency_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_frequency.shape must match frequency.shape",
@@ -378,6 +390,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(impact.shape, expected_shape)
 
   def test_incremental_impact_wrong_media_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_media.shape must match media.shape",
@@ -387,6 +402,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_incremental_impact_wrong_reach_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_reach.shape must match reach.shape",
@@ -396,6 +414,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_incremental_impact_wrong_frequency_raises_exception(self):
+    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
     with self.assertRaisesRegex(
         ValueError,
         "new_frequency.shape must match frequency.shape",
@@ -1447,6 +1468,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_optimal_frequency_freq_grid(self):
+    type(self.meridian_rf_only).inference_data = mock.PropertyMock(
+        return_value=self.inference_data_rf_only
+    )
     max_freq = np.max(np.array(self.analyzer_rf_only._meridian.frequency))
     freq_grid = list(np.arange(1, max_freq, 0.1))
     roi = np.zeros(
