@@ -109,11 +109,11 @@ def _exceeds_optimization_constraints(
 
 
 class BudgetOptimizer:
-  """Runs and outputs budget optimization scenarios on the Meridian model.
+  """Runs and outputs budget optimization scenarios on your model.
 
   Finds the optimal budget allocation that maximizes impact based on various
   scenarios where the budget, data, and constraints can be customized. The
-  results can be viewed as plots and/or as an HTML summary output page.
+  results can be viewed as plots and as an HTML summary output page.
   """
 
   def __init__(self, meridian: model.Meridian):
@@ -130,16 +130,16 @@ class BudgetOptimizer:
     """Dataset holding the non-optimized budget metrics.
 
     The dataset contains the following:
-      Coordinates:
-        channel
-      Data variables:
-        spend, pct_of_spend, roi, mroi, incremental_impact
-      Attributes: budget, profit, total_incremental_impact, total_roi
+
+      - Coordinates: `channel`
+      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`,
+        `incremental_impact`
+      - Attributes: `budget`, `profit`, `total_incremental_impact`, `total_roi`
 
     Raises:
-      OptimizationNotRunError: if the optimization has not been run. The
-      `nonoptimized_data` is only available after running the optimization
-      since certain data points are dependent on the optimization parameters.
+      OptimizationNotRunError: Occurs when the optimization has not been run.
+      The `nonoptimized_data` is only available after running the optimization
+      because certain data points are dependent on the optimization parameters.
     """
     if self._nonoptimized_data is None:
       raise OptimizationNotRunError(
@@ -152,15 +152,15 @@ class BudgetOptimizer:
     """Dataset holding the optimized budget metrics.
 
     The dataset contains the following:
-      Coordinates:
-        channel
-      Data variables:
-        spend, pct_of_spend, incremental_impact, roi, mroi
-      Attributes: budget, profit, total_incremental_impact, total_roi
+
+      - Coordinates: `channel`
+      - Data variables: `spend`, `pct_of_spend`, `incremental_impact`,
+        `roi, mroi`
+      - Attributes: `budget`, `profit`, `total_incremental_impact`, `total_roi`
 
     Raises:
-      OptimizationNotRunError: if the optimization has not been run. The
-      `optimized_data` is only available after running the optimization.
+      OptimizationNotRunError: Occurs when the optimization has not been run.
+      The `optimized_data` is only available after running the optimization.
     """
     if self._nonoptimized_data is None:
       raise OptimizationNotRunError(
@@ -187,44 +187,45 @@ class BudgetOptimizer:
     Args:
       selected_times: Tuple containing the start and end time dimensions for the
         duration to run the optimization on. Time dimensions should align with
-        the Meridian time dims. By default, all times periods are used.
+        the Meridian time dimensions. By default, all times periods are used.
       fixed_budget: Boolean indicating whether it's a fixed budget optimization
-        or flexible budget optimization. Defaults to True. If False, must
+        or flexible budget optimization. Defaults to `True`. If `False`, must
         specify either `target_roi` or `target_mroi`.
       budget: Number indicating the total budget for the fixed budget scenario.
         Defaults to the historical budget.
       pct_of_spend: Numeric list of size `n_total_channels` containing the
         percentage allocation for spend for all media and RF channels. The order
-        must match InputData.media with values between 0-1, summing to 1. By
+        must match `InputData.media` with values between 0-1, summing to 1. By
         default, the historical allocation is used. Budget and allocation are
         used in conjunction to determine the non-optimized media-level spend,
-        which is used to calculate the non-optimized performance metrics (ie.
-        ROI) and construct the feasible range of media-level spend with the
-        spend constraints.
+        which is used to calculate the non-optimized performance metrics (for
+        example, ROI) and construct the feasible range of media-level spend with
+        the spend constraints.
       spend_constraint_lower: Numeric list of size `n_total_channels` or float
         (same constraint for all channels) indicating the lower bound of
         media-level spend. The lower bound of media-level spend is `(1 -
         spend_constraint_lower) * budget * allocation)`. The value must be
-        between 0-1. Defaults to 0.3 for fixed budget and 1 for flexible.
+        between 0-1. Defaults to `0.3` for fixed budget and `1` for flexible.
       spend_constraint_upper: Numeric list of size `n_total_channels` or float
         (same constraint for all channels) indicating the upper bound of
         media-level spend. The upper bound of media-level spend is `(1 +
-        spend_constraint_upper) * budget * allocation)`. Defaults to 0.3 for
-        fixed budget and 1 for flexible.
+        spend_constraint_upper) * budget * allocation)`. Defaults to `0.3` for
+        fixed budget and `1` for flexible.
       target_roi: Float indicating the target ROI constraint. Only used for
         flexible budget scenarios. The budget is constrained to when the ROI of
-        the total spend hits target_roi.
+        the total spend hits `target_roi`.
       target_mroi: Float indicating the target marginal ROI constraint. Only
         used for flexible budget scenarios. The budget is constrained to when
-        the marginal ROI of the total spend hits target_mroi.
+        the marginal ROI of the total spend hits `target_mroi`.
       gtol: Float indicating the acceptable relative error for the budget used
-        in the grid setup. The budget will be rounded by 10*n, where n is the
-        smallest int such that (budget - rounded_budget) is less than or equal
-        to (budget * gtol). gtol must be less than 1.
-      use_optimal_frequency: If True use optimal_frequency calculated by trained
-        meridian model for optimization, otherwise use historical frequency.
-      batch_size: Max draws per chain in each batch. The calculation is run in
-        batches to avoid memory exhaustion. If a memory error occurs, try
+        in the grid setup. The budget will be rounded by 10*n, where `n` is the
+        smallest integer such that (budget - rounded_budget) is less than or
+        equal to (budget * gtol). `gtol` must be less than 1.
+      use_optimal_frequency: If `True`, uses `optimal_frequency` calculated by
+        trained Meridian model for optimization. If `False`, uses historical
+        frequency.
+      batch_size: Maximum draws per chain in each batch. The calculation is run
+        in batches to avoid memory exhaustion. If a memory error occurs, try
         reducing `batch_size`. The calculation will generally be faster with
         larger `batch_size` values.
     """
@@ -302,7 +303,7 @@ class BudgetOptimizer:
     )
 
   def output_optimization_summary(self, filename: str, filepath: str):
-    """Generate and save the HTML optimization summary output."""
+    """Generates and saves the HTML optimization summary output."""
     if self.optimized_data:
       os.makedirs(filepath, exist_ok=True)
       with open(os.path.join(filepath, filename), 'w') as f:
@@ -420,11 +421,11 @@ class BudgetOptimizer:
     )
 
   def plot_budget_allocation(self, optimized: bool = True) -> alt.Chart:
-    """Plots a pie chart showing the spend split by channel.
+    """Plots a pie chart showing the spend allocated for each channel.
 
     Args:
-      optimized: If True, shows the optimized spend. Else, shows the
-        non-optimized spend.
+      optimized: If `True`, shows the optimized spend. If `False`, shows the
+      non-optimized spend.
 
     Returns:
       An Altair pie chart showing the spend by channel.
