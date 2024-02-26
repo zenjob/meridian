@@ -100,8 +100,23 @@ class ControlsTransformerTest(absltest.TestCase):
     )
     self._controls3 = np.ones((self._n_geos, 1, self._n_controls))
 
+    # Generate populations to test population scaling.
+    self._population = tfp.distributions.Uniform().sample(self._n_geos)
+    self._population_scaling_id = tf.convert_to_tensor(
+        [False, True, False, True, True]
+    )
+    self._controls4 = tf.tile(
+        self._population[:, None, None], (1, self._n_times, self._n_controls)
+    )
+    self._transformer = transformers.ControlsTransformer(
+        self._controls4, self._population, self._population_scaling_id
+    )
+    self._controls_transformed = self._transformer.forward(self._controls4)
+
   def test_output_shape_and_range(self):
-    transformer = transformers.ControlsTransformer(controls=self._controls1)
+    transformer = transformers.ControlsTransformer(
+        controls=self._controls1, population=self._population
+    )
 
     transformed_controls = transformer.forward(self._controls2)
     tf.debugging.assert_equal(
@@ -118,7 +133,9 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_forward_no_variation(self):
-    transformer = transformers.ControlsTransformer(controls=self._controls3)
+    transformer = transformers.ControlsTransformer(
+        controls=self._controls3, population=self._population
+    )
     transformed_controls = transformer.forward(self._controls3)
     tf.debugging.assert_near(
         transformed_controls,
@@ -127,7 +144,9 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_forward_inverse_is_identity(self):
-    transformer = transformers.ControlsTransformer(controls=self._controls1)
+    transformer = transformers.ControlsTransformer(
+        controls=self._controls1, population=self._population
+    )
     transformed_controls = transformer.inverse(
         transformer.forward(self._controls2)
     )
@@ -135,6 +154,28 @@ class ControlsTransformerTest(absltest.TestCase):
         transformed_controls,
         self._controls2,
         message="`inverse(forward(controls))` not equal to `controls`.",
+    )
+
+  def test_default_population_args(self):
+    default_transformer = transformers.ControlsTransformer(
+        self._controls4, self._population
+    )
+    self.assertIsNone(default_transformer._population_scaling_factors)
+
+  def test_inverse_population_scaled(self):
+    tf.debugging.assert_near(
+        self._transformer.inverse(self._controls_transformed), self._controls4
+    )
+
+  def test_output_population_scaled(self):
+    pop_mean = tf.reduce_mean(self._population)
+    pop_std = tf.math.reduce_std(self._population)
+    expected_output = tf.Variable(self._controls4)
+    expected_output[:, :, 1].assign(1)
+    expected_output[:, :, 3].assign(1)
+    expected_output[:, :, 4].assign(1)
+    tf.debugging.assert_near(
+        self._controls_transformed * pop_std + pop_mean, expected_output
     )
 
 
@@ -161,9 +202,7 @@ class KpiTransformerTest(absltest.TestCase):
     tf.debugging.assert_equal(
         transformed_kpi.shape,
         self._kpi2.shape,
-        message=(
-            "Shape of `kpi` not preserved by `KpiTransform.forward()`."
-        ),
+        message="Shape of `kpi` not preserved by `KpiTransform.forward()`.",
     )
     tf.debugging.assert_all_finite(
         transformed_kpi,
@@ -174,9 +213,7 @@ class KpiTransformerTest(absltest.TestCase):
     transformer = transformers.KpiTransformer(
         kpi=self._kpi1, population=self._population
     )
-    transformed_kpi = transformer.inverse(
-        transformer.forward(self._kpi2)
-    )
+    transformed_kpi = transformer.inverse(transformer.forward(self._kpi2))
     tf.debugging.assert_near(
         transformed_kpi,
         self._kpi2,

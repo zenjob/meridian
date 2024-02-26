@@ -777,6 +777,34 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ),
     )
 
+  def test_population_scaled_conrols_transformer_set(self):
+    model_spec = spec.ModelSpec(
+        control_population_scaling_id=tf.convert_to_tensor(
+            [True for _ in self.input_data_with_media_and_rf.control_variable]
+        )
+    )
+    meridian = model.Meridian(
+        input_data=self.input_data_with_media_and_rf, model_spec=model_spec
+    )
+    self.assertIsNotNone(
+        meridian.controls_transformer._population_scaling_factors,
+        msg=(
+            "`_population_scaling_factors` not set for the controls"
+            " transformer."
+        ),
+    )
+    self.assertAllEqual(
+        meridian.controls_transformer._population_scaling_factors.shape,
+        [
+            len(self.input_data_with_media_and_rf.geo),
+            len(self.input_data_with_media_and_rf.control_variable),
+        ],
+        msg=(
+            "Shape of `controls_transformer._population_scaling_factors` does"
+            " not match (`n_geos`, `n_controls`)."
+        ),
+    )
+
   def test_scaled_data_inverse_is_identity(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)
 

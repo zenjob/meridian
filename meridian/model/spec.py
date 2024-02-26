@@ -105,6 +105,9 @@ class ModelSpec:
       as it may affect adstock of subsequent weeks. Note that if "ROI priors"
       are used (i.e. `use_roi_prior=True`), the `roi_m` parameters correspond to
       the ROI of all geos/times, even those in the holdout sample.
+    control_population_scaling_id: An optional boolean tensor of dimension
+      (`n_controls`) indicating the control variables for which the control
+      value should be scaled by population.
   """
 
   prior: prior_distribution.PriorDistribution = dataclasses.field(
@@ -120,6 +123,7 @@ class ModelSpec:
   knots: int | list[int] | None = None
   baseline_geo: int | str | None = None
   holdout_id: np.ndarray | None = None
+  control_population_scaling_id: np.ndarray | None = None
 
   def __post_init__(self):
     # Validate media_effects_dist.

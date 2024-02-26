@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """This file contains data transformers for various inputs of Meridian."""
+
 import numpy as np
 import tensorflow as tf
 
@@ -36,7 +37,7 @@ class MediaTransformer:
         `n_media_channels`) containing the media data, used to compute the scale
         factors.
       population: A tensor of dimension (`n_geos`) containing the population of
-        each geo, used to to compute the scale factors.
+        each geo, used to compute the scale factors.
     """
     population_scaled_media = tf.math.divide_no_nan(
         media, population[:, tf.newaxis, tf.newaxis]
@@ -74,25 +75,51 @@ class ControlsTransformer:
   to scale a given `controls` tensor.
   """
 
-  def __init__(self, controls: tf.Tensor):
+  def __init__(
+      self,
+      controls: tf.Tensor,
+      population: tf.Tensor,
+      population_scaling_id: tf.Tensor | None = None,
+  ):
     """Initializer.
 
     Args:
       controls: A tensor of dimension (`n_geos` x `n_times` x `n_controls`)
         containing the controls data, used to compute the mean and stddev.
+      population: A tensor of dimension (`n_geos`) containing the
+        population of each geo, used to compute the scale factors.
+      population_scaling_id: An optional boolean tensor of dimension
+        (`n_controls`) indicating the control variables for which the control
+        value should be scaled by population.
     """
+    if population_scaling_id is not None:
+      self._population_scaling_factors = tf.where(
+          population_scaling_id,
+          population[:, None],
+          tf.ones_like(population)[:, None],
+      )
+    else:
+      self._population_scaling_factors = None
+
     self._means = tf.reduce_mean(controls, axis=(0, 1))
     self._stdevs = tf.math.reduce_std(controls, axis=(0, 1))
 
   @tf.function(jit_compile=True)
   def forward(self, controls: tf.Tensor) -> tf.Tensor:
     """Scales a given `controls` tensor using the stored coefficients."""
+    if self._population_scaling_factors is not None:
+      controls /= self._population_scaling_factors[:, None, :]
     return tf.math.divide_no_nan(controls - self._means, self._stdevs)
 
   @tf.function(jit_compile=True)
   def inverse(self, controls: tf.Tensor) -> tf.Tensor:
     """Scales a given `controls` tensor back using the stored coefficients."""
-    return controls * self._stdevs + self._means
+    scaled_controls = controls * self._stdevs + self._means
+    return (
+        scaled_controls * self._population_scaling_factors[:, None, :]
+        if self._population_scaling_factors is not None
+        else scaled_controls
+    )
 
 
 class KpiTransformer:
@@ -110,8 +137,8 @@ class KpiTransformer:
     """Initializer.
 
     Args:
-      kpi: A tensor of dimension (`n_geos` x `n_times`) containing the
-        kpi data, used to compute the mean and stddev.
+      kpi: A tensor of dimension (`n_geos` x `n_times`) containing the kpi data,
+        used to compute the mean and stddev.
       population: A tensor of dimension (`n_geos`) containing the population of
         each geo, used to to compute the population scale factors.
     """
@@ -120,9 +147,7 @@ class KpiTransformer:
         kpi, self._population[:, tf.newaxis]
     )
     self._population_scaled_mean = tf.reduce_mean(population_scaled_kpi)
-    self._population_scaled_stdev = tf.math.reduce_std(
-        population_scaled_kpi
-    )
+    self._population_scaled_stdev = tf.math.reduce_std(population_scaled_kpi)
 
   @tf.function(jit_compile=True)
   def forward(self, kpi: tf.Tensor) -> tf.Tensor:

@@ -220,7 +220,19 @@ class Meridian:
         self.input_data.population, dtype=tf.float32
     )
 
-    self._controls_transformer = transformers.ControlsTransformer(self.controls)
+    if self.model_spec.control_population_scaling_id is not None:
+      controls_population_scaling_id = tf.convert_to_tensor(
+          self.model_spec.control_population_scaling_id, dtype=bool
+      )
+    else:
+      controls_population_scaling_id = None
+
+    self._controls_transformer = transformers.ControlsTransformer(
+        controls=self.controls,
+        population=self.population,
+        population_scaling_id=controls_population_scaling_id,
+    )
+
     self._kpi_transformer = transformers.KpiTransformer(
         self.kpi, self.population
     )
