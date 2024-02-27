@@ -19,6 +19,7 @@ from collections.abc import Collection, Sequence
 import os
 from unittest import mock
 import warnings
+from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
 from meridian import constants
@@ -2122,6 +2123,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_save_and_load_works(self):
+    # The create_tempdir() method below internally uses command line flag
+    # (--test_tmpdir) and such flags are not marked as parsed by default
+    # when running with pytest. Marking as parsed directly here to make the
+    # pytest run pass.
+    flags.FLAGS.mark_as_parsed()
     file_path = os.path.join(self.create_tempdir().full_path, "joblib")
     mmm = model.Meridian(input_data=self.input_data_with_media_and_rf)
     model.save_mmm(mmm, str(file_path))
