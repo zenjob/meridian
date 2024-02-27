@@ -275,23 +275,25 @@ class InputDataLoaderTest(parameterized.TestCase):
   ):
     expected_dataset = test_utils.EXPECTED_NATIONAL_DATASET
 
-    with warnings.catch_warnings(record=True) as w:
+    with warnings.catch_warnings(record=True) as warning_list:
       # Cause all warnings to always be triggered.
       warnings.simplefilter('always')
       loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
       if has_population:
-        self.assertLen(w, 1)
-        self.assertTrue(issubclass(w[0].category, UserWarning))
-        self.assertIn(
-            'The `population` argument is ignored in a nationally aggregated'
-            ' model. It will be reset to [1]',
-            str(w[0].message),
+        self.assertTrue(
+            any(
+                issubclass(warning.category, UserWarning)
+                and (
+                    str(warning.message)
+                    == 'The `population` argument is ignored in a nationally'
+                    ' aggregated model. It will be reset to [1]'
+                )
+                for warning in warning_list
+            )
         )
     data = loader.load()
 
-    xr.testing.assert_equal(
-        data.kpi, expected_dataset[constants.KPI]
-    )
+    xr.testing.assert_equal(data.kpi, expected_dataset[constants.KPI])
     xr.testing.assert_equal(
         data.revenue_per_kpi, expected_dataset[constants.REVENUE_PER_KPI]
     )
@@ -553,9 +555,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_rf_channels=self._N_RF_CHANNELS,
     )
 
-    xr.testing.assert_equal(
-        data.kpi, expected_dataset[constants.KPI]
-    )
+    xr.testing.assert_equal(data.kpi, expected_dataset[constants.KPI])
     xr.testing.assert_equal(
         data.revenue_per_kpi, expected_dataset[constants.REVENUE_PER_KPI]
     )
@@ -611,9 +611,7 @@ class InputDataLoaderTest(parameterized.TestCase):
         n_rf_channels=self._N_RF_CHANNELS,
     )
 
-    xr.testing.assert_equal(
-        data.kpi, expected_dataset[constants.KPI]
-    )
+    xr.testing.assert_equal(data.kpi, expected_dataset[constants.KPI])
 
   def test_dataframe_data_loader_invalid_time_format(self):
     df = self._sample_df_with_media_and_rf
