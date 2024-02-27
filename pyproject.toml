@@ -27,12 +27,12 @@ keywords = [
 # Installed locally with `pip install -e .`
 dependencies = [
   "arviz",
-  "altair",
+  "altair >= 4.2.0, < 5",
   "immutabledict",
   "joblib",
   "numpy",
   "pandas",
-  "tensorflow>=2.15",
+  "tensorflow >= 2.15",
   "tensorflow-probability",
   "xarray",
 ]
