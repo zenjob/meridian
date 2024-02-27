@@ -1865,9 +1865,9 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_plot_roi_vs_effectiveness_disable_size(self):
     plot = self.media_summary.plot_roi_vs_effectiveness(disable_size=True)
-    encoding = plot.to_dict()["encoding"]
-    self.assertNotEmpty(encoding)
-    self.assertNotIn("size", encoding)
+    encoding = plot["encoding"]
+    self.assertIsNotNone(encoding)
+    self.assertEqual(encoding.size, alt.utils.schemapi.Undefined)
 
   def test_media_summary_plot_roi_vs_mroi_correct_data(self):
     plot = self.media_summary.plot_roi_vs_mroi()
