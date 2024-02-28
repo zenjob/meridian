@@ -551,25 +551,35 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_media_effects_with_custom_date_range(self):
-    _ = self._get_output_model_results_summary_html_dom(
-        start_date=dt.datetime(2022, 6, 4),
-        end_date=dt.datetime(2022, 7, 30),
-    )
+    media_effects = self.media_effects
+    mock_spec_1 = 'response_curves'
 
-    self.media_effects_class.assert_called_with(
-        self.mock_meridian,
-        selected_times=[
-            '2022-06-04',
-            '2022-06-11',
-            '2022-06-18',
-            '2022-06-25',
-            '2022-07-02',
-            '2022-07-09',
-            '2022-07-16',
-            '2022-07-23',
-            '2022-07-30',
-        ],
-    )
+    with mock.patch.object(media_effects, 'plot_response_curves') as plot:
+      plot().to_json.return_value = f'["{mock_spec_1}"]'
+
+      _ = self._get_output_model_results_summary_html_dom(
+          start_date=dt.datetime(2022, 6, 4),
+          end_date=dt.datetime(2022, 7, 30),
+      )
+      self.media_effects_class.assert_called_with(self.mock_meridian)
+      plot.assert_called_with(
+          confidence_level=0.9,
+          selected_times=frozenset([
+              '2022-06-04',
+              '2022-06-11',
+              '2022-06-18',
+              '2022-06-25',
+              '2022-07-02',
+              '2022-07-09',
+              '2022-07-16',
+              '2022-07-23',
+              '2022-07-30',
+          ]),
+          plot_separately=False,
+          include_ci=False,
+          num_channels_displayed=7,
+      )
+      plot().to_json.assert_called_once()
 
   def test_reach_frequency_with_custom_date_range(self):
     _ = self._get_output_model_results_summary_html_dom(
@@ -730,6 +740,10 @@ class SummarizerTest(parameterized.TestCase):
       summary_html_dom = self._get_output_model_results_summary_html_dom()
 
       plot.assert_called_with(
+          confidence_level=0.9,
+          selected_times=frozenset(
+              self.summarizer._meridian.input_data.time.values
+          ),
           plot_separately=False,
           include_ci=False,
           num_channels_displayed=7,
@@ -746,7 +760,6 @@ class SummarizerTest(parameterized.TestCase):
         for script in card.findall('charts/script')
         if script.text is not None
     ]
-
     mock_spec_1_exists = any(
         [mock_spec_1 in script_text for script_text in script_texts]
     )

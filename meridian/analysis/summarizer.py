@@ -164,9 +164,7 @@ class Summarizer:
     media_summary = visualizer.MediaSummary(
         self._meridian, selected_times=selected_times
     )
-    media_effects = visualizer.MediaEffects(
-        self._meridian, selected_times=selected_times
-    )
+    media_effects = visualizer.MediaEffects(self._meridian)
     reach_frequency = (
         visualizer.ReachAndFrequency(
             self._meridian, selected_times=selected_times
@@ -181,10 +179,11 @@ class Summarizer:
         self._create_sales_contrib_card_html(template_env, media_summary),
         self._create_roi_breakdown_card_html(template_env, media_summary),
         self._create_budget_optimization_card_html(
-            template_env,
-            media_summary,
-            media_effects,
-            reach_frequency,
+            template_env=template_env,
+            selected_times=selected_times,
+            media_summary=media_summary,
+            media_effects=media_effects,
+            reach_frequency=reach_frequency,
         ),
     ]
 
@@ -366,6 +365,7 @@ class Summarizer:
   def _create_budget_optimization_card_html(
       self,
       template_env: jinja2.Environment,
+      selected_times: Sequence[str],
       media_summary: visualizer.MediaSummary,
       media_effects: visualizer.MediaEffects,
       reach_frequency: visualizer.ReachAndFrequency | None,
@@ -377,6 +377,8 @@ class Summarizer:
             id=summary_text.RESPONSE_CURVES_CHART_ID,
             description=summary_text.RESPONSE_CURVES_CHART_DESCRIPTION,
             chart_json=media_effects.plot_response_curves(
+                confidence_level=0.9,
+                selected_times=frozenset(selected_times),
                 plot_separately=False,
                 include_ci=False,
                 num_channels_displayed=7,

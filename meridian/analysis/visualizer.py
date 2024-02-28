@@ -16,7 +16,6 @@
 
 from collections.abc import Sequence
 import functools
-
 import altair as alt
 from meridian import constants as c
 from meridian.analysis import analyzer
@@ -772,42 +771,27 @@ class MediaEffects:
   def __init__(
       self,
       meridian: model.Meridian,
-      confidence_level: float = 0.9,
-      selected_times: Sequence[str] | None = None,
       by_reach: bool = True,
   ):
     """Initializes the Media Effects based on the model data and params.
 
     Args:
       meridian: Media mix model with the raw data from the model fitting.
-      confidence_level: Confidence level for modeled response credible
-        intervals (CI), as a value between zero and one. Default is `0.9`.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
       by_reach: For the channel w/ reach and frequency, return the response
         curves by reach given fixed frequency if true; return the response
         curves by frequency given fixed reach if false.
     """
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
-    self._confidence_level = confidence_level
-    self._selected_times = selected_times
     self._by_reach = by_reach
-    self._response_curves_data = self._analyzer.response_curves(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=confidence_level,
-        selected_times=selected_times,
-        by_reach=by_reach,
-    )
-    self._adstock_decay_dataframe = self._analyzer.adstock_decay(
-        confidence_level=confidence_level
-    )
-    self._hill_curves_dataframe = self._analyzer.hill_curves(
-        confidence_level=confidence_level
-    )
 
-  @property
-  def response_curves_data(self) -> xr.Dataset:
+  @functools.lru_cache(maxsize=128)
+  def response_curves_data(
+      self,
+      confidence_level: float = 0.9,
+      selected_times: frozenset[str] | None = None,
+      by_reach: bool = True,
+  ) -> xr.Dataset:
     """Dataset holding the calculated response curves data.
 
     The dataset contains the following:
@@ -815,36 +799,81 @@ class MediaEffects:
     - **Coordinates:** `media`, `metric` (`mean`, `ci_hi`, `ci_lo`),
       `spend_multiplier`
     - **Data variables:** `spend`, `incremental_impact`, `roi`
-    """
-    return self._response_curves_data
 
-  @property
-  def adstock_decay_dataframe(self) -> pd.DataFrame:
+    Args:
+      confidence_level: Confidence level for modeled response credible
+        intervals, represented as a value between zero and one. Default is 0.9.
+      selected_times: Optional list of a subset of time dimensions to include.
+        By default, all times are included. Times should match the time
+        dimensions from calibra.InputData.
+      by_reach: For the channel w/ reach and frequency, return the response
+        curves by reach given fixed frequency if true; return the response
+        curves by frequency given fixed reach if false.
+
+    Returns:
+      A Dataset displaying the response curves data.
+    """
+    selected_times_list = list(selected_times) if selected_times else None
+    return self._analyzer.response_curves(
+        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
+        confidence_level=confidence_level,
+        selected_times=selected_times_list,
+        by_reach=by_reach,
+    )
+
+  @functools.lru_cache(maxsize=128)
+  def adstock_decay_dataframe(
+      self, confidence_level: float = 0.9
+  ) -> pd.DataFrame:
     """A DataFrame holding the calculated Adstock decay metrics.
 
     The DataFrame contains the following columns:
-      `time_units`, `channel`, `distribution`, `mean`, `ci_lo`, `ci_hi`.
-    """
-    return self._adstock_decay_dataframe
 
-  @property
-  def hill_curves_dataframe(self) -> pd.DataFrame:
+      `time_units`, `channel`, `distribution`, `mean`, `ci_lo`, `ci_hi`.
+    Args:
+      confidence_level: Confidence level for modeled adstock decay credible
+        intervals, represented as a value between zero and one. Default is 0.9.
+
+    Returns:
+      A DataFrame displaying the adstock decay metrics.
+    """
+    return self._analyzer.adstock_decay(confidence_level=confidence_level)
+
+  @functools.lru_cache(maxsize=128)
+  def hill_curves_dataframe(
+      self, confidence_level: float = 0.9
+  ) -> pd.DataFrame:
     """A DataFrame holding the calculated Hill curve metrics.
 
     The DataFrame contains the following columns:
       `channel`, `media_units`, `ci_hi`, `ci_lo`, `mean`, `channel_type`,
       `scaled_count_histogram`, `start_interval_histogram`,
       `end_interval_histogram`.
-    """
-    return self._hill_curves_dataframe
+    Args:
+      confidence_level: Confidence level for modeled hill curves credible
+        intervals, represented as a value between zero and one. Default is 0.9.
 
-  def update_response_curves(
+    Returns:
+      A DataFrame displaying the hill curves metrics.
+    """
+    return self._analyzer.hill_curves(confidence_level=confidence_level)
+
+  def plot_response_curves(
       self,
-      confidence_level: float | None = None,
-      selected_times: Sequence[str] | None = None,
+      confidence_level: float = 0.9,
+      selected_times: frozenset[str] | None = None,
       by_reach: bool = True,
-  ):
-    """Updates the confidence level for response curve credible intervals.
+      plot_separately: bool = True,
+      include_ci: bool = True,
+      num_channels_displayed: int | None = None,
+  ) -> alt.Chart:
+    """Plots the response curves for each channel.
+
+    To avoid congestion when the channels are plotted in the same graph, we cap
+    the number of channels that can be displayed visually on the graph to 7
+    channels maximum. If the num_channels_displayed is greater than the total
+    number of channels in the dataset, the total number of channels in the
+    dataset is displayed.
 
     Args:
       confidence_level: Confidence level to update to for the response curve
@@ -854,29 +883,6 @@ class MediaEffects:
       by_reach: For the channel w/ reach and frequency, return the response
         curves by reach given fixed frequency if true; return the response
         curves by frequency given fixed reach if false.
-    """
-    self._confidence_level = confidence_level or self._confidence_level
-    self._selected_times = selected_times
-    self._by_reach = by_reach
-    self._response_curves_data = self._analyzer.response_curves(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=self._confidence_level,
-        selected_times=selected_times,
-        by_reach=by_reach,
-    )
-    self._hill_curves_dataframe = self._analyzer.hill_curves(
-        confidence_level=self._confidence_level
-    )
-
-  def plot_response_curves(
-      self,
-      plot_separately: bool = True,
-      include_ci: bool = True,
-      num_channels_displayed: int | None = None,
-  ) -> alt.Chart:
-    """Plots the response curves for each channel.
-
-    Args:
       plot_separately: If `True`, the plots are faceted. If `False`, the plots
         are layered to create one plot with all of the channels.
       include_ci: If `True`, plots the credible interval. Defaults to `True`.
@@ -886,7 +892,8 @@ class MediaEffects:
     Returns:
       An Altair plot showing the response curves per channel.
     """
-    total_num_channels = len(self.response_curves_data[c.CHANNEL])
+
+    total_num_channels = len(self._meridian.input_data.get_all_channels())
 
     if plot_separately:
       title = summary_text.RESPONSE_CURVES_CHART_TITLE.format(top_channels='')
@@ -908,7 +915,10 @@ class MediaEffects:
       )
 
     response_curves_df = self._transform_response_curve_metrics(
-        num_channels_displayed
+        num_channels_displayed,
+        confidence_level=confidence_level,
+        selected_times=selected_times,
+        by_reach=by_reach,
     )
 
     base = (
@@ -983,22 +993,26 @@ class MediaEffects:
         title=formatter.custom_title_params(title)
     ).configure_axis(**formatter.TEXT_CONFIG)
 
-  def plot_adstock_decay(self, include_ci: bool = True):
+  def plot_adstock_decay(
+      self, confidence_level: float = 0.9, include_ci: bool = True
+  ):
     """Plots the Adstock decay for each channel.
 
     Args:
+      confidence_level: Confidence level to update to for the adstock decay
+        credible intervals, represented as a value between zero and one.
       include_ci: If `True`, plots the credible interval. Defaults to `True`.
 
     Returns:
       An Altair plot showing the Adstock decay prior and posterior per media.
     """
-    adstock_decay_df = self.adstock_decay_dataframe
-    base = alt.Chart(adstock_decay_df)
+    dataframe = self.adstock_decay_dataframe(confidence_level=confidence_level)
+    base = alt.Chart(dataframe)
 
-    confidence_level = int(self._confidence_level * 100)
+    scaled_confidence_level = int(confidence_level * 100)
 
-    posterior_label = f'posterior ({confidence_level}% CI)'
-    prior_label = f'prior ({confidence_level}% CI)'
+    posterior_label = f'posterior ({scaled_confidence_level}% CI)'
+    prior_label = f'prior ({scaled_confidence_level}% CI)'
 
     color_scale = alt.Scale(
         domain=[c.PRIOR, c.POSTERIOR],
@@ -1061,12 +1075,15 @@ class MediaEffects:
 
   def plot_hill_curves(
       self,
+      confidence_level: float = 0.9,
       include_prior: bool = True,
       include_ci: bool = True,
   ) -> alt.Chart | list[alt.Chart]:
     """Plots the Hill curves for each channel.
 
     Args:
+      confidence_level: Confidence level to update to for the hill curves
+        credible intervals, represented as a value between zero and one.
       include_prior: If `True`, plots contain both the prior and posterior.
         Defaults to `True`.
       include_ci: If `True`, plots the credible interval. Defaults to `True`.
@@ -1077,20 +1094,23 @@ class MediaEffects:
       RF channels, a list of 2 faceted Altair plots are returned: one
       for the media channels and another for the RF channels.
     """
-    channel_types = list(set(self._hill_curves_dataframe[c.CHANNEL_TYPE]))
+    hill_curves_dataframe = self.hill_curves_dataframe(
+        confidence_level=confidence_level
+    )
+    channel_types = list(set(hill_curves_dataframe[c.CHANNEL_TYPE]))
     plot_media, plot_rf = None, None
 
     if c.MEDIA in channel_types:
-      media_df = self._hill_curves_dataframe[
-          self._hill_curves_dataframe[c.CHANNEL_TYPE] == c.MEDIA
+      media_df = hill_curves_dataframe[
+          hill_curves_dataframe[c.CHANNEL_TYPE] == c.MEDIA
       ]
       plot_media = self._plot_hill_curves_helper(
           media_df, include_prior, include_ci
       )
 
     if c.RF in channel_types:
-      rf_df = self._hill_curves_dataframe[
-          self._hill_curves_dataframe[c.CHANNEL_TYPE] == c.RF
+      rf_df = hill_curves_dataframe[
+          hill_curves_dataframe[c.CHANNEL_TYPE] == c.RF
       ]
       plot_rf = self._plot_hill_curves_helper(rf_df, include_prior, include_ci)
 
@@ -1192,27 +1212,44 @@ class MediaEffects:
     )
 
   def _transform_response_curve_metrics(
-      self, num_channels: int | None = None
+      self,
+      num_channels: int | None = None,
+      selected_times: frozenset[str] | None = None,
+      confidence_level: float = 0.9,
+      by_reach: bool = True,
   ) -> pd.DataFrame:
     """Returns DataFrame with top channels by spend for the layered plot.
 
     Args:
       num_channels: Optional number of top channels by spend to include. By
         default, all channels are included.
+      selected_times: Optional list of a subset of time dimensions to include.
+        By default, all times are included. Times should match the time
+        dimensions from calibra.InputData.
+      confidence_level: Confidence level to update to for the response curve
+        credible intervals, represented as a value between zero and one.
+      by_reach: For the channel w/ reach and frequency, return the response
+        curves by reach given fixed frequency if true; return the response
+        curves by frequency given fixed reach if false.
 
     Returns:
       A DataFrame containing the top chosen channels
       num_channels, ordered by the spend, with the columns being
       channel, spend, spend_multiplier, ci_hi, ci_lo and incremental_impact
     """
+    data = self.response_curves_data(
+        confidence_level=confidence_level,
+        selected_times=selected_times,
+        by_reach=by_reach,
+    )
     list_sorted_channels_cost = list(
-        self.response_curves_data.sel(spend_multiplier=1)
+        data.sel(spend_multiplier=1)
         .sortby(c.SPEND, ascending=False)[c.CHANNEL]
         .values
     )
 
     df = (
-        self.response_curves_data[[c.SPEND, c.INCREMENTAL_IMPACT]]
+        data[[c.SPEND, c.INCREMENTAL_IMPACT]]
         .sel(channel=list_sorted_channels_cost[:num_channels])
         .to_dataframe()
         .reset_index()

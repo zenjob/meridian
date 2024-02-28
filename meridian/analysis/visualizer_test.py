@@ -28,7 +28,6 @@ from meridian.analysis import visualizer
 from meridian.data import input_data
 from meridian.data import test_utils as data_test_utils
 from meridian.model import model
-import numpy as np
 import xarray as xr
 
 mock = absltest.mock
@@ -36,6 +35,17 @@ mock = absltest.mock
 _TEST_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "model", "test_data"
 )
+
+# Data dimensions for sample input.
+_N_CHAINS = 2
+_N_KEEP = 10
+_N_DRAWS = 10
+_N_GEOS = 5
+_N_TIMES = 49
+_N_MEDIA_TIMES = 52
+_N_CONTROLS = 2
+_N_MEDIA_CHANNELS = 3
+_N_RF_CHANNELS = 2
 
 
 class ModelDiagnosticsTest(parameterized.TestCase):
@@ -792,11 +802,20 @@ class MediaEffectsTest(parameterized.TestCase):
   @classmethod
   def setUpClass(cls):
     super(MediaEffectsTest, cls).setUpClass()
-    cls.input_data = mock.create_autospec(input_data.InputData, instance=True)
-    cls.meridian = mock.create_autospec(
-        model.Meridian, instance=True, input_data=cls.input_data
+    cls.input_data_media_and_rf = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
     )
-
+    cls.meridian = mock.create_autospec(
+        model.Meridian, instance=True, input_data=cls.input_data_media_and_rf
+    )
     cls.mock_response_curves_data = test_utils.generate_response_curve_data()
     cls.mock_response_curves_method = cls.enter_context(
         mock.patch.object(
@@ -805,18 +824,16 @@ class MediaEffectsTest(parameterized.TestCase):
             return_value=cls.mock_response_curves_data,
         )
     )
-
     cls.mock_adstock_decay_dataframe = test_utils.generate_adstock_decay_data()
-    cls.enter_context(
+    cls.mock_adstock_decay_method = cls.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
             "adstock_decay",
             return_value=cls.mock_adstock_decay_dataframe,
         )
     )
-
     cls.mock_hill_curves_dataframe = test_utils.generate_hill_curves_dataframe()
-    cls.enter_context(
+    cls.mock_hill_curves_method = cls.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
             "hill_curves",
@@ -825,66 +842,27 @@ class MediaEffectsTest(parameterized.TestCase):
     )
     cls.media_effects = visualizer.MediaEffects(cls.meridian)
 
-  def test_media_effects_plot_response_curves_data(self):
-    self.assertEqual(
-        self.media_effects.response_curves_data,
-        self.mock_response_curves_data,
+  def test_media_effects_caching_done_correctly(self):
+    self.media_effects.response_curves_data(
+        selected_times=frozenset(["2021-02-22", "2021-03-01"])
     )
-
-  def test_media_effects_plot_response_curves_update_ci(self):
-    self.assertEqual(
-        self.media_effects.response_curves_data.confidence_level, 0.9
-    )
-    self.media_effects.update_response_curves(
-        confidence_level=0.8, by_reach=False
-    )
-    self.mock_response_curves_method.assert_called_with(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=0.8,
-        selected_times=None,
-        by_reach=False,
-    )
-
-  def test_media_effects_plot_response_curves_update_selected_times(self):
-    times = ["2023-01-01", "2023-04-21"]
-    media_effects = visualizer.MediaEffects(
-        self.meridian, confidence_level=0.9, selected_times=times
-    )
-    self.mock_response_curves_method.assert_called_with(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=0.9,
-        selected_times=times,
-        by_reach=True,
-    )
-    media_effects.update_response_curves(
-        confidence_level=0.9, selected_times=None, by_reach=False
-    )
-    self.mock_response_curves_method.assert_called_with(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=0.9,
-        selected_times=None,
-        by_reach=False,
-    )
-    times_2 = ["2023-02-01", "2023-06-30"]
-    media_effects.update_response_curves(
-        confidence_level=0.9, selected_times=times_2, by_reach=False
-    )
-    self.mock_response_curves_method.assert_called_with(
-        spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
-        confidence_level=0.9,
-        selected_times=times_2,
-        by_reach=False,
-    )
+    self.media_effects.response_curves_data(
+        selected_times=frozenset(["2021-02-22", "2021-03-01"])
+    )  # Should be retrieved from cache instead of calling Analyzer's method.
+    self.mock_response_curves_method.assert_called_once()
+    self.media_effects.adstock_decay_dataframe(confidence_level=0.95)
+    self.media_effects.adstock_decay_dataframe(confidence_level=0.95)
+    self.mock_adstock_decay_method.assert_called_once()
+    self.media_effects.hill_curves_dataframe(confidence_level=0.85)
+    self.media_effects.hill_curves_dataframe(confidence_level=0.85)
+    self.mock_hill_curves_method.assert_called_once()
 
   def test_media_effects_plot_response_curves_plot_include_ci(self):
-    plot = self.media_effects.plot_response_curves(
-        plot_separately=False, num_channels_displayed=5
-    )
+    plot = self.media_effects.plot_response_curves(plot_separately=False)
     band_mark = plot.layer[2].mark
     band_encoding = plot.layer[2].encoding
     self.assertEqual(band_mark.type, "area")
     self.assertEqual(band_mark.opacity, 0.5)
-
     self.assertEqual(band_encoding.color.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(band_encoding.x.shorthand, f"{c.SPEND}:Q")
     self.assertEqual(band_encoding.y.shorthand, f"{c.CI_LO}:Q")
@@ -892,36 +870,30 @@ class MediaEffectsTest(parameterized.TestCase):
 
   def test_media_effects_plot_response_curves_no_ci(self):
     plot_no_band = self.media_effects.plot_response_curves(
-        plot_separately=False, include_ci=False, num_channels_displayed=5
+        plot_separately=False, include_ci=False
     )
-
     self.assertEqual(plot_no_band.layer[0].encoding.x.shorthand, f"{c.SPEND}:Q")
     self.assertEqual(plot_no_band.layer[0].encoding.y.shorthand, f"{c.MEAN}:Q")
-
     self.assertLen(plot_no_band.layer, 2)
 
   def test_media_effects_plot_response_curves_plot_correct_layers(self):
     plot_facet_by_channel = self.media_effects.plot_response_curves(
-        plot_separately=True, num_channels_displayed=5
+        plot_separately=True
     )
-
     self.assertIsInstance(plot_facet_by_channel, alt.FacetChart)
     self.assertIsInstance(plot_facet_by_channel.facet, alt.Facet)
     self.assertLen(plot_facet_by_channel.spec.layer, 3)
 
   def test_media_effects_plot_response_curves_plot_facet_properties(self):
     plot_facet_by_channel = self.media_effects.plot_response_curves(
-        plot_separately=True, num_channels_displayed=5
+        plot_separately=True
     )
-
     self.assertEqual(plot_facet_by_channel.columns, 3)
     self.assertEqual(plot_facet_by_channel.resolve.scale.x, c.INDEPENDENT)
     self.assertEqual(plot_facet_by_channel.resolve.scale.y, c.INDEPENDENT)
 
   def test_media_effects_plot_response_curves_solid_striked_line(self):
-    plot = self.media_effects.plot_response_curves(
-        plot_separately=False, num_channels_displayed=5
-    )
+    plot = self.media_effects.plot_response_curves(plot_separately=False)
     layer = plot.layer
     solid_line_layer = layer[0]
     strike_line_layer = layer[1]
@@ -931,27 +903,23 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(solid_line_encoding.color.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(solid_line_encoding.x.shorthand, f"{c.SPEND}:Q")
     self.assertEqual(solid_line_encoding.y.shorthand, f"{c.MEAN}:Q")
-
     self.assertEqual(strike_line_encoding.color.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(strike_line_encoding.x.shorthand, f"{c.SPEND}:Q")
     self.assertEqual(strike_line_encoding.y.shorthand, f"{c.MEAN}:Q")
 
   def test_media_effects_plot_response_curves_points_filled(self):
-    plot = self.media_effects.plot_response_curves(
-        plot_separately=False, num_channels_displayed=5
-    )
+    plot = self.media_effects.plot_response_curves(plot_separately=False)
     layer = plot.layer
     point_encoding = layer[2].encoding
     self.assertEqual(point_encoding.x.shorthand, f"{c.SPEND}:Q")
     self.assertEqual(point_encoding.y.shorthand, f"{c.CI_LO}:Q")
     self.assertEqual(point_encoding.y2.shorthand, f"{c.CI_HI}:Q")
-
     point_mark = layer[2].mark
     self.assertEqual(point_mark.type, "area")
     self.assertEqual(point_mark.opacity, 0.5)
 
   def test_media_effects_plot_response_curves_correct_data(self):
-    plot = self.media_effects.plot_response_curves(num_channels_displayed=5)
+    plot = self.media_effects.plot_response_curves()
     df = plot.data
     self.assertEqual(
         list(df.columns),
@@ -965,7 +933,6 @@ class MediaEffectsTest(parameterized.TestCase):
             c.CURRENT_SPEND,
         ],
     )
-
     self.assertFalse(any(pct > 2.0 or pct < 0.0 for pct in df.spend_multiplier))
     self.assertTrue(spend > 0 for spend in df.spend)
 
@@ -979,7 +946,6 @@ class MediaEffectsTest(parameterized.TestCase):
     plot_5_layered = self.media_effects.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=5
     )
-
     plot_no_num_channel_arg = self.media_effects.plot_response_curves(
         plot_separately=False, include_ci=True
     )
@@ -1016,7 +982,6 @@ class MediaEffectsTest(parameterized.TestCase):
     plot = self.media_effects.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=20
     )
-
     self.assertLen(set(plot.data[c.CHANNEL]), 5)
 
   def test_media_effects_plot_response_curves_axis_configs(self):
@@ -1040,7 +1005,6 @@ class MediaEffectsTest(parameterized.TestCase):
 
     self.assertEqual(band_mark.type, "area")
     self.assertEqual(band_mark.opacity, 0.2)
-
     self.assertEqual(band_encoding.color.shorthand, c.DISTRIBUTION)
     self.assertEqual(band_encoding.x.shorthand, f"{c.TIME_UNITS}:Q")
     self.assertEqual(band_encoding.y.shorthand, f"{c.CI_LO}:Q")
@@ -1131,7 +1095,6 @@ class MediaEffectsTest(parameterized.TestCase):
             c.CI_HI,
         ],
     )
-
     self.assertTrue(
         all(time_unit >= 0 and time_unit < 21 for time_unit in df.time_units)
     )
@@ -1142,7 +1105,6 @@ class MediaEffectsTest(parameterized.TestCase):
     plot_media, plot_rf = self.media_effects.plot_hill_curves()
     facet_chart_layer_media = plot_media.spec.layer
     facet_chart_layer_rf = plot_rf.spec.layer
-
     media_band_mark = facet_chart_layer_media[2].mark
     media_band_encoding = facet_chart_layer_media[2].encoding
     rf_band_encoding = facet_chart_layer_rf[2].encoding
@@ -1150,7 +1112,6 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertLen(facet_chart_layer_media, 3)
     self.assertEqual(media_band_mark.type, "area")
     self.assertEqual(media_band_mark.opacity, 0.3)
-
     self.assertEqual(
         media_band_encoding.color.scale.domain,
         [
@@ -1175,7 +1136,6 @@ class MediaEffectsTest(parameterized.TestCase):
 
     self.assertEqual(media_band_encoding.color.shorthand, f"{c.DISTRIBUTION}:N")
     self.assertEqual(media_band_encoding.x.shorthand, f"{c.MEDIA_UNITS}:Q")
-
     self.assertEqual(media_band_encoding.y.shorthand, f"{c.CI_LO}:Q")
     self.assertEqual(media_band_encoding.y2.shorthand, f"{c.CI_HI}:Q")
 
@@ -1193,7 +1153,6 @@ class MediaEffectsTest(parameterized.TestCase):
   def test_media_effects_plot_hill_curves_no_prior(self):
     plot_media, _ = self.media_effects.plot_hill_curves(include_prior=False)
     no_prior_data = plot_media.data
-
     self.assertNotIn(
         c.PRIOR,
         no_prior_data.distribution,
@@ -1206,17 +1165,14 @@ class MediaEffectsTest(parameterized.TestCase):
 
     line_encoding = posterior_or_prior_line_layer.encoding
     self.assertEqual(posterior_or_prior_line_layer.mark, "line")
-
     self.assertEqual(line_encoding.color.shorthand, f"{c.DISTRIBUTION}:N")
     self.assertEqual(line_encoding.x.shorthand, f"{c.MEDIA_UNITS}:Q")
     self.assertEqual(line_encoding.x.scale.nice, False)
     self.assertEqual(line_encoding.y.shorthand, f"{c.MEAN}:Q")
-
     self.assertEqual(
         line_encoding.color.scale.domain,
         [c.POSTERIOR, c.PRIOR, summary_text.HILL_SHADED_REGION_MEDIA_LABEL],
     )
-
     self.assertEqual(
         line_encoding.color.scale.range,
         [c.BLUE_700, c.RED_600, c.GREY_600],
