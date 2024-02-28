@@ -415,21 +415,77 @@ class ModelFitTest(absltest.TestCase):
   @classmethod
   def setUpClass(cls):
     super(ModelFitTest, cls).setUpClass()
-    cls.input_data = mock.create_autospec(input_data.InputData, instance=True)
-    largest_geos = cls.input_data.get_n_top_largest_geos
-    largest_geos.side_effect = lambda n: [f"geo {i}" for i in range(n)]
-    cls.meridian = mock.create_autospec(
-        model.Meridian, instance=True, input_data=cls.input_data
+    n_times = 149
+    n_geos = 10
+    revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=2.2
     )
-    cls.mock_model_fit_data = test_utils.generate_model_fit_data()
+    cls.input_data_1 = mock.create_autospec(input_data.InputData, instance=True)
+    cls.input_data_2 = mock.create_autospec(input_data.InputData, instance=True)
+    cls.input_data_3 = mock.create_autospec(input_data.InputData, instance=True)
+
+    largest_geos = cls.input_data_1.get_n_top_largest_geos
+    largest_geos.side_effect = lambda n: [f"geo {i}" for i in range(n)]
+
+    # Testing three scenarios.
+    # Label = `Revenue`.
+    meridian_revenue = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_1,
+    )
+    meridian_revenue.input_data.kpi_type = c.REVENUE
+    meridian_revenue.input_data.revenue_per_kpi = revenue_per_kpi
+    # Label = `KPI`.
+    meridian_kpi = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_2,
+    )
+    meridian_kpi.input_data.kpi_type = c.NON_REVENUE
+    meridian_kpi.input_data.revenue_per_kpi = None
+    # Label = `Revenue`.
+    meridian_revenue_2 = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_3,
+    )
+    meridian_revenue_2.input_data.kpi_type = c.NON_REVENUE
+    meridian_revenue_2.input_data.revenue_per_kpi = revenue_per_kpi
+    mock_model_fit_data = test_utils.generate_model_fit_data()
     cls.mock_analyzer_method = cls.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
             "expected_vs_actual_data",
-            return_value=cls.mock_model_fit_data,
+            return_value=mock_model_fit_data,
         )
     )
-    cls.model_fit = visualizer.ModelFit(cls.meridian)
+    cls.model_fit_kpi_type_revenue = visualizer.ModelFit(meridian_revenue)
+    cls.model_fit_kpi_type_kpi = visualizer.ModelFit(meridian_kpi)
+    cls.model_fit_kpi_type_revenue_2 = visualizer.ModelFit(meridian_revenue_2)
+
+  def test_model_fit_plot_different_scenarios_labels_correct(self):
+    # Verifies each of the three kpi_type and revenue_per_kpi scenarios have
+    # the correct labels associated with them.
+    plot_revenue_revenue_label = (
+        self.model_fit_kpi_type_revenue.plot_model_fit()
+    )
+    plot_non_revenue_kpi_label = self.model_fit_kpi_type_kpi.plot_model_fit()
+    plot_non_revenue_revenue_label = (
+        self.model_fit_kpi_type_revenue_2.plot_model_fit()
+    )
+    self.assertEqual(
+        plot_revenue_revenue_label.layer[0].encoding.y.title,
+        summary_text.REVENUE_LABEL,
+    )
+    self.assertEqual(
+        plot_non_revenue_kpi_label.layer[0].encoding.y.title,
+        summary_text.KPI_LABEL,
+    )
+    self.assertEqual(
+        plot_non_revenue_revenue_label.layer[0].encoding.y.title,
+        summary_text.REVENUE_LABEL,
+    )
 
   def test_model_fit_incorrect_selected_times_raises_error(self):
     with self.assertRaisesRegex(
@@ -437,7 +493,9 @@ class ModelFitTest(absltest.TestCase):
         "`selected_times` should match the time dimensions from"
         " meridian.InputData.",
     ):
-      self.model_fit.plot_model_fit(selected_times=["2000-01-01"])
+      self.model_fit_kpi_type_revenue.plot_model_fit(
+          selected_times=["2000-01-01"]
+      )
 
   def test_model_fit_show_geo_no_geo_specified_raises_error(self):
     with self.assertRaisesRegex(
@@ -445,7 +503,7 @@ class ModelFitTest(absltest.TestCase):
         "Geo-level plotting is only available when `selected_geos` or"
         " `n_top_largest_geos` is specified.",
     ):
-      self.model_fit.plot_model_fit(show_geo_level=True)
+      self.model_fit_kpi_type_revenue.plot_model_fit(show_geo_level=True)
 
   def test_model_fit_selected_geo_and_n_top_largest_geos_raises_error(self):
     with self.assertRaisesRegex(
@@ -453,7 +511,7 @@ class ModelFitTest(absltest.TestCase):
         "Only one of `selected_geos` and `n_top_largest_geos` can be"
         " specified.",
     ):
-      self.model_fit.plot_model_fit(
+      self.model_fit_kpi_type_revenue.plot_model_fit(
           selected_geos=["geo 1", "geo 2"], n_top_largest_geos=3
       )
 
@@ -463,7 +521,9 @@ class ModelFitTest(absltest.TestCase):
         "`selected_geos` should match the geo dimension names from"
         " meridian.InputData.",
     ):
-      self.model_fit.plot_model_fit(selected_geos=["nonexistent geo"])
+      self.model_fit_kpi_type_revenue.plot_model_fit(
+          selected_geos=["nonexistent geo"]
+      )
 
   def test_model_fit_n_top_largest_geos_greater_than_total_num_geos(self):
     with self.assertRaisesRegex(
@@ -471,16 +531,18 @@ class ModelFitTest(absltest.TestCase):
         "`n_top_largest_geos` should be less than or equal to the total number"
         " of geos: 5.",
     ):
-      self.model_fit.plot_model_fit(n_top_largest_geos=100)
+      self.model_fit_kpi_type_revenue.plot_model_fit(n_top_largest_geos=100)
 
   def test_model_fit_update_ci(self):
-    self.assertEqual(self.model_fit.model_fit_data.confidence_level, 0.9)
-    self.model_fit.update_confidence_level(0.8)
+    self.assertEqual(
+        self.model_fit_kpi_type_revenue.model_fit_data.confidence_level, 0.9
+    )
+    self.model_fit_kpi_type_revenue.update_confidence_level(0.8)
     self.mock_analyzer_method.assert_called_with(0.8)
 
   def test_model_fit_plots_selected_times(self):
     times = ["2023-01-01", "2023-01-08", "2023-01-15"]
-    plot = self.model_fit.plot_model_fit(selected_times=times)
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(selected_times=times)
     self.assertListEqual(list(plot.data.time.unique()), times)
 
   def test_model_fit_national_level_aggregates_all_geos(self):
@@ -496,7 +558,7 @@ class ModelFitTest(absltest.TestCase):
         "model_fit_data",
         new=property(lambda unused_self: model_fit_data),
     ):
-      plot = self.model_fit.plot_model_fit()
+      plot = self.model_fit_kpi_type_revenue.plot_model_fit()
 
     plot_actual_value = plot.data.loc[
         (plot.data[c.TIME] == "2023-01-01") & (plot.data[c.TYPE] == c.ACTUAL)
@@ -519,7 +581,9 @@ class ModelFitTest(absltest.TestCase):
         "model_fit_data",
         new=property(lambda unused_self: model_fit_data),
     ):
-      plot = self.model_fit.plot_model_fit(selected_geos=["geo 1", "geo 3"])
+      plot = self.model_fit_kpi_type_revenue.plot_model_fit(
+          selected_geos=["geo 1", "geo 3"]
+      )
 
     plot_actual_value = plot.data.loc[
         (plot.data[c.TIME] == "2023-01-01") & (plot.data["type"] == c.ACTUAL)
@@ -527,7 +591,7 @@ class ModelFitTest(absltest.TestCase):
     self.assertEqual(plot_actual_value, 6)
 
   def test_model_fit_geo_level_plots_selected_geos(self):
-    plot = self.model_fit.plot_model_fit(
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(
         selected_geos=["geo 1", "geo 3"], show_geo_level=True
     )
 
@@ -536,17 +600,17 @@ class ModelFitTest(absltest.TestCase):
     self.assertListEqual(plot.facet.column.sort, ["geo 1", "geo 3"])
 
   def test_model_fit_geo_level_plots_n_largest_geos(self):
-    plot = self.model_fit.plot_model_fit(
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(
         n_top_largest_geos=3, show_geo_level=True
     )
 
-    self.input_data.get_n_top_largest_geos.assert_called_with(3)
+    self.input_data_1.get_n_top_largest_geos.assert_called_with(3)
     self.assertContainsSubset([c.GEO], plot.data.columns.tolist())
     self.assertIsInstance(plot, alt.FacetChart)
     self.assertListEqual(plot.facet.column.sort, ["geo 0", "geo 1", "geo 2"])
 
   def test_model_fit_plots_baseline(self):
-    plot = self.model_fit.plot_model_fit(include_baseline=True)
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(include_baseline=True)
 
     self.assertListEqual(
         plot.data.type.unique().tolist(),
@@ -559,7 +623,9 @@ class ModelFitTest(absltest.TestCase):
     self.assertLen(plot.layer[0].encoding.color.scale.range, 3)
 
   def test_model_fit_plots_no_baseline(self):
-    plot = self.model_fit.plot_model_fit(include_baseline=False)
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(
+        include_baseline=False
+    )
 
     self.assertListEqual(
         plot.data.type.unique().tolist(), [c.ACTUAL, c.EXPECTED]
@@ -570,7 +636,7 @@ class ModelFitTest(absltest.TestCase):
     )
 
   def test_model_fit_plots_expected_ci(self):
-    plot = self.model_fit.plot_model_fit(include_ci=True)
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(include_ci=True)
 
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertEqual(plot.layer[1].encoding.color.scale.domain, [c.EXPECTED])
@@ -578,13 +644,13 @@ class ModelFitTest(absltest.TestCase):
     self.assertEqual(plot.layer[1].encoding.y2.shorthand, f"{c.CI_LO}:Q")
 
   def test_model_fit_plots_no_ci(self):
-    plot = self.model_fit.plot_model_fit(include_ci=False)
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit(include_ci=False)
     self.assertIsInstance(plot, alt.Chart)
     self.assertEqual(plot.encoding.x.shorthand, f"{c.TIME}:T")
     self.assertEqual(plot.encoding.y.shorthand, f"{c.MEAN}:Q")
 
   def test_model_fit_axis_encoding(self):
-    plot = self.model_fit.plot_model_fit()
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit()
     self.assertEqual(
         plot.layer[0].encoding.x.axis.to_dict(),
         {"domainColor": c.GREY_300, "grid": False, "tickCount": 8},
@@ -602,7 +668,7 @@ class ModelFitTest(absltest.TestCase):
     )
 
   def test_model_fit_correct_config(self):
-    plot = self.model_fit.plot_model_fit()
+    plot = self.model_fit_kpi_type_revenue.plot_model_fit()
     self.assertEqual(plot.config.axis.to_dict(), formatter.TEXT_CONFIG)
 
 
@@ -802,7 +868,34 @@ class MediaEffectsTest(parameterized.TestCase):
   @classmethod
   def setUpClass(cls):
     super(MediaEffectsTest, cls).setUpClass()
-    cls.input_data_media_and_rf = (
+    n_times = 149
+    n_geos = 10
+    revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=2.2
+    )
+    cls.input_data_1 = (
+        data_test_utils.sample_input_data_revenue(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    cls.input_data_2 = (
+        data_test_utils.sample_input_data_non_revenue_no_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    cls.input_data_3 = (
         data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=_N_GEOS,
             n_times=_N_TIMES,
@@ -813,9 +906,31 @@ class MediaEffectsTest(parameterized.TestCase):
             seed=0,
         )
     )
-    cls.meridian = mock.create_autospec(
-        model.Meridian, instance=True, input_data=cls.input_data_media_and_rf
+    # Testing three scenarios.
+    # Label = `Revenue`.
+    cls.meridian_revenue = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_1,
     )
+    cls.meridian_revenue.input_data.kpi_type = c.REVENUE
+    cls.meridian_revenue.input_data.revenue_per_kpi = revenue_per_kpi
+    # Label = `KPI`.
+    meridian_kpi = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_2,
+    )
+    meridian_kpi.input_data.kpi_type = c.NON_REVENUE
+    meridian_kpi.input_data.revenue_per_kpi = None
+    # Label = `Revenue`.
+    meridian_revenue_2 = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=cls.input_data_3,
+    )
+    meridian_revenue_2.input_data.kpi_type = c.NON_REVENUE
+    meridian_revenue_2.input_data.revenue_per_kpi = revenue_per_kpi
     cls.mock_response_curves_data = test_utils.generate_response_curve_data()
     cls.mock_response_curves_method = cls.enter_context(
         mock.patch.object(
@@ -840,25 +955,72 @@ class MediaEffectsTest(parameterized.TestCase):
             return_value=cls.mock_hill_curves_dataframe,
         )
     )
-    cls.media_effects = visualizer.MediaEffects(cls.meridian)
+    cls.media_effects_kpi_type_revenue = visualizer.MediaEffects(
+        cls.meridian_revenue
+    )
+    cls.media_effects_kpi_type_kpi = visualizer.MediaEffects(meridian_kpi)
+    cls.media_effects_kpi_type_revenue_2 = visualizer.MediaEffects(
+        meridian_revenue_2
+    )
+
+  def test_media_effects_plot_different_scenarios_labels_correct(self):
+    # Verifies each of the three kpi_type and revenue_per_kpi scenarios have
+    # the correct labels associated with them.
+    plot_revenue_revenue_label = (
+        self.media_effects_kpi_type_revenue.plot_response_curves(
+            plot_separately=False
+        )
+    )
+    plot_non_revenue_kpi_label = (
+        self.media_effects_kpi_type_kpi.plot_response_curves(
+            plot_separately=False
+        )
+    )
+    plot_non_revenue_revenue_label = (
+        self.media_effects_kpi_type_revenue_2.plot_response_curves(
+            plot_separately=False
+        )
+    )
+    self.assertEqual(
+        plot_revenue_revenue_label.layer[0].encoding.y.title,
+        summary_text.INC_REVENUE_LABEL,
+    )
+    self.assertEqual(
+        plot_non_revenue_kpi_label.layer[0].encoding.y.title,
+        summary_text.INC_KPI_LABEL,
+    )
+    self.assertEqual(
+        plot_non_revenue_revenue_label.layer[0].encoding.y.title,
+        summary_text.INC_REVENUE_LABEL,
+    )
 
   def test_media_effects_caching_done_correctly(self):
-    self.media_effects.response_curves_data(
+    self.media_effects_kpi_type_revenue.response_curves_data(
         selected_times=frozenset(["2021-02-22", "2021-03-01"])
     )
-    self.media_effects.response_curves_data(
+    self.media_effects_kpi_type_revenue.response_curves_data(
         selected_times=frozenset(["2021-02-22", "2021-03-01"])
     )  # Should be retrieved from cache instead of calling Analyzer's method.
     self.mock_response_curves_method.assert_called_once()
-    self.media_effects.adstock_decay_dataframe(confidence_level=0.95)
-    self.media_effects.adstock_decay_dataframe(confidence_level=0.95)
+    self.media_effects_kpi_type_revenue.adstock_decay_dataframe(
+        confidence_level=0.95
+    )
+    self.media_effects_kpi_type_revenue.adstock_decay_dataframe(
+        confidence_level=0.95
+    )
     self.mock_adstock_decay_method.assert_called_once()
-    self.media_effects.hill_curves_dataframe(confidence_level=0.85)
-    self.media_effects.hill_curves_dataframe(confidence_level=0.85)
+    self.media_effects_kpi_type_revenue.hill_curves_dataframe(
+        confidence_level=0.85
+    )
+    self.media_effects_kpi_type_revenue.hill_curves_dataframe(
+        confidence_level=0.85
+    )
     self.mock_hill_curves_method.assert_called_once()
 
   def test_media_effects_plot_response_curves_plot_include_ci(self):
-    plot = self.media_effects.plot_response_curves(plot_separately=False)
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
+        plot_separately=False
+    )
     band_mark = plot.layer[2].mark
     band_encoding = plot.layer[2].encoding
     self.assertEqual(band_mark.type, "area")
@@ -869,7 +1031,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(band_encoding.y2.shorthand, f"{c.CI_HI}:Q")
 
   def test_media_effects_plot_response_curves_no_ci(self):
-    plot_no_band = self.media_effects.plot_response_curves(
+    plot_no_band = self.media_effects_kpi_type_revenue.plot_response_curves(
         plot_separately=False, include_ci=False
     )
     self.assertEqual(plot_no_band.layer[0].encoding.x.shorthand, f"{c.SPEND}:Q")
@@ -877,23 +1039,31 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertLen(plot_no_band.layer, 2)
 
   def test_media_effects_plot_response_curves_plot_correct_layers(self):
-    plot_facet_by_channel = self.media_effects.plot_response_curves(
-        plot_separately=True
+    plot_facet_by_channel = (
+        self.media_effects_kpi_type_revenue.plot_response_curves(
+            plot_separately=True, num_channels_displayed=5
+        )
     )
+
     self.assertIsInstance(plot_facet_by_channel, alt.FacetChart)
     self.assertIsInstance(plot_facet_by_channel.facet, alt.Facet)
     self.assertLen(plot_facet_by_channel.spec.layer, 3)
 
   def test_media_effects_plot_response_curves_plot_facet_properties(self):
-    plot_facet_by_channel = self.media_effects.plot_response_curves(
-        plot_separately=True
+    plot_facet_by_channel = (
+        self.media_effects_kpi_type_revenue.plot_response_curves(
+            plot_separately=True, num_channels_displayed=5
+        )
     )
+
     self.assertEqual(plot_facet_by_channel.columns, 3)
     self.assertEqual(plot_facet_by_channel.resolve.scale.x, c.INDEPENDENT)
     self.assertEqual(plot_facet_by_channel.resolve.scale.y, c.INDEPENDENT)
 
   def test_media_effects_plot_response_curves_solid_striked_line(self):
-    plot = self.media_effects.plot_response_curves(plot_separately=False)
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
+        plot_separately=False
+    )
     layer = plot.layer
     solid_line_layer = layer[0]
     strike_line_layer = layer[1]
@@ -908,7 +1078,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(strike_line_encoding.y.shorthand, f"{c.MEAN}:Q")
 
   def test_media_effects_plot_response_curves_points_filled(self):
-    plot = self.media_effects.plot_response_curves(plot_separately=False)
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
+        plot_separately=False
+    )
     layer = plot.layer
     point_encoding = layer[2].encoding
     self.assertEqual(point_encoding.x.shorthand, f"{c.SPEND}:Q")
@@ -919,7 +1091,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(point_mark.opacity, 0.5)
 
   def test_media_effects_plot_response_curves_correct_data(self):
-    plot = self.media_effects.plot_response_curves()
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
+        num_channels_displayed=5
+    )
     df = plot.data
     self.assertEqual(
         list(df.columns),
@@ -937,17 +1111,19 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertTrue(spend > 0 for spend in df.spend)
 
   def test_media_effects_plot_response_curves_customize_channels(self):
-    plot_2_layered = self.media_effects.plot_response_curves(
+    plot_2_layered = self.media_effects_kpi_type_revenue.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=2
     )
-    plot_3_layered = self.media_effects.plot_response_curves(
+    plot_3_layered = self.media_effects_kpi_type_revenue.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=3
     )
-    plot_5_layered = self.media_effects.plot_response_curves(
+    plot_5_layered = self.media_effects_kpi_type_revenue.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=5
     )
-    plot_no_num_channel_arg = self.media_effects.plot_response_curves(
-        plot_separately=False, include_ci=True
+    plot_no_num_channel_arg = (
+        self.media_effects_kpi_type_revenue.plot_response_curves(
+            plot_separately=False, include_ci=True
+        )
     )
     self.assertLen(set(plot_2_layered.data[c.CHANNEL]), 2)
     self.assertSetEqual(
@@ -979,13 +1155,15 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_response_curves_channels_exceeded_truncated(self):
-    plot = self.media_effects.plot_response_curves(
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
         plot_separately=False, include_ci=True, num_channels_displayed=20
     )
     self.assertLen(set(plot.data[c.CHANNEL]), 5)
 
   def test_media_effects_plot_response_curves_axis_configs(self):
-    plot = self.media_effects.plot_response_curves(plot_separately=False)
+    plot = self.media_effects_kpi_type_revenue.plot_response_curves(
+        plot_separately=False
+    )
     self.assertEqual(plot.config.axis.to_dict(), formatter.TEXT_CONFIG)
     self.assertEqual(
         plot.layer[0].encoding.x.axis.to_dict(),
@@ -998,7 +1176,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_adstock_decay_plot_include_ci(self):
-    plot = self.media_effects.plot_adstock_decay()
+    plot = self.media_effects_kpi_type_revenue.plot_adstock_decay()
 
     band_mark = plot.spec.layer[1].mark
     band_encoding = plot.spec.layer[1].encoding
@@ -1011,7 +1189,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(band_encoding.y2.shorthand, f"{c.CI_HI}:Q")
 
   def test_media_effects_plot_adstock_decay_no_ci(self):
-    plot_no_band = self.media_effects.plot_adstock_decay(include_ci=False)
+    plot_no_band = self.media_effects_kpi_type_revenue.plot_adstock_decay(
+        include_ci=False
+    )
     self.assertEqual(
         plot_no_band.spec.layer[0].encoding.x.shorthand, f"{c.TIME_UNITS}:Q"
     )
@@ -1021,7 +1201,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertLen(plot_no_band.spec.layer, 2)
 
   def test_media_effects_plot_adstock_decay_plot_posterior_prior_line(self):
-    plot = self.media_effects.plot_adstock_decay()
+    plot = self.media_effects_kpi_type_revenue.plot_adstock_decay()
 
     layer = plot.spec.layer
     posterior_or_prior_line_layer = layer[0]
@@ -1042,7 +1222,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(line_encoding.color.scale.range, [c.RED_600, c.BLUE_700])
 
   def test_media_effects_plot_adstock_decay_plot_correct_properties(self):
-    plot_facet_by_channel = self.media_effects.plot_adstock_decay()
+    plot_facet_by_channel = (
+        self.media_effects_kpi_type_revenue.plot_adstock_decay()
+    )
     self.assertIsInstance(plot_facet_by_channel, alt.FacetChart)
     self.assertIsInstance(plot_facet_by_channel.facet, alt.Facet)
     self.assertLen(plot_facet_by_channel.spec.layer, 3)
@@ -1054,7 +1236,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_adstock_decay_plot_discrete_value_points(self):
-    plot = self.media_effects.plot_adstock_decay()
+    plot = self.media_effects_kpi_type_revenue.plot_adstock_decay()
     layer = plot.spec.layer
     discrete_value_points_layer = layer[2]
     discrete_value_points_encoding = discrete_value_points_layer.encoding
@@ -1082,7 +1264,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(discrete_value_points_mark.type, "circle")
 
   def test_media_effects_plot_adstock_decay_correct_data(self):
-    plot = self.media_effects.plot_adstock_decay()
+    plot = self.media_effects_kpi_type_revenue.plot_adstock_decay()
     df = plot.data
     self.assertEqual(
         list(df.columns),
@@ -1102,7 +1284,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertTrue(ci_lo > 0 for ci_lo in df.ci_lo)
 
   def test_media_effects_plot_hill_curve_plot_include_ci(self):
-    plot_media, plot_rf = self.media_effects.plot_hill_curves()
+    plot_media, plot_rf = self.media_effects_kpi_type_revenue.plot_hill_curves()
     facet_chart_layer_media = plot_media.spec.layer
     facet_chart_layer_rf = plot_rf.spec.layer
     media_band_mark = facet_chart_layer_media[2].mark
@@ -1140,7 +1322,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(media_band_encoding.y2.shorthand, f"{c.CI_HI}:Q")
 
   def test_media_effects_plot_hill_curves_no_ci(self):
-    plot_media, _ = self.media_effects.plot_hill_curves(include_ci=False)
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves(
+        include_ci=False
+    )
     facet_chart_layer = plot_media.spec.layer
 
     self.assertLen(facet_chart_layer, 2)
@@ -1151,7 +1335,9 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(facet_chart_layer[1].encoding.y.shorthand, f"{c.MEAN}:Q")
 
   def test_media_effects_plot_hill_curves_no_prior(self):
-    plot_media, _ = self.media_effects.plot_hill_curves(include_prior=False)
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves(
+        include_prior=False
+    )
     no_prior_data = plot_media.data
     self.assertNotIn(
         c.PRIOR,
@@ -1159,7 +1345,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_hill_curves_plot_posterior_prior_lines(self):
-    plot_media, _ = self.media_effects.plot_hill_curves()
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves()
     facet_chart_layer = plot_media.spec.layer
     posterior_or_prior_line_layer = facet_chart_layer[1]
 
@@ -1179,7 +1365,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_hill_curves_histogram(self):
-    plot_media, _ = self.media_effects.plot_hill_curves()
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves()
     facet_chart_layer = plot_media.spec.layer
     histogram_layer = facet_chart_layer[0]
 
@@ -1202,7 +1388,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(histogram_mark.opacity, 0.4)
 
   def test_media_effects_plot_hill_curves_plot_correct_properties(self):
-    plot_media, _ = self.media_effects.plot_hill_curves()
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves()
 
     self.assertIsInstance(plot_media, alt.FacetChart)
     self.assertIsInstance(plot_media.facet, alt.Facet)
@@ -1216,7 +1402,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
 
   def test_media_effects_plot_hill_curves_media_rf_x_axis_label(self):
-    plot_media, plot_rf = self.media_effects.plot_hill_curves()
+    plot_media, plot_rf = self.media_effects_kpi_type_revenue.plot_hill_curves()
 
     facet_chart_media_layer_line = plot_media.spec.layer[1]
     facet_chart_rf_layer_line = plot_rf.spec.layer[1]
@@ -1230,7 +1416,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertEqual(facet_chart_rf_encoding.x.title, "Average Frequency")
 
   def test_media_effects_plot_hill_curves_correct_data(self):
-    plot_media, _ = self.media_effects.plot_hill_curves()
+    plot_media, _ = self.media_effects_kpi_type_revenue.plot_hill_curves()
     df = plot_media.data
     self.assertEqual(
         list(df.columns),
@@ -1253,13 +1439,46 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def setUp(self):
     super(MediaSummaryTest, self).setUp()
-    self.input_data = mock.create_autospec(input_data.InputData, instance=True)
-    type(self.input_data).revenue_per_kpi = mock.PropertyMock(
-        return_value=data_test_utils.constant_revenue_per_kpi(5, 5, 1)
+    n_times = 149
+    n_geos = 10
+    revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=2.2
     )
-    self.meridian = mock.create_autospec(
-        model.Meridian, instance=True, input_data=self.input_data
+    self.input_data_1 = mock.create_autospec(
+        input_data.InputData, instance=True
     )
+    self.input_data_2 = mock.create_autospec(
+        input_data.InputData, instance=True
+    )
+    self.input_data_3 = mock.create_autospec(
+        input_data.InputData, instance=True
+    )
+
+    # Testing three scenarios.
+    # Label = `Revenue`.
+    self.meridian_revenue = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=self.input_data_1,
+    )
+    self.meridian_revenue.input_data.kpi_type = c.REVENUE
+    self.meridian_revenue.input_data.revenue_per_kpi = revenue_per_kpi
+    # Label = `KPI`.
+    meridian_kpi = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=self.input_data_2,
+    )
+    meridian_kpi.input_data.kpi_type = c.NON_REVENUE
+    meridian_kpi.input_data.revenue_per_kpi = None
+    # Label = `Revenue`.
+    meridian_revenue_2 = mock.create_autospec(
+        model.Meridian,
+        instance=True,
+        input_data=self.input_data_3,
+    )
+    meridian_revenue_2.input_data.kpi_type = c.NON_REVENUE
+    meridian_revenue_2.input_data.revenue_per_kpi = revenue_per_kpi
     self.mock_media_metrics = test_utils.generate_media_summary_metrics()
     self.mock_analyzer_method = self.enter_context(
         mock.patch.object(
@@ -1268,11 +1487,75 @@ class MediaSummaryTest(parameterized.TestCase):
             return_value=self.mock_media_metrics,
         )
     )
-    self.media_summary = visualizer.MediaSummary(self.meridian)
+    self.media_summary_revenue = visualizer.MediaSummary(self.meridian_revenue)
+    self.media_summary_kpi = visualizer.MediaSummary(meridian_kpi)
+    self.media_summary_revenue_2 = visualizer.MediaSummary(meridian_revenue_2)
+
+  def test_media_summary_plot_contribution_waterfall_different_scenarios(self):
+    # Verifies each of the three kpi_type and revenue_per_kpi scenarios have
+    # the correct labels associated with them.
+    plot_revenue_revenue_label = (
+        self.media_summary_revenue.plot_contribution_waterfall_chart()
+    )
+    plot_non_revenue_kpi_label = (
+        self.media_summary_kpi.plot_contribution_waterfall_chart()
+    )
+    plot_non_revenue_revenue_label = (
+        self.media_summary_revenue_2.plot_contribution_waterfall_chart()
+    )
+    self.assertEqual(
+        plot_revenue_revenue_label.layer[0].encoding.x.title, "% Revenue"
+    )
+    self.assertEqual(
+        plot_non_revenue_kpi_label.layer[0].encoding.x.title, "% KPI"
+    )
+    self.assertEqual(
+        plot_non_revenue_revenue_label.layer[0].encoding.x.title, "% Revenue"
+    )
+
+  def test_media_summary_plot_spend_vs_contribution_different_scenarios(self):
+    # Verifies each of the three kpi_type and revenue_per_kpi scenarios have
+    # the correct labels associated with them.
+    plot_revenue_revenue_label = (
+        self.media_summary_revenue.plot_spend_vs_contribution()
+    )
+    plot_non_revenue_revenue_label = (
+        self.media_summary_revenue_2.plot_spend_vs_contribution()
+    )
+    self.assertEqual(
+        plot_revenue_revenue_label.spec.layer[0].encoding.color.scale.domain,
+        ["% Revenue", "% Spend", "Return on Investment"],
+    )
+    self.assertEqual(
+        plot_non_revenue_revenue_label.spec.layer[
+            0
+        ].encoding.color.scale.domain,
+        ["% Revenue", "% Spend", "Return on Investment"],
+    )
+    plot_spend_vs_contribution = (
+        self.media_summary_kpi.plot_spend_vs_contribution()
+    )
+    self.assertLen(plot_spend_vs_contribution.spec.layer, 1)
+    self.assertEqual(
+        plot_spend_vs_contribution.spec.layer[0].mark.cornerRadiusEnd, 2
+    )
+    self.assertEqual(
+        plot_spend_vs_contribution.spec.layer[0].mark.tooltip, True
+    )
+    self.assertEqual(
+        plot_spend_vs_contribution.spec.layer[0].encoding.color.scale.domain,
+        [f"% {c.KPI.upper()}", "% Spend"],
+    )
+    self.assertEqual(
+        plot_spend_vs_contribution.spec.layer[0].encoding.color.scale.range,
+        [c.BLUE_400, c.BLUE_200],
+    )
+    self.assertEqual(plot_spend_vs_contribution.spec.layer[0].mark.type, "bar")
 
   def test_media_summary_media_summary_metrics_property(self):
     self.assertEqual(
-        self.media_summary.media_summary_metrics, self.mock_media_metrics
+        self.media_summary_revenue.media_summary_metrics,
+        self.mock_media_metrics,
     )
 
   def test_media_summary_summary_table_distribution_error(self):
@@ -1280,21 +1563,21 @@ class MediaSummaryTest(parameterized.TestCase):
         ValueError,
         "At least one of `include_posterior` or `include_prior` must be True.",
     ):
-      self.media_summary.summary_table(
+      self.media_summary_revenue.summary_table(
           include_prior=False, include_posterior=False
       )
 
   def test_media_summary_summary_table_posterior_only(self):
-    df = self.media_summary.summary_table(include_prior=False)
+    df = self.media_summary_revenue.summary_table(include_prior=False)
     self.assertNotIn(c.PRIOR, df[c.DISTRIBUTION])
 
   def test_media_summary_summary_table_prior_only(self):
-    df = self.media_summary.summary_table(include_posterior=False)
+    df = self.media_summary_revenue.summary_table(include_posterior=False)
     self.assertNotIn(c.POSTERIOR, df[c.DISTRIBUTION])
 
   # TODO(b/323002234): Add a test for the KPI scenario.
   def test_media_summary_summary_table_revenue(self):
-    df = self.media_summary.summary_table()
+    df = self.media_summary_revenue.summary_table()
     self.assertListEqual(
         list(df.columns),
         [
@@ -1314,7 +1597,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_summary_table_format_pct(self):
-    df = self.media_summary.summary_table()
+    df = self.media_summary_revenue.summary_table()
     self.assertTrue(
         all("%" in pct for pct in df[summary_text.PCT_IMPRESSIONS_COL])
     )
@@ -1324,12 +1607,12 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_summary_table_format_monetary(self):
-    df = self.media_summary.summary_table()
+    df = self.media_summary_revenue.summary_table()
     self.assertTrue(all("$" in dollar for dollar in df[c.SPEND]))
     self.assertTrue(all("$" in pct for pct in df[summary_text.INC_REVENUE_COL]))
 
   def test_media_summary_summary_table_format_credible_interval(self):
-    df = self.media_summary.summary_table()
+    df = self.media_summary_revenue.summary_table()
     inc_rev = self.mock_media_metrics.incremental_impact
     expected_mean = inc_rev.sel(metric="mean", distribution="prior").values[0]
     expected_ci_lo = inc_rev.sel(metric="ci_lo", distribution="prior").values[0]
@@ -1348,9 +1631,10 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_update_ci(self):
     self.assertEqual(
-        self.media_summary.media_summary_metrics.confidence_level, 0.9
+        self.media_summary_revenue.media_summary_metrics.confidence_level,
+        0.9,
     )
-    self.media_summary.update_media_summary_metrics(
+    self.media_summary_revenue.update_media_summary_metrics(
         confidence_level=0.8, marginal_roi_by_reach=False
     )
     self.mock_analyzer_method.assert_called_with(
@@ -1360,9 +1644,10 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_update_selected_times(self):
     times = ["2023-01-01", "2023-01-08", "2023-01-15"]
     self.assertEqual(
-        self.media_summary.media_summary_metrics.confidence_level, 0.9
+        self.media_summary_revenue.media_summary_metrics.confidence_level,
+        0.9,
     )
-    self.media_summary.update_media_summary_metrics(
+    self.media_summary_revenue.update_media_summary_metrics(
         selected_times=times, marginal_roi_by_reach=False
     )
     self.mock_analyzer_method.assert_called_with(
@@ -1370,7 +1655,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_roi_no_ci_plots_bar_chart(self):
-    plot = self.media_summary.plot_roi_bar_chart(include_ci=False)
+    plot = self.media_summary_revenue.plot_roi_bar_chart(include_ci=False)
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertEqual(plot.layer[0].encoding.x.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(plot.layer[0].encoding.x.axis.labelAngle, -45)
@@ -1384,7 +1669,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.layer[1].mark.type, "text")
 
   def test_media_summary_plot_roi_include_ci(self):
-    plot = self.media_summary.plot_roi_bar_chart()
+    plot = self.media_summary_revenue.plot_roi_bar_chart()
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertLen(plot.layer, 4)
     self.assertEqual(
@@ -1404,7 +1689,6 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.layer[2].mark.type, "text")
 
   def test_media_summary_plot_waterfall_chart_correct_data(self):
-    media_summary = visualizer.MediaSummary(self.meridian)
     media_metrics = xr.Dataset(
         data_vars={
             c.INCREMENTAL_IMPACT: (
@@ -1427,7 +1711,7 @@ class MediaSummaryTest(parameterized.TestCase):
         "media_summary_metrics",
         new=property(lambda unused_self: media_metrics),
     ):
-      plot = media_summary.plot_contribution_waterfall_chart()
+      plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
 
     df = plot.data
     self.assertEqual(
@@ -1469,7 +1753,6 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_plot_waterfall_chart_correct_formatted_text(
       self, pct, impact, expected_text
   ):
-    media_summary = visualizer.MediaSummary(self.meridian)
     media_metrics = test_utils.generate_media_summary_metrics()
     total_media_dict = {
         c.CHANNEL: c.ALL_CHANNELS,
@@ -1483,7 +1766,7 @@ class MediaSummaryTest(parameterized.TestCase):
         "media_summary_metrics",
         new=property(lambda unused_self: media_metrics),
     ):
-      plot = media_summary.plot_contribution_waterfall_chart()
+      plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     df = plot.data
     baseline_impact_text = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
         "impact_text"
@@ -1491,15 +1774,15 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(baseline_impact_text, expected_text)
 
   def test_media_summary_plot_waterfall_chart_correct_marks(self):
-    plot = self.media_summary.plot_contribution_waterfall_chart()
+    plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     self.assertEqual(plot.layer[0].mark.type, "bar")
     self.assertEqual(plot.layer[1].mark.type, "text")
 
   def test_media_summary_plot_waterfall_chart_correct_bar_encoding(self):
-    plot = self.media_summary.plot_contribution_waterfall_chart()
+    plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     encoding = plot.layer[0].encoding
     self.assertEqual(encoding.x.shorthand, "prev_sum:Q")
-    self.assertEqual(encoding.x.title, "% Sales")
+    self.assertEqual(encoding.x.title, "% Revenue")
     self.assertEqual(encoding.x2.shorthand, "sum_impact:Q")
     self.assertEqual(encoding.y.shorthand, f"{c.CHANNEL}:N")
     self.assertIsNotNone(encoding.color)
@@ -1508,7 +1791,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertFalse(encoding.y.axis.ticks)
 
   def test_media_summary_plot_waterfall_chart_correct_properties(self):
-    plot = self.media_summary.plot_contribution_waterfall_chart()
+    plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     self.assertEqual(plot.layer[0].mark.size, 42)
     self.assertLen(plot.data.channel, 6)
     self.assertEqual(plot.layer[0].encoding.y.scale.paddingOuter, 0.2)
@@ -1518,7 +1801,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.title.text, summary_text.CHANNEL_DRIVERS_CHART_TITLE)
 
   def test_media_summary_plot_waterfall_chart_correct_text_encoding(self):
-    plot = self.media_summary.plot_contribution_waterfall_chart()
+    plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     encoding = plot.layer[1].encoding
     self.assertEqual(encoding.text.shorthand, "impact_text")
     self.assertEqual(encoding.x.shorthand, "sum_impact:Q")
@@ -1528,7 +1811,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertIsNone(encoding.y.title)
 
   def test_media_summary_plot_waterfall_chart_correct_config(self):
-    plot = self.media_summary.plot_contribution_waterfall_chart()
+    plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     config = plot.config.to_dict()
     self.assertEqual(
         config["axis"],
@@ -1546,7 +1829,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(config["view"], {"strokeOpacity": 0})
 
   def test_media_summary_plot_pie_chart_correct_data(self):
-    plot = self.media_summary.plot_contribution_pie_chart()
+    plot = self.media_summary_revenue.plot_contribution_pie_chart()
     self.assertEqual(sum(plot.data[c.PCT_OF_CONTRIBUTION]), 1)
     self.assertSetEqual(
         set(plot.data[c.CHANNEL]),
@@ -1554,7 +1837,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_pie_chart_correct_mark(self):
-    plot = self.media_summary.plot_contribution_pie_chart()
+    plot = self.media_summary_revenue.plot_contribution_pie_chart()
     self.assertEqual(plot.title.text, summary_text.CONTRIBUTION_CHART_TITLE)
     self.assertEqual(
         plot.layer[0].mark.to_dict(),
@@ -1572,7 +1855,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_pie_chart_correct_encoding(self):
-    plot = self.media_summary.plot_contribution_pie_chart()
+    plot = self.media_summary_revenue.plot_contribution_pie_chart()
     arc_encoding = plot.layer[0].encoding.to_dict()
     text_encoding = plot.layer[1].encoding.to_dict()
     text = text_encoding.pop("text")
@@ -1615,7 +1898,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_spend_vs_contribution_correct_data(self):
-    media_summary = visualizer.MediaSummary(self.meridian)
+    media_summary = visualizer.MediaSummary(self.meridian_revenue)
     media_metrics = test_utils.generate_media_summary_metrics()
     total_media_dict = {
         c.CHANNEL: c.ALL_CHANNELS,
@@ -1644,14 +1927,14 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertNotIn(c.ALL_CHANNELS, list(df.channel))
     self.assertLen(df, len(set(df.channel)) * 2)
     self.assertEqual(
-        len(df[df.label == "% Sales"]), len(df[df.label == "% Spend"])
+        len(df[df.label == "% Revenue"]), len(df[df.label == "% Spend"])
     )
     self.assertFalse(
         any(scaled_roi > 1 or scaled_roi < 0 for scaled_roi in df.roi_scaled)
     )
 
   def test_media_summary_plot_spend_vs_contribution_correct_facet_config(self):
-    plot = self.media_summary.plot_spend_vs_contribution()
+    plot = self.media_summary_revenue.plot_spend_vs_contribution()
     self.assertEqual(
         plot.facet.column.to_dict(),
         {
@@ -1667,10 +1950,13 @@ class MediaSummaryTest(parameterized.TestCase):
     )
     self.assertEqual(plot.spacing, -1)
     self.assertEqual(plot.config.view.strokeOpacity, 0)
-    self.assertEqual(plot.title.text, summary_text.SPEND_IMPACT_CHART_TITLE)
+    self.assertEqual(
+        plot.title.text,
+        summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=c.REVENUE),
+    )
 
   def test_media_summary_plot_spend_vs_contribution_roi_marker(self):
-    plot = self.media_summary.plot_spend_vs_contribution()
+    plot = self.media_summary_revenue.plot_spend_vs_contribution()
     self.assertEqual(
         plot.spec.layer[1].encoding.to_dict(),
         {
@@ -1695,7 +1981,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_spend_vs_contribution_roi_text(self):
-    plot = self.media_summary.plot_spend_vs_contribution()
+    plot = self.media_summary_revenue.plot_spend_vs_contribution()
     self.assertEqual(
         plot.spec.layer[2].encoding.to_dict(),
         {
@@ -1718,7 +2004,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_spend_vs_contribution_bar_chart(self):
-    plot = self.media_summary.plot_spend_vs_contribution()
+    plot = self.media_summary_revenue.plot_spend_vs_contribution()
     self.assertEqual(
         plot.spec.layer[0].encoding.to_dict(),
         {
@@ -1731,7 +2017,7 @@ class MediaSummaryTest(parameterized.TestCase):
                     "title": None,
                 },
                 "scale": {
-                    "domain": ["% Sales", "% Spend", "Return on Investment"],
+                    "domain": ["% Revenue", "% Spend", "Return on Investment"],
                     "range": [
                         c.BLUE_400,
                         c.BLUE_200,
@@ -1774,7 +2060,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_data(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness()
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness()
     self.assertEqual(
         list(plot.data.columns),
         [
@@ -1787,12 +2073,12 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertNotIn("All Channels", list(plot.data.channel))
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_mark(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness()
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness()
     self.assertEqual(plot.mark.type, "circle")
     self.assertTrue(plot.mark.tooltip)
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_encoding(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness()
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness()
     self.assertEqual(plot.encoding.x.shorthand, c.ROI)
     self.assertEqual(plot.encoding.y.shorthand, c.EFFECTIVENESS)
     self.assertEqual(plot.encoding.size.shorthand, c.SPEND)
@@ -1801,7 +2087,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.encoding.y.axis.titleY, -20)
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_title(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness()
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness()
     self.assertEqual(
         plot.title.text, summary_text.ROI_EFFECTIVENESS_CHART_TITLE
     )
@@ -1812,7 +2098,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.title.offset, 10)
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_config(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness()
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness()
     expected_config = dict(formatter.TEXT_CONFIG) | {
         "gridDash": [3, 2],
         "titlePadding": 10,
@@ -1820,23 +2106,25 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.config.axis.to_dict(), expected_config)
 
   def test_media_summary_plot_roi_vs_effectiveness_disable_size(self):
-    plot = self.media_summary.plot_roi_vs_effectiveness(disable_size=True)
+    plot = self.media_summary_revenue.plot_roi_vs_effectiveness(
+        disable_size=True
+    )
     encoding = plot["encoding"]
     self.assertIsNotNone(encoding)
     self.assertEqual(encoding.size, alt.utils.schemapi.Undefined)
 
   def test_media_summary_plot_roi_vs_mroi_correct_data(self):
-    plot = self.media_summary.plot_roi_vs_mroi()
+    plot = self.media_summary_revenue.plot_roi_vs_mroi()
     self.assertIn(c.MROI, list(plot.data.columns))
 
   def test_media_summary_plot_roi_vs_mroi_correct_encoding(self):
-    plot = self.media_summary.plot_roi_vs_mroi()
+    plot = self.media_summary_revenue.plot_roi_vs_mroi()
     self.assertEqual(plot.title.text, summary_text.ROI_MARGINAL_CHART_TITLE)
     self.assertEqual(plot.encoding.y.shorthand, c.MROI)
 
   def test_media_summary_plot_roi_vs_mroi_selected_channels(self):
     selected_channels = ["channel 1", "channel 3"]
-    plot = self.media_summary.plot_roi_vs_mroi(
+    plot = self.media_summary_revenue.plot_roi_vs_mroi(
         selected_channels=selected_channels
     )
     self.assertEqual(plot.data.channel.unique().tolist(), selected_channels)
@@ -1847,10 +2135,12 @@ class MediaSummaryTest(parameterized.TestCase):
         "`selected_channels` should match the channel dimension names from "
         "meridian.InputData",
     ):
-      self.media_summary.plot_roi_vs_mroi(selected_channels=["wrong channel"])
+      self.media_summary_revenue.plot_roi_vs_mroi(
+          selected_channels=["wrong channel"]
+      )
 
   def test_media_summary_plot_roi_vs_mroi_equal_axes(self):
-    plot = self.media_summary.plot_roi_vs_mroi(equal_axes=True)
+    plot = self.media_summary_revenue.plot_roi_vs_mroi(equal_axes=True)
     max_value = max(plot.data.roi.max(), plot.data.mroi.max())
     self.assertEqual(plot.encoding.x.scale, plot.encoding.y.scale)
     self.assertEqual(plot.encoding.x.scale.domain[1], max_value)

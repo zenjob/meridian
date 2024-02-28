@@ -401,6 +401,11 @@ class ModelFit:
     Returns:
       An Altair plot showing the model fit.
     """
+    impact = (
+        c.REVENUE
+        if self._meridian.input_data.revenue_per_kpi is not None
+        else c.KPI.upper()
+    )
     self._validate_times_to_plot(selected_times)
     self._validate_geos_to_plot(
         selected_geos, n_top_largest_geos, show_geo_level
@@ -422,6 +427,13 @@ class ModelFit:
       domain.append(c.BASELINE)
       colors.append(c.YELLOW_600)
 
+    title = summary_text.EXPECTED_ACTUAL_IMPACT_CHART_TITLE.format(
+        impact=impact
+    )
+    if self._meridian.input_data.revenue_per_kpi is not None:
+      y_axis_label = summary_text.REVENUE_LABEL
+    else:
+      y_axis_label = summary_text.KPI_LABEL
     plot = (
         alt.Chart(model_fit_df)
         .mark_line()
@@ -433,7 +445,7 @@ class ModelFit:
             ),
             y=alt.Y(
                 f'{c.MEAN}:Q',
-                title='Sales',
+                title=y_axis_label,
                 axis=alt.Axis(
                     ticks=False,
                     domain=False,
@@ -471,9 +483,7 @@ class ModelFit:
       plot = plot.facet(column=alt.Column(f'{c.GEO}:O', sort=selected_geos))
 
     return plot.configure_axis(**formatter.TEXT_CONFIG).properties(
-        title=formatter.custom_title_params(
-            summary_text.EXPECTED_ACTUAL_SALES_CHART_TITLE
-        )
+        title=formatter.custom_title_params(title)
     )
 
   def _validate_times_to_plot(
@@ -894,7 +904,6 @@ class MediaEffects:
     """
 
     total_num_channels = len(self._meridian.input_data.get_all_channels())
-
     if plot_separately:
       title = summary_text.RESPONSE_CURVES_CHART_TITLE.format(top_channels='')
       num_channels_displayed = total_num_channels
@@ -920,7 +929,10 @@ class MediaEffects:
         selected_times=selected_times,
         by_reach=by_reach,
     )
-
+    if self._meridian.input_data.revenue_per_kpi is not None:
+      y_axis_label = summary_text.INC_REVENUE_LABEL
+    else:
+      y_axis_label = summary_text.INC_KPI_LABEL
     base = (
         alt.Chart(response_curves_df)
         .transform_calculate(
@@ -940,7 +952,7 @@ class MediaEffects:
             ),
             y=alt.Y(
                 f'{c.MEAN}:Q',
-                title=summary_text.INC_SALES_LABEL,
+                title=y_axis_label,
                 axis=alt.Axis(
                     labelExpr=formatter.compact_number_expr(),
                     **formatter.Y_AXIS_TITLE_CONFIG,
@@ -1428,6 +1440,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the impact contributions per channel.
     """
+    impact = (
+        c.REVENUE.title()
+        if self._meridian.input_data.revenue_per_kpi is not None
+        else c.KPI.upper()
+    )
     impact_df = self._transform_contribution_metrics()
     pct = c.PCT_OF_CONTRIBUTION
     value = c.INCREMENTAL_IMPACT
@@ -1460,10 +1477,11 @@ class MediaSummary:
             )
         )
     )
+    x_axis_label = f'% {impact}'
     bar = base.mark_bar(size=c.BAR_SIZE).encode(
         x=alt.X(
             'prev_sum:Q',
-            title='% Sales',
+            title=x_axis_label,
             axis=alt.Axis(
                 ticks=False,
                 tickCount=5,
@@ -1555,6 +1573,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the spend versus impact percentages per channel.
     """
+    impact = (
+        c.REVENUE
+        if self._meridian.input_data.revenue_per_kpi is not None
+        else c.KPI.upper()
+    )
     df = self._transform_contribution_spend_metrics()
     roi_marker = (
         alt.Chart()
@@ -1582,8 +1605,16 @@ class MediaSummary:
             y='roi_scaled:Q',
         )
     )
-    domain = ['% Sales', '% Spend', 'Return on Investment']
+    domain = [
+        f'% {impact.title() if impact == c.REVENUE else impact}',
+        '% Spend',
+        'Return on Investment',
+    ]
+    title = summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=impact)
     colors = [c.BLUE_400, c.BLUE_200, c.GREEN_700]
+    if self._meridian.input_data.revenue_per_kpi is None:
+      domain.remove('Return on Investment')
+      colors.remove(c.GREEN_700)
     spend_impact = (
         alt.Chart()
         .mark_bar(cornerRadiusEnd=2, tooltip=True)
@@ -1615,14 +1646,18 @@ class MediaSummary:
             ),
         )
     )
+    # Remove ROI markers and text when `revenue_per_kpi` does not exist.
+    if self._meridian.input_data.revenue_per_kpi is None:
+      layer = alt.layer(spend_impact, data=df)
+    else:
+      layer = alt.layer(spend_impact, roi_marker, roi_text, data=df)
 
     # To group the impact and spend bar plot with the ROI markers, facet the
     # layered plot by channel. This creates separate plots per channel.
     # To appear as 1 plot, remove the spacing between the facets and remove the
     # border outlines.
     return (
-        alt.layer(spend_impact, roi_marker, roi_text, data=df)
-        .facet(
+        layer.facet(
             column=alt.Column(
                 f'{c.CHANNEL}:N',
                 header=alt.Header(
@@ -1634,11 +1669,7 @@ class MediaSummary:
             ),
             spacing=-1,  # Combine the facets to appear as 1 unfaceted plot.
         )
-        .properties(
-            title=formatter.custom_title_params(
-                summary_text.SPEND_IMPACT_CHART_TITLE
-            )
-        )
+        .properties(title=formatter.custom_title_params(title))
         .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
         .configure_view(strokeOpacity=0)  # Remove facet outlines.
     )
@@ -1652,6 +1683,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the ROI per channel.
     """
+    if self._meridian.input_data.revenue_per_kpi is None:
+      raise TypeError(
+          'Not able to plot ROI-related metrics as `revenue_per_kpi` is'
+          ' unknown.'
+      )
     roi_df = (
         self.media_summary_metrics[c.ROI]
         .sel(distribution=c.POSTERIOR)
@@ -1742,6 +1778,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the ROI and effectiveness per channel.
     """
+    if self._meridian.input_data.revenue_per_kpi is None:
+      raise TypeError(
+          'Not able to plot ROI-related metrics as `revenue_per_kpi` is'
+          ' unknown.'
+      )
     return self._plot_roi_bubble_chart(
         metric=c.EFFECTIVENESS,
         metric_title='Effectiveness',
@@ -1772,6 +1813,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the ROI and mROI per channel.
     """
+    if self._meridian.input_data.revenue_per_kpi is None:
+      raise TypeError(
+          'Not able to plot ROI-related metrics as `revenue_per_kpi` is'
+          ' unknown.'
+      )
     return self._plot_roi_bubble_chart(
         metric=c.MROI,
         metric_title='Marginal ROI',
@@ -1956,6 +2002,10 @@ class MediaSummary:
     Returns:
       A dataframe of spend and impact percentages and ROI per channel.
     """
+    if self._meridian.input_data.revenue_per_kpi is not None:
+      impact = summary_text.REVENUE_LABEL
+    else:
+      impact = summary_text.KPI_LABEL
     roi_df = self._media_summary_metrics_to_mean_df(metrics=[c.ROI])
     total_media_impact = (
         self.media_summary_metrics[c.INCREMENTAL_IMPACT]
@@ -1973,8 +2023,7 @@ class MediaSummary:
         total_media_impact
     )
     impact_pct_df.drop(columns=[c.INCREMENTAL_IMPACT], inplace=True)
-    impact_pct_df['label'] = '% Sales'
-
+    impact_pct_df['label'] = f'% {impact}'
     spend_pct_df = (
         self.media_summary_metrics[c.PCT_OF_SPEND]
         .drop_sel(channel=[c.ALL_CHANNELS])

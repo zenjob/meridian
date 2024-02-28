@@ -27,7 +27,7 @@ matches the data too closely, and a model that is underfitted doesn't match
 closely enough."""
 
 EXPECTED_ACTUAL_SALES_CHART_ID = 'expected-actual-sales-chart'
-EXPECTED_ACTUAL_SALES_CHART_TITLE = 'Expected sales vs. actual sales'
+EXPECTED_ACTUAL_IMPACT_CHART_TITLE = 'Expected {impact} vs. actual {impact}'
 EXPECTED_ACTUAL_SALES_CHART_DESCRIPTION = """Note: The expected and baseline
 are your posterior mean."""
 
@@ -52,8 +52,9 @@ CHANNEL_DRIVERS_CHART_DESCRIPTION = """Note: This graphic encompasses all of
 your sales drivers, but breaks down your marketing actives by channel."""
 
 SPEND_SALES_CHART_ID = 'spend-sales-chart'
-# TODO(b/323901160): Include revenue + KPI options for the label in a future CL.
-SPEND_IMPACT_CHART_TITLE = 'Spend and sales contribution by marketing channel'
+SPEND_IMPACT_CHART_TITLE = (
+    'Spend and {impact} contribution by marketing channel'
+)
 SPEND_SALES_CHART_DESCRIPTION = """Note: Return on investment is calculated by
 dividing the sales attributed to a channel by marketing costs."""
 
@@ -171,7 +172,11 @@ HILL_SATURATION_CHART_TITLE = 'Hill Saturation Curves'
 CHANNEL_LABEL = 'Channel'
 SPEND_LABEL = 'Spend'
 ROI_LABEL = 'ROI'
-INC_SALES_LABEL = 'Incremental sales'
+KPI_LABEL = 'KPI'
+REVENUE_LABEL = 'Revenue'
+INC_SALES_LABEL = 'Incremental Sales'
+INC_REVENUE_LABEL = 'Incremental Revenue'
+INC_KPI_LABEL = 'Incremental KPI'
 OPTIMIZED_SPEND_LABEL = 'Optimized spend'
 CURRENT_SPEND_LABEL = 'Current spend'
 RESPONSE_CURVES_LABEL = 'Response curves'
