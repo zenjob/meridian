@@ -571,10 +571,11 @@ class Analyzer:
         over all regions.
       aggregate_times: Boolean. If `True`, the expected impact is summed
         over all time periods.
-      inverse_transform_impact: Boolean. If `True`, the expected impact is
-        returned in terms of the actual impact number (such as what is passed to
-        Meridian). If False, then the expected impact is returned in terms of
-        transformed impact (for example, what is modeled).
+      inverse_transform_impact: Boolean. If `True`, returns the expected impact
+        in the original KPI or revenue (depending on what is passed to
+        `use_kpi`), as it was passed to `InputData`. If False, returns the
+        impact after transformation by `KpiTransformer`, reflecting how its
+        represented within the model.
       use_kpi: Boolean. If `True`, the expected KPI is calculated. If `False`,
         the expected revenue (KPI * `revenue_per_kpi`) is calculated. Only used
         if `inverse_transform_impact=True`. `use_kpi` must be True when
@@ -808,10 +809,11 @@ class Analyzer:
         conjunction with `media`.
       beta_grf: rf_channel specific beta_g parameter from inference data. Used
         in conjunction with `reach` and `frequency`.
-      inverse_transform_impact: If True, the incremental impact is returned in
-        terms of the actual number of units sold. If false, the incremental
-        impact is returned in terms of transformed impact (i.e., what is
-        modeled).
+      inverse_transform_impact: Boolean. If `True`, returns the expected impact
+        in the original KPI or revenue (depending on what is passed to
+        `use_kpi`), as it was passed to `InputData`. If False, returns the
+        impact after transformation by `KpiTransformer`, reflecting how its
+        represented within the model.
       use_kpi: If True, the incremental KPI is calculated. If False, incremental
         revenue `(KPI * revenue_per_kpi)` is calculated. Only used if
         `inverse_transform_impact=True`. `use_kpi` must be True when
@@ -917,10 +919,11 @@ class Analyzer:
         all regions.
       aggregate_times: Boolean. If `True`, then incremental impact is summed
         over all time periods.
-      inverse_transform_impact: Boolean. If `True`, the incremental impact is
-        returned in terms of the actual number of units sold. If `False`, the
-        incremental impact is returned in terms of transformed impact (for
-        example, what is modeled).
+      inverse_transform_impact: Boolean. If `True`, returns the expected impact
+        in the original KPI or revenue (depending on what is passed to
+        `use_kpi`), as it was passed to `InputData`. If False, returns the
+        impact after transformation by `KpiTransformer`, reflecting how its
+        represented within the model.
       use_kpi: Boolean. If `True`, the incremental KPI is calculated.
         If `False`, incremental revenue (`KPI * revenue_per_kpi`) is calculated.
         Only used if `inverse_transform_impact=True`. `use_kpi` must be `True`
