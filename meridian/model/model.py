@@ -250,7 +250,7 @@ class Meridian:
       self._media_transformer = transformers.MediaTransformer(
           self.media, self.population
       )
-      self._media_scaled = self.media_transformer.forward(self.media)
+      self._media_scaled = self.media_transformer.forward(self.media)  # pytype: disable=attribute-error  # always-use-property-annotation
       if self.model_spec.roi_calibration_period is not None:
         self._media_counterfactual = tf.where(
             self.model_spec.roi_calibration_period, 0, self.media
@@ -290,7 +290,7 @@ class Meridian:
       self._reach_transformer = transformers.MediaTransformer(
           self.reach, self.population
       )
-      self._reach_scaled = self.reach_transformer.forward(self.reach)
+      self._reach_scaled = self.reach_transformer.forward(self.reach)  # pytype: disable=attribute-error  # always-use-property-annotation
       if self.model_spec.rf_roi_calibration_period is not None:
         self._reach_counterfactual = tf.where(
             self.model_spec.rf_roi_calibration_period, 0, self.reach
@@ -617,7 +617,7 @@ class Meridian:
     """Returns a value to be used in `beta_m`."""
     inc_revenue_m = roi_m * tf.reduce_sum(
         self.media_spend - self._media_spend_counterfactual,
-        range(self.media_spend.ndim - 1),
+        range(self.media_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
     )
     if self.model_spec.roi_calibration_period is not None:
       media_counterfactual_transformed = self.adstock_hill_media(
@@ -667,7 +667,7 @@ class Meridian:
 
     inc_revenue_rf = roi_rf * tf.reduce_sum(
         self.rf_spend - self._rf_spend_counterfactual,
-        range(self.rf_spend.ndim - 1),
+        range(self.rf_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
     )
     if self.model_spec.rf_roi_calibration_period is not None:
       rf_counterfactual_transformed = self.adstock_hill_rf(
