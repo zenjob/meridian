@@ -14,11 +14,11 @@
 
 """Methods to compute analysis metrics of the model and the data."""
 
-import collections
 from collections.abc import Mapping, Sequence
 import dataclasses
 from itertools import chain
 import warnings
+
 from meridian import constants
 from meridian.model import adstock_hill
 from meridian.model import model
@@ -2314,16 +2314,16 @@ class Analyzer:
 
     # Choose a step_size such that time_unit has consecutive integers defined
     # throughout.
+    max_lag = max(self._meridian.model_spec.max_lag, 1)
     steps_per_time_period_max_lag = (
-        constants.ADSTOCK_DECAY_MAX_TOTAL_STEPS
-        // self._meridian.model_spec.max_lag
+        constants.ADSTOCK_DECAY_MAX_TOTAL_STEPS // max_lag
     )
     steps_per_time_period = min(
         constants.ADSTOCK_DECAY_DEFAULT_STEPS_PER_TIME_PERIOD,
         steps_per_time_period_max_lag,
     )
     step_size = 1 / steps_per_time_period
-    l_range = np.arange(0, self._meridian.model_spec.max_lag, step_size)
+    l_range = np.arange(0, max_lag, step_size)
 
     rf_channel_values = (
         self._meridian.input_data.rf_channel.values
