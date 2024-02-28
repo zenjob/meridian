@@ -14,7 +14,6 @@
 
 """Unit tests for model.py."""
 
-import collections
 from collections.abc import Collection, Sequence
 import os
 from unittest import mock
@@ -35,50 +34,15 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 
-def _convert_with_swap(array: xr.DataArray) -> tf.Tensor:
-  """Converts DataArray to tf.Tensor and swaps first two dimensions."""
-  tensor = tf.convert_to_tensor(array)
-  perm = [1, 0] + [i for i in range(2, len(tensor.shape))]
-  return tf.transpose(tensor, perm=perm)
-
-
 class ModelTest(tf.test.TestCase, parameterized.TestCase):
   # TODO(b/302713435): Update the sample data to span over 1 or 2 year(s).
   _TEST_DIR = os.path.join(os.path.dirname(__file__), "test_data")
-  _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_media_and_rf.nc",
-  )
-  _TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_media_only.nc",
-  )
-  _TEST_SAMPLE_PRIOR_RF_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_rf_only.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_media_and_rf.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_media_only.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_rf_only.nc",
-  )
-  _TEST_SAMPLE_TRACE_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_trace.nc",
-  )
 
   # Data dimensions for sample input.
   _N_CHAINS = 2
   _N_ADAPT = 2
   _N_BURNIN = 5
-  _N_KEEP = 5
+  _N_KEEP = 10
   _N_DRAWS = 10
   _N_GEOS = 5
   _N_GEOS_NATIONAL = 1
@@ -182,76 +146,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             seed=0,
         )
     )
-
-    test_prior_media_and_rf = xr.open_dataset(
-        self._TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH
-    )
-    test_prior_media_only = xr.open_dataset(
-        self._TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH
-    )
-    test_prior_rf_only = xr.open_dataset(self._TEST_SAMPLE_PRIOR_RF_ONLY_PATH)
-    self.test_dist_media_and_rf = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_media_and_rf[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    })
-    self.test_dist_media_only = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_media_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-    })
-    self.test_dist_rf_only = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_rf_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    })
-
-    test_posterior_media_and_rf = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH
-    )
-    test_posterior_media_only = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH
-    )
-    test_posterior_rf_only = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH
-    )
-    posterior_params_to_tensors_media_and_rf = {
-        param: _convert_with_swap(test_posterior_media_and_rf[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    }
-    posterior_params_to_tensors_media_only = {
-        param: _convert_with_swap(test_posterior_media_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-    }
-    posterior_params_to_tensors_rf_only = {
-        param: _convert_with_swap(test_posterior_rf_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    }
-    self.test_posterior_states_media_and_rf = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_media_and_rf)
-    self.test_posterior_states_media_only = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES + constants.MEDIA_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_media_only)
-    self.test_posterior_states_rf_only = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES + constants.RF_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_rf_only)
-
-    test_trace = xr.open_dataset(self._TEST_SAMPLE_TRACE_PATH)
-    self.test_trace = {
-        param: _convert_with_swap(test_trace[param])
-        for param in test_trace.data_vars
-    }
 
   @parameterized.named_parameters(
       ("none", None, 200), ("int", 3, 3), ("list", [0, 50, 100, 150], 4)
@@ -1584,21 +1478,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_sample_prior_media_and_rf_returns_correct_shape(self):
-    self.enter_context(
-        mock.patch.object(
-            model.Meridian,
-            "_sample_prior_fn",
-            autospec=True,
-            return_value=self.test_dist_media_and_rf,
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_media_and_rf.pkl")
     )
+    prior = meridian.inference_data.prior
 
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_media_and_rf,
-        model_spec=model_spec,
-    )
-    meridian.sample_prior(n_draws=self._N_DRAWS)
     knots_shape = (1, self._N_DRAWS, self._N_TIMES_SHORT)
     control_shape = (1, self._N_DRAWS, self._N_CONTROLS)
     media_channel_shape = (1, self._N_DRAWS, self._N_MEDIA_CHANNELS)
@@ -1614,7 +1498,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
-    prior = meridian.inference_data.prior
     shape_to_params = {
         knots_shape: [
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
@@ -1650,20 +1533,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(param.shape, shape)
 
   def test_sample_prior_media_only_returns_correct_shape(self):
-    self.enter_context(
-        mock.patch.object(
-            model.Meridian,
-            "_sample_prior_fn",
-            autospec=True,
-            return_value=self.test_dist_media_only,
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_media_only.pkl")
     )
+    prior = meridian.inference_data.prior
 
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_media_only,
-        model_spec=model_spec,
-    )
     meridian.sample_prior(n_draws=self._N_DRAWS)
     knots_shape = (1, self._N_DRAWS, self._N_TIMES_SHORT)
     control_shape = (1, self._N_DRAWS, self._N_CONTROLS)
@@ -1678,7 +1552,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
 
-    prior = meridian.inference_data.prior
     shape_to_params = {
         knots_shape: [
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
@@ -1708,21 +1581,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(param.shape, shape)
 
   def test_sample_prior_rf_only_returns_correct_shape(self):
-    self.enter_context(
-        mock.patch.object(
-            model.Meridian,
-            "_sample_prior_fn",
-            autospec=True,
-            return_value=self.test_dist_rf_only,
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_rf_only.pkl")
     )
+    prior = meridian.inference_data.prior
 
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_rf_only,
-        model_spec=model_spec,
-    )
-    meridian.sample_prior(n_draws=self._N_DRAWS)
     knots_shape = (1, self._N_DRAWS, self._N_TIMES_SHORT)
     control_shape = (1, self._N_DRAWS, self._N_CONTROLS)
     rf_channel_shape = (1, self._N_DRAWS, self._N_RF_CHANNELS)
@@ -1736,7 +1599,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
-    prior = meridian.inference_data.prior
     shape_to_params = {
         knots_shape: [
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
@@ -1766,48 +1628,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(param.shape, shape)
 
   def test_sample_posterior_media_and_rf_returns_correct_shape(self):
-    mock_sample_posterior = self.enter_context(
-        mock.patch.object(
-            model,
-            "_xla_windowed_adaptive_nuts",
-            autospec=True,
-            return_value=collections.namedtuple(
-                "StatesAndTrace", ["all_states", "trace"]
-            )(
-                all_states=self.test_posterior_states_media_and_rf,
-                trace=self.test_trace,
-            ),
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_media_and_rf.pkl")
     )
-    model_spec = spec.ModelSpec(
-        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
-        rf_roi_calibration_period=self._RF_ROI_CALIBRATION_PERIOD,
-    )
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_media_and_rf,
-        model_spec=model_spec,
-    )
+    posterior = meridian.inference_data.posterior
 
-    meridian.sample_posterior(
-        n_chains=self._N_CHAINS,
-        n_adapt=self._N_ADAPT,
-        n_burnin=self._N_BURNIN,
-        n_keep=self._N_KEEP,
-    )
-    mock_sample_posterior.assert_called_with(
-        n_draws=self._N_BURNIN + self._N_KEEP,
-        joint_dist=mock.ANY,
-        n_chains=self._N_CHAINS,
-        num_adaptation_steps=self._N_ADAPT,
-        current_state=None,
-        init_step_size=None,
-        dual_averaging_kwargs=None,
-        max_tree_depth=10,
-        max_energy_diff=500.0,
-        unrolled_leapfrog_steps=1,
-        parallel_iterations=10,
-        seed=None,
-    )
     knots_shape = (self._N_CHAINS, self._N_KEEP, self._N_TIMES_SHORT)
     control_shape = (self._N_CHAINS, self._N_KEEP, self._N_CONTROLS)
     media_channel_shape = (self._N_CHAINS, self._N_KEEP, self._N_MEDIA_CHANNELS)
@@ -1823,7 +1648,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
-    posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
             getattr(posterior, attr) for attr in constants.KNOTS_PARAMETERS
@@ -1891,47 +1715,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_sample_posterior_media_only_returns_correct_shape(self):
-    mock_sample_posterior = self.enter_context(
-        mock.patch.object(
-            model,
-            "_xla_windowed_adaptive_nuts",
-            autospec=True,
-            return_value=collections.namedtuple(
-                "StatesAndTrace", ["all_states", "trace"]
-            )(
-                all_states=self.test_posterior_states_media_only,
-                trace=self.test_trace,
-            ),
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_media_only.pkl")
     )
-    model_spec = spec.ModelSpec(
-        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
-    )
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_media_only,
-        model_spec=model_spec,
-    )
+    posterior = meridian.inference_data.posterior
 
-    meridian.sample_posterior(
-        n_chains=self._N_CHAINS,
-        n_adapt=self._N_ADAPT,
-        n_burnin=self._N_BURNIN,
-        n_keep=self._N_KEEP,
-    )
-    mock_sample_posterior.assert_called_with(
-        n_draws=self._N_BURNIN + self._N_KEEP,
-        joint_dist=mock.ANY,
-        n_chains=self._N_CHAINS,
-        num_adaptation_steps=self._N_ADAPT,
-        current_state=None,
-        init_step_size=None,
-        dual_averaging_kwargs=None,
-        max_tree_depth=10,
-        max_energy_diff=500.0,
-        unrolled_leapfrog_steps=1,
-        parallel_iterations=10,
-        seed=None,
-    )
     knots_shape = (self._N_CHAINS, self._N_KEEP, self._N_TIMES_SHORT)
     control_shape = (self._N_CHAINS, self._N_KEEP, self._N_CONTROLS)
     media_channel_shape = (self._N_CHAINS, self._N_KEEP, self._N_MEDIA_CHANNELS)
@@ -1945,7 +1733,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
 
-    posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
             getattr(posterior, attr) for attr in constants.KNOTS_PARAMETERS
@@ -2007,47 +1794,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
 
   def test_sample_posterior_rf_only_returns_correct_shape(self):
-    mock_sample_posterior = self.enter_context(
-        mock.patch.object(
-            model,
-            "_xla_windowed_adaptive_nuts",
-            autospec=True,
-            return_value=collections.namedtuple(
-                "StatesAndTrace", ["all_states", "trace"]
-            )(
-                all_states=self.test_posterior_states_rf_only,
-                trace=self.test_trace,
-            ),
-        )
+    meridian = model.load_mmm(
+        os.path.join(self._TEST_DIR, "trained_model_rf_only.pkl")
     )
-    model_spec = spec.ModelSpec(
-        rf_roi_calibration_period=self._RF_ROI_CALIBRATION_PERIOD,
-    )
-    meridian = model.Meridian(
-        input_data=self.short_input_data_with_rf_only,
-        model_spec=model_spec,
-    )
+    posterior = meridian.inference_data.posterior
 
-    meridian.sample_posterior(
-        n_chains=self._N_CHAINS,
-        n_adapt=self._N_ADAPT,
-        n_burnin=self._N_BURNIN,
-        n_keep=self._N_KEEP,
-    )
-    mock_sample_posterior.assert_called_with(
-        n_draws=self._N_BURNIN + self._N_KEEP,
-        joint_dist=mock.ANY,
-        n_chains=self._N_CHAINS,
-        num_adaptation_steps=self._N_ADAPT,
-        current_state=None,
-        init_step_size=None,
-        dual_averaging_kwargs=None,
-        max_tree_depth=10,
-        max_energy_diff=500.0,
-        unrolled_leapfrog_steps=1,
-        parallel_iterations=10,
-        seed=None,
-    )
     knots_shape = (self._N_CHAINS, self._N_KEEP, self._N_TIMES_SHORT)
     control_shape = (self._N_CHAINS, self._N_KEEP, self._N_CONTROLS)
     rf_channel_shape = (self._N_CHAINS, self._N_KEEP, self._N_RF_CHANNELS)
@@ -2061,7 +1812,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
-    posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
             getattr(posterior, attr) for attr in constants.KNOTS_PARAMETERS
