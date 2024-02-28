@@ -82,31 +82,31 @@ class ModelDiagnostics:
       column_var: str | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> pd.DataFrame:
-    """Displays the predictive accuracy DataFrame.
+    """Displays the predictive accuracy of the DataFrame.
 
     Args:
       selected_geos: Optional list of a subset of geo dimensions to include. By
         default, all geos are included. Geos should match the geo dimension
-        names from meridian.InputData. Only set one of `selected_geos` and
-        `n_top_largest_geos`.
+        names from `meridian.InputData`. Set either `selected_geos` or
+        `n_top_largest_geos`, do not set both.
       selected_times: Optional list of a subset of time dimensions to include.
-        By default, all times are included. Times should match the time
-        dimensions from meridian.InputData.
+        By default, all times are included. Times must match the time
+        dimensions from `meridian.InputData`.
       column_var: Optional string that indicates whether to pivot the table by
         `metric`, `geo_granularity` or `evaluation_set`. By default,
-        column_var=None indicates that the `metric`, `geo_granularity` and
-        `value` (along with `evaluation_set` when holdout_id is not None)
-        columns are displayed in the returning DataFrame unpivoted.
-      batch_size: Integer representing max draws per chain in each batch. The
-        calculation is run in batches to avoid memory exhaustion. If a memory
-        error occurs, try reducing `batch_size`. The calculation will generally
-        be faster with larger `batch_size` values.
+        `column_var=None` indicates that the `metric`, `geo_granularity` and
+        `value` (along with `evaluation_set` when `holdout_id` isn't `None`)
+        columns are displayed in the returning unpivoted DataFrame.
+      batch_size: Integer representing the number of maximum draws per chain in
+        each batch. The calculation is run in batches to avoid memory
+        exhaustion. If a memory error occurs, try reducing `batch_size`. The
+        calculation will generally be faster with larger `batch_size` values.
 
     Returns:
       A DataFrame containing the computed `R_Squared`, `MAPE` and `wMAPE`
-      values. If holdout_id exists, the data is split into `Train`, `Test` and
-      `All Data` subsections and `evaluation_set` is included as a column in
-      the transformation from Dataset to DataFrame.
+      values. If `holdout_id` exists, the data is split into `Train`, `Test`,
+      and `All Data` subsections, and `evaluation_set` is included as a column
+      in the transformation from Dataset to DataFrame.
     """
     selected_geos_frozenset = (
         frozenset(selected_geos) if selected_geos else None
@@ -144,24 +144,24 @@ class ModelDiagnostics:
       num_geos: int = 3,
       selected_times: list[str] | None = None,
   ) -> alt.Chart | alt.FacetChart:
-    """Plots prior and posterior distributions for a Meridian model parameter.
+    """Plots prior and posterior distributions for a model parameter.
 
     Args:
-      parameter: Model parameter name to plot. If not specified (by default),
-        the ROI parameter will be shown.
+      parameter: Model parameter name to plot. By default, the ROI parameter is
+        shown if a name is not specified.
       num_geos: Number of largest geos by population to show in the plots for
         the geo-level parameters. By default, only the top three largest geos
-        will be shown.
+        are shown.
       selected_times: List of specific time periods to plot for time-level
-        parameters. These times should match the time periods from the data. By
-        default, the first three time periods will be plotted.
+        parameters. These times must match the time periods from the data. By
+        default, the first three time periods are plotted.
 
     Returns:
       An Altair plot showing the parameter distributions.
 
     Raises:
-      NotFittedModelError: if the model hasn't been fitted.
-      ValueError: if any `parameter` is not a Meridian model param.
+      NotFittedModelError: The model hasn't been fitted.
+      ValueError: A `parameter` is not a Meridian model parameter.
     """
     if not (
         hasattr(self._meridian.inference_data, c.PRIOR)
@@ -268,14 +268,14 @@ class ModelDiagnostics:
     across both the geo index g and the channel index m.
 
     The r-hat is not defined for any parameters that have deterministic priors,
-    so these parameters will not be shown on the boxplot.
+    so these parameters are not shown on the boxplot.
 
     Returns:
       An Altair plot showing the r-hat boxplot per parameter.
 
     Raises:
-      NotFittedModelError: if the model hasn't been fitted.
-      MCMCSamplingError: if the MCMC sampling did not converge.
+      NotFittedModelError: The model hasn't been fitted.
+      MCMCSamplingError: The MCMC sampling did not converge.
     """
     if not hasattr(self._meridian.inference_data, c.POSTERIOR):
       raise model.NotFittedModelError(
@@ -335,8 +335,8 @@ class ModelDiagnostics:
 class ModelFit:
   """Generates model fit plots from the Meridian model fitting.
 
-  Calculates the expected vs actual impact with the confidence level over time
-  and plots graphs to compare the values.
+  Calculates the expected versus actual impact with the confidence level over
+  time, and plots graphs to compare the values.
   """
 
   def __init__(self, meridian: model.Meridian, confidence_level: float = 0.9):
@@ -345,7 +345,7 @@ class ModelFit:
     Args:
       meridian: Media mix model with the raw data from the model fitting.
       confidence_level: Confidence level for expected impact credible intervals
-        represented as a value between zero and one. Default is 0.9.
+        represented as a value between zero and one. Default is `0.9`.
     """
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
@@ -358,10 +358,9 @@ class ModelFit:
     """Dataset holding the expected, actual, and baseline impact over time.
 
     The dataset contains the following:
-    Coordinates:
-      geo, time, metric (mean, ci_hi, ci_lo)
-    Data variables:
-      expected, baseline, actual (impact)
+
+    - **Coordinates:** `geo`, `time`, `metric` (`mean`, `ci_hi`, `ci_lo`)
+    - **Data variables:** `expected`, `baseline`, `actual` (impact)
     """
     return self._model_fit_data
 
@@ -379,25 +378,26 @@ class ModelFit:
       include_baseline: bool = True,
       include_ci: bool = True,
   ) -> alt.Chart:
-    """Plots the expected vs actual impact over time.
+    """Plots the expected versus actual impact over time.
 
     Args:
       selected_times: Optional list of a subset of time dimensions to include.
         By default, all times are included. Times should match the time
-        dimensions from meridian.InputData.
+        dimensions from `meridian.InputData`.
       selected_geos: Optional list of a subset of geo dimensions to include. By
         default, all geos are included. Geos should match the geo dimension
-        names from meridian.InputData. Only set one of `selected_geos` and
-        `n_top_largest_geos`.
+        names from `meridian.InputData`. Set either `selected_geos` or
+        `n_top_largest_geos`, do not set both.
       n_top_largest_geos: Optional number of largest geos by population to
-        include. By default, all geos are included. Only set one of
-        `selected_geos` and `n_top_largest_geos`.
-      show_geo_level: If True, plots at the geo-level rather than in one
-        national level plot. Only available if selected_geos or
-        n_top_largest_geos is provided.
-      include_baseline: If True, shows the expected baseline impact without any
-        media execution.
-      include_ci: If True, shows the credible intervals for the expected impact.
+        include. By default, all geos are included. Set either `selected_geos`
+        or `n_top_largest_geos`, do not set both.
+      show_geo_level: If `True`, plots at the geo-level instead of one
+        national level plot. Only available if `selected_geos` or
+        `n_top_largest_geos` is provided.
+      include_baseline: If `True`, shows the expected baseline impact without
+        any media execution.
+      include_ci: If `True`, shows the credible intervals for the expected
+        impact.
 
     Returns:
       An Altair plot showing the model fit.
@@ -586,9 +586,9 @@ class ModelFit:
 
 
 class ReachAndFrequency:
-  """Generates Reach and Frequency plots for the Meridian model.
+  """Generates reach and frequency plots for the Meridian model.
 
-  Plots the ROI by frequency for rf channels.
+  Plots the ROI by frequency for reach and frequency (RF) channels.
   """
 
   def __init__(
@@ -596,7 +596,7 @@ class ReachAndFrequency:
       meridian: model.Meridian,
       selected_times: Sequence[str] | None = None,
   ):
-    """Initializes the Reach and Frequency based on the model data and params.
+    """Initializes the reach and frequency dataset for the model data.
 
     Args:
       meridian: Media mix model with the raw data from the model fitting.
@@ -682,7 +682,7 @@ class ReachAndFrequency:
       self,
       selected_channels: list[str] | None = None,
   ):
-    """Plots the optimal frequency lines for select channels.
+    """Plots the optimal frequency curves for selected channels.
 
     Args:
       selected_channels: Optional list of RF channels to plot.
@@ -764,7 +764,7 @@ class ReachAndFrequency:
 
 
 class MediaEffects:
-  """Generates Media Effects plots for the Meridian model.
+  """Generates media effects plots for the Meridian model.
 
   Plots the effects of incremental impact and effectiveness for all channels.
   """
@@ -781,7 +781,7 @@ class MediaEffects:
     Args:
       meridian: Media mix model with the raw data from the model fitting.
       confidence_level: Confidence level for modeled response credible
-        intervals, represented as a value between zero and one. Default is 0.9.
+        intervals (CI), as a value between zero and one. Default is `0.9`.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
       by_reach: For the channel w/ reach and frequency, return the response
@@ -811,29 +811,30 @@ class MediaEffects:
     """Dataset holding the calculated response curves data.
 
     The dataset contains the following:
-    Coordinates:
-      media, metric (mean, ci_high, ci_low), spend_multiplier
-    Data variables:
-      spend, incremental_impact, roi
+
+    - **Coordinates:** `media`, `metric` (`mean`, `ci_hi`, `ci_lo`),
+      `spend_multiplier`
+    - **Data variables:** `spend`, `incremental_impact`, `roi`
     """
     return self._response_curves_data
 
   @property
   def adstock_decay_dataframe(self) -> pd.DataFrame:
-    """DataFrame holding the calculated adstock decay metrics.
+    """A DataFrame holding the calculated Adstock decay metrics.
 
     The DataFrame contains the following columns:
-      time_units, channel, distribution, mean, ci_lo, ci_hi.
+      `time_units`, `channel`, `distribution`, `mean`, `ci_lo`, `ci_hi`.
     """
     return self._adstock_decay_dataframe
 
   @property
   def hill_curves_dataframe(self) -> pd.DataFrame:
-    """DataFrame holding the calculated Hill Curve metrics.
+    """A DataFrame holding the calculated Hill curve metrics.
 
     The DataFrame contains the following columns:
-      channel, media_units, ci_hi, ci_lo, mean, channel_type,
-      scaled_count_histogram, start_interval_histogram, end_interval_histogram.
+      `channel`, `media_units`, `ci_hi`, `ci_lo`, `mean`, `channel_type`,
+      `scaled_count_histogram`, `start_interval_histogram`,
+      `end_interval_histogram`.
     """
     return self._hill_curves_dataframe
 
@@ -876,9 +877,9 @@ class MediaEffects:
     """Plots the response curves for each channel.
 
     Args:
-      plot_separately: If True, plots are faceted. Else, the plots are layered
-        to create one plot with all channels.
-      include_ci: If True, plots the credible interval. Defaults to True.
+      plot_separately: If `True`, the plots are faceted. If `False`, the plots
+        are layered to create one plot with all of the channels.
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
       num_channels_displayed: Number of channels to show on the layered plot. If
         plotting a faceted chart, this value is ignored.
 
@@ -983,13 +984,13 @@ class MediaEffects:
     ).configure_axis(**formatter.TEXT_CONFIG)
 
   def plot_adstock_decay(self, include_ci: bool = True):
-    """Plots the adstock decay for each channel.
+    """Plots the Adstock decay for each channel.
 
     Args:
-      include_ci: If True, plots the credible interval. Defaults to True.
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
 
     Returns:
-      An Altair plot showing the adstock decay prior and posterior per media.
+      An Altair plot showing the Adstock decay prior and posterior per media.
     """
     adstock_decay_df = self.adstock_decay_dataframe
     base = alt.Chart(adstock_decay_df)
@@ -1066,15 +1067,15 @@ class MediaEffects:
     """Plots the Hill curves for each channel.
 
     Args:
-      include_prior: If True, plots contain both the prior and posterior.
-        Defaults to True.
-      include_ci: If True, plots the credible interval. Defaults to True.
+      include_prior: If `True`, plots contain both the prior and posterior.
+        Defaults to `True`.
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
 
     Returns:
-      A faceted Altair plot showing the histogram and prior+posterior lines and
-      bands for the hill saturation curves. In the case that there are both
-      media and R&F channels, a list of 2 faceted Altair plots are returned, one
-      for the media channels and the next for the R&F channels.
+      A faceted Altair plot showing the histogram, prior and posterior lines,
+      and bands for the Hill saturation curves. When there are both media and
+      RF channels, a list of 2 faceted Altair plots are returned: one
+      for the media channels and another for the RF channels.
     """
     channel_types = list(set(self._hill_curves_dataframe[c.CHANNEL_TYPE]))
     plot_media, plot_rf = None, None
@@ -1237,10 +1238,10 @@ class MediaEffects:
 class MediaSummary:
   """Generates media summary metrics plots for the Meridian model.
 
-  Calculates the mean and credible intervals for each channel's impact metrics
-  (impact, contribution, ROI, mROI, effectiveness) and media summary metrics
-  (impressions, spend). Metrics are calculated at the national level. These are
-  used for various plots displaying these metrics.
+  Calculates the mean and credible intervals (CI) for each channel's impact
+  metrics (impact, contribution, ROI, mROI, effectiveness) and media summary
+  metrics (impressions, spend). Metrics are calculated at the national-level.
+  These are used for various plots displaying these metrics.
   """
 
   def __init__(
@@ -1280,11 +1281,12 @@ class MediaSummary:
     """Dataset holding the calculated media summary metrics.
 
     The dataset contains the following:
-    Coordinates:
-      channel, metric (mean, ci_high, ci_low), distribution (prior, posterior)
-    Data variables:
-      impressions, pct_of_impressions, spend, pct_of_spend, CPM,
-      incremental_impact, pct_of_contribution, roi, effectiveness, mroi.
+
+    - **Coordinates:** `channel`, `metric` (`mean`, `ci_hi`, `ci_lo`),
+      `distribution` (`prior`, `posterior`)
+    - **Data variables:** `impressions`, `pct_of_impressions`, `spend`,
+      `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
+      `effectiveness`, `mroi`.
     """
     return self._media_summary_metrics
 
@@ -1360,19 +1362,19 @@ class MediaSummary:
       selected_times: Sequence[str] | None = None,
       marginal_roi_by_reach: bool = True,
   ):
-    """Runs the computation for the media summary metrics with new params.
+    """Runs the computation for the media summary metrics with new parameters.
 
     Args:
       confidence_level: Confidence level to update to for the media summary
         metrics credible intervals, represented as a value between zero and one.
-        If None, the current confidence level is used.
+        If `None`, the current confidence level is used.
       selected_times: Optional list containing a subset of times to include. If
-        None, all time periods are included.
+        `None`, all time periods are included.
       marginal_roi_by_reach: Boolean. Marginal ROI is defined as the return on
-        the next dollar spent.  If this argument is True, then we assume the
-        next dollar spent only impacts reach, holding frequency constant.  If
-        this argument is False, we assume the next dollar spent only impacts
-        frequency, holding reach constant.
+        the next dollar spent.  If `True`, then the assumptions is the next
+        dollar spent only impacts reach, holding frequency constant. If `False`,
+        the assumption is the next dollar spent only impacts frequency, holding
+        reach constant.
     """
     self._confidence_level = confidence_level or self._confidence_level
     self._selected_times = selected_times
@@ -1507,14 +1509,14 @@ class MediaSummary:
     )
 
   def plot_spend_vs_contribution(self) -> alt.Chart:
-    """Plots a bar chart comparing the spend vs contribution shares per channel.
+    """Plots a bar chart comparing spend versus contribution shares per channel.
 
-    This compares the spend and contribution percentages for each channel as
-    well as the ROI per channel. The contribution percentages are out of the
-    total media-driven impact amount.
+    This compares the spend and contribution percentages for each channel, and
+    the ROI per channel. The contribution percentages are out of the total
+    media-driven impact amount.
 
     Returns:
-      An Altair plot showing the spend vs impact percentages per channel.
+      An Altair plot showing the spend versus impact percentages per channel.
     """
     df = self._transform_contribution_spend_metrics()
     roi_marker = (
@@ -1608,7 +1610,7 @@ class MediaSummary:
     """Plots the ROI bar chart for each channel.
 
     Args:
-      include_ci: If True, plots the credible interval. Defaults to True.
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
 
     Returns:
       An Altair plot showing the ROI per channel.
@@ -1689,16 +1691,16 @@ class MediaSummary:
       selected_channels: Sequence[str] | None = None,
       disable_size: bool = False,
   ) -> alt.Chart:
-    """Plots the ROI vs Effectiveness bubble chart.
+    """Plots the ROI versus effectiveness bubble chart.
 
-    This chart compares the ROI and effectiveness and spend for each media
-    channel where the spend is depicted by the pixel area of the bubble.
+    This chart compares the ROI, effectiveness, and spend for each media
+    channel. Spend is depicted by the pixel area of the bubble.
 
     Args:
-      selected_channels: List of channels to include. If None, all media
-        channels will be shown in the plot.
-      disable_size: If True, disables the differing size of the bubbles and
-        plots each channel uniformly. Defaults to False.
+      selected_channels: List of channels to include. If `None`, all of the
+        media channels are shown in the plot.
+      disable_size: If `True`, disables the different sizing of the bubbles and
+        plots each channel uniformly. Defaults to `False`.
 
     Returns:
       An Altair plot showing the ROI and effectiveness per channel.
@@ -1717,18 +1719,18 @@ class MediaSummary:
       disable_size: bool = False,
       equal_axes: bool = False,
   ) -> alt.Chart:
-    """Plots the ROI vs mROI bubble chart.
+    """Plots the ROI versus mROI bubble chart.
 
-    This chart compares the ROI and mROI and spend for each channel where
-    the spend is depicted by the pixel area of the bubble.
+    This chart compares the ROI, mROI, and spend for each channel. Spend is
+    depicted by the pixel area of the bubble.
 
     Args:
-      selected_channels: List of channels to include. If None, all media
-        channels will be shown in the plot.
-      disable_size: If True, disables the differing size of the bubbles and
-        plots each channel uniformly. Defaults to False.
-      equal_axes: If True, plots the X and Y axes with equal scale. Defaults to
-        False.
+      selected_channels: List of channels to include. If `None`, all of the
+        media channels are shown in the plot.
+      disable_size: If `True`, disables the different sizing of the bubbles and
+        plots each channel uniformly. Defaults to `False`.
+      equal_axes: If `True`, plots the X and Y axes with equal scale. Defaults
+        to `False`.
 
     Returns:
       An Altair plot showing the ROI and mROI per channel.

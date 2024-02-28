@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Summarization module that creates a 2-pager HTML report."""
+"""Summarization module that creates a 2-page HTML report."""
 
 from collections.abc import Sequence
 import datetime as dt
@@ -80,10 +80,10 @@ class Summarizer:
     """Generates and saves the HTML results summary output.
 
     Args:
-      filename: The filename to save the generated HTML output to.
-      filepath: The filepath to the directory where `filename` should be.
-      start_date: Optional start date selector, in "yyyy-mm-dd" format.
-      end_date: Optional end date selector, in "yyyy-mm-dd" format.
+      filename: The filename for the generated HTML output.
+      filepath: The path to the directory where the file will be saved.
+      start_date: Optional start date selector, in _yyyy-mm-dd_ format.
+      end_date: Optional end date selector, in _yyyy-mm-dd_ format.
     """
     os.makedirs(filepath, exist_ok=True)
     with open(os.path.join(filepath, filename), 'w') as f:
