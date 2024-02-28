@@ -461,8 +461,54 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             self.meridian_media_and_rf.total_spend
         )
     )
-    expeted_roi = self.analyzer_media_and_rf.incremental_impact() / total_spend
-    self.assertAllClose(expeted_roi, roi)
+    expected_roi = self.analyzer_media_and_rf.incremental_impact() / total_spend
+    self.assertAllClose(expected_roi, roi)
+
+  @parameterized.product(
+      use_posterior=[False, True],
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_cpik_media_and_rf_returns_correct_shape(
+      self,
+      use_posterior: bool,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+  ):
+    cpik = self.analyzer_media_and_rf.cpik(
+        use_posterior=use_posterior,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+    )
+    expected_shape = (_N_CHAINS, _N_KEEP) if use_posterior else (1, _N_DRAWS)
+    if not aggregate_geos:
+      expected_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+    expected_shape += (_N_MEDIA_CHANNELS + _N_RF_CHANNELS,)
+    self.assertEqual(cpik.shape, expected_shape)
+
+  def test_cpik_media_and_rf_default_returns_correct_value(self):
+    cpik = self.analyzer_media_and_rf.cpik()
+    total_spend = (
+        self.analyzer_media_and_rf.filter_and_aggregate_geos_and_times(
+            self.meridian_media_and_rf.total_spend
+        )
+    )
+    expected_cpik = total_spend / self.analyzer_media_and_rf.incremental_impact(
+        use_kpi=True
+    )
+    self.assertAllClose(expected_cpik, cpik)
 
   def test_hill_histogram_column_names(self):
     hill_histogram_table = (

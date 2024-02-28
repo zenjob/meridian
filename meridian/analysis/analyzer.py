@@ -994,8 +994,8 @@ class Analyzer:
     return tf.concat(incremental_impact_temps, axis=1)
 
   @dataclasses.dataclass(frozen=True)
-  class ROIData:
-    """Class for keeping track of data required for ROI calculations."""
+  class PerformanceData:
+    """Dataclass for data required in profitability calculations."""
 
     media: tf.Tensor | None
     media_spend: tf.Tensor | None
@@ -1012,7 +1012,7 @@ class Analyzer:
         total_spend = self.rf_spend
       return total_spend
 
-  def _get_roi_tensors(
+  def _get_performance_tensors(
       self,
       new_media: tf.Tensor | None = None,
       new_media_spend: tf.Tensor | None = None,
@@ -1023,11 +1023,11 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
-  ) -> ROIData:
-    """Get tensors required for ROI calculations.
+  ) -> PerformanceData:
+    """Get tensors required for profitability calculations (ROI, mROI, CPIK).
 
     Verify dimensionality requirements and return a dictionary with data tensors
-    required for ROI calculations.
+    required for profitability calculations.
 
     Args:
       new_media: Optional. Media data, with the same shape as
@@ -1056,8 +1056,8 @@ class Analyzer:
         periods.
 
     Returns:
-      ROIData object containing the media, rf, and spend data for ROI
-        calculations.
+      PerformanceData object containing the media, rf, and spend data for
+        profitability calculations.
     """
 
     if self._meridian.is_national:
@@ -1151,7 +1151,7 @@ class Analyzer:
     )
     rf_spend = self._meridian.rf_spend if new_rf_spend is None else new_rf_spend
 
-    return self.ROIData(
+    return self.PerformanceData(
         media=media,
         media_spend=media_spend,
         reach=reach,
@@ -1238,7 +1238,7 @@ class Analyzer:
         "use_posterior": use_posterior,
         "batch_size": batch_size,
     }
-    roi_tensors = self._get_roi_tensors(
+    roi_tensors = self._get_performance_tensors(
         new_media,
         new_media_spend,
         new_reach,
@@ -1337,7 +1337,7 @@ class Analyzer:
         "use_posterior": use_posterior,
         "batch_size": batch_size,
     }
-    roi_tensors = self._get_roi_tensors(
+    roi_tensors = self._get_performance_tensors(
         new_media,
         new_media_spend,
         new_reach,
@@ -1361,6 +1361,91 @@ class Analyzer:
     else:
       denominator = roi_spend
     return tf.math.divide_no_nan(incremental_revenue, denominator)
+
+  def cpik(
+      self,
+      use_posterior: bool = True,
+      new_media: tf.Tensor | None = None,
+      new_media_spend: tf.Tensor | None = None,
+      new_reach: tf.Tensor | None = None,
+      new_frequency: tf.Tensor | None = None,
+      new_rf_spend: tf.Tensor | None = None,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+      aggregate_geos: bool = True,
+      aggregate_times: bool = True,
+      batch_size: int = constants.DEFAULT_BATCH_SIZE,
+  ) -> tf.Tensor:
+    """Calculates the cost per incremental KPI distribution for each channel.
+
+    The CPIK numerator is the total spend on the channel. The CPIK denominator
+    is the change in expected KPI when one channel's spend is set to zero,
+    leaving all other channels' spend unchanged.
+
+    Args:
+      use_posterior: Boolean. If `True` then the posterior distribution is
+        calculated. Otherwise, the prior distribution is calculated.
+      new_media: Optional tensor with media. Used to compute CPIK.
+      new_media_spend: Optional tensor with `media_spend` to be used to compute
+        CPIK.
+      new_reach: Optional tensor with reach. Used to compute CPIK.
+      new_frequency: Optional tensor with frequency. Used to compute CPIK.
+      new_rf_spend: Optional tensor with rf_spend to be used to compute CPIK.
+      selected_geos: Optional list containing a subset of geos to include. By
+        default, all geos are included.
+      selected_times: Optional list containing a subset of times to include. By
+        default, all time periods are included.
+      aggregate_geos: Boolean. If `True`, the expected KPI is summed over all of
+        the regions.
+      aggregate_times: Boolean. If `True`, the expected KPI is summed over all
+        of the time periods.
+      batch_size: Integer representing the maximum draws per chain in each
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
+
+    Returns:
+      Tensor of CPIK values with dimensions (`n_chains, n_draws, n_geos,
+      n_times, n_media_channels, n_rf_channels`). The `n_geos` and `n_times`
+      dimensions are dropped if `aggregate_geos=True` or
+      `aggregate_times=True`, respectively.
+    """
+    dim_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+        "aggregate_geos": aggregate_geos,
+        "aggregate_times": aggregate_times,
+    }
+    incremental_impact_kwargs = {
+        "inverse_transform_impact": True,
+        "use_kpi": True,
+        "use_posterior": use_posterior,
+        "batch_size": batch_size,
+    }
+    tensors = self._get_performance_tensors(
+        new_media,
+        new_media_spend,
+        new_reach,
+        new_frequency,
+        new_rf_spend,
+        **dim_kwargs,
+    )
+    incremental_kpi = self.incremental_impact(
+        new_media=tensors.media,
+        new_reach=tensors.reach,
+        new_frequency=tensors.frequency,
+        **incremental_impact_kwargs,
+        **dim_kwargs,
+    )
+
+    cpik_spend = tensors.total_spend()
+    if cpik_spend is not None and cpik_spend.ndim == 3:
+      numerator = self.filter_and_aggregate_geos_and_times(
+          cpik_spend, **dim_kwargs
+      )
+    else:
+      numerator = cpik_spend
+    return tf.math.divide_no_nan(numerator, incremental_kpi)
 
   def expected_vs_actual_data(
       self, confidence_level: float = 0.9
