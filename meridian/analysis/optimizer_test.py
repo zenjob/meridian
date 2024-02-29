@@ -1367,6 +1367,14 @@ class OptimizerPlotsTest(absltest.TestCase):
     meridian = mock.create_autospec(
         model.Meridian, instance=True, input_data=mock_data
     )
+    n_times = 149
+    n_geos = 10
+    self.revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=1.0
+    )
+    meridian.input_data.kpi_type = c.REVENUE
+    meridian.input_data.revenue_per_kpi = self.revenue_per_kpi
+
     self.budget_optimizer = optimizer.BudgetOptimizer(meridian)
     self.enter_context(
         mock.patch.object(
@@ -1473,7 +1481,7 @@ class OptimizerPlotsTest(absltest.TestCase):
                 'labelPadding': c.PADDING_10,
                 'tickCount': 5,
                 'ticks': False,
-                'title': summary_text.INC_SALES_LABEL,
+                'title': summary_text.INC_REVENUE_LABEL,
                 'titleAlign': 'left',
                 'titleAngle': 0,
                 'titleY': -20,
@@ -1491,7 +1499,10 @@ class OptimizerPlotsTest(absltest.TestCase):
             {'field': c.INCREMENTAL_IMPACT, 'type': 'quantitative'},
         ],
     )
-    self.assertEqual(plot.title.text, summary_text.SALES_DELTA_CHART_TITLE)
+    self.assertEqual(
+        plot.title.text,
+        summary_text.IMPACT_DELTA_CHART_TITLE.format(impact=c.REVENUE),
+    )
 
   def test_impact_waterfall_chart_correct_text_encoding(self):
     plot = self.budget_optimizer.plot_incremental_impact_delta()
@@ -1759,7 +1770,7 @@ class OptimizerPlotsTest(absltest.TestCase):
         },
         'y': {
             'field': c.MEAN,
-            'title': summary_text.INC_SALES_LABEL,
+            'title': summary_text.INC_REVENUE_LABEL,
             'type': 'quantitative',
             'axis': {
                 'labelExpr': formatter.compact_number_expr(),
@@ -1858,10 +1869,30 @@ class OptimizerOutputTest(parameterized.TestCase):
   def setUp(self):
     super(OptimizerOutputTest, self).setUp()
     mock_data = mock.create_autospec(input_data.InputData, instance=True)
+    mock_data_kpi_output = mock.create_autospec(
+        input_data.InputData, instance=True
+    )
     meridian = mock.create_autospec(
         model.Meridian, instance=True, input_data=mock_data
     )
+    meridian_kpi_output = mock.create_autospec(
+        model.Meridian, instance=True, input_data=mock_data_kpi_output
+    )
+    n_times = 149
+    n_geos = 10
+    self.revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=1.0
+    )
+    meridian.input_data.kpi_type = c.REVENUE
+    meridian.input_data.revenue_per_kpi = self.revenue_per_kpi
+    meridian_kpi_output.input_data.kpi_type = c.NON_REVENUE
+    meridian_kpi_output.input_data.revenue_per_kpi = None
+
     self.budget_optimizer = optimizer.BudgetOptimizer(meridian)
+    self.budget_optimizer_kpi_output = optimizer.BudgetOptimizer(
+        meridian_kpi_output
+    )
+
     self.enter_context(
         mock.patch.object(
             optimizer.BudgetOptimizer,
@@ -1877,6 +1908,10 @@ class OptimizerOutputTest(parameterized.TestCase):
         )
     )
     self.budget_optimizer._spend_bounds = (np.array([0.7]), np.array([1.3]))
+    self.budget_optimizer_kpi_output._spend_bounds = (
+        np.array([0.7]),
+        np.array([1.3]),
+    )
     self.mock_spend_delta = self.enter_context(
         mock.patch.object(
             optimizer.BudgetOptimizer,
@@ -1907,7 +1942,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
 
   def test_output_html_title(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     title = summary_html_dom.find('head/title')
 
     self.assertIsNotNone(title)
@@ -1916,7 +1951,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(title_text.strip(), summary_text.OPTIMIZATION_TITLE)
 
   def test_output_header_section(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     header_div = analysis_test_utils.get_child_element(
         summary_html_dom, 'body/div', {'class': 'header'}
     )
@@ -1934,7 +1969,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
 
   def test_output_chips(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     chips_node = summary_html_dom.find('body/chips')
     self.assertIsNotNone(chips_node)
     chip_nodes = chips_node.findall('chip')
@@ -1948,7 +1983,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
 
   def test_output_scenario_plan_card_text(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
@@ -1961,7 +1996,6 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(
         card_title_text.strip(), summary_text.SCENARIO_PLAN_CARD_TITLE
     )
-
     insights_text = analysis_test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
@@ -1975,6 +2009,32 @@ class OptimizerOutputTest(parameterized.TestCase):
             end_date='2020-06-28',
         ),
     )
+
+  def test_check_roi_section_removed_no_revenue_per_kpi(self):
+    summary_html_dom = self._get_output_summary_html_dom(
+        self.budget_optimizer_kpi_output
+    )
+    card = analysis_test_utils.get_child_element(
+        summary_html_dom,
+        'body/cards/card',
+        attribs={'id': summary_text.SCENARIO_PLAN_CARD_ID},
+    )
+    stats_section = analysis_test_utils.get_child_element(card, 'stats-section')
+    stats = stats_section.findall('stats')
+    self.assertLen(stats, 4)
+
+    title = analysis_test_utils.get_child_element(stats[0], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Current budget')
+    title = analysis_test_utils.get_child_element(stats[1], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Optimized budget')
+    title = analysis_test_utils.get_child_element(stats[2], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Current incremental KPI')
+    title = analysis_test_utils.get_child_element(stats[3], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Optimized incremental KPI')
 
   @parameterized.named_parameters(
       (
@@ -2003,17 +2063,17 @@ class OptimizerOutputTest(parameterized.TestCase):
           '+0.1',
       ),
       (
-          'current_inc_sales',
+          'current_inc_revenue',
           4,
-          summary_text.CURRENT_INC_SALES_LABEL,
+          summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=c.REVENUE),
           '$760',
           None,
           None,
       ),
       (
-          'optimized_inc_sales',
+          'optimized_inc_revenue',
           5,
-          summary_text.OPTIMIZED_INC_SALES_LABEL,
+          summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=c.REVENUE),
           '$830',
           None,
           '+$70',
@@ -2022,7 +2082,7 @@ class OptimizerOutputTest(parameterized.TestCase):
   def test_output_scenario_plan_card_stats_text(
       self, index, expected_title, expected_stat, expected_note, expected_delta
   ):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
@@ -2050,7 +2110,7 @@ class OptimizerOutputTest(parameterized.TestCase):
       self.assertEqual(delta.strip(), expected_delta)
 
   def test_output_budget_allocation_card_text(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
@@ -2073,7 +2133,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
 
   def test_output_budget_allocation_charts(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     self.mock_spend_delta.assert_called_once()
     self.mock_budget_allocation.assert_called_once()
     self.mock_impact_delta.assert_called_once()
@@ -2087,7 +2147,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertLen(charts, 3)
 
   def test_output_budget_allocation_table(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
@@ -2129,7 +2189,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(row3, ['channel 1', '17%', '23%'])
 
   def test_output_response_curves_card_text(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
@@ -2153,7 +2213,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
 
   def test_output_response_curves_chart(self):
-    summary_html_dom = self._get_output_summary_html_dom()
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     self.mock_response_curves.assert_called_once_with(n_top_channels=3)
 
     card = analysis_test_utils.get_child_element(
@@ -2168,15 +2228,15 @@ class OptimizerOutputTest(parameterized.TestCase):
   def _mock_chart(self) -> alt.Chart:
     return alt.Chart(pd.DataFrame()).mark_point()
 
-  def _get_output_summary_html_dom(self) -> ET.Element:
+  def _get_output_summary_html_dom(
+      self, budget_optimizer: optimizer.BudgetOptimizer
+  ) -> ET.Element:
     outfile_path = tempfile.mkdtemp() + '/optimization'
     outfile_name = 'optimization.html'
     fpath = os.path.join(outfile_path, outfile_name)
 
     try:
-      self.budget_optimizer.output_optimization_summary(
-          outfile_name, outfile_path
-      )
+      budget_optimizer.output_optimization_summary(outfile_name, outfile_path)
       with open(fpath, 'r') as f:
         written_html_dom = ET.parse(f)
     finally:

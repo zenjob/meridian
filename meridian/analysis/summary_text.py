@@ -132,13 +132,13 @@ FIXED_BUDGET_LABEL = 'Fixed'
 FLEXIBLE_BUDGET_LABEL = 'Flexible'
 CURRENT_ROI_LABEL = 'Current ROI'
 OPTIMIZED_ROI_LABEL = 'Optimized ROI'
-CURRENT_INC_SALES_LABEL = 'Current incremental sales'
-OPTIMIZED_INC_SALES_LABEL = 'Optimized incremental sales'
+CURRENT_INC_IMPACT_LABEL = 'Current incremental {impact}'
+OPTIMIZED_INC_IMPACT_LABEL = 'Optimized incremental {impact}'
 
 BUDGET_ALLOCATION_CARD_ID = 'budget-allocation'
 BUDGET_ALLOCATION_CARD_TITLE = 'Changes in your marketing budget allocation'
 BUDGET_ALLOCATION_INSIGHTS = """You can see how much your channel performance
-and spend have affected your sales."""
+and spend have affected your {impact}."""
 
 SPEND_DELTA_CHART_ID = 'spend-delta-chart'
 SPEND_DELTA_CHART_TITLE = 'Change in optimized spend for each channel'
@@ -146,17 +146,17 @@ SPEND_DELTA_CHART_TITLE = 'Change in optimized spend for each channel'
 SPEND_ALLOCATION_CHART_ID = 'spend-allocation-chart'
 SPEND_ALLOCATION_CHART_TITLE = 'Optimized spend allocation'
 
-SALES_DELTA_CHART_ID = 'sales-delta-chart'
-SALES_DELTA_CHART_TITLE = 'Optimized incremental sales across all channels'
+IMPACT_DELTA_CHART_ID = '{impact}-delta-chart'
+IMPACT_DELTA_CHART_TITLE = 'Optimized incremental {impact} across all channels'
 
 SPEND_ALLOCATION_TABLE_ID = 'spend-allocation-table'
 
 OPTIMIZED_RESPONSE_CURVES_CARD_ID = 'optimized-response-curves'
 OPTIMIZED_RESPONSE_CURVES_CARD_TITLE = 'Optimized response curves by channel'
 OPTIMIZED_RESPONSE_CURVES_INSIGHTS = """These response curves show the potential
-return on investment on your channel spend and your potential sales. You can use
-the optimized spend as a recommendation to guide your future marketing spend.
-The more bend in your response curve the better the potential return on
+return on investment on your channel spend and your potential {impact}. You can
+use the optimized spend as a recommendation to guide your future marketing
+spend. The more bend in your response curve the better the potential return on
 investment."""
 
 OPTIMIZED_RESPONSE_CURVES_CHART_ID = 'optimized-response-curves-chart'
@@ -176,7 +176,6 @@ SPEND_LABEL = 'Spend'
 ROI_LABEL = 'ROI'
 KPI_LABEL = 'KPI'
 REVENUE_LABEL = 'Revenue'
-INC_SALES_LABEL = 'Incremental Sales'
 INC_REVENUE_LABEL = 'Incremental Revenue'
 INC_KPI_LABEL = 'Incremental KPI'
 OPTIMIZED_SPEND_LABEL = 'Optimized spend'

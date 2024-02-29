@@ -311,6 +311,11 @@ class BudgetOptimizer:
 
   def plot_incremental_impact_delta(self) -> alt.Chart:
     """Plots a waterfall chart showing the change in incremental impact."""
+    impact = self._kpi_or_revenue()
+    if impact == c.REVENUE:
+      y_axis_label = summary_text.INC_REVENUE_LABEL
+    else:
+      y_axis_label = summary_text.INC_KPI_LABEL
     df = self._transform_impact_delta_data()
     base = (
         alt.Chart(df)
@@ -377,14 +382,13 @@ class BudgetOptimizer:
         self.nonoptimized_data.total_incremental_impact + sum_decr - y_padding,
         self.optimized_data.total_incremental_impact + y_padding,
     ]
-
     bar = base.mark_bar(
         size=c.BAR_SIZE, clip=True, cornerRadius=c.CORNER_RADIUS
     ).encode(
         y=alt.Y(
             'prev_sum:Q',
             axis=alt.Axis(
-                title=summary_text.INC_SALES_LABEL,
+                title=y_axis_label,
                 ticks=False,
                 domain=False,
                 tickCount=5,
@@ -410,7 +414,7 @@ class BudgetOptimizer:
         (bar + text)
         .properties(
             title=formatter.custom_title_params(
-                summary_text.SALES_DELTA_CHART_TITLE
+                summary_text.IMPACT_DELTA_CHART_TITLE.format(impact=impact)
             ),
             width=(c.BAR_SIZE + c.PADDING_20) * len(df)
             + c.BAR_SIZE * 2 * c.SCALED_PADDING,
@@ -525,6 +529,11 @@ class BudgetOptimizer:
     Returns:
       An Altair plot showing the response curves with optimization details.
     """
+    impact = self._kpi_or_revenue()
+    if impact == c.REVENUE:
+      title = summary_text.INC_REVENUE_LABEL
+    else:
+      title = summary_text.INC_KPI_LABEL
     df = self._get_response_curves_data(n_top_channels=n_top_channels)
     base = (
         alt.Chart(df)
@@ -546,7 +555,7 @@ class BudgetOptimizer:
             ),
             y=alt.Y(
                 f'{c.MEAN}:Q',
-                title=summary_text.INC_SALES_LABEL,
+                title=title,
                 axis=alt.Axis(
                     labelExpr=formatter.compact_number_expr(),
                     **formatter.AXIS_CONFIG,
@@ -1318,6 +1327,7 @@ class BudgetOptimizer:
   # TODO(b/319501774): Update insights when there's varied spend bounds.
   def _create_scenario_plan_section(self) -> str:
     """Creates the HTML card snippet for the scenario plan section."""
+    impact = self._kpi_or_revenue()
     card_spec = formatter.CardSpec(
         id=summary_text.SCENARIO_PLAN_CARD_ID,
         title=summary_text.SCENARIO_PLAN_CARD_TITLE,
@@ -1354,13 +1364,13 @@ class BudgetOptimizer:
     )
     inc_impact_prefix = '+' if inc_impact_diff > 0 else ''
     current_inc_impact = formatter.StatsSpec(
-        title=summary_text.CURRENT_INC_SALES_LABEL,
+        title=summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=impact),
         stat=formatter.format_monetary_num(
             self.nonoptimized_data.total_incremental_impact,
         ),
     )
     optimized_inc_impact = formatter.StatsSpec(
-        title=summary_text.OPTIMIZED_INC_SALES_LABEL,
+        title=summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
         stat=formatter.format_monetary_num(
             self.optimized_data.total_incremental_impact,
         ),
@@ -1368,6 +1378,18 @@ class BudgetOptimizer:
         + formatter.format_monetary_num(inc_impact_diff),
     )
     assert self._spend_bounds is not None
+    stats_specs = [
+        current_budget,
+        optimized_budget,
+        current_roi,
+        optimized_roi,
+        current_inc_impact,
+        optimized_inc_impact,
+    ]
+    # If revenue_per_kpi doesn't exist, remove the ROI specs.
+    if self._meridian.input_data.revenue_per_kpi is None:
+      stats_specs.remove(current_roi)
+      stats_specs.remove(optimized_roi)
     return formatter.create_card_html(
         self._template_env,
         card_spec,
@@ -1377,18 +1399,12 @@ class BudgetOptimizer:
             start_date=self.optimized_data.start_date,
             end_date=self.optimized_data.end_date,
         ),
-        stats_specs=[
-            current_budget,
-            optimized_budget,
-            current_roi,
-            optimized_roi,
-            current_inc_impact,
-            optimized_inc_impact,
-        ],
+        stats_specs=stats_specs,
     )
 
   def _create_budget_allocation_section(self) -> str:
     """Creates the HTML card snippet for the budget allocation section."""
+    impact = self._kpi_or_revenue()
     card_spec = formatter.CardSpec(
         id=summary_text.BUDGET_ALLOCATION_CARD_ID,
         title=summary_text.BUDGET_ALLOCATION_CARD_TITLE,
@@ -1402,7 +1418,9 @@ class BudgetOptimizer:
         chart_json=self.plot_budget_allocation().to_json(),
     )
     impact_delta = formatter.ChartSpec(
-        id=summary_text.SALES_DELTA_CHART_ID,
+        id=summary_text.IMPACT_DELTA_CHART_ID.format(
+            impact=impact.lower() if impact == c.KPI else impact
+        ),
         chart_json=self.plot_incremental_impact_delta().to_json(),
     )
     spend_allocation_table = formatter.TableSpec(
@@ -1465,3 +1483,10 @@ class BudgetOptimizer:
         summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS,
         [response_curves],
     )
+
+  def _kpi_or_revenue(self) -> str:
+    if self._meridian.input_data.revenue_per_kpi is not None:
+      impact_str = c.REVENUE
+    else:
+      impact_str = c.KPI.upper()
+    return impact_str
