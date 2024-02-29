@@ -539,8 +539,10 @@ class Analyzer:
   ) -> tf.Tensor:
     """Calculates either the expected impact posterior or prior.
 
-    This calculates E(impact|media, controls) for each posterior (or prior)
-    parameter draw.
+    This calculates E(Impact|Media, Controls) for each posterior (or prior)
+    parameter draw, where Impact refers to either `revenue` if `use_kpi`=False,
+    or `kpi` if `use_kpi`=True. When `revenue_per_kpi` is not defined, `use_kpi`
+    cannot be False.
 
     By default, this calculates expected impact conditional on the media and
     control values that the Meridian object was initialized with. The user can
@@ -567,10 +569,10 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
         By default, all time periods are included.
-      aggregate_geos: Boolean. If `True`, the expected impact is summed
-        over all regions.
-      aggregate_times: Boolean. If `True`, the expected impact is summed
-        over all time periods.
+      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
+        regions.
+      aggregate_times: Boolean. If `True`, the expected impact is summed over
+        all time periods.
       inverse_transform_impact: Boolean. If `True`, returns the expected impact
         in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
@@ -580,10 +582,10 @@ class Analyzer:
         the expected revenue (KPI * `revenue_per_kpi`) is calculated. Only used
         if `inverse_transform_impact=True`. `use_kpi` must be True when
         `revenue_per_kpi` is not defined.
-      batch_size: Integer representing the maximum draws per chain in
-      each batch. The calculation is run in batches to avoid memory exhaustion.
-        If a memory error occurs, try reducing `batch_size`. The calculation
-        will generally be faster with larger `batch_size` values.
+      batch_size: Integer representing the maximum draws per chain in each
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
 
     Returns:
       Tensor of expected impact (either KPI or revenue, depending on the
@@ -878,7 +880,9 @@ class Analyzer:
     E(Impact|Media_0, Controls), where `Media_0` means that media execution for
     a given channel is set to zero and all other media are set to the values
     that the Meridian object was initialized with. This is the case for all geos
-    and time periods, including lag periods.
+    and time periods, including lag periods. Impact refers to either
+    `revenue` if `use_kpi`=False, or `kpi` if `use_kpi`=True. When
+    `revenue_per_kpi` is not defined, `use_kpi` cannot be False.
 
     By default, this calculates incremental impact conditional on the media
     and control values that the Meridian object was initialized with.
@@ -911,8 +915,8 @@ class Analyzer:
       new_media: Optional tensor with dimensions matching media.
       new_reach: Optional tensor with dimensions matching reach.
       new_frequency: Optional tensor with dimensions matching frequency.
-      selected_geos: Optional list of containing a subset of geos to include.
-        By default, all geos are included.
+      selected_geos: Optional list of containing a subset of geos to include. By
+        default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
         By default, all time periods are included.
       aggregate_geos: Boolean. If `True`, then incremental impact is summed over
@@ -924,14 +928,14 @@ class Analyzer:
         `use_kpi`), as it was passed to `InputData`. If False, returns the
         impact after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
-      use_kpi: Boolean. If `True`, the incremental KPI is calculated.
-        If `False`, incremental revenue (`KPI * revenue_per_kpi`) is calculated.
+      use_kpi: Boolean. If `True`, the incremental KPI is calculated. If
+        `False`, incremental revenue (`KPI * revenue_per_kpi`) is calculated.
         Only used if `inverse_transform_impact=True`. `use_kpi` must be `True`
         when `revenue_per_kpi` is not defined.
       batch_size: Integer representing the maximum draws per chain in each
-        batch. The calculation is run in batches to avoid memory exhaustion.
-        If a memory error occurs, try reducing `batch_size`. The calculation
-        will generally be faster with larger `batch_size` values.
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
 
     Returns:
       Tensor of incremental impact (either KPI or revenue, depending on
