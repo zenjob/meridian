@@ -35,11 +35,38 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 
-def _convert_with_swap(array: xr.DataArray) -> tf.Tensor:
-  """Converts DataArray to tf.Tensor and swaps first two dimensions."""
+def _convert_with_swap(array: xr.DataArray, n_burnin: int) -> tf.Tensor:
+  """Converts a DataArray to a tf.Tensor with the correct MCMC format.
+
+  This function converts a DataArray to tf.Tensor, swaps first two dimensions
+  and adds the burnin part. This is needed to properly mock the
+  _xla_windowed_adaptive_nuts() function output in the sample_posterior
+  tests.
+
+  Args:
+    array: The array to be converted.
+    n_burnin: The number of extra draws to be padded with as the 'burnin' part.
+
+  Returns:
+    A tensor in the same format as returned by the _xla_windowed_adaptive_nuts()
+    function.
+  """
   tensor = tf.convert_to_tensor(array)
   perm = [1, 0] + [i for i in range(2, len(tensor.shape))]
-  return tf.transpose(tensor, perm=perm)
+  transposed_tensor = tf.transpose(tensor, perm=perm)
+
+  # Add the "burnin" part to the mocked output of _xla_windowed_adaptive_nuts
+  # to make sure sample_posterior returns the correct "keep" part.
+  if array.dtype == bool:
+    pad_value = False
+  else:
+    pad_value = 0.0 if array.dtype.kind == "f" else 0
+
+  burnin = tf.fill([n_burnin] + transposed_tensor.shape[1:], pad_value)
+  return tf.concat(
+      [burnin, transposed_tensor],
+      axis=0,
+  )
 
 
 class ModelTest(tf.test.TestCase, parameterized.TestCase):
@@ -78,7 +105,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   _N_CHAINS = 2
   _N_ADAPT = 2
   _N_BURNIN = 5
-  _N_KEEP = 5
+  _N_KEEP = 10
   _N_DRAWS = 10
   _N_GEOS = 5
   _N_GEOS_NATIONAL = 1
@@ -217,18 +244,24 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         self._TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH
     )
     posterior_params_to_tensors_media_and_rf = {
-        param: _convert_with_swap(test_posterior_media_and_rf[param])
+        param: _convert_with_swap(
+            test_posterior_media_and_rf[param], n_burnin=self._N_BURNIN
+        )
         for param in constants.COMMON_PARAMETER_NAMES
         + constants.MEDIA_PARAMETER_NAMES
         + constants.RF_PARAMETER_NAMES
     }
     posterior_params_to_tensors_media_only = {
-        param: _convert_with_swap(test_posterior_media_only[param])
+        param: _convert_with_swap(
+            test_posterior_media_only[param], n_burnin=self._N_BURNIN
+        )
         for param in constants.COMMON_PARAMETER_NAMES
         + constants.MEDIA_PARAMETER_NAMES
     }
     posterior_params_to_tensors_rf_only = {
-        param: _convert_with_swap(test_posterior_rf_only[param])
+        param: _convert_with_swap(
+            test_posterior_rf_only[param], n_burnin=self._N_BURNIN
+        )
         for param in constants.COMMON_PARAMETER_NAMES
         + constants.RF_PARAMETER_NAMES
     }
@@ -249,7 +282,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     test_trace = xr.open_dataset(self._TEST_SAMPLE_TRACE_PATH)
     self.test_trace = {
-        param: _convert_with_swap(test_trace[param])
+        param: _convert_with_swap(test_trace[param], n_burnin=self._N_BURNIN)
         for param in test_trace.data_vars
     }
 
