@@ -423,6 +423,29 @@ class InputDataLoaderTest(parameterized.TestCase):
     xr.testing.assert_equal(data.media, dataset[constants.MEDIA])
     xr.testing.assert_equal(data.media_spend, dataset[constants.MEDIA_SPEND])
 
+  def test_xr_dataset_data_loader_no_revenue_per_kpi_name_mapping(self):
+    dataset = test_utils.random_dataset(
+        n_geos=20,
+        n_times=100,
+        n_media_times=103,
+        n_media_channels=4,
+        n_controls=2,
+        revenue_per_kpi_value=None,
+    )
+    loader = load.XrDatasetDataLoader(
+        dataset.rename({constants.KPI: 'conversions', constants.GEO: 'group'}),
+        kpi_type=constants.NON_REVENUE,
+        name_mapping={'conversions': constants.KPI, 'group': constants.GEO},
+    )
+    data = loader.load()
+
+    xr.testing.assert_equal(data.kpi, dataset[constants.KPI])
+    xr.testing.assert_equal(data.controls, dataset[constants.CONTROLS])
+    xr.testing.assert_equal(data.population, dataset[constants.POPULATION])
+    xr.testing.assert_equal(data.media, dataset[constants.MEDIA])
+    xr.testing.assert_equal(data.media_spend, dataset[constants.MEDIA_SPEND])
+    self.assertIsNone(data.revenue_per_kpi)
+
   @parameterized.named_parameters(
       (
           'wrong_dataset_no_media_no_rf',
@@ -499,7 +522,7 @@ class InputDataLoaderTest(parameterized.TestCase):
             "Target name 'revenue' from the mapping is none of the target"
             " coordinate names ('geo', 'time', 'media_time',"
             " 'control_variable', 'media_channel', 'rf_channel') or array names"
-            " ('kpi', 'revenue_per_kpi', 'controls', 'population', 'media',"
+            " ('kpi', 'controls', 'population', 'revenue_per_kpi', 'media',"
             " 'media_spend', 'reach', 'frequency', 'rf_spend')."
         ),
     ):
@@ -573,6 +596,68 @@ class InputDataLoaderTest(parameterized.TestCase):
     )
     xr.testing.assert_equal(data.rf_spend, expected_dataset[constants.RF_SPEND])
 
+  def test_dataframe_no_revenue_per_kpi_data_loader_name_mapping_works(self):
+    df = self._sample_df_with_media_and_rf.drop(
+        columns=[constants.REVENUE_PER_KPI]
+    )
+    changed_mapping = {
+        constants.KPI: 'Revenue',
+        constants.GEO: 'City',
+        constants.TIME: 'Date',
+        constants.POPULATION: 'Population',
+    }
+    df = df.rename(columns=changed_mapping)
+    coord_to_columns = load.CoordToColumns(
+        kpi='Revenue',
+        geo='City',
+        time='Date',
+        population='Population',
+        controls=test_utils._sample_names('control_', self._N_CONTROLS),
+        media=test_utils._sample_names('media_', self._N_MEDIA_CHANNELS),
+        media_spend=test_utils._sample_names(
+            'media_spend_', self._N_MEDIA_CHANNELS
+        ),
+        reach=test_utils._sample_names('reach_', self._N_RF_CHANNELS),
+        frequency=test_utils._sample_names('frequency_', self._N_RF_CHANNELS),
+        rf_spend=test_utils._sample_names('rf_spend_', self._N_RF_CHANNELS),
+    )
+    loader = load.DataFrameDataLoader(
+        df=df,
+        coord_to_columns=coord_to_columns,
+        kpi_type=constants.NON_REVENUE,
+        media_to_channel=self._correct_media_to_channel,
+        media_spend_to_channel=self._correct_media_spend_to_channel,
+        reach_to_channel=self._correct_reach_to_channel,
+        frequency_to_channel=self._correct_frequency_to_channel,
+        rf_spend_to_channel=self._correct_rf_spend_to_channel,
+    )
+    data = loader.load()
+
+    expected_dataset = test_utils.random_dataset(
+        n_geos=self._N_GEOS,
+        n_times=self._N_TIMES,
+        n_media_times=self._N_TIMES,
+        n_controls=self._N_CONTROLS,
+        n_media_channels=self._N_MEDIA_CHANNELS,
+        n_rf_channels=self._N_RF_CHANNELS,
+        revenue_per_kpi_value=None,
+    )
+    xr.testing.assert_equal(data.kpi, expected_dataset[constants.KPI])
+    xr.testing.assert_equal(data.controls, expected_dataset[constants.CONTROLS])
+    xr.testing.assert_equal(
+        data.population, expected_dataset[constants.POPULATION]
+    )
+    xr.testing.assert_equal(data.media, expected_dataset[constants.MEDIA])
+    xr.testing.assert_equal(
+        data.media_spend, expected_dataset[constants.MEDIA_SPEND]
+    )
+    xr.testing.assert_equal(data.reach, expected_dataset[constants.REACH])
+    xr.testing.assert_equal(
+        data.frequency, expected_dataset[constants.FREQUENCY]
+    )
+    xr.testing.assert_equal(data.rf_spend, expected_dataset[constants.RF_SPEND])
+    self.assertIsNone(data.revenue_per_kpi)
+
   def test_dataframe_data_loader_datetime_values(self):
     df = self._sample_df_with_media_and_rf
     df[constants.TIME] = df[constants.TIME].map(
@@ -580,6 +665,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     )
 
     coord_to_columns = load.CoordToColumns(
+        revenue_per_kpi=constants.REVENUE_PER_KPI,
         controls=test_utils._sample_names('control_', self._N_CONTROLS),
         media=test_utils._sample_names('media_', self._N_MEDIA_CHANNELS),
         media_spend=test_utils._sample_names(
@@ -618,6 +704,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     df.at[-2, constants.TIME] = '2023-W42'
 
     coord_to_columns = load.CoordToColumns(
+        revenue_per_kpi=constants.REVENUE_PER_KPI,
         controls=test_utils._sample_names('control_', self._N_CONTROLS),
         media=test_utils._sample_names('media_', self._N_MEDIA_CHANNELS),
         media_spend=test_utils._sample_names(
@@ -955,17 +1042,18 @@ class InputDataLoaderTest(parameterized.TestCase):
 
   def test_coords_to_columns_works(self):
     coord_to_columns = load.CoordToColumns(
-        controls=['controls'],
+        revenue_per_kpi=constants.REVENUE_PER_KPI,
+        controls=[constants.CONTROLS],
         media=['Impressions_Channel_1', 'Impressions_Channel_2'],
         media_spend=['Cost_Channel_1', 'Cost_Channel_2'],
     )
     expected_coord_to_columns = load.CoordToColumns(
-        time='time',
-        geo='geo',
-        controls=['controls'],
-        population='population',
-        kpi='kpi',
-        revenue_per_kpi='revenue_per_kpi',
+        time=constants.TIME,
+        geo=constants.GEO,
+        controls=[constants.CONTROLS],
+        population=constants.POPULATION,
+        kpi=constants.KPI,
+        revenue_per_kpi=constants.REVENUE_PER_KPI,
         media=['Impressions_Channel_1', 'Impressions_Channel_2'],
         media_spend=['Cost_Channel_1', 'Cost_Channel_2'],
     )
@@ -1405,6 +1493,52 @@ class InputDataLoaderTest(parameterized.TestCase):
     xr.testing.assert_equal(data.media_spend, expected_data.media_spend)
     xr.testing.assert_equal(data.controls, expected_data.controls)
     xr.testing.assert_equal(data.population, expected_data.population)
+
+  def test_no_revenue_per_kpi_csv_data_loader(self):
+    """Tests loading data without `revenue_per_kpi`."""
+    csv_file = os.path.join(
+        os.path.dirname(__file__),
+        'sample',
+        'sample_data_no_revenue_per_kpi.csv',
+    )
+    coord_to_columns = test_utils.sample_coord_to_columns(
+        n_controls=self._N_CONTROLS,
+        n_media_channels=self._N_MEDIA_CHANNELS,
+        n_rf_channels=self._N_RF_CHANNELS,
+        include_revenue_per_kpi=False,
+    )
+    loader = load.CsvDataLoader(
+        csv_path=csv_file,
+        coord_to_columns=coord_to_columns,
+        kpi_type=constants.NON_REVENUE,
+        media_to_channel=self._correct_media_to_channel,
+        media_spend_to_channel=self._correct_media_spend_to_channel,
+        reach_to_channel=self._correct_reach_to_channel,
+        frequency_to_channel=self._correct_frequency_to_channel,
+        rf_spend_to_channel=self._correct_rf_spend_to_channel,
+    )
+    data = loader.load()
+
+    dataset = test_utils.random_dataset(
+        n_geos=5,
+        n_times=200,
+        n_media_times=200,
+        n_media_channels=3,
+        n_rf_channels=2,
+        n_controls=2,
+        seed=0,
+        revenue_per_kpi_value=None,
+    )
+
+    xr.testing.assert_allclose(data.kpi, dataset[constants.KPI])
+    xr.testing.assert_allclose(data.controls, dataset[constants.CONTROLS])
+    xr.testing.assert_allclose(data.population, dataset[constants.POPULATION])
+    xr.testing.assert_allclose(data.media, dataset[constants.MEDIA])
+    xr.testing.assert_allclose(data.media_spend, dataset[constants.MEDIA_SPEND])
+    xr.testing.assert_allclose(data.reach, dataset[constants.REACH])
+    xr.testing.assert_allclose(data.frequency, dataset[constants.FREQUENCY])
+    xr.testing.assert_allclose(data.rf_spend, dataset[constants.RF_SPEND])
+    self.assertIsNone(data.revenue_per_kpi)
 
 
 if __name__ == '__main__':

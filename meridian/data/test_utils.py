@@ -41,12 +41,14 @@ _RF_COORDS = immutabledict.immutabledict(
 
 _REQUIRED_DATA_VARS = immutabledict.immutabledict({
     c.KPI: (['geo', 'time'], [[0.1], [0.2]]),
-    c.REVENUE_PER_KPI: (['geo', 'time'], [[1.1], [1.2]]),
     c.CONTROLS: (
         ['geo', 'time', 'control_variable'],
         [[[2.1, 2.2]], [[2.3, 2.4]]],
     ),
     c.POPULATION: (['geo'], [3.1, 3.1]),
+})
+_OPTIONAL_DATA_VARS = immutabledict.immutabledict({
+    c.REVENUE_PER_KPI: (['geo', 'time'], [[1.1], [1.2]]),
 })
 _MEDIA_DATA_VARS = immutabledict.immutabledict({
     c.MEDIA: (
@@ -163,6 +165,7 @@ DATASET_WITHOUT_GEO_VARIATION_IN_CONTROLS = xr.Dataset(
 DATASET_WITHOUT_GEO_VARIATION_IN_MEDIA = xr.Dataset(
     coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS,
     data_vars=_REQUIRED_DATA_VARS
+    | _OPTIONAL_DATA_VARS
     | _RF_DATA_VARS
     | {
         c.MEDIA: (
@@ -179,6 +182,7 @@ DATASET_WITHOUT_GEO_VARIATION_IN_MEDIA = xr.Dataset(
 DATASET_WITHOUT_GEO_VARIATION_IN_REACH = xr.Dataset(
     coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS,
     data_vars=_REQUIRED_DATA_VARS
+    | _OPTIONAL_DATA_VARS
     | _MEDIA_DATA_VARS
     | {
         c.REACH: (
@@ -733,7 +737,7 @@ def random_dataset(
     n_controls,
     n_media_channels=None,
     n_rf_channels=None,
-    revenue_per_kpi_all_ones=False,
+    revenue_per_kpi_value: float | None = 3.14,
     seed=0,
 ):
   """Generates a random dataset."""
@@ -781,6 +785,13 @@ def random_dataset(
     frequency = None
     rf_spend = None
 
+  if revenue_per_kpi_value is not None:
+    revenue_per_kpi = constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=revenue_per_kpi_value
+    )
+  else:
+    revenue_per_kpi = None
+
   controls = random_controls_da(
       media=media if n_media_channels else reach,
       n_geos=n_geos,
@@ -796,15 +807,11 @@ def random_dataset(
       n_media_channels=n_media_channels or n_rf_channels or 0,
       n_controls=n_controls,
   )
-  revenue_per_kpi_value = 3.14
-  if revenue_per_kpi_all_ones:
-    revenue_per_kpi_value = 1.0
-  revenue_per_kpi = constant_revenue_per_kpi(
-      n_geos=n_geos, n_times=n_times, value=revenue_per_kpi_value
-  )
   population = random_population(n_geos=n_geos, seed=seed)
 
-  dataset = xr.combine_by_coords([kpi, revenue_per_kpi, population, controls])
+  dataset = xr.combine_by_coords([kpi, population, controls])
+  if revenue_per_kpi is not None:
+    dataset = xr.combine_by_coords([dataset, revenue_per_kpi])
   if n_media_channels:
     dataset = xr.combine_by_coords([dataset, media, media_spend])
   if n_rf_channels:
@@ -922,6 +929,7 @@ def sample_coord_to_columns(
     n_controls: int,
     n_media_channels: int | None = None,
     n_rf_channels: int | None = None,
+    include_revenue_per_kpi: bool = True,
 ) -> load.CoordToColumns:
   """Returns a sample coord_to_columns mapping for testing."""
 
@@ -945,7 +953,7 @@ def sample_coord_to_columns(
       geo=c.GEO,
       time=c.TIME,
       kpi=c.KPI,
-      revenue_per_kpi=c.REVENUE_PER_KPI,
+      revenue_per_kpi=c.REVENUE_PER_KPI if include_revenue_per_kpi else None,
       population=c.POPULATION,
       controls=_sample_names('control_', n_controls),
       media=media,
@@ -990,7 +998,7 @@ def sample_input_data_revenue(
       n_controls=n_controls,
       n_media_channels=n_media_channels,
       n_rf_channels=n_rf_channels,
-      revenue_per_kpi_all_ones=True,
+      revenue_per_kpi_value=1.0,
       seed=seed,
   )
   return input_data.InputData(
