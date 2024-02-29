@@ -25,6 +25,8 @@ from meridian.analysis import analyzer
 from meridian.analysis import summarizer
 from meridian.analysis import summary_text
 from meridian.analysis import test_utils
+from meridian.data import input_data
+from meridian.data import test_utils as data_test_utils
 from meridian.model import model
 import xarray as xr
 
@@ -45,7 +47,26 @@ class SummarizerTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
 
-    self.mock_meridian = mock.create_autospec(model.Meridian, instance=True)
+    self.input_data = mock.create_autospec(input_data.InputData, instance=True)
+    self.input_data_2 = mock.create_autospec(
+        input_data.InputData, instance=True
+    )
+    n_times = 149
+    n_geos = 10
+    self.revenue_per_kpi = data_test_utils.constant_revenue_per_kpi(
+        n_geos=n_geos, n_times=n_times, value=2.2
+    )
+    self.mock_meridian_revenue = mock.create_autospec(
+        model.Meridian, instance=True, input_data=self.input_data
+    )
+    self.mock_meridian_revenue.input_data.kpi_type = c.REVENUE
+    self.mock_meridian_revenue.input_data.revenue_per_kpi = self.revenue_per_kpi
+
+    self.mock_meridian_kpi = mock.create_autospec(
+        model.Meridian, instance=True, input_data=self.input_data_2
+    )
+    self.mock_meridian_kpi.input_data.kpi_type = c.NON_REVENUE
+    self.mock_meridian_kpi.input_data.revenue_per_kpi = None
 
     self.analyzer_patcher = mock.patch.object(
         analyzer,
@@ -86,7 +107,8 @@ class SummarizerTest(parameterized.TestCase):
     self.reach_frequency_class = self.reach_frequency_patcher.start()
     self.reach_frequency = self.reach_frequency_class()
 
-    self.summarizer = summarizer.Summarizer(self.mock_meridian)
+    self.summarizer_revenue = summarizer.Summarizer(self.mock_meridian_revenue)
+    self.summarizer_kpi = summarizer.Summarizer(self.mock_meridian_kpi)
 
     self._stub_plotters()
     self._stub_for_insights()
@@ -134,10 +156,10 @@ class SummarizerTest(parameterized.TestCase):
         channel_prefix='channel', num_channels=2
     )
     self.reach_frequency.optimal_frequency_data = frequency_data
-    self.mock_meridian.n_rf_channels = 2
+    self.mock_meridian_revenue.n_rf_channels = 2
+    self.mock_meridian_kpi.n_rf_channels = 2
 
     # Stub `input_data.time` property.
-    self.mock_meridian.input_data = mock.Mock()
     response = xr.DataArray(
         data=None,
         dims=[c.TIME],
@@ -145,10 +167,12 @@ class SummarizerTest(parameterized.TestCase):
             c.TIME: list(_TIME_COORDS_STRINGS),
         },
     )
-    self.mock_meridian.input_data.time = response[c.TIME]
+    self.mock_meridian_revenue.input_data.time = response[c.TIME]
+    self.mock_meridian_kpi.input_data.time = response[c.TIME]
 
   def _get_output_model_results_summary_html_dom(
       self,
+      summarizer_impact: summarizer.Summarizer,
       start_date: dt.datetime | None = _EARLIEST_DATE,
       end_date: dt.datetime | None = _LATEST_DATE,
   ) -> ET.Element:
@@ -157,7 +181,7 @@ class SummarizerTest(parameterized.TestCase):
     fpath = os.path.join(outfile_path, outfile_name)
 
     try:
-      self.summarizer.output_model_results_summary(
+      summarizer_impact.output_model_results_summary(
           filename=outfile_name,
           filepath=outfile_path,
           start_date=start_date.strftime(c.DATE_FORMAT) if start_date else None,
@@ -196,12 +220,15 @@ class SummarizerTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, expected_error_message):
       self._get_output_model_results_summary_html_dom(
+          summarizer_impact=self.summarizer_revenue,
           start_date=start_date,
           end_date=end_date,
       )
 
   def test_output_html_title(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     title = summary_html_dom.find('head/title')
 
     self.assertIsNotNone(title)
@@ -210,7 +237,9 @@ class SummarizerTest(parameterized.TestCase):
     self.assertEqual(title_text.strip(), summary_text.MODEL_RESULTS_TITLE)
 
   def test_output_header_section(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     header_div = test_utils.get_child_element(
         summary_html_dom, 'body/div', {'class': 'header'}
     )
@@ -226,7 +255,9 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_output_chips(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     chips_node = summary_html_dom.find('body/chips')
     self.assertIsNotNone(chips_node)
     chip_nodes = chips_node.findall('chip')
@@ -241,6 +272,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_output_no_date_range(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
         start_date=None,
         end_date=None,
     )
@@ -254,7 +286,9 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_output_card_structure(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     cards_node = test_utils.get_child_element(summary_html_dom, 'body/cards')
 
     self.assertLen(cards_node, 4)
@@ -271,12 +305,14 @@ class SummarizerTest(parameterized.TestCase):
 
   @parameterized.parameters(
       summarizer.MODEL_FIT_CARD_SPEC,
-      summarizer.SALES_CONTRIB_CARD_SPEC,
+      summarizer.REVENUE_CONTRIB_CARD_SPEC,
       summarizer.ROI_BREAKDOWN_CARD_SPEC,
       summarizer.BUDGET_OPTIMIZATION_CARD_SPEC,
   )
   def test_output_card_static_chart_spec(self, card_spec):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     card = test_utils.get_child_element(
         summary_html_dom, 'body/cards/card', attribs={'id': card_spec.id}
     )
@@ -289,25 +325,31 @@ class SummarizerTest(parameterized.TestCase):
           summary_text.MODEL_FIT_CARD_ID,
           [
               (
-                  summary_text.EXPECTED_ACTUAL_SALES_CHART_ID,
-                  summary_text.EXPECTED_ACTUAL_SALES_CHART_DESCRIPTION,
+                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_ID,
+                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION,
               ),
           ],
       ),
       (
-          summary_text.SALES_CONTRIB_CARD_ID,
+          summary_text.IMPACT_CONTRIB_CARD_ID,
           [
               (
                   summary_text.CHANNEL_DRIVERS_CHART_ID,
-                  summary_text.CHANNEL_DRIVERS_CHART_DESCRIPTION,
+                  summary_text.CHANNEL_DRIVERS_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
               (
-                  summary_text.SPEND_SALES_CHART_ID,
-                  summary_text.SPEND_SALES_CHART_DESCRIPTION,
+                  summary_text.SPEND_IMPACT_CHART_ID,
+                  summary_text.SPEND_IMPACT_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
               (
-                  summary_text.SALES_CONTRIBUTION_CHART_ID,
-                  summary_text.SALES_CONTRIBUTION_CHART_DESCRIPTION,
+                  summary_text.IMPACT_CONTRIBUTION_CHART_ID,
+                  summary_text.IMPACT_CONTRIBUTION_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
           ],
       ),
@@ -316,15 +358,21 @@ class SummarizerTest(parameterized.TestCase):
           [
               (
                   summary_text.ROI_EFFECTIVENESS_CHART_ID,
-                  summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION,
+                  summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
               (
                   summary_text.ROI_MARGINAL_CHART_ID,
-                  summary_text.ROI_MARGINAL_CHART_DESCRIPTION,
+                  summary_text.ROI_MARGINAL_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
               (
                   summary_text.ROI_CHANNEL_CHART_ID,
-                  summary_text.ROI_CHANNEL_CHART_DESCRIPTION,
+                  summary_text.ROI_CHANNEL_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
           ],
       ),
@@ -333,7 +381,9 @@ class SummarizerTest(parameterized.TestCase):
           [
               (
                   summary_text.RESPONSE_CURVES_CHART_ID,
-                  summary_text.RESPONSE_CURVES_CHART_DESCRIPTION,
+                  summary_text.RESPONSE_CURVES_CHART_DESCRIPTION.format(
+                      impact=c.REVENUE
+                  ),
               ),
               (
                   summary_text.OPTIMAL_FREQUENCY_CHART_ID,
@@ -343,11 +393,11 @@ class SummarizerTest(parameterized.TestCase):
       ),
   ])
   def test_card_chart_info(self, card_id, expected_chart_tuples):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_revenue,
+    )
     card = test_utils.get_child_element(
-        summary_html_dom,
-        'body/cards/card',
-        attribs={'id': card_id},
+        summary_html_dom, 'body/cards/card', attribs={'id': card_id}
     )
 
     charts = []
@@ -363,6 +413,20 @@ class SummarizerTest(parameterized.TestCase):
 
     self.assertEqual(set(expected_chart_tuples), set(charts))
 
+  def test_roi_section_missing_no_revenue_per_kpi(self):
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_impact=self.summarizer_kpi,
+    )
+    cards_node = test_utils.get_child_element(summary_html_dom, 'body/cards')
+    self.assertEqual(cards_node[0].attrib['id'], summary_text.MODEL_FIT_CARD_ID)
+    self.assertEqual(
+        cards_node[1].attrib['id'], summary_text.IMPACT_CONTRIB_CARD_ID
+    )
+    self.assertEqual(
+        cards_node[2].attrib['id'], summary_text.BUDGET_OPTIMIZATION_CARD_ID
+    )
+    self.assertLen(cards_node, 3)
+
   def test_model_fit_card_custom_date_range(self):
     model_fit = self.model_fit
 
@@ -372,6 +436,7 @@ class SummarizerTest(parameterized.TestCase):
       plot().to_json.return_value = f'["{mock_spec}"]'
 
       summary_html_dom = self._get_output_model_results_summary_html_dom(
+          self.summarizer_revenue,
           start_date=dt.datetime(2022, 6, 4),
           end_date=dt.datetime(2022, 8, 27),
       )
@@ -413,7 +478,9 @@ class SummarizerTest(parameterized.TestCase):
   def test_model_diagnostics_table_no_holdout(self):
     model_diag = self.model_diagnostics
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue
+    )
     model_diag.predictive_accuracy_table.assert_called_once()
 
     card = test_utils.get_child_element(
@@ -429,12 +496,18 @@ class SummarizerTest(parameterized.TestCase):
     title_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-title'}
     ).text
-    self.assertEqual(title_text, summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE)
+    self.assertEqual(
+        title_text,
+        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(impact=c.REVENUE),
+    )
     description_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-description'}
     ).text
     self.assertEqual(
-        description_text, summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION
+        description_text,
+        summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION.format(
+            impact=c.REVENUE
+        ),
     )
 
     table = test_utils.get_child_element(chart_table, 'div/table')
@@ -468,7 +541,9 @@ class SummarizerTest(parameterized.TestCase):
         )
     )
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
     model_diag.predictive_accuracy_table.assert_called_once()
 
     card = test_utils.get_child_element(
@@ -484,12 +559,18 @@ class SummarizerTest(parameterized.TestCase):
     title_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-title'}
     ).text
-    self.assertEqual(title_text, summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE)
+    self.assertEqual(
+        title_text,
+        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(impact=c.REVENUE),
+    )
     description_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-description'}
     ).text
     self.assertEqual(
-        description_text, summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION
+        description_text,
+        summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION.format(
+            impact=c.REVENUE
+        ),
     )
 
     table = test_utils.get_child_element(chart_table, 'div/table')
@@ -527,12 +608,13 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_media_summary_with_custom_date_range(self):
     _ = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
         start_date=dt.datetime(2022, 6, 4),
         end_date=dt.datetime(2022, 8, 27),
     )
 
     self.media_summary_class.assert_called_with(
-        self.mock_meridian,
+        self.mock_meridian_revenue,
         selected_times=[
             '2022-06-04',
             '2022-06-11',
@@ -558,10 +640,11 @@ class SummarizerTest(parameterized.TestCase):
       plot().to_json.return_value = f'["{mock_spec_1}"]'
 
       _ = self._get_output_model_results_summary_html_dom(
+          self.summarizer_revenue,
           start_date=dt.datetime(2022, 6, 4),
           end_date=dt.datetime(2022, 7, 30),
       )
-      self.media_effects_class.assert_called_with(self.mock_meridian)
+      self.media_effects_class.assert_called_with(self.mock_meridian_revenue)
       plot.assert_called_with(
           confidence_level=0.9,
           selected_times=frozenset([
@@ -583,12 +666,13 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_reach_frequency_with_custom_date_range(self):
     _ = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
         start_date=dt.datetime(2022, 6, 4),
         end_date=dt.datetime(2022, 7, 30),
     )
 
     self.reach_frequency_class.assert_called_with(
-        self.mock_meridian,
+        self.mock_meridian_revenue,
         selected_times=[
             '2022-06-04',
             '2022-06-11',
@@ -602,10 +686,10 @@ class SummarizerTest(parameterized.TestCase):
         ],
     )
 
-  def test_sales_contrib_card_plotters_called(self):
+  def test_revenue_contrib_card_plotters_called(self):
     media_summary = self.media_summary
 
-    mock_spec_1 = 'sales_waterfall'
+    mock_spec_1 = 'revenue_waterfall'
     media_summary.plot_contribution_waterfall_chart().to_json.return_value = (
         f'["{mock_spec_1}"]'
     )
@@ -613,12 +697,14 @@ class SummarizerTest(parameterized.TestCase):
     media_summary.plot_spend_vs_contribution().to_json.return_value = (
         f'["{mock_spec_2}"]'
     )
-    mock_spec_3 = 'sales_contrib_pie'
+    mock_spec_3 = 'revenue_contrib_pie'
     media_summary.plot_contribution_pie_chart().to_json.return_value = (
         f'["{mock_spec_3}"]'
     )
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
     for mock_plot in [
         media_summary.plot_contribution_waterfall_chart(),
         media_summary.plot_spend_vs_contribution(),
@@ -629,7 +715,7 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.SALES_CONTRIB_CARD_ID},
+        attribs={'id': summary_text.IMPACT_CONTRIB_CARD_ID},
     )
     script_texts = [
         script.text.strip()
@@ -650,20 +736,22 @@ class SummarizerTest(parameterized.TestCase):
         all([mock_spec_1_exists, mock_spec_2_exists, mock_spec_3_exists])
     )
 
-  def test_sales_contrib_card_insights(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+  def test_revenue_contrib_card_insights(self):
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
 
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.SALES_CONTRIB_CARD_ID},
+        attribs={'id': summary_text.IMPACT_CONTRIB_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
     self.assertIn('channel 0 and channel 1 drove the most', insights_text)
     self.assertIn('channel 1 drove the highest', insights_text)
-    self.assertIn('$13.8 in sales', insights_text)
+    self.assertIn('$13.8 in revenue', insights_text)
 
   def test_roi_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
@@ -679,7 +767,9 @@ class SummarizerTest(parameterized.TestCase):
         f'["{mock_spec_3}"]'
     )
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
     for mock_plot in [
         media_summary.plot_roi_vs_effectiveness(),
         media_summary.plot_roi_vs_mroi(),
@@ -708,7 +798,9 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_roi_breakdown_card_insights(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
 
     card = test_utils.get_child_element(
         summary_html_dom,
@@ -737,12 +829,14 @@ class SummarizerTest(parameterized.TestCase):
     with mock.patch.object(media_effects, 'plot_response_curves') as plot:
       plot().to_json.return_value = f'["{mock_spec_1}"]'
 
-      summary_html_dom = self._get_output_model_results_summary_html_dom()
+      summary_html_dom = self._get_output_model_results_summary_html_dom(
+          self.summarizer_revenue,
+      )
 
       plot.assert_called_with(
           confidence_level=0.9,
           selected_times=frozenset(
-              self.summarizer._meridian.input_data.time.values
+              self.summarizer_revenue._meridian.input_data.time.values
           ),
           plot_separately=False,
           include_ci=False,
@@ -785,7 +879,9 @@ class SummarizerTest(parameterized.TestCase):
         2.34,  # 'channel 1' << this should be selected for plotting
     ]
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
 
     card = test_utils.get_child_element(
         summary_html_dom,
@@ -799,7 +895,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertIn('for channel 1 is 2.3 ', insights_text.replace('\n', ' '))
 
   def test_budget_optimization_card_insights_no_rf(self):
-    self.mock_meridian.n_rf_channels = 0
+    self.mock_meridian_revenue.n_rf_channels = 0
     reach_frequency = self.reach_frequency
     reach_frequency.optimal_frequency_data = xr.Dataset(
         data_vars={
@@ -814,7 +910,9 @@ class SummarizerTest(parameterized.TestCase):
         },
     )
 
-    summary_html_dom = self._get_output_model_results_summary_html_dom()
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_revenue,
+    )
 
     card = test_utils.get_child_element(
         summary_html_dom,

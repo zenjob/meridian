@@ -26,56 +26,58 @@ A well-fitted model produces more accurate outcomes. A model that is overfitted
 matches the data too closely, and a model that is underfitted doesn't match
 closely enough."""
 
-EXPECTED_ACTUAL_SALES_CHART_ID = 'expected-actual-sales-chart'
+EXPECTED_ACTUAL_IMPACT_CHART_ID = 'expected-actual-impact-chart'
 EXPECTED_ACTUAL_IMPACT_CHART_TITLE = 'Expected {impact} vs. actual {impact}'
-EXPECTED_ACTUAL_SALES_CHART_DESCRIPTION = """Note: The expected and baseline
+EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION = """Note: The expected and baseline
 are your posterior mean."""
 
 PREDICTIVE_ACCURACY_TABLE_ID = 'model-fit-statistics-table-chart'
-PREDICTIVE_ACCURACY_TABLE_TITLE = 'Model fit of your predicted and actual sales'
+PREDICTIVE_ACCURACY_TABLE_TITLE = (
+    'Model fit of your predicted and actual {impact}'
+)
 PREDICTIVE_ACCURACY_TABLE_DESCRIPTION = """Note: Correlation measures the
-strength of the relationship between predicted and actual sales. R-squared
+strength of the relationship between predicted and actual {impact}. R-squared
 measures the amount of variation in the data that is explained by the model. The
 closer to 1 in both r-squared and correlation the more accurate the model."""
 
-SALES_CONTRIB_CARD_ID = 'sales-contrib'
-SALES_CONTRIB_CARD_TITLE = 'Sales contribution'
-SALES_CONTRIB_INSIGHTS_FORMAT = """Your sales contributions help you understand
-what drove your sales. {lead_sales_channels} drove the most overall sales.
-{lead_roi_channel} drove the highest return on investment at
+IMPACT_CONTRIB_CARD_ID = 'impact-contrib'
+IMPACT_CONTRIB_CARD_TITLE = '{impact} contribution'
+IMPACT_CONTRIB_INSIGHTS_FORMAT = """Your revenue contributions help you
+understand what drove your revenue. {lead_channels} drove the most
+overall revenue. {lead_roi_channel} drove the highest return on investment at
 {lead_roi_ratio:.1f}. For every $1 you spent on {lead_roi_channel}, you saw
-${lead_roi_ratio:.1f} in sales."""
+${lead_roi_ratio:.1f} in revenue."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'
 CHANNEL_DRIVERS_CHART_DESCRIPTION = """Note: This graphic encompasses all of
-your sales drivers, but breaks down your marketing actives by channel."""
+your {impact} drivers, but breaks down your marketing actives by channel."""
 
-SPEND_SALES_CHART_ID = 'spend-sales-chart'
+SPEND_IMPACT_CHART_ID = 'spend-impact-chart'
 SPEND_IMPACT_CHART_TITLE = (
     'Spend and {impact} contribution by marketing channel'
 )
-SPEND_SALES_CHART_DESCRIPTION = """Note: Return on investment is calculated by
-dividing the sales attributed to a channel by marketing costs."""
+SPEND_IMPACT_CHART_DESCRIPTION = """Note: Return on investment is calculated by
+dividing the {impact} attributed to a channel by marketing costs."""
 
-SALES_CONTRIBUTION_CHART_ID = 'sales-contribution-chart'
+IMPACT_CONTRIBUTION_CHART_ID = 'impact-contribution-chart'
 CONTRIBUTION_CHART_TITLE = 'Contribution by baseline and marketing channels'
-SALES_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage
-breakdown of all your contributions of sales."""
+IMPACT_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage
+breakdown of all your contributions of {impact}."""
 
 ROI_BREAKDOWN_CARD_ID = 'roi-breakdown'
 ROI_BREAKDOWN_CARD_TITLE = 'Return on investment'
 ROI_BREAKDOWN_INSIGHTS_FORMAT = """Your return on investment helps you
 understand how your marketing activities impacted your business' objectives.
 {lead_effectiveness_channel} had the highest effectiveness, which is your
-incremental sales per media unit. {lead_marginal_roi_channel} had the highest
+incremental revenue per media unit. {lead_marginal_roi_channel} had the highest
 marginal return on investment at {lead_marginal_roi_channel_value:.2f}."""
 
 ROI_EFFECTIVENESS_CHART_ID = 'roi-effectiveness-chart'
 ROI_EFFECTIVENESS_CHART_TITLE = 'Return on investment vs. effectiveness'
 ROI_EFFECTIVENESS_CHART_DESCRIPTION = """Note: Return on investment by
 effectiveness measures the profitability of an investment, taking into account
-the effectiveness = incremental sales / number of impressions."""
+the effectiveness = incremental revenue / number of impressions."""
 
 ROI_MARGINAL_CHART_ID = 'roi-marginal-chart'
 ROI_MARGINAL_CHART_TITLE = 'Return on investment vs. marginal'
@@ -102,7 +104,7 @@ RESPONSE_CURVES_CHART_TITLE = (
     'Response curves by marketing channel {top_channels}'
 )
 RESPONSE_CURVES_CHART_DESCRIPTION = """Note: Response curves display your
-estimated relationship between your marketing spend and your sales -- based on
+estimated relationship between your marketing spend and your {impact} based on
 your actual historical data and estimation of marginal performance."""
 
 OPTIMAL_FREQUENCY_CHART_ID = 'optimal-frequency-chart'
