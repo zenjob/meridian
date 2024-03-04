@@ -124,8 +124,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH,
     )
 
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=cls.inference_data_media_and_rf
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: cls.inference_data_media_and_rf),
+        )
     )
 
   def test_expected_impact_wrong_controls_raises_exception(self):
@@ -1104,8 +1108,12 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH,
     )
 
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=cls.inference_data_media_only
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: cls.inference_data_media_only),
+        )
     )
 
   def test_filter_and_aggregate_geos_and_times_incorrect_tensor_shape(self):
@@ -1569,8 +1577,12 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH,
     )
 
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=cls.inference_data_rf_only
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: cls.inference_data_rf_only),
+        )
     )
 
   @parameterized.product(
