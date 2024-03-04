@@ -214,8 +214,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     self.budget_optimizer_rf_only = optimizer.BudgetOptimizer(
         self.meridian_rf_only
     )
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=self.inference_data_media_and_rf
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            'inference_data',
+            new=property(lambda unused_self: self.inference_data_media_and_rf),
+        )
     )
 
   def test_not_fitted_meridian_model_raises_exception(self):
@@ -735,7 +739,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       expected_spend,
       expected_mroi,
       use_optimal_frequency,
-      ):
+  ):
     expected_data = _create_budget_data(
         spend=expected_spend,
         inc_impact=expected_incremental_impact,
@@ -745,7 +749,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     self.budget_optimizer_media_and_rf.optimize(
         use_optimal_frequency=use_optimal_frequency
-        )
+    )
     actual_data = self.budget_optimizer_media_and_rf.optimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
