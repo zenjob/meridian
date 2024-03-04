@@ -627,7 +627,7 @@ class ReachAndFrequency:
     Coordinates:
       frequency, rf_channel, metric (mean, ci_hi, ci_lo)
     Data variables:
-      roi, optimal_frequency
+      roi or cpik, optimal_frequency
     """
     return self._optimal_frequency_data
 
@@ -655,7 +655,7 @@ class ReachAndFrequency:
         channels are included.
 
     Returns:
-      A DataFrame containing the weekly average frequency, mean ROI, and
+      A DataFrame containing the weekly average frequency, mean ROI or CPIK, and
       singularly valued optimal frequency per given channel.
     """
     selected_channels = (
@@ -663,20 +663,24 @@ class ReachAndFrequency:
         if selected_channels
         else self.optimal_frequency_data.rf_channel.values
     )
+    use_roi = self._meridian.input_data.revenue_per_kpi is not None
+    metric_name = c.ROI if use_roi else c.CPIK
 
-    roi_by_frequency_df = (
-        self.optimal_frequency_data[[c.ROI]]
+    performance_by_frequency_df = (
+        self.optimal_frequency_data[[metric_name]]
         .sel(rf_channel=selected_channels)
         .to_dataframe()
         .reset_index()
         .pivot(
             index=[c.RF_CHANNEL, c.FREQUENCY],
             columns=c.METRIC,
-            values=c.ROI,
+            values=metric_name,
         )
         .reset_index()
     )
-    roi_by_frequency_df.rename(columns={c.MEAN: c.ROI}, inplace=True)
+    performance_by_frequency_df.rename(
+        columns={c.MEAN: metric_name}, inplace=True
+    )
 
     optimal_freq_df = (
         self.optimal_frequency_data[[c.OPTIMAL_FREQUENCY]]
@@ -685,7 +689,7 @@ class ReachAndFrequency:
         .reset_index()
     )
 
-    return roi_by_frequency_df.merge(optimal_freq_df, on=c.RF_CHANNEL)
+    return performance_by_frequency_df.merge(optimal_freq_df, on=c.RF_CHANNEL)
 
   def plot_optimal_frequency(
       self,
@@ -700,7 +704,6 @@ class ReachAndFrequency:
       A faceted Altair plot showing a curve of the optimal frequency for the
       RF channels.
     """
-
     rf_channels = self.optimal_frequency_data.rf_channel.values
     if selected_channels and not all(
         item in rf_channels for item in selected_channels
@@ -708,24 +711,40 @@ class ReachAndFrequency:
       raise ValueError(
           'Channels specified are not in the list of all RF channels.'
       )
+    use_roi = self._meridian.input_data.revenue_per_kpi is not None
+    metric_name = c.ROI if use_roi else c.CPIK
+    metric_label = (
+        summary_text.ROI_LABEL if use_roi else summary_text.CPIK_LABEL
+    )
+    metric_legend = (
+        summary_text.EXPECTED_ROI_LABEL
+        if use_roi
+        else summary_text.EXPECTED_CPIK_LABEL
+    )
+
     optimal_frequency_df = self._transform_optimal_frequency_metrics(
         selected_channels
     )
-
     color_scale = alt.Scale(
-        domain=[c.OPTIMAL_FREQ_LABEL, c.EXPECTED_ROI_LABEL],
+        domain=[summary_text.OPTIMAL_FREQ_LABEL, metric_legend],
         range=[c.BLUE_600, c.RED_600],
     )
 
     base = alt.Chart(optimal_frequency_df).transform_calculate(
-        optimal_freq=f"'{c.OPTIMAL_FREQ_LABEL}'",
-        expected_roi=f"'{c.EXPECTED_ROI_LABEL}'",
+        optimal_freq=f"'{summary_text.OPTIMAL_FREQ_LABEL}'",
+        expected_metric=f"'{metric_legend}'",
     )
 
     line = base.mark_line(strokeWidth=4).encode(
         x=alt.X(c.FREQUENCY, title='Weekly Average Frequency'),
-        y=alt.Y(c.ROI, title='ROI'),
-        color=alt.Color(f'{c.EXPECTED_ROI}:N', scale=color_scale, title=''),
+        y=alt.Y(
+            metric_name,
+            title=metric_label,
+            axis=alt.Axis(
+                **formatter.Y_AXIS_TITLE_CONFIG,
+            ),
+        ),
+        color=alt.Color('expected_metric:N', scale=color_scale, title=''),
     )
 
     vertical_optimal_freq = base.mark_rule(
@@ -743,7 +762,7 @@ class ReachAndFrequency:
         font=c.FONT_ROBOTO,
         fontWeight='lighter',
     ).encode(
-        text=alt.value(c.OPTIMAL_FREQ_LABEL),
+        text=alt.value(summary_text.OPTIMAL_FREQ_LABEL),
         color=alt.value(c.BLACK_100),
     )
 
@@ -764,7 +783,9 @@ class ReachAndFrequency:
         .facet(f'{c.RF_CHANNEL}:N', columns=3)
         .properties(
             title=formatter.custom_title_params(
-                summary_text.OPTIMAL_FREQUENCY_CHART_TITLE
+                summary_text.OPTIMAL_FREQUENCY_CHART_TITLE.format(
+                    metric=metric_label
+                )
             )
         )
         .resolve_scale(x=c.INDEPENDENT, y=c.INDEPENDENT)

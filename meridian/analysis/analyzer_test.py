@@ -16,6 +16,7 @@ from collections.abc import Sequence
 import os
 from unittest import mock
 import warnings
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import arviz as az
@@ -24,9 +25,11 @@ from meridian.analysis import analyzer
 from meridian.analysis import test_utils
 from meridian.data import test_utils as data_test_utils
 from meridian.model import model
+from meridian.model import prior_distribution
 from meridian.model import spec
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 import xarray as xr
 
 
@@ -2001,6 +2004,68 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+
+
+class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    super(AnalyzerKpiTest, cls).setUpClass()
+
+    input_data = (
+        data_test_utils.sample_input_data_non_revenue_no_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    cpik_prior = tfp.distributions.LogNormal(0.5, 0.5)
+    roi_prior = tfp.distributions.TransformedDistribution(
+        cpik_prior, tfp.bijectors.Reciprocal()
+    )
+    custom_prior = prior_distribution.PriorDistribution(
+        roi_m=roi_prior, roi_rf=roi_prior
+    )
+    model_spec = spec.ModelSpec(prior=custom_prior)
+    cls.meridian_kpi = model.Meridian(
+        input_data=input_data, model_spec=model_spec
+    )
+    cls.analyzer_kpi = analyzer.Analyzer(cls.meridian_kpi)
+    inference_data = _build_inference_data(
+        _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
+        _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
+    )
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=inference_data
+    )
+
+  def test_optimal_frequency_uses_cpik_if_no_revenue_per_kpi(self):
+    with mock.patch.object(
+        self.analyzer_kpi, "cpik", autospec=True
+    ) as mock_cpik:
+      mock_cpik.return_value = tf.ones(
+          [_N_DRAWS, _N_DRAWS, _N_MEDIA_CHANNELS + _N_RF_CHANNELS]
+      )
+      ds = self.analyzer_kpi.optimal_freq()
+      mock_cpik.assert_called()
+      self.assertIn(constants.CPIK, list(ds.data_vars.keys()))
+
+  def test_optimal_frequency_min_cpik_at_opt_freq(self):
+    ds = self.analyzer_kpi.optimal_freq()
+    df = ds.to_dataframe()
+    cpik_at_opt_freq = list(
+        df.query(
+            'frequency == optimal_frequency & metric == "mean"'
+        ).cpik.values
+    )
+    min_mean_cpik = list(ds.cpik[:, :, 0].min(axis=0).values)
+    cpik_at_opt_freq.sort()
+    min_mean_cpik.sort()
+    self.assertListEqual(cpik_at_opt_freq, min_mean_cpik)
 
 
 class AnalyzerNotFittedTest(absltest.TestCase):

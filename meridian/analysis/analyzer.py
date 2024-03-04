@@ -1782,18 +1782,21 @@ class Analyzer:
       selected_geos: Sequence[str | int] | None = None,
       selected_times: Sequence[str | int] | None = None,
   ) -> xr.Dataset:
-    """Calculates the optimal frequency that maximizes posterior mean ROI.
+    """Calculates the optimal frequency that maximizes posterior mean ROI/CPIK.
+
+    In the case that `revenue_per_kpi` is not known and ROI is not available,
+    the optimal frequency is calculated using cost per incremental KPI instead.
 
     For this optimization, frequency is restricted to be constant across all
     geographic regions and time periods. Reach is calculated for each
     geographic area and time period such that the number of impressions
     remains unchanged as frequency varies. Merdian solves for the frequency at
-    which posterior mean ROI is maximized.
+    which posterior mean ROI or CPIK is maximized.
 
     Args:
-      freq_grid: List of frequency values. The ROI of each channel is calculated
-        for each frequency value in the list. By default, the list includes
-        numbers from 1.0 to the maximum frequency in increments of 0.1.
+      freq_grid: List of frequency values. The ROI/CPIK of each channel is
+        calculated for each frequency value in the list. By default, the list
+        includes numbers from 1.0 to the maximum frequency in increments of 0.1.
       confidence_level: Confidence level for prior and posterior credible
         intervals, represented as a value between zero and one.
       use_posterior: Boolean. If `True`, posterior optimal frequencies are
@@ -1805,9 +1808,10 @@ class Analyzer:
 
     Returns:
       XArray Dataset containing two variables: `optimal_frequency` and
-        `roi_by_frequency`. `optimal_frequency` is the frequency that optimizes
-        the posterior mean of ROI. `roi_by_frequency` is the ROI for each
-        frequency value.
+        `roi_by_frequency` or `cpik_by_frequency`. `optimal_frequency` is the
+        frequency that optimizes the posterior mean of ROI or CPIK.
+        `roi_by_frequency` is the ROI for each frequency value while
+        `cpik_by_frequency` is the CPIK fro each frequency value.
 
     Raises:
       NotFittedModelError: If `sample_posterior()` (for `use_posterior=True`)
@@ -1830,11 +1834,12 @@ class Analyzer:
         "aggregate_geos": True,
         "aggregate_times": True,
     }
+    use_roi = self._meridian.input_data.revenue_per_kpi is not None
 
     max_freq = np.max(np.array(self._meridian.frequency))
     if freq_grid is None:
       freq_grid = np.arange(1, max_freq, 0.1)
-    roi = np.zeros(
+    metric = np.zeros(
         (len(freq_grid), self._meridian.n_rf_channels, 3)
     )  #  Last argument is 3 for the mean, lower and upper confidence intervals.
 
@@ -1843,27 +1848,44 @@ class Analyzer:
       new_reach = (
           self._meridian.frequency * self._meridian.reach / new_frequency
       )
-      roi_temp = self.roi(
-          new_reach=new_reach,
-          new_frequency=new_frequency,
-          use_posterior=use_posterior,
-          **dim_kwargs,
-      )[..., -self._meridian.n_rf_channels :]
-      roi[i, :, 0] = np.mean(roi_temp, (0, 1))
-      roi[i, :, 1] = np.quantile(roi_temp, (1 - confidence_level) / 2, (0, 1))
-      roi[i, :, 2] = np.quantile(roi_temp, (1 + confidence_level) / 2, (0, 1))
+      if use_roi:
+        metric_temp = self.roi(
+            new_reach=new_reach,
+            new_frequency=new_frequency,
+            use_posterior=use_posterior,
+            **dim_kwargs,
+        )[..., -self._meridian.n_rf_channels :]
+      else:
+        metric_temp = self.cpik(
+            new_reach=new_reach,
+            new_frequency=new_frequency,
+            use_posterior=use_posterior,
+            **dim_kwargs,
+        )[..., -self._meridian.n_rf_channels :]
+      metric[i, :, 0] = np.mean(metric_temp, (0, 1))
+      metric[i, :, 1] = np.quantile(
+          metric_temp, (1 - confidence_level) / 2, (0, 1)
+      )
+      metric[i, :, 2] = np.quantile(
+          metric_temp, (1 + confidence_level) / 2, (0, 1)
+      )
 
-    optimal_freq_idx = np.argmax(roi[:, :, 0], axis=0)
+    optimal_freq_idx = (
+        np.nanargmax(metric[:, :, 0], axis=0)
+        if use_roi
+        else np.nanargmin(metric[:, :, 0], axis=0)
+    )
     rf_channel_values = (
         self._meridian.input_data.rf_channel.values
         if self._meridian.input_data.rf_channel is not None
         else []
     )
+    metric_name = constants.ROI if use_roi else constants.CPIK
     return xr.Dataset(
         data_vars={
-            constants.ROI: (
+            metric_name: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                roi,
+                metric,
             ),
             constants.OPTIMAL_FREQUENCY: (
                 [constants.RF_CHANNEL],

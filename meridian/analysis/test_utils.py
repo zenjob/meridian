@@ -621,7 +621,7 @@ def generate_model_fit_data(
 
 
 def generate_predictive_accuracy_table(
-    with_holdout=False, column_var: str | None = None
+    with_holdout: bool = False, column_var: str | None = None
 ) -> pd.DataFrame:
   """Helper method to simulate predictive accuracy DataFrame for Summarizer."""
   metric = [c.R_SQUARED, c.MAPE, c.WMAPE]
@@ -829,7 +829,9 @@ def generate_predictive_accuracy_data(holdout_id: bool = False) -> xr.Dataset:
 
 
 def generate_optimal_frequency_data(
-    channel_prefix=c.RF_CHANNEL, num_channels=5
+    channel_prefix: str = c.RF_CHANNEL,
+    num_channels: int = 5,
+    use_roi: bool = True,
 ) -> xr.Dataset:
   """Helper method to generate simulated optimal frequency data."""
   frequency = list(np.arange(1, 7.05, 0.1))
@@ -837,16 +839,17 @@ def generate_optimal_frequency_data(
   metric = [c.MEAN, c.CI_LO, c.CI_HI]
 
   np.random.seed(0)
-  roi_by_frequency = np.random.lognormal(
+  metric_by_frequency = np.random.lognormal(
       1, 1, size=(len(frequency), len(rf_channel), len(metric))
   )
   optimal_frequency = np.random.lognormal(1, 1, size=(len(rf_channel)))
 
+  metric_name = c.ROI if use_roi else c.CPIK
   return xr.Dataset(
       data_vars={
-          c.ROI: (
+          metric_name: (
               [c.FREQUENCY, c.RF_CHANNEL, c.METRIC],
-              roi_by_frequency,
+              metric_by_frequency,
           ),
           c.OPTIMAL_FREQUENCY: (
               [c.RF_CHANNEL],

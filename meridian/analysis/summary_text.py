@@ -108,9 +108,7 @@ estimated relationship between your marketing spend and your {impact} based on
 your actual historical data and estimation of marginal performance."""
 
 OPTIMAL_FREQUENCY_CHART_ID = 'optimal-frequency-chart'
-OPTIMAL_FREQUENCY_CHART_TITLE = (
-    'Return on investment by weekly average frequency'
-)
+OPTIMAL_FREQUENCY_CHART_TITLE = '{metric} by weekly average frequency'
 OPTIMAL_FREQUENCY_CHART_DESCRIPTION = """Note: optimal frequency is the
 recommended average weekly impressions per user (# impressions / # reached
 users)."""
@@ -174,6 +172,7 @@ HILL_SATURATION_CHART_TITLE = 'Hill Saturation Curves'
 CHANNEL_LABEL = 'Channel'
 SPEND_LABEL = 'Spend'
 ROI_LABEL = 'ROI'
+CPIK_LABEL = 'CPIK'
 KPI_LABEL = 'KPI'
 REVENUE_LABEL = 'Revenue'
 INC_REVENUE_LABEL = 'Incremental Revenue'
@@ -189,6 +188,9 @@ HILL_SHADED_REGION_MEDIA_LABEL = (
 HILL_X_AXIS_MEDIA_LABEL = 'Media Units per Capita'
 HILL_X_AXIS_RF_LABEL = 'Average Frequency'
 HILL_Y_AXIS_LABEL = 'Hill Saturation Level'
+EXPECTED_ROI_LABEL = 'Expected ROI'
+EXPECTED_CPIK_LABEL = 'Expected CPIK'
+OPTIMAL_FREQ_LABEL = 'Optimal Frequency'
 
 # Table contents.
 DATASET_LABEL = 'Dataset'
