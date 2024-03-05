@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Function definitions for Adstock/Hill calculations."""
+"""Function definitions for Adstock and Hill calculations."""
 
 from abc import ABCMeta, abstractmethod
 import tensorflow as tf
@@ -113,22 +113,22 @@ def _hill(
 
 
 class AdstockHillTransformer(metaclass=ABCMeta):
-  """Abstract class to compute Adstock/Hill transformation of media."""
+  """Abstract class to compute the Adstock and Hill transformation of media."""
 
   @abstractmethod
   def forward(self, media: tf.Tensor) -> tf.Tensor:
-    """Computes Adstock/Hill transformation of a given media tensor."""
+    """Computes the Adstock and Hill transformation of a given media tensor."""
     pass
 
 
 class AdstockTransformer(AdstockHillTransformer):
-  """Class to compute adstocked media."""
+  """Class to compute the Adstock transformation of media."""
 
   def __init__(self, alpha: tf.Tensor, max_lag: int, n_times_output: int):
     """Initializes the instance based on Adstock function parameters.
 
     Args:
-      alpha: Tensor of `alpha` parameters taking values in [0, 1) with
+      alpha: Tensor of `alpha` parameters taking values in `[0, 1)` with
         dimensions `[..., n_media_channels]`. Batch dimensions (...) are
         optional. Note that `alpha = 0` is allowed, so it is possible to put a
         point mass prior at zero (effectively no Adstock). However, `alpha = 1`
@@ -138,10 +138,10 @@ class AdstockTransformer(AdstockHillTransformer):
         include in the Adstock calculation.
       n_times_output: Integer indicating the number of time periods to include
         in the output tensor. Cannot exceed the number of time periods of the
-        media argument, i.e., `media.shape[-2]`. The output time periods
-        correspond to the most recent time periods of the media argument, i.e.
-        `media[..., -n_times_output:, :]` represents media execution of the
-        output weeks.
+        media argument, for example, `media.shape[-2]`. The output time periods
+        correspond to the most recent time periods of the media argument. For
+        example, `media[..., -n_times_output:, :]` represents the media
+        execution of the output weeks.
     """
     self._alpha = alpha
     self._max_lag = max_lag
@@ -151,11 +151,12 @@ class AdstockTransformer(AdstockHillTransformer):
     """Computes the Adstock transformation of a given `media` tensor.
 
     For geo `g`, time period `t`, and media channel `m`, Adstock is calculated
-    as adstock_{g,t,m} = sum_{i=0}^max_lag media_{g,t-i,m} alpha^i.
+    as $adstock_{g,t,m} = sum_{i=0}^max_lag media_{g,t-i,m} alpha^i$.
 
-    Note: The Hill function may be applied before or after Adstock. If Hill is
-    applied first, then Adstock media input may contain batch dimensions because
-    the transformed media tensor will be different for each posterior sample.
+    Note: The Hill function can be applied before or after Adstock. If Hill is
+    applied first, then the Adstock media input can contain batch dimensions
+    because the transformed media tensor will be different for each posterior
+    sample.
 
     Args:
       media: Tensor of media values with dimensions `[..., n_geos,
@@ -166,7 +167,7 @@ class AdstockTransformer(AdstockHillTransformer):
 
     Returns:
       Tensor with dimensions `[..., n_geos, n_times_output, n_media_channels]`
-      representing adstocked media.
+      representing Adstock transformed media.
     """
 
     return _adstock(
@@ -197,7 +198,7 @@ class HillTransformer(AdstockHillTransformer):
   def forward(self, media: tf.Tensor) -> tf.Tensor:
     """Computes the Hill transformation of a given `media` tensor.
 
-    Calculates result of the Hill function, which accounts for diminishing
+    Calculates results for the Hill function, which accounts for the diminishing
     returns of media effects.
 
     Args:
