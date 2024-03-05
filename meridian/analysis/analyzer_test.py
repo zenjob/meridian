@@ -2039,8 +2039,12 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
         _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
     )
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=inference_data
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: inference_data),
+        )
     )
 
   def test_optimal_frequency_uses_cpik_if_no_revenue_per_kpi(self):
