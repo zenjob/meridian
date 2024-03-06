@@ -1173,7 +1173,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertLen(set(plot_2_layered.data[c.CHANNEL]), 2)
     self.assertSetEqual(
         set(plot_2_layered.data[c.CHANNEL]),
-        {"channel 3", "channel 4"},
+        {"channel 0", "channel 3"},
     )
     self.assertEqual(
         plot_2_layered.title.text,
@@ -1182,7 +1182,7 @@ class MediaEffectsTest(parameterized.TestCase):
     self.assertLen(set(plot_3_layered.data[c.CHANNEL]), 3)
     self.assertSetEqual(
         set(plot_3_layered.data[c.CHANNEL]),
-        {"channel 4", "channel 2", "channel 3"},
+        {"channel 4", "channel 3", "channel 0"},
     )
     self.assertEqual(
         plot_3_layered.title.text,

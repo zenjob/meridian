@@ -240,6 +240,14 @@ class Analyzer:
           "`use_kpi` must be True when `revenue_per_kpi` is not defined."
       )
 
+  def _validate_roi_functionality(self) -> None:
+    """Validates whether ROI metrics can be computed."""
+    if self._meridian.revenue_per_kpi is None:
+      raise ValueError(
+          "ROI-related metrics can't be computed when `revenue_per_kpi` is not"
+          " defined."
+      )
+
   def _get_adstock_dataframe(
       self,
       channel_type: str,
@@ -847,7 +855,7 @@ class Analyzer:
         beta_grf=beta_grf,
     )
     incremental_impact = (
-        self._inverse_impact(transformed_impact, use_kpi)
+        self._inverse_impact(transformed_impact, use_kpi=use_kpi)
         if inverse_transform_impact
         else transformed_impact
     )
@@ -1233,6 +1241,7 @@ class Analyzer:
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
+    self._validate_roi_functionality()
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -1269,8 +1278,7 @@ class Analyzer:
     )
     incremental_revenue_kwargs.update(incremented_tensors)
     incremental_impact_with_multiplier = self.incremental_impact(
-        **dim_kwargs,
-        **incremental_revenue_kwargs,
+        **dim_kwargs, **incremental_revenue_kwargs
     )
     numerator = incremental_impact_with_multiplier - incremental_revenue
     roi_spend = roi_tensors.total_spend() * incremental_increase
@@ -1331,7 +1339,7 @@ class Analyzer:
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
-
+    self._validate_roi_functionality()
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -1467,8 +1475,9 @@ class Analyzer:
       A dataset with the expected, baseline, and actual impact metrics.
     """
     mmm = self._meridian
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     expected_tensor = self.expected_impact(
-        aggregate_geos=False, aggregate_times=False
+        aggregate_geos=False, aggregate_times=False, use_kpi=use_kpi
     )
     baseline_tensor = self.expected_impact(
         new_media=tf.zeros_like(mmm.media) if mmm.media is not None else None,
@@ -1478,6 +1487,7 @@ class Analyzer:
         else None,
         aggregate_geos=False,
         aggregate_times=False,
+        use_kpi=use_kpi,
     )
     expected = np.stack(
         [
@@ -1495,10 +1505,10 @@ class Analyzer:
         ],
         axis=-1,
     )
-    if mmm.revenue_per_kpi is not None:
-      actual = mmm.kpi * mmm.revenue_per_kpi
-    else:
+    if use_kpi:
       actual = mmm.kpi
+    else:
+      actual = mmm.kpi * mmm.revenue_per_kpi
 
     coords = {
         constants.GEO: ([constants.GEO], mmm.input_data.geo.data),
@@ -1527,11 +1537,12 @@ class Analyzer:
       self, use_posterior: bool, **roi_kwargs
   ):
     """Aggregates the incremental impact for MediaSummary metrics."""
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     expected_impact = self.expected_impact(
-        use_posterior=use_posterior, **roi_kwargs
+        use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
     )
     incremental_impact_m = self.incremental_impact(
-        use_posterior=use_posterior, **roi_kwargs
+        use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
     )
     new_media = (
         tf.zeros_like(self._meridian.media)
@@ -1553,6 +1564,7 @@ class Analyzer:
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
+        use_kpi=use_kpi,
         **roi_kwargs,
     )
     return tf.concat(
@@ -1604,6 +1616,7 @@ class Analyzer:
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
       `effectiveness`, `mroi`.
     """
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -1655,10 +1668,10 @@ class Analyzer:
         use_posterior=True, **roi_kwargs
     )
     expected_impact_prior = self.expected_impact(
-        use_posterior=False, **roi_kwargs
+        use_posterior=False, use_kpi=use_kpi, **roi_kwargs
     )
     expected_impact_posterior = self.expected_impact(
-        use_posterior=True, **roi_kwargs
+        use_posterior=True, use_kpi=use_kpi, **roi_kwargs
     )
 
     xr_dims = (
@@ -1702,7 +1715,6 @@ class Analyzer:
         ),
         **xr_coords,
     }
-
     spend_data = self._compute_spend_data_aggregate(
         spend_with_total=spend_with_total,
         impressions_with_total=impressions_with_total,
@@ -1726,14 +1738,6 @@ class Analyzer:
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
     )
-    roi = self._compute_roi_aggregate(
-        incremental_revenue_prior=incremental_impact_prior,
-        incremental_revenue_posterior=incremental_impact_posterior,
-        xr_dims=xr_dims_with_ci_and_distribution,
-        xr_coords=xr_coords_with_ci_and_distribution,
-        confidence_level=confidence_level,
-        spend_with_total=spend_with_total,
-    )
     effectiveness = self._compute_effectiveness_aggregate(
         incremental_impact_prior=incremental_impact_prior,
         incremental_impact_posterior=incremental_impact_posterior,
@@ -1742,29 +1746,48 @@ class Analyzer:
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
     )
-    mroi = self._compute_marginal_roi_aggregate(
-        marginal_roi_by_reach=marginal_roi_by_reach,
-        marginal_roi_incremental_increase=marginal_roi_incremental_increase,
-        expected_revenue_prior=expected_impact_prior,
-        expected_revenue_posterior=expected_impact_posterior,
-        xr_dims=xr_dims_with_ci_and_distribution,
-        xr_coords=xr_coords_with_ci_and_distribution,
-        confidence_level=confidence_level,
-        spend_with_total=spend_with_total,
-        **roi_kwargs,
-    )
-
+    if use_kpi:
+      roi = xr.Dataset()
+      mroi = xr.Dataset()
+    else:
+      roi = self._compute_roi_aggregate(
+          incremental_revenue_prior=incremental_impact_prior,
+          incremental_revenue_posterior=incremental_impact_posterior,
+          xr_dims=xr_dims_with_ci_and_distribution,
+          xr_coords=xr_coords_with_ci_and_distribution,
+          confidence_level=confidence_level,
+          spend_with_total=spend_with_total,
+      )
+      mroi = self._compute_marginal_roi_aggregate(
+          marginal_roi_by_reach=marginal_roi_by_reach,
+          marginal_roi_incremental_increase=marginal_roi_incremental_increase,
+          expected_revenue_prior=expected_impact_prior,
+          expected_revenue_posterior=expected_impact_posterior,
+          xr_dims=xr_dims_with_ci_and_distribution,
+          xr_coords=xr_coords_with_ci_and_distribution,
+          confidence_level=confidence_level,
+          spend_with_total=spend_with_total,
+          **roi_kwargs,
+      )
     if not aggregate_times:
       # Impact metrics should not be normalized by weekly media metrics, which
-      # do not have a clear interpretation due to lagged effects. Therefore, the
-      # NA values are return for certain metrics if aggregate_times=False.
-      warnings.warn(
-          "ROI, mROI, and Effectiveness are not reported because "
-          "they do not have a clear interpretation by time period."
-      )
-      roi *= np.nan
-      mroi *= np.nan
+      # do not have a clear interpretation due to lagged effects. Therefore,
+      # the NA values are returned for certain metrics if
+      # aggregate_times=False.
+      if use_kpi:
+        warning = (
+            "Effectiveness is not reported because it does not have a clear"
+            " interpretation by time period."
+        )
+      else:
+        warning = (
+            "ROI, mROI, and Effectiveness are not reported because they do not"
+            " have a clear interpretation by time period."
+        )
+        roi *= np.nan
+        mroi *= np.nan
       effectiveness *= np.nan
+      warnings.warn(warning)
     return xr.merge([
         spend_data,
         incremental_impact,
@@ -1946,6 +1969,7 @@ class Analyzer:
       is split into `Train`, `Test`, and `All Data` subsections, and the three
       metrics are computed for each.
     """
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           selected_geos=selected_geos,
@@ -1977,7 +2001,10 @@ class Analyzer:
         **dims_kwargs,
     ).numpy()
     expected = np.mean(
-        self.expected_impact(batch_size=batch_size, **dims_kwargs), (0, 1)
+        self.expected_impact(
+            batch_size=batch_size, use_kpi=use_kpi, **dims_kwargs
+        ),
+        (0, 1),
     )
     rsquared, mape, wmape = self._predictive_accuracy_helper(actual, expected)
     rsquared_national, mape_national, wmape_national = (
@@ -2164,7 +2191,6 @@ class Analyzer:
               constants.COL_IDX_BAD_RHAT: col_idx,
           })
       )
-
     return pd.DataFrame(r_hat_summary)
 
   def response_curves(
@@ -2213,6 +2239,7 @@ class Analyzer:
         An XArray Dataset containing the data needed to visualize
         response curves.
     """
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           selected_geos=selected_geos,
@@ -2259,8 +2286,8 @@ class Analyzer:
       incimpact_temp = self.incremental_impact(
           use_posterior=use_posterior,
           inverse_transform_impact=True,
-          use_kpi=False,
           batch_size=batch_size,
+          use_kpi=use_kpi,
           **tensor_kwargs,
           **dim_kwargs,
       )
@@ -2286,7 +2313,6 @@ class Analyzer:
           **dim_kwargs,
       )
     spend_einsum = tf.einsum("k,m->km", np.array(spend_multipliers), spend)
-    roi = incremental_impact / spend_einsum[:, :, None]
     xr_coords = {
         constants.CHANNEL: (
             [constants.CHANNEL],
@@ -2309,10 +2335,6 @@ class Analyzer:
         constants.INCREMENTAL_IMPACT: (
             [constants.SPEND_MULTIPLIER, constants.CHANNEL, constants.METRIC],
             incremental_impact,
-        ),
-        constants.ROI: (
-            [constants.SPEND_MULTIPLIER, constants.CHANNEL, constants.METRIC],
-            roi,
         ),
     }
     attrs = {constants.CONFIDENCE_LEVEL: confidence_level}
@@ -2737,6 +2759,7 @@ class Analyzer:
       spend_with_total: tf.Tensor,
       **roi_kwargs,
   ) -> xr.Dataset:
+    self._validate_roi_functionality()
     mroi_prior = self.marginal_roi(
         use_posterior=False,
         by_reach=marginal_roi_by_reach,
@@ -2760,6 +2783,7 @@ class Analyzer:
     mroi_prior_total = (
         self.expected_impact(
             use_posterior=False,
+            use_kpi=False,
             **incremented_tensors,
             **roi_kwargs,
         )
@@ -2768,6 +2792,7 @@ class Analyzer:
     mroi_posterior_total = (
         self.expected_impact(
             use_posterior=True,
+            use_kpi=False,
             **incremented_tensors,
             **roi_kwargs,
         )

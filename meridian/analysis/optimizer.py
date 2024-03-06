@@ -989,41 +989,26 @@ class BudgetOptimizer:
             hist_spend, spend, optimal_frequency
         )
     )
-
+    use_kpi = self._meridian.revenue_per_kpi is None
     incremental_impact = tf.math.reduce_mean(
         self._analyzer.incremental_impact(
             new_media=new_media,
             new_reach=new_reach,
             new_frequency=new_frequency,
             selected_times=selected_times,
+            use_kpi=use_kpi,
             batch_size=batch_size,
-        ),
-        axis=(0, 1),
-    )
-    roi = incremental_impact / spend
-    marginal_roi = tf.math.reduce_mean(
-        self._analyzer.marginal_roi(
-            new_media=new_media,
-            new_reach=new_reach,
-            new_frequency=new_frequency,
-            new_media_spend=new_media_spend,
-            new_rf_spend=new_rf_spend,
-            selected_times=selected_times,
-            batch_size=batch_size,
-            by_reach=True,
         ),
         axis=(0, 1),
     )
     budget = np.sum(spend)
     total_incremental_impact = np.sum(incremental_impact)
     all_times = self._meridian.input_data.time.values.tolist()
-    return xr.Dataset(
+    data = xr.Dataset(
         data_vars={
             c.SPEND: ([c.CHANNEL], spend),
             c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
             c.INCREMENTAL_IMPACT: ([c.CHANNEL], incremental_impact),
-            c.ROI: ([c.CHANNEL], roi),
-            c.MROI: ([c.CHANNEL], marginal_roi),
         },
         coords={
             c.CHANNEL: (
@@ -1045,6 +1030,24 @@ class BudgetOptimizer:
         }
         | (attrs or {}),
     )
+    if not use_kpi:
+      roi = incremental_impact / spend
+      marginal_roi = tf.math.reduce_mean(
+          self._analyzer.marginal_roi(
+              new_media=new_media,
+              new_reach=new_reach,
+              new_frequency=new_frequency,
+              new_media_spend=new_media_spend,
+              new_rf_spend=new_rf_spend,
+              selected_times=selected_times,
+              batch_size=batch_size,
+              by_reach=True,
+          ),
+          axis=(0, 1),
+      )
+      data = data.assign(roi=([c.CHANNEL], roi))
+      data = data.assign(mroi=([c.CHANNEL], marginal_roi))
+    return data
 
   def _get_optimization_bounds(
       self,
@@ -1160,12 +1163,14 @@ class BudgetOptimizer:
     # incremental_impact returns a three dimensional tensor with dims
     # (n_chains x n_draws x n_total_channels). Incremental_impact_grid requires
     # incremental impact by channel.
+    use_kpi = self._meridian.revenue_per_kpi is None
     incremental_impact_grid[i, :] = np.mean(
         self._analyzer.incremental_impact(
             new_media=new_media,
             new_reach=new_reach,
             new_frequency=new_frequency,
             selected_times=selected_times,
+            use_kpi=use_kpi,
             batch_size=batch_size,
         ),
         (c.CHAINS_DIMENSION, c.DRAWS_DIMENSION),

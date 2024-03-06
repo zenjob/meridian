@@ -749,7 +749,6 @@ def generate_response_curve_data(
       len(channels),
       len(metric),
   )
-  roi = np.random.lognormal(1, 1, size=shape)
   spend = np.random.lognormal(
       25, 1, size=(len(spend_multiplier), len(channels))
   )
@@ -764,10 +763,6 @@ def generate_response_curve_data(
           c.INCREMENTAL_IMPACT: (
               [c.SPEND_MULTIPLIER, c.CHANNEL, c.METRIC],
               incremental_impact,
-          ),
-          c.ROI: (
-              [c.SPEND_MULTIPLIER, c.CHANNEL, c.METRIC],
-              roi,
           ),
       },
       coords={
