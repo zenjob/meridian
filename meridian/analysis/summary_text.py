@@ -19,39 +19,37 @@
 MODEL_RESULTS_TITLE = 'Marketing Mix Modeling Report'
 
 MODEL_FIT_CARD_ID = 'model-fit'
-MODEL_FIT_CARD_TITLE = "Your marketing mix's model fit"
-MODEL_FIT_INSIGHTS_FORMAT = """Model fitting is a measure of how well a machine
-learning model generalizes to similar data to that on which it was trained.
-A well-fitted model produces more accurate outcomes. A model that is overfitted
-matches the data too closely, and a model that is underfitted doesn't match
-closely enough."""
+MODEL_FIT_CARD_TITLE = 'Model fit'
+MODEL_FIT_INSIGHTS_FORMAT = """Model fit is a measure of how well your MMM fits
+your current data used to train the model. A well-fitted model produces more
+accurate outcomes and a model that is underfitted doesn't match the data
+closely."""
 
 EXPECTED_ACTUAL_IMPACT_CHART_ID = 'expected-actual-impact-chart'
 EXPECTED_ACTUAL_IMPACT_CHART_TITLE = 'Expected {impact} vs. actual {impact}'
-EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION = """Note: The expected and baseline
-are your posterior mean."""
+EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION_FORMAT = """Note: The baseline represents the
+expected {impact} without any media execution. The shaded blue area represents
+the 90% credible interval."""
 
 PREDICTIVE_ACCURACY_TABLE_ID = 'model-fit-statistics-table-chart'
-PREDICTIVE_ACCURACY_TABLE_TITLE = (
-    'Model fit of your predicted and actual {impact}'
-)
-PREDICTIVE_ACCURACY_TABLE_DESCRIPTION = """Note: Correlation measures the
-strength of the relationship between predicted and actual {impact}. R-squared
-measures the amount of variation in the data that is explained by the model. The
-closer to 1 in both r-squared and correlation the more accurate the model."""
+PREDICTIVE_ACCURACY_TABLE_TITLE = 'Model fit metrics'
+PREDICTIVE_ACCURACY_TABLE_DESCRIPTION = """Note: R-squared measures the amount
+of variation in the data that is explained by the model. The closer it is to 1,
+the more accurate the model is. MAPE measures the mean absolute percentage
+difference between the prediction and the actual. The closer it is to 0, the
+more accurate the model. wMAPE is MAPE weighted by the actual {impact}."""
 
-IMPACT_CONTRIB_CARD_ID = 'impact-contrib'
-IMPACT_CONTRIB_CARD_TITLE = '{impact} contribution'
-IMPACT_CONTRIB_INSIGHTS_FORMAT = """Your revenue contributions help you
-understand what drove your revenue. {lead_channels} drove the most
-overall revenue. {lead_roi_channel} drove the highest return on investment at
-{lead_roi_ratio:.1f}. For every $1 you spent on {lead_roi_channel}, you saw
-${lead_roi_ratio:.1f} in revenue."""
+CHANNEL_CONTRIB_CARD_ID = 'channel-contrib'
+CHANNEL_CONTRIB_CARD_TITLE = 'Channel contribution'
+CHANNEL_CONTRIB_INSIGHTS_FORMAT = """Your channel contributions help you
+understand what drove your {impact}. {lead_channels} drove the most overall
+{impact}."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'
 CHANNEL_DRIVERS_CHART_DESCRIPTION = """Note: This graphic encompasses all of
-your {impact} drivers, but breaks down your marketing actives by channel."""
+your {impact} drivers, but breaks down your marketing {impact} by the baseline
+and all channels."""
 
 SPEND_IMPACT_CHART_ID = 'spend-impact-chart'
 SPEND_IMPACT_CHART_TITLE = (
@@ -62,56 +60,68 @@ dividing the {impact} attributed to a channel by marketing costs."""
 
 IMPACT_CONTRIBUTION_CHART_ID = 'impact-contribution-chart'
 CONTRIBUTION_CHART_TITLE = 'Contribution by baseline and marketing channels'
-IMPACT_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage
-breakdown of all your contributions of {impact}."""
+IMPACT_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage breakdown
+of all your {impact}."""
 
 ROI_BREAKDOWN_CARD_ID = 'roi-breakdown'
 ROI_BREAKDOWN_CARD_TITLE = 'Return on investment'
-ROI_BREAKDOWN_INSIGHTS_FORMAT = """Your return on investment helps you
-understand how your marketing activities impacted your business' objectives.
+ROI_BREAKDOWN_INSIGHTS_FORMAT = """Your return on investment (ROI) helps you
+understand how your marketing activities impacted your business objectives.
+{lead_roi_channel} drove the highest ROI at {lead_roi_ratio:.1f}. For every $1
+you spent on {lead_roi_channel}, you saw ${lead_roi_ratio:.1f} in revenue.
 {lead_effectiveness_channel} had the highest effectiveness, which is your
-incremental revenue per media unit. {lead_marginal_roi_channel} had the highest
-marginal return on investment at {lead_marginal_roi_channel_value:.2f}."""
+incremental revenue per media unit. {lead_mroi_channel} had the highest marginal
+ROI at {lead_mroi_channel_value:.2f}."""
 
 ROI_EFFECTIVENESS_CHART_ID = 'roi-effectiveness-chart'
-ROI_EFFECTIVENESS_CHART_TITLE = 'Return on investment vs. effectiveness'
-ROI_EFFECTIVENESS_CHART_DESCRIPTION = """Note: Return on investment by
-effectiveness measures the profitability of an investment, taking into account
-the effectiveness = incremental revenue / number of impressions."""
+ROI_EFFECTIVENESS_CHART_TITLE = 'ROI vs. effectiveness'
+ROI_EFFECTIVENESS_CHART_DESCRIPTION = """Note: Effectiveness measures the
+incremental revenue generated per impression. A low ROI does not necessarily
+imply low media effectiveness; it may result from high media cost, as positioned
+in the upper-left corner of the chart. Conversely, a high ROI can coexist with
+low media effectiveness and low media costs, as indicated in the bottom-right
+corner of the chart. The diagonal section of the chart suggests that the ROI is
+primarily influenced by media effectiveness. The size of the bubbles represents
+the scale of the media spend."""
 
 ROI_MARGINAL_CHART_ID = 'roi-marginal-chart'
-ROI_MARGINAL_CHART_TITLE = 'Return on investment vs. marginal'
-ROI_MARGINAL_CHART_DESCRIPTION = """Note: Return on investment by marginal (ROI
-by marginal) is a measure of the profitability of an investment, taking into
-account the additional revenue generated by the investment. It is calculated by
-dividing the additional revenue generated by the investment by the cost of the
-investment."""
+ROI_MARGINAL_CHART_TITLE = 'ROI vs. marginal ROI'
+ROI_MARGINAL_CHART_DESCRIPTION = """Note: Marginal ROI measures the additional
+return generated for every additional dollar spent. It's an indicator of
+efficiency of additional spend. Channels with a high ROI but a low marginal ROI
+are likely in the saturation phase, where the initial investments have paid off,
+but additional investment does not bring in as much return. Conversely, channels
+that have a high ROI and a high marginal ROI perform well and continue to yield
+high returns with additional spending. The size of the bubbles represents the
+scale of the media spend."""
 
 ROI_CHANNEL_CHART_ID = 'roi-channel-chart'
-ROI_CHANNEL_CHART_TITLE_FORMAT = 'Return on investment by channel {ci}'
-ROI_CHANNEL_CHART_DESCRIPTION = """Note: This is your return on investment with
-a confidence interval for each channel."""
+ROI_CHANNEL_CHART_TITLE_FORMAT = 'ROI by channel {ci}'
 
-BUDGET_OPTIMIZATION_CARD_ID = 'budget-optimization'
-BUDGET_OPTIMIZATION_CARD_TITLE = 'Response curves'
-BUDGET_OPTIMIZATION_INSIGHTS_FORMAT = """Your response curves and optimal
-frequency for budget planning. Your optimal frequency for {rf_channel} is
-{opt_freq} per week."""
-BUDGET_OPTIMIZATION_INSIGHTS_NO_RF = 'Your response curves for budget planning.'
+RESPONSE_CURVES_CARD_ID = 'response-curves'
+RESPONSE_CURVES_CARD_TITLE = 'Response curves'
+RESPONSE_CURVES_INSIGHTS_FORMAT = """Your response curves depict the
+relationship between marketing spend and the resulting incremental {impact}."""
+OPTIMAL_FREQUENCY_INSIGHTS_FORMAT = """Your optimal weekly frequency for
+{rf_channel} is {opt_freq} to {maximize_impact}."""
 
 RESPONSE_CURVES_CHART_ID = 'response-curves-chart'
 RESPONSE_CURVES_CHART_TITLE = (
     'Response curves by marketing channel {top_channels}'
 )
-RESPONSE_CURVES_CHART_DESCRIPTION = """Note: Response curves display your
-estimated relationship between your marketing spend and your {impact} based on
-your actual historical data and estimation of marginal performance."""
+RESPONSE_CURVES_CHART_DESCRIPTION_FORMAT = """Note: The response curves are
+constructed based on the historical flighting pattern and present the cumulative
+incremental {impact} from the total media spend over the selected time
+period."""
 
 OPTIMAL_FREQUENCY_CHART_ID = 'optimal-frequency-chart'
 OPTIMAL_FREQUENCY_CHART_TITLE = '{metric} by weekly average frequency'
-OPTIMAL_FREQUENCY_CHART_DESCRIPTION = """Note: optimal frequency is the
+OPTIMAL_FREQ_CHART_DESCRIPTION_FORMAT = """Note: Optimal frequency is the
 recommended average weekly impressions per user (# impressions / # reached
-users)."""
+users) that maximizes {metric}. When multiple channels have reach and frequency
+data, only the channel with the highest spend will be displayed. The same chart
+can be viewed for all other channels as described in "Optimize frequency" in the
+User Guide."""
 
 
 # Budget optimization texts.
@@ -175,7 +185,7 @@ ROI_LABEL = 'ROI'
 CPIK_LABEL = 'CPIK'
 KPI_LABEL = 'KPI'
 REVENUE_LABEL = 'Revenue'
-INC_REVENUE_LABEL = 'Incremental Revenue'
+INC_REVENUE_LABEL = 'Incremental revenue'
 INC_KPI_LABEL = 'Incremental KPI'
 OPTIMIZED_SPEND_LABEL = 'Optimized spend'
 NONOPTIMIZED_SPEND_LABEL = 'Non-optimized spend'

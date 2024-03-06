@@ -305,9 +305,9 @@ class SummarizerTest(parameterized.TestCase):
 
   @parameterized.parameters(
       summarizer.MODEL_FIT_CARD_SPEC,
-      summarizer.REVENUE_CONTRIB_CARD_SPEC,
+      summarizer.CHANNEL_CONTRIB_CARD_SPEC,
       summarizer.ROI_BREAKDOWN_CARD_SPEC,
-      summarizer.BUDGET_OPTIMIZATION_CARD_SPEC,
+      summarizer.RESPONSE_CURVES_CARD_SPEC,
   )
   def test_output_card_static_chart_spec(self, card_spec):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
@@ -326,12 +326,14 @@ class SummarizerTest(parameterized.TestCase):
           [
               (
                   summary_text.EXPECTED_ACTUAL_IMPACT_CHART_ID,
-                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION,
+                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION_FORMAT.format(
+                      impact=c.REVENUE
+                  ),
               ),
           ],
       ),
       (
-          summary_text.IMPACT_CONTRIB_CARD_ID,
+          summary_text.CHANNEL_CONTRIB_CARD_ID,
           [
               (
                   summary_text.CHANNEL_DRIVERS_CHART_ID,
@@ -358,36 +360,29 @@ class SummarizerTest(parameterized.TestCase):
           [
               (
                   summary_text.ROI_EFFECTIVENESS_CHART_ID,
-                  summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
-                  ),
+                  summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION,
               ),
               (
                   summary_text.ROI_MARGINAL_CHART_ID,
-                  summary_text.ROI_MARGINAL_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
-                  ),
+                  summary_text.ROI_MARGINAL_CHART_DESCRIPTION,
               ),
-              (
-                  summary_text.ROI_CHANNEL_CHART_ID,
-                  summary_text.ROI_CHANNEL_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
-                  ),
-              ),
+              (summary_text.ROI_CHANNEL_CHART_ID,),
           ],
       ),
       (
-          summary_text.BUDGET_OPTIMIZATION_CARD_ID,
+          summary_text.RESPONSE_CURVES_CARD_ID,
           [
               (
                   summary_text.RESPONSE_CURVES_CHART_ID,
-                  summary_text.RESPONSE_CURVES_CHART_DESCRIPTION.format(
+                  summary_text.RESPONSE_CURVES_CHART_DESCRIPTION_FORMAT.format(
                       impact=c.REVENUE
                   ),
               ),
               (
                   summary_text.OPTIMAL_FREQUENCY_CHART_ID,
-                  summary_text.OPTIMAL_FREQUENCY_CHART_DESCRIPTION,
+                  summary_text.OPTIMAL_FREQ_CHART_DESCRIPTION_FORMAT.format(
+                      metric=summary_text.ROI_LABEL
+                  ),
               ),
           ],
       ),
@@ -404,12 +399,18 @@ class SummarizerTest(parameterized.TestCase):
     for chart in card.findall('charts/chart'):
       chart_embed = test_utils.get_child_element(chart, 'chart-embed')
       chart_id = chart_embed.attrib['id']
-      chart_description_text = test_utils.get_child_element(
-          chart, 'chart-description'
-      ).text
-      self.assertIsNotNone(chart_description_text)
-      chart_description_text = chart_description_text.strip()
-      charts.append((chart_id, chart_description_text))
+      try:
+        chart_description_text = test_utils.get_child_element(
+            chart, 'chart-description'
+        ).text
+      except AssertionError:
+        chart_description_text = None
+      if chart_description_text is None:
+        charts.append((chart_id,))
+      else:
+        self.assertIsNotNone(chart_description_text)
+        chart_description_text = chart_description_text.strip()
+        charts.append((chart_id, chart_description_text))
 
     self.assertEqual(set(expected_chart_tuples), set(charts))
 
@@ -420,10 +421,10 @@ class SummarizerTest(parameterized.TestCase):
     cards_node = test_utils.get_child_element(summary_html_dom, 'body/cards')
     self.assertEqual(cards_node[0].attrib['id'], summary_text.MODEL_FIT_CARD_ID)
     self.assertEqual(
-        cards_node[1].attrib['id'], summary_text.IMPACT_CONTRIB_CARD_ID
+        cards_node[1].attrib['id'], summary_text.CHANNEL_CONTRIB_CARD_ID
     )
     self.assertEqual(
-        cards_node[2].attrib['id'], summary_text.BUDGET_OPTIMIZATION_CARD_ID
+        cards_node[2].attrib['id'], summary_text.RESPONSE_CURVES_CARD_ID
     )
     self.assertLen(cards_node, 3)
 
@@ -686,7 +687,7 @@ class SummarizerTest(parameterized.TestCase):
         ],
     )
 
-  def test_revenue_contrib_card_plotters_called(self):
+  def test_channel_contrib_card_plotters_called(self):
     media_summary = self.media_summary
 
     mock_spec_1 = 'revenue_waterfall'
@@ -715,7 +716,7 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.IMPACT_CONTRIB_CARD_ID},
+        attribs={'id': summary_text.CHANNEL_CONTRIB_CARD_ID},
     )
     script_texts = [
         script.text.strip()
@@ -736,7 +737,7 @@ class SummarizerTest(parameterized.TestCase):
         all([mock_spec_1_exists, mock_spec_2_exists, mock_spec_3_exists])
     )
 
-  def test_revenue_contrib_card_insights(self):
+  def test_channel_contrib_card_insights(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
     )
@@ -744,14 +745,12 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.IMPACT_CONTRIB_CARD_ID},
+        attribs={'id': summary_text.CHANNEL_CONTRIB_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn('channel 0 and channel 1 drove the most', insights_text)
-    self.assertIn('channel 1 drove the highest', insights_text)
-    self.assertIn('$13.8 in revenue', insights_text)
+    self.assertIn('Channel 0 and Channel 1 drove the most', insights_text)
 
   def test_roi_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
@@ -812,11 +811,13 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
-    self.assertIn('channel 2 had the highest effectiveness', insights_text)
-    self.assertIn('channel 4 had the highest\nmarginal return', insights_text)
-    self.assertIn('marginal return on investment at 1.54', insights_text)
+    self.assertIn('Channel 1 drove the highest ROI at 13.8', insights_text)
+    self.assertIn('Channel 2 had the highest effectiveness', insights_text)
+    self.assertIn(
+        'Channel 4 had the highest marginal\nROI at 1.54', insights_text
+    )
 
-  def test_budget_optimization_card_plotters_called(self):
+  def test_response_curves_card_plotters_called(self):
     media_effects = self.media_effects
     reach_frequency = self.reach_frequency
 
@@ -847,7 +848,7 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
+        attribs={'id': summary_text.RESPONSE_CURVES_CARD_ID},
     )
     script_texts = [
         script.text.strip()
@@ -862,7 +863,7 @@ class SummarizerTest(parameterized.TestCase):
     )
     self.assertTrue(all([mock_spec_1_exists, mock_spec_2_exists]))
 
-  def test_budget_optimization_card_insights_multiple_channels(self):
+  def test_response_curves_card_insights_multiple_channels(self):
     media_summary = self.media_summary
     reach_frequency = self.reach_frequency
 
@@ -886,15 +887,16 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
+        attribs={'id': summary_text.RESPONSE_CURVES_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
     self.assertIsNotNone(insights_text)
     self.assertIn('for channel 1 is 2.3 ', insights_text.replace('\n', ' '))
+    self.assertIn('to maximize ROI', insights_text.replace('\n', ' '))
 
-  def test_budget_optimization_card_insights_no_rf(self):
+  def test_response_curves_card_insights_no_rf(self):
     self.mock_meridian_revenue.n_rf_channels = 0
     reach_frequency = self.reach_frequency
     reach_frequency.optimal_frequency_data = xr.Dataset(
@@ -917,13 +919,14 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.BUDGET_OPTIMIZATION_CARD_ID},
+        attribs={'id': summary_text.RESPONSE_CURVES_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
     self.assertIn(
-        summary_text.BUDGET_OPTIMIZATION_INSIGHTS_NO_RF, insights_text
+        summary_text.RESPONSE_CURVES_INSIGHTS_FORMAT.format(impact=c.REVENUE),
+        insights_text,
     )
 
 
