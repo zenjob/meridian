@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Class definition for storing model specification parameters for Calibra."""
+"""Class definition for storing model specification parameters for Meridian."""
 
 import dataclasses
 

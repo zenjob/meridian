@@ -836,7 +836,7 @@ class MediaEffects:
         intervals, represented as a value between zero and one. Default is 0.9.
       selected_times: Optional list of a subset of time dimensions to include.
         By default, all times are included. Times should match the time
-        dimensions from calibra.InputData.
+        dimensions from `meridian.InputData`.
       by_reach: For the channel w/ reach and frequency, return the response
         curves by reach given fixed frequency if true; return the response
         curves by frequency given fixed reach if false.
@@ -1258,7 +1258,7 @@ class MediaEffects:
         default, all channels are included.
       selected_times: Optional list of a subset of time dimensions to include.
         By default, all times are included. Times should match the time
-        dimensions from calibra.InputData.
+        dimensions from `meridian.InputData`.
       confidence_level: Confidence level to update to for the response curve
         credible intervals, represented as a value between zero and one.
       by_reach: For the channel w/ reach and frequency, return the response
