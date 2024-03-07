@@ -63,7 +63,7 @@ def l1_distance_weights(
 
   The two neighboring knots inform the estimate of a particular time period. The
   amount they inform the time period depends on how close (L1 distance) they
-  are. If a time point coincides with a knot location, then 100% weights is
+  are. If a time point coincides with a knot location, then 100% weight is
   given to that knot. If a time point lies outside the range of knots, then 100%
   weight is given to the nearest endpoint knot.
 
@@ -130,22 +130,23 @@ def get_knot_info(
     n_times: The number of time periods in the data.
     knots: An optional integer or a collection of integers indicating the knots
       used to estimate time effects. When `knots` is a collection of integers,
-      the knot locations are provided by that collection (zero corresponds to a
+      the knot locations are provided by that collection. Zero corresponds to a
       knot at the first time period, one corresponds to a knot at the second
-      time, ..., and (`n_times` - 1) corresponds to a knot at the last time
-      period). When `knots` is an integer, then there are `knots` many knots
-      with locations equally spaced across the time periods (including knots at
-      zero and (`n_times` - 1). When `knots` is 1, there is a single common
-      regression coefficient used for all time periods. If `knots` is None, then
-      the numbers of knots used is equal to the number of time periods. This is
-      equivalent to each time period having its own regression coefficient.
-    is_national: A boolean indicator whether knot info should be adapted for a
+      time, ..., and (`n_times - 1`) corresponds to a knot at the last time
+      period. When `knots` is an integer, then there are knots with locations
+      equally spaced across the time periods (including knots at zero and
+      (`n_times - 1`). When `knots` is `1`, there is a single common
+      regression coefficient used for all time periods. If `knots` is `None`,
+      then the numbers of knots used is equal to the number of time periods.
+      This is equivalent to each time period having its own regression
+      coefficient.
+    is_national: A boolean indicator whether to adapt the knot information for a
       national model.
 
   Returns:
-    A tuple `(n_knots, knot_locations, weights)` with the number of knots, the
-    location of knots, and the weights used to multiply with the knot values to
-    get time-varying coefficients.
+    A tuple `(n_knots, knot_locations, weights)` with the number of knots,
+    the location of knots, and the weights used to multiply with the knot values
+    to get time-varying coefficients.
   """
 
   if isinstance(knots, int):

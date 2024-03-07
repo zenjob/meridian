@@ -36,7 +36,7 @@ class NotFittedModelError(Exception):
 
 
 class MCMCSamplingError(Exception):
-  """The MCMC sampling failed."""
+  """The Markov Chain Monte Carlo (MCMC) sampling failed."""
 
 
 def _warn_setting_national_args(**kwargs):
@@ -90,32 +90,32 @@ def _xla_windowed_adaptive_nuts(**kwargs):
 
 
 class Meridian:
-  """Contains the main functionality for fitting the MMM model.
+  """Contains the main functionality for fitting the Meridian MMM model.
 
   Attributes:
-    model_spec: A ModelSpec object containing the model specification.
-    input_data: An InputData object containing the input data for the model.
-    inference_data: An Arviz.InferenceData object containing the resulting data
-      from fitting the model.
+    model_spec: A `ModelSpec` object containing the model specification.
+    input_data: An `InputData` object containing the input data for the model.
+    inference_data: An `arviz.InferenceData` object containing the resulting
+      data from fitting the model.
     n_geos: Number of geos in the data.
     n_media_channels: Number of media channels in the data.
-    n_rf_channels: Number of RF channels in the data.
+    n_rf_channels: Number of reach and frequency (RF) channels in the data.
     n_controls: Number of control variables in the data.
-    n_times: Number of time periods in the kpi/spend data.
+    n_times: Number of time periods in the KPI or spend data.
     n_media_times: Number of time periods in the media data.
     is_national: A boolean indicating whether the data is national (single geo)
       or not (multiple geos).
-    kpi: A Tensor constructed from input_data.kpi.
-    revenue_per_kpi: A Tensor constructed from input_data.revenue_per_kpi.
-    controls: A Tensor constructed from input_data.controls.
-    population: A Tensor constructed from input_data.population.
-    media: An optional Tensor constructed from input_data.media.
-    media_spend: An optional Tensor constructed from input_data.media_spend.
-    reach: An optional Tensor constructed from input_data.reach.
-    frequency: An optional Tensor constructed from input_data.frequency.
-    rf_spend: An optional Tensor constructed from input_data.rf_spend.
-    total_spend: A Tensor containing total spend, including media_spend and RF
-      spend.
+    kpi: A tensor constructed from `input_data.kpi`.
+    revenue_per_kpi: A tensor constructed from `input_data.revenue_per_kpi`.
+    controls: A tensor constructed from `input_data.controls`.
+    population: A tensor constructed from `input_data.population`.
+    media: An optional tensor constructed from `input_data.media`.
+    media_spend: An optional tensor constructed from `input_data.media_spend`.
+    reach: An optional tensor constructed from `input_data.reach`.
+    frequency: An optional tensor constructed from `input_data.frequency`.
+    rf_spend: An optional tensor constructed from `input_data.rf_spend`.
+    total_spend: A tensor containing total spend, including `media_spend` and
+      `rf_spend`.
     media_transformer: A MediaTransformer to scale media tensors using the
       model's media data.
     reach_transformer: An optional MediaTransformer to scale RF tensors using
@@ -135,7 +135,7 @@ class Meridian:
       effects across geos.
     unique_sigma_for_each_geo: A boolean indicating whether to use a unique
       residual variance for each geo.
-    prior_broadcast: A PriorDistribution object coontaining broadcasted
+    prior_broadcast: A `PriorDistribution` object coontaining broadcasted
       distributions.
   """
 
@@ -535,17 +535,17 @@ class Meridian:
     """Transforms media using Adstock and Hill functions in the desired order.
 
     Args:
-      media: Tensor of dimensions `(n_geos x n_media_times x n_media_channels)`
-        containing non-negative media execution values. Typically this is
-        impressions, but it can be any metric (e.g. media_spend). Clicks are
-        often used for paid search ads.
-      alpha: Uniform distribution for Adstock/Hill calculations.
-      ec: Shifted half-normal distribution for Adstock/Hill calculations.
-      slope: Deterministic Distribution for Adstock/Hill calculations.
+      media: Tensor of dimensions `(n_geos, n_media_times,
+      n_media_channels)` containing non-negative media execution values.
+      Typically this is impressions, but it can be any metric, such as
+      `media_spend`. Clicks are often used for paid search ads.
+      alpha: Uniform distribution for Adstock and Hill calculations.
+      ec: Shifted half-normal distribution for Adstock and Hill calculations.
+      slope: Deterministic distribution for Adstock and Hill calculations.
 
     Returns:
       Tensor with dimensions `[..., n_geos, n_times, n_media_channels]`
-      representing Adstock/Hill-transformed media.
+      representing Adstock and Hill-transformed media.
     """
     adstock_transformer = adstock_hill.AdstockTransformer(
         alpha=alpha,
@@ -575,20 +575,20 @@ class Meridian:
       ec: tf.Tensor,
       slope: tf.Tensor,
   ) -> tf.Tensor:
-    """Transforms RF using Hill and Adstock and functions.
+    """Transforms reach and frequency (RF) using Hill and Adstock functions.
 
     Args:
-      reach: Tensor of dimensions (n_geos x n_media_times x n_rf_channels)
-        containing non-negative media reach.
+      reach: Tensor of dimensions `(n_geos, n_media_times, n_rf_channels)`
+        containing non-negative media for reach.
       frequency: Tensor of dimensions (n_geos x n_media_times x n_rf_channels)
-        containing non-negative media frequency.
-      alpha: Uniform distribution for Adstock/Hill calculations.
-      ec: Shifted half-normal distribution for Adstock/Hill calculations.
-      slope: Deterministic Distribution for Adstock/Hill calculations.
+        containing non-negative media for frequency.
+      alpha: Uniform distribution for Adstock and Hill calculations.
+      ec: Shifted half-normal distribution for Adstock and Hill calculations.
+      slope: Deterministic distribution for Adstock and Hill calculations.
 
     Returns:
       Tensor with dimensions `[..., n_geos, n_times, n_rf_channels]`
-      representing Hill/Adstock-transformed RF.
+      representing Hill and Adstock-transformed RF.
     """
     hill_transformer = adstock_hill.HillTransformer(
         ec=ec,
@@ -924,13 +924,13 @@ class Meridian:
     )
 
   def sample_prior(self, n_draws: int, seed: Sequence[int] | None = None):
-    """Runs MCMC sampling of prior distribution.
+    """Runs Markov Chain Monte Carlo (MCMC) sampling of prior distributions.
 
     Args:
       n_draws: Number of samples drawn from the prior distribution.
-      seed: Used to set the seed for reproducible results. See
-        'https://github.com/tensorflow/probability/blob/main/PRNGS.md' for more
-        information on using seeds for reproducibility.
+      seed: Used to set the seed for reproducible results. For more information,
+        see [PRNGS and seeds]
+        (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
     """
     prior_draws_sampled = self._sample_prior_fn(n_draws, seed=seed)
     prior_draws = {
@@ -962,10 +962,10 @@ class Meridian:
       seed: Sequence[int] | None = None,
       **pins,
   ):
-    """Runs MCMC sampling of posterior distribution.
+    """Runs Markov Chain Monte Carlo (MCMC) sampling of posterior distributions.
 
-    For the details about the arguments, please refer to
-    https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/windowed_adaptive_nuts.
+    For more details about the arguments, see [`windowed_adaptive_nuts`]
+    (https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/windowed_adaptive_nuts).
 
     Args:
       n_chains: Number of MCMC chains.
@@ -974,35 +974,35 @@ class Meridian:
         adaptation draws and before the kept draws.
       n_keep: Integer number of draws per chain to keep for inference.
       current_state: Optional structure of tensors at which to initialize
-        sampling. Should have the same shape and structure as
+        sampling. Use the same shape and structure as
         `model.experimental_pin(**pins).sample(n_chains)`.
       init_step_size: Optional integer determining where to initialize the step
-        size for the leapfrog integrator. The structure should broadcast with
+        size for the leapfrog integrator. The structure must broadcast with
         `current_state`. For example, if the initial state is ``` {'a':
         tf.zeros(n_chains), 'b': tf.zeros([n_chains, n_features])} ``` then any
         of `1.`, `{'a': 1., 'b': 1.}`, or `{'a': tf.ones(n_chains), 'b':
         tf.ones([n_chains, n_features])}` will work. Defaults to the dimension
         of the log density to the 0.25 power.
-      dual_averaging_kwargs: Optional dict Keyword arguments to pass to
+      dual_averaging_kwargs: Optional dict keyword arguments to pass to
         `tfp.mcmc.DualAveragingStepSizeAdaptation`. By default, a
-        `target_accept_prob` of 0.85 is set, acceptance probabilities across
+        `target_accept_prob` of `0.85` is set, acceptance probabilities across
         chains are reduced using a harmonic mean, and the class defaults are
         used otherwise.
       max_tree_depth: Maximum depth of the tree implicitly built by NUTS. The
-        maximum number of leapfrog steps is bounded by `2**max_tree_depth` i.e.
-        the number of nodes in a binary tree `max_tree_depth` nodes deep. The
-        default setting of 10 takes up to 1024 leapfrog steps.
+        maximum number of leapfrog steps is bounded by `2**max_tree_depth`, for
+        example, the number of nodes in a binary tree `max_tree_depth` nodes
+        deep. The default setting of `10` takes up to 1024 leapfrog steps.
       max_energy_diff: Scalar threshold of energy differences at each leapfrog,
         divergence samples are defined as leapfrog steps that exceed this
-        threshold. Default to 1000.
+        threshold. Default is `1000`.
       unrolled_leapfrog_steps: The number of leapfrogs to unroll per tree
         expansion step. Applies a direct linear multiplier to the maximum
-        trajectory length implied by max_tree_depth. Defaults to 1.
-      parallel_iterations: The number of iterations allowed to run in parallel.
-        It must be a positive integer. See `tf.while_loop` for more details.
-      seed: Used to set the seed for reproducible results. See
-        'https://github.com/tensorflow/probability/blob/main/PRNGS.md' for more
-        information on using seeds for reproducibility.
+        trajectory length implied by `max_tree_depth`. Defaults is `1".
+      parallel_iterations: Number of iterations allowed to run in parallel.
+        Must be a positive integer. For more information, see `tf.while_loop`.
+      seed: Used to set the seed for reproducible results. For more information,
+        see [PRNGS and seeds]
+        (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
     """
@@ -1089,11 +1089,11 @@ class Meridian:
 
 
 def save_mmm(mmm: Meridian, file_path: str):
-  """Save mmm to a pickle file path.
+  """Save the model object to a `pickle` file path.
 
   Args:
     mmm: Model object to save.
-    file_path: File path to save a pickled mmm object.
+    file_path: File path to save a pickled model object.
   """
   if not os.path.exists(os.path.dirname(file_path)):
     os.makedirs(os.path.dirname(file_path))
@@ -1103,16 +1103,16 @@ def save_mmm(mmm: Meridian, file_path: str):
 
 
 def load_mmm(file_path: str) -> Meridian:
-  """Load mmm from a pickle file path.
+  """Load the model object from a `pickle` file path.
 
   Args:
-    file_path: File to load a pickled mmm object from.
+    file_path: File path to load a pickled model object from.
 
   Returns:
-    mmm: Model Object loaded from file_path.
+    mmm: Model object loaded from the file path.
 
   Raises:
-      FileNotFoundError: If file_path does not exist.
+      FileNotFoundError: If `file_path` does not exist.
   """
   try:
     with open(file_path, "rb") as f:
