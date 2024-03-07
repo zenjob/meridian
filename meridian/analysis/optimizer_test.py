@@ -2113,37 +2113,21 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(title.strip(), 'Optimized incremental KPI')
 
   @parameterized.named_parameters(
-      (
-          'current_budget',
-          0,
-          summary_text.CURRENT_BUDGET_LABEL,
-          '$600',
-          None,
-          None,
-      ),
+      ('current_budget', 0, summary_text.CURRENT_BUDGET_LABEL, '$600', None),
       (
           'optimized_budget',
           1,
           summary_text.OPTIMIZED_BUDGET_LABEL,
           '$600',
-          'Fixed',
-          None,
+          '$0',
       ),
-      ('current_roi', 2, summary_text.CURRENT_ROI_LABEL, '1.3', None, None),
-      (
-          'optimized_roi',
-          3,
-          summary_text.OPTIMIZED_ROI_LABEL,
-          '1.4',
-          None,
-          '+0.1',
-      ),
+      ('current_roi', 2, summary_text.CURRENT_ROI_LABEL, '1.3', None),
+      ('optimized_roi', 3, summary_text.OPTIMIZED_ROI_LABEL, '1.4', '+0.1'),
       (
           'current_inc_revenue',
           4,
           summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=c.REVENUE),
           '$760',
-          None,
           None,
       ),
       (
@@ -2151,12 +2135,11 @@ class OptimizerOutputTest(parameterized.TestCase):
           5,
           summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=c.REVENUE),
           '$830',
-          None,
           '+$70',
       ),
   )
   def test_output_scenario_plan_card_stats_text(
-      self, index, expected_title, expected_stat, expected_note, expected_delta
+      self, index, expected_title, expected_stat, expected_delta
   ):
     summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
@@ -2176,10 +2159,6 @@ class OptimizerOutputTest(parameterized.TestCase):
     stat = analysis_test_utils.get_child_element(stats[index], 'stat').text
     self.assertIsNotNone(stat)
     self.assertEqual(stat.strip(), expected_stat)
-    if expected_note:
-      note = analysis_test_utils.get_child_element(stats[index], 'note').text
-      self.assertIsNotNone(note)
-      self.assertEqual(note.strip(), expected_note)
     if expected_delta:
       delta = analysis_test_utils.get_child_element(stats[index], 'delta').text
       self.assertIsNotNone(delta)

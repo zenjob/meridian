@@ -653,7 +653,12 @@ class ModelFitTest(absltest.TestCase):
     plot = self.model_fit_kpi_type_revenue.plot_model_fit()
     self.assertEqual(
         plot.layer[0].encoding.x.axis.to_dict(),
-        {"domainColor": c.GREY_300, "grid": False, "tickCount": 8},
+        {
+            "domainColor": c.GREY_300,
+            "grid": False,
+            "tickCount": 8,
+            "format": "%Y %b",
+        },
     )
     self.assertEqual(
         plot.layer[0].encoding.y.axis.to_dict(),
@@ -822,13 +827,13 @@ class ReachAndFrequencyTest(parameterized.TestCase):
     plot = self.reach_and_frequency.plot_optimal_frequency()
 
     self.assertIsInstance(plot, alt.FacetChart)
-    self.assertIsInstance(plot.facet, alt.Facet)
+    self.assertEqual(plot.facet.column.shorthand, f"{c.RF_CHANNEL}:N")
+    self.assertIsNone(plot.facet.column.title)
     self.assertLen(plot.spec.layer, 4)
 
-  def test_reach_and_frequency_plot_optimal_freq_facet_properties(self):
+  def test_reach_and_frequency_plot_optimal_freq_properties(self):
     plot_facet_by_channel = self.reach_and_frequency.plot_optimal_frequency()
 
-    self.assertEqual(plot_facet_by_channel.columns, 3)
     self.assertEqual(plot_facet_by_channel.resolve.scale.x, c.INDEPENDENT)
     self.assertEqual(plot_facet_by_channel.resolve.scale.y, c.INDEPENDENT)
     self.assertEqual(
@@ -1728,10 +1733,10 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertTrue(plot.layer[1].mark.ticks)
     self.assertTrue(plot.layer[2].mark.tooltip)
 
-    self.assertEqual(plot.layer[2].mark.align, "center")
-    self.assertEqual(plot.layer[2].mark.baseline, "bottom")
-    self.assertEqual(plot.layer[2].mark.dy, -5)
-    self.assertEqual(plot.layer[2].mark.type, "text")
+    self.assertEqual(plot.layer[3].mark.align, "center")
+    self.assertEqual(plot.layer[3].mark.baseline, "bottom")
+    self.assertEqual(plot.layer[3].mark.dy, -5)
+    self.assertEqual(plot.layer[3].mark.type, "text")
 
   def test_media_summary_plot_waterfall_chart_correct_data(self):
     media_metrics = xr.Dataset(

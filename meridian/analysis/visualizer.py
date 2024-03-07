@@ -441,7 +441,12 @@ class ModelFit:
             x=alt.X(
                 f'{c.TIME}:T',
                 title='Time period',
-                axis=alt.Axis(grid=False, tickCount=8, domainColor=c.GREY_300),
+                axis=alt.Axis(
+                    format='%Y %b',
+                    grid=False,
+                    tickCount=8,
+                    domainColor=c.GREY_300,
+                ),
             ),
             y=alt.Y(
                 f'{c.MEAN}:Q',
@@ -730,7 +735,7 @@ class ReachAndFrequency:
         range=[c.BLUE_600, c.RED_600],
     )
 
-    base = alt.Chart(optimal_frequency_df).transform_calculate(
+    base = alt.Chart().transform_calculate(
         optimal_freq=f"'{summary_text.OPTIMAL_FREQ_LABEL}'",
         expected_metric=f"'{metric_legend}'",
     )
@@ -758,7 +763,7 @@ class ReachAndFrequency:
         align='left',
         dx=5,
         dy=-5,
-        fontSize=12,
+        fontSize=c.AXIS_FONT_SIZE,
         font=c.FONT_ROBOTO,
         fontWeight='lighter',
     ).encode(
@@ -770,7 +775,7 @@ class ReachAndFrequency:
         align='left',
         dx=110,
         dy=-5,
-        fontSize=12,
+        fontSize=c.AXIS_FONT_SIZE,
         font=c.FONT_ROBOTO,
         fontWeight='lighter',
     ).encode(
@@ -779,8 +784,14 @@ class ReachAndFrequency:
     )
 
     return (
-        alt.layer(line, vertical_optimal_freq, label_text, label_freq)
-        .facet(f'{c.RF_CHANNEL}:N', columns=3)
+        alt.layer(
+            line,
+            vertical_optimal_freq,
+            label_text,
+            label_freq,
+            data=optimal_frequency_df,
+        )
+        .facet(column=alt.Column(f'{c.RF_CHANNEL}:N', title=None))
         .properties(
             title=formatter.custom_title_params(
                 summary_text.OPTIMAL_FREQUENCY_CHART_TITLE.format(
@@ -1722,7 +1733,7 @@ class MediaSummary:
         .reset_index()
     )
 
-    plot = (
+    base = (
         alt.Chart(roi_df)
         .mark_bar(size=40, cornerRadiusEnd=2, color=c.BLUE_600)
         .encode(
@@ -1733,14 +1744,21 @@ class MediaSummary:
             ),
             y=alt.Y(
                 f'{c.MEAN}:Q',
-                axis=alt.Axis(gridDash=[3, 2]),
+                axis=alt.Axis(gridDash=[3, 2], **formatter.Y_AXIS_TITLE_CONFIG),
                 title=summary_text.ROI_LABEL,
             ),
         )
         .properties(width=alt.Step(80))
     )
-    bar_width = 2
+    roi_text = base.mark_text(
+        align='center',
+        baseline='bottom',
+        dy=-5,
+        fontSize=c.AXIS_FONT_SIZE,
+        color=c.GREY_900,
+    ).encode(text=alt.Text(f'{c.MEAN}:Q', format='.2f'))
 
+    bar_width = 2
     if include_ci:
       ci = int(self._confidence_level * 100)
       title = summary_text.ROI_CHANNEL_CHART_TITLE_FORMAT.format(
@@ -1756,28 +1774,24 @@ class MediaSummary:
               strokeWidth=alt.value(bar_width),
           )
       )
-      roi_text = error_bar.mark_text(
-          align='center', baseline='bottom', dy=-5
-      ).encode(text=alt.Text(f'{c.MEAN}:Q', format='.2f'))
       mean_dot = (
           alt.Chart(roi_df)
           .mark_point(filled=True, color=c.BLUE_300, tooltip=True)
           .encode(alt.X(f'{c.CHANNEL}:N'), alt.Y(f'{c.MEAN}:Q'))
       )
-      plot = (plot + error_bar + roi_text + mean_dot).configure_tick(
-          bandSize=10, thickness=bar_width
-      )
+      plot = base + error_bar + mean_dot + roi_text
     else:
-      roi_text = plot.mark_text(
-          align='center', baseline='bottom', dy=-5
-      ).encode(text=alt.Text(f'{c.MEAN}:Q', format='.2f'))
-      plot = (plot + roi_text).configure_tick(bandSize=10, thickness=bar_width)
       title = summary_text.ROI_CHANNEL_CHART_TITLE_FORMAT.format(ci='')
+      plot = base + roi_text
 
-    return plot.properties(
-        title=formatter.custom_title_params(title),
-        width=alt.Step(80),
-    ).configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
+    return (
+        plot.configure_tick(bandSize=10, thickness=bar_width)
+        .properties(
+            title=formatter.custom_title_params(title),
+            width=alt.Step(80),
+        )
+        .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
+    )
 
   def plot_roi_vs_effectiveness(
       self,

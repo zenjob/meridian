@@ -51,7 +51,6 @@ class TableSpec:
 class StatsSpec:
   title: str
   stat: str
-  note: str | None = None
   delta: str | None = None
 
 
@@ -134,7 +133,7 @@ def format_number_text(percent_value: float, actual_value: float) -> str:
 
 def format_monetary_num(num: float) -> str:
   """Formats a number into a readable monetary value (ex. $15M, $1.2B)."""
-  precision = 1 if int(math.log10(abs(num))) % 3 == 0 else 0
+  precision = 1 if num != 0 and int(math.log10(abs(num))) % 3 == 0 else 0
   return _compact_number(num, precision=precision, currency='$')
 
 

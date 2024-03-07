@@ -159,7 +159,7 @@ class FormatterTest(parameterized.TestCase):
     template_env = formatter.create_template_env()
     card_spec = formatter.CardSpec(id='test_id', title='test_title')
     stats_spec = formatter.StatsSpec(
-        title='stats_title', stat='test_stat', note='Fixed', delta='+0.3'
+        title='stats_title', stat='test_stat', delta='+0.3'
     )
     card_html = ET.fromstring(
         formatter.create_card_html(
@@ -173,10 +173,8 @@ class FormatterTest(parameterized.TestCase):
     self.assertEqual(stats_html[0][0].text, 'stats_title')
     self.assertEqual(stats_html[0][1].tag, 'stat')
     self.assertEqual(stats_html[0][1].text, 'test_stat')
-    self.assertEqual(stats_html[0][2].tag, 'note')
-    self.assertEqual(stats_html[0][2].text, 'Fixed')
-    self.assertEqual(stats_html[0][3].tag, 'delta')
-    self.assertContainsSubset('+0.3', stats_html[0][3].text)
+    self.assertEqual(stats_html[0][2].tag, 'delta')
+    self.assertContainsSubset('+0.3', stats_html[0][2].text)
 
 
 if __name__ == '__main__':

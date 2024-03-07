@@ -1382,6 +1382,9 @@ class BudgetOptimizer:
         id=summary_text.SCENARIO_PLAN_CARD_ID,
         title=summary_text.SCENARIO_PLAN_CARD_TITLE,
     )
+
+    budget_diff = self.optimized_data.budget - self.nonoptimized_data.budget
+    budget_prefix = '+' if budget_diff > 0 else ''
     current_budget = formatter.StatsSpec(
         title=summary_text.CURRENT_BUDGET_LABEL,
         stat=formatter.format_monetary_num(self.nonoptimized_data.budget),
@@ -1389,9 +1392,7 @@ class BudgetOptimizer:
     optimized_budget = formatter.StatsSpec(
         title=summary_text.OPTIMIZED_BUDGET_LABEL,
         stat=formatter.format_monetary_num(self.optimized_data.budget),
-        note=summary_text.FIXED_BUDGET_LABEL
-        if self.optimized_data.fixed_budget
-        else summary_text.FLEXIBLE_BUDGET_LABEL,
+        delta=(budget_prefix + formatter.format_monetary_num(budget_diff)),
     )
 
     roi_diff = round(
