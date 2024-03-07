@@ -128,11 +128,15 @@ User Guide."""
 OPTIMIZATION_TITLE = 'MMM Optimization Report'
 
 SCENARIO_PLAN_CARD_ID = 'scenario-plan'
-SCENARIO_PLAN_CARD_TITLE = 'Optimization scenario plan'
-SCENARIO_PLAN_INSIGHTS_FORMAT = """These are the results of your future
-marketing budgets with a channel-level spend constraint of {lower_bound}x -
-{upper_bound}x current spend over the time period from {start_date} to
-{end_date}."""
+SCENARIO_PLAN_CARD_TITLE = 'Optimization scenario'
+SCENARIO_PLAN_INSIGHTS_FORMAT = """These are the estimated results from a
+{scenario_type} budget scenario with a channel-level spend constraint of
+-{lower_bound}% to +{upper_bound}% of the current spend over the time period
+from {start_date} to {end_date}."""
+SCENARIO_PLAN_BASE_INSIGHTS_FORMAT = """These are the estimated
+results from a {scenario_type} budget scenario based on channel-level spend
+constraints over the time period from {start_date} to {end_date}."""
+
 
 CURRENT_BUDGET_LABEL = 'Current budget'
 OPTIMIZED_BUDGET_LABEL = 'Optimized budget'
@@ -144,28 +148,36 @@ CURRENT_INC_IMPACT_LABEL = 'Current incremental {impact}'
 OPTIMIZED_INC_IMPACT_LABEL = 'Optimized incremental {impact}'
 
 BUDGET_ALLOCATION_CARD_ID = 'budget-allocation'
-BUDGET_ALLOCATION_CARD_TITLE = 'Changes in your marketing budget allocation'
-BUDGET_ALLOCATION_INSIGHTS = """You can see how much your channel performance
-and spend have affected your {impact}."""
+BUDGET_ALLOCATION_CARD_TITLE = 'Recommended budget allocation'
+BUDGET_ALLOCATION_INSIGHTS = """You can see the channel-level budget shifts and
+the performance lift after optimization."""
 
 SPEND_DELTA_CHART_ID = 'spend-delta-chart'
 SPEND_DELTA_CHART_TITLE = 'Change in optimized spend for each channel'
+SPEND_DELTA_CHART_INSIGHTS = """Note: Each bar represents the change in
+optimized spend for a channel. Negative values indicate a decrease in spend
+while positive values indicate an increase from your current spend."""
 
 SPEND_ALLOCATION_CHART_ID = 'spend-allocation-chart'
-SPEND_ALLOCATION_CHART_TITLE = 'Optimized spend allocation'
+SPEND_ALLOCATION_CHART_TITLE = 'Optimized budget allocation'
 
-IMPACT_DELTA_CHART_ID = '{impact}-delta-chart'
+IMPACT_DELTA_CHART_ID = 'impact-delta-chart'
 IMPACT_DELTA_CHART_TITLE = 'Optimized incremental {impact} across all channels'
+IMPACT_DELTA_CHART_INSIGHTS_FORMAT = """Note: The "current" bar presents the
+incremental {impact} before optimization, and the subsequent bars represent the
+change in incremental {impact} for each channel based on the optimal spend
+level. The final bar labeled "optimized" shows the total incremental {impact}
+after optimization."""
 
 SPEND_ALLOCATION_TABLE_ID = 'spend-allocation-table'
 
 OPTIMIZED_RESPONSE_CURVES_CARD_ID = 'optimized-response-curves'
-OPTIMIZED_RESPONSE_CURVES_CARD_TITLE = 'Optimized response curves by channel'
-OPTIMIZED_RESPONSE_CURVES_INSIGHTS = """These response curves show the potential
-return on investment on your channel spend and your potential {impact}. You can
-use the optimized spend as a recommendation to guide your future marketing
-spend. The more bend in your response curve the better the potential return on
-investment."""
+OPTIMIZED_RESPONSE_CURVES_CARD_TITLE = 'Response curves with optimized spend'
+OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT = """These response curves depict the
+relationship between marketing spend and the resulting incremental {impact} and
+show the optimal spend amount for each channel that maximizes the total
+incremental {impact} while staying within the channel-level spend
+constraints."""
 
 OPTIMIZED_RESPONSE_CURVES_CHART_ID = 'optimized-response-curves-chart'
 OPTIMIZED_RESPONSE_CURVES_CHART_TITLE = 'Optimized response curves'

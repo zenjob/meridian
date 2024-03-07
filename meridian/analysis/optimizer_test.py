@@ -2054,14 +2054,39 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(
         insights_text.strip(),
         summary_text.SCENARIO_PLAN_INSIGHTS_FORMAT.format(
-            lower_bound=0.7,
-            upper_bound=1.3,
+            scenario_type='fixed',
+            lower_bound=30,
+            upper_bound=30,
             start_date='2020-01-05',
             end_date='2020-06-28',
         ),
     )
 
-  def test_check_roi_section_removed_no_revenue_per_kpi(self):
+  def test_output_scenario_plan_card_custom_spend_constraints(self):
+    self.budget_optimizer._spend_bounds = (
+        np.array([0.7, 0.6, 0.7, 0.6, 0.7]),
+        np.array([1.3, 1.4, 1.3, 1.4, 1.3]),
+    )
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
+    card = analysis_test_utils.get_child_element(
+        summary_html_dom,
+        'body/cards/card',
+        attribs={'id': summary_text.SCENARIO_PLAN_CARD_ID},
+    )
+    insights_text = analysis_test_utils.get_child_element(
+        card, 'card-insights/p', {'class': 'insights-text'}
+    ).text
+    self.assertIsNotNone(insights_text)
+    self.assertEqual(
+        insights_text.strip(),
+        summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+            scenario_type='fixed',
+            start_date='2020-01-05',
+            end_date='2020-06-28',
+        ),
+    )
+
+  def test_output_scenario_card_roi_removed_no_revenue_per_kpi(self):
     summary_html_dom = self._get_output_summary_html_dom(
         self.budget_optimizer_kpi_output
     )
@@ -2197,6 +2222,26 @@ class OptimizerOutputTest(parameterized.TestCase):
     charts = card.findall('charts/chart')
     self.assertLen(charts, 3)
 
+    spend_delta_description_text = analysis_test_utils.get_child_element(
+        charts[0], 'chart-description'
+    ).text
+    self.assertIsNotNone(spend_delta_description_text)
+    self.assertEqual(
+        spend_delta_description_text.strip(),
+        summary_text.SPEND_DELTA_CHART_INSIGHTS,
+    )
+
+    impact_delta_description_text = analysis_test_utils.get_child_element(
+        charts[2], 'chart-description'
+    ).text
+    self.assertIsNotNone(impact_delta_description_text)
+    self.assertEqual(
+        impact_delta_description_text.strip(),
+        summary_text.IMPACT_DELTA_CHART_INSIGHTS_FORMAT.format(
+            impact=c.REVENUE
+        ),
+    )
+
   def test_output_budget_allocation_table(self):
     summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
     card = analysis_test_utils.get_child_element(
@@ -2260,7 +2305,10 @@ class OptimizerOutputTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     self.assertEqual(
-        insights_text.strip(), summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS
+        insights_text.strip(),
+        summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT.format(
+            impact=c.REVENUE
+        ),
     )
 
   def test_output_response_curves_chart(self):

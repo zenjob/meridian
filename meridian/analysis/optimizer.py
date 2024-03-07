@@ -1375,7 +1375,6 @@ class BudgetOptimizer:
         self._create_response_curves_section(),
     ]
 
-  # TODO(b/319501774): Update insights when there's varied spend bounds.
   def _create_scenario_plan_section(self) -> str:
     """Creates the HTML card snippet for the scenario plan section."""
     impact = self._kpi_or_revenue()
@@ -1441,15 +1440,32 @@ class BudgetOptimizer:
     if self._meridian.input_data.revenue_per_kpi is None:
       stats_specs.remove(current_roi)
       stats_specs.remove(optimized_roi)
+
+    scenario_type = (
+        summary_text.FIXED_BUDGET_LABEL.lower()
+        if self.optimized_data.fixed_budget
+        else summary_text.FLEXIBLE_BUDGET_LABEL
+    )
+    if len(self._spend_bounds[0]) > 1 or len(self._spend_bounds[1]) > 1:
+      insights = summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+          scenario_type=scenario_type,
+          start_date=self.optimized_data.start_date,
+          end_date=self.optimized_data.end_date,
+      )
+    else:
+      lower_bound = int((1 - self._spend_bounds[0][0]) * 100)
+      upper_bound = int((self._spend_bounds[1][0] - 1) * 100)
+      insights = summary_text.SCENARIO_PLAN_INSIGHTS_FORMAT.format(
+          scenario_type=scenario_type,
+          lower_bound=lower_bound,
+          upper_bound=upper_bound,
+          start_date=self.optimized_data.start_date,
+          end_date=self.optimized_data.end_date,
+      )
     return formatter.create_card_html(
         self._template_env,
         card_spec,
-        summary_text.SCENARIO_PLAN_INSIGHTS_FORMAT.format(
-            lower_bound=self._spend_bounds[0][0],
-            upper_bound=self._spend_bounds[1][0],
-            start_date=self.optimized_data.start_date,
-            end_date=self.optimized_data.end_date,
-        ),
+        insights,
         stats_specs=stats_specs,
     )
 
@@ -1462,6 +1478,7 @@ class BudgetOptimizer:
     )
     spend_delta = formatter.ChartSpec(
         id=summary_text.SPEND_DELTA_CHART_ID,
+        description=summary_text.SPEND_DELTA_CHART_INSIGHTS,
         chart_json=self.plot_spend_delta().to_json(),
     )
     spend_allocation = formatter.ChartSpec(
@@ -1469,8 +1486,9 @@ class BudgetOptimizer:
         chart_json=self.plot_budget_allocation().to_json(),
     )
     impact_delta = formatter.ChartSpec(
-        id=summary_text.IMPACT_DELTA_CHART_ID.format(
-            impact=impact.lower() if impact == c.KPI else impact
+        id=summary_text.IMPACT_DELTA_CHART_ID,
+        description=summary_text.IMPACT_DELTA_CHART_INSIGHTS_FORMAT.format(
+            impact=impact
         ),
         chart_json=self.plot_incremental_impact_delta().to_json(),
     )
@@ -1531,7 +1549,9 @@ class BudgetOptimizer:
     return formatter.create_card_html(
         self._template_env,
         card_spec,
-        summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS,
+        summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT.format(
+            impact=self._kpi_or_revenue(),
+        ),
         [response_curves],
     )
 
