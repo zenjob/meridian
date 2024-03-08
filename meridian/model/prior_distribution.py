@@ -17,6 +17,8 @@
 The PriorDistribution object contains distributions for various parameters used
 by the Meridian object.
 """
+
+from __future__ import annotations
 from collections.abc import MutableMapping
 import dataclasses
 from typing import Any
@@ -239,6 +241,125 @@ class PriorDistribution:
 
     return state
 
+  def broadcast(
+      self,
+      n_geos: int,
+      n_media_channels: int,
+      n_rf_channels: int,
+      n_controls: int,
+      sigma_shape: int,
+      n_knots: int,
+      is_national: bool,
+  ) -> PriorDistribution:
+    """Returns a new `PriorDistribution` with broadcast distribution attributes.
+
+    Args:
+      n_geos: Number of geos.
+      n_media_channels: Number of media channels used.
+      n_rf_channels: Number of rf channels used.
+      n_controls: Number of controls used.
+      sigma_shape: A number describing the shape of the sigma parameter. It's
+        either 1 (if sigma_for_each_geo=False) or `n_geos` (if
+        sigma_for_each_geo=True), see `ModelSpec`.
+      n_knots: Number of knots used.
+      is_national: A boolean indicator whether prior distribution should be
+        adapted for a national model.
+
+    Returns:
+      Prior distribution broadcast from this prior distribution, according to
+      the given data dimensionality.
+    """
+    # Broadcast Distributions.
+    knot_values = tfp.distributions.BatchBroadcast(
+        self.knot_values,
+        n_knots,
+        name=constants.KNOT_VALUES,
+    )
+    if is_national:
+      tau_g_converted = _convert_to_deterministic_0_distribution(
+          self.tau_g_excl_baseline
+      )
+    else:
+      tau_g_converted = self.tau_g_excl_baseline
+    tau_g_excl_baseline = tfp.distributions.BatchBroadcast(
+        tau_g_converted, n_geos - 1, name=constants.TAU_G_EXCL_BASELINE
+    )
+    beta_m = tfp.distributions.BatchBroadcast(
+        self.beta_m, n_media_channels, name=constants.BETA_M
+    )
+    beta_rf = tfp.distributions.BatchBroadcast(
+        self.beta_rf, n_rf_channels, name=constants.BETA_RF
+    )
+    if is_national:
+      eta_m_converted = _convert_to_deterministic_0_distribution(self.eta_m)
+      eta_rf_converted = _convert_to_deterministic_0_distribution(self.eta_rf)
+    else:
+      eta_m_converted = self.eta_m
+      eta_rf_converted = self.eta_rf
+    eta_m = tfp.distributions.BatchBroadcast(
+        eta_m_converted, n_media_channels, name=constants.ETA_M
+    )
+    eta_rf = tfp.distributions.BatchBroadcast(
+        eta_rf_converted, n_rf_channels, name=constants.ETA_RF
+    )
+    gamma_c = tfp.distributions.BatchBroadcast(
+        self.gamma_c, n_controls, name=constants.GAMMA_C
+    )
+    if is_national:
+      xi_c_converted = _convert_to_deterministic_0_distribution(self.xi_c)
+    else:
+      xi_c_converted = self.xi_c
+    xi_c = tfp.distributions.BatchBroadcast(
+        xi_c_converted, n_controls, name=constants.XI_C
+    )
+    alpha_m = tfp.distributions.BatchBroadcast(
+        self.alpha_m, n_media_channels, name=constants.ALPHA_M
+    )
+    alpha_rf = tfp.distributions.BatchBroadcast(
+        self.alpha_rf, n_rf_channels, name=constants.ALPHA_RF
+    )
+    ec_m = tfp.distributions.BatchBroadcast(
+        self.ec_m, n_media_channels, name=constants.EC_M
+    )
+    ec_rf = tfp.distributions.BatchBroadcast(
+        self.ec_rf, n_rf_channels, name=constants.EC_RF
+    )
+    slope_m = tfp.distributions.BatchBroadcast(
+        self.slope_m, n_media_channels, name=constants.SLOPE_M
+    )
+    slope_rf = tfp.distributions.BatchBroadcast(
+        self.slope_rf, n_rf_channels, name=constants.SLOPE_RF
+    )
+    sigma = tfp.distributions.BatchBroadcast(
+        self.sigma, sigma_shape, name=constants.SIGMA
+    )
+    roi_m = tfp.distributions.BatchBroadcast(
+        self.roi_m, n_media_channels, name=constants.ROI_M
+    )
+    roi_rf = tfp.distributions.BatchBroadcast(
+        self.roi_rf, n_rf_channels, name=constants.ROI_RF
+    )
+
+    return PriorDistribution(
+        knot_values=knot_values,
+        tau_g_excl_baseline=tau_g_excl_baseline,
+        beta_m=beta_m,
+        beta_rf=beta_rf,
+        eta_m=eta_m,
+        eta_rf=eta_rf,
+        gamma_c=gamma_c,
+        xi_c=xi_c,
+        alpha_m=alpha_m,
+        alpha_rf=alpha_rf,
+        ec_m=ec_m,
+        ec_rf=ec_rf,
+        slope_m=slope_m,
+        slope_rf=slope_rf,
+        sigma=sigma,
+        roi_m=roi_m,
+        roi_rf=roi_rf,
+    )
+
 
 def _convert_to_deterministic_0_distribution(
     distribution: tfp.distributions.Distribution,
@@ -268,129 +389,3 @@ def _convert_to_deterministic_0_distribution(
     return tfp.distributions.Deterministic(loc=0, name=distribution.name)
   else:
     return distribution
-
-
-def broadcast_prior_distribution(
-    prior_distribution: PriorDistribution,
-    n_geos: int,
-    n_media_channels: int,
-    n_rf_channels: int,
-    n_controls: int,
-    sigma_shape: int,
-    n_knots: int,
-    is_national: bool,
-) -> PriorDistribution:
-  """Broadcast distribution attributes.
-
-  Args:
-    prior_distribution: The prior distribution to be broadcast.
-    n_geos: Number of geos.
-    n_media_channels: Number of media channels used.
-    n_rf_channels: Number of rf channels used.
-    n_controls: Number of controls used.
-    sigma_shape: A number describing the shape of the sigma parameter. It's
-      either 1 (if sigma_for_each_geo=False) or `n_geos` (if
-      sigma_for_each_geo=True), see `ModelSpec`.
-    n_knots: Number of knots used.
-    is_national: A boolean indicator whether prior distribution should be
-      adapted for a national model.
-
-  Returns:
-    Prior distribution broadcast according to the data dimensionality.
-  """
-  # Broadcast Distributions.
-  knot_values = tfp.distributions.BatchBroadcast(
-      prior_distribution.knot_values,
-      n_knots,
-      name=constants.KNOT_VALUES,
-  )
-  if is_national:
-    tau_g_converted = _convert_to_deterministic_0_distribution(
-        prior_distribution.tau_g_excl_baseline
-    )
-  else:
-    tau_g_converted = prior_distribution.tau_g_excl_baseline
-  tau_g_excl_baseline = tfp.distributions.BatchBroadcast(
-      tau_g_converted, n_geos - 1, name=constants.TAU_G_EXCL_BASELINE
-  )
-  beta_m = tfp.distributions.BatchBroadcast(
-      prior_distribution.beta_m, n_media_channels, name=constants.BETA_M
-  )
-  beta_rf = tfp.distributions.BatchBroadcast(
-      prior_distribution.beta_rf, n_rf_channels, name=constants.BETA_RF
-  )
-  if is_national:
-    eta_m_converted = _convert_to_deterministic_0_distribution(
-        prior_distribution.eta_m
-    )
-    eta_rf_converted = _convert_to_deterministic_0_distribution(
-        prior_distribution.eta_rf
-    )
-  else:
-    eta_m_converted = prior_distribution.eta_m
-    eta_rf_converted = prior_distribution.eta_rf
-  eta_m = tfp.distributions.BatchBroadcast(
-      eta_m_converted, n_media_channels, name=constants.ETA_M
-  )
-  eta_rf = tfp.distributions.BatchBroadcast(
-      eta_rf_converted, n_rf_channels, name=constants.ETA_RF
-  )
-  gamma_c = tfp.distributions.BatchBroadcast(
-      prior_distribution.gamma_c, n_controls, name=constants.GAMMA_C
-  )
-  if is_national:
-    xi_c_converted = _convert_to_deterministic_0_distribution(
-        prior_distribution.xi_c
-    )
-  else:
-    xi_c_converted = prior_distribution.xi_c
-  xi_c = tfp.distributions.BatchBroadcast(
-      xi_c_converted, n_controls, name=constants.XI_C
-  )
-  alpha_m = tfp.distributions.BatchBroadcast(
-      prior_distribution.alpha_m, n_media_channels, name=constants.ALPHA_M
-  )
-  alpha_rf = tfp.distributions.BatchBroadcast(
-      prior_distribution.alpha_rf, n_rf_channels, name=constants.ALPHA_RF
-  )
-  ec_m = tfp.distributions.BatchBroadcast(
-      prior_distribution.ec_m, n_media_channels, name=constants.EC_M
-  )
-  ec_rf = tfp.distributions.BatchBroadcast(
-      prior_distribution.ec_rf, n_rf_channels, name=constants.EC_RF
-  )
-  slope_m = tfp.distributions.BatchBroadcast(
-      prior_distribution.slope_m, n_media_channels, name=constants.SLOPE_M
-  )
-  slope_rf = tfp.distributions.BatchBroadcast(
-      prior_distribution.slope_rf, n_rf_channels, name=constants.SLOPE_RF
-  )
-  sigma = tfp.distributions.BatchBroadcast(
-      prior_distribution.sigma, sigma_shape, name=constants.SIGMA
-  )
-  roi_m = tfp.distributions.BatchBroadcast(
-      prior_distribution.roi_m, n_media_channels, name=constants.ROI_M
-  )
-  roi_rf = tfp.distributions.BatchBroadcast(
-      prior_distribution.roi_rf, n_rf_channels, name=constants.ROI_RF
-  )
-
-  return PriorDistribution(
-      knot_values=knot_values,
-      tau_g_excl_baseline=tau_g_excl_baseline,
-      beta_m=beta_m,
-      beta_rf=beta_rf,
-      eta_m=eta_m,
-      eta_rf=eta_rf,
-      gamma_c=gamma_c,
-      xi_c=xi_c,
-      alpha_m=alpha_m,
-      alpha_rf=alpha_rf,
-      ec_m=ec_m,
-      ec_rf=ec_rf,
-      slope_m=slope_m,
-      slope_rf=slope_rf,
-      sigma=sigma,
-      roi_m=roi_m,
-      roi_rf=roi_rf,
-  )

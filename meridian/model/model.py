@@ -162,8 +162,7 @@ class Meridian:
         len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
     )
 
-    self._prior_broadcast = prior_distribution.broadcast_prior_distribution(
-        prior_distribution=self.model_spec.prior,
+    self._prior_broadcast = self.model_spec.prior.broadcast(
         n_geos=self.n_geos,
         n_media_channels=self.n_media_channels,
         n_rf_channels=self.n_rf_channels,
