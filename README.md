@@ -68,8 +68,7 @@ started quickly with using Meridian:
 
 [1]: https://developers.google.com/meridian
 [2]: https://developers.google.com/meridian/docs/basics/about-the-project
- <!-- TODO: this colab link is a placeholder -->
-[3]: https://colab.research.google.com/
+[3]: https://developers.google.com/meridian/notebook/meridian-getting-started
 [4]: https://developers.google.com/meridian/docs/user-guide/overview
 [5]: https://developers.google.com/meridian/docs/advanced-modeling/model-fit
 [6]: https://developers.google.com/meridian/docs/model-debugging/model-debugging
