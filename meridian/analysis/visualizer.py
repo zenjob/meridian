@@ -1252,6 +1252,7 @@ class MediaEffects:
             )
         )
         .configure_axis(**formatter.TEXT_CONFIG)
+        .configure_legend(labelLimit=0)
         .resolve_scale(x=c.INDEPENDENT, y=c.INDEPENDENT)
     )
 

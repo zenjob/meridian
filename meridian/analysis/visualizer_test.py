@@ -1450,6 +1450,7 @@ class MediaEffectsTest(parameterized.TestCase):
         plot_media.title.text,
         summary_text.HILL_SATURATION_CHART_TITLE,
     )
+    self.assertEqual(plot_media.config.legend.labelLimit, 0)
 
   def test_media_effects_plot_hill_curves_media_rf_x_axis_label(self):
     plot_media, plot_rf = self.media_effects_kpi_type_revenue.plot_hill_curves()

@@ -419,7 +419,7 @@ FONT_ROBOTO = 'Roboto'
 FONT_GOOGLE_SANS_DISPLAY = 'Google Sans Display'
 
 
-# Default number of max draws per chain in Analyzer.expected_resonse()
+# Default number of max draws per chain in Analyzer.expected_impact()
 DEFAULT_BATCH_SIZE = 100
 
 
