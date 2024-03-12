@@ -1534,10 +1534,10 @@ class Analyzer:
     return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
   def _compute_incremental_impact_aggregate(
-      self, use_posterior: bool, **roi_kwargs
+      self, use_posterior: bool, use_kpi: bool | None = None, **roi_kwargs
   ):
     """Aggregates the incremental impact for MediaSummary metrics."""
-    use_kpi = self._meridian.input_data.revenue_per_kpi is None
+    use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
     expected_impact = self.expected_impact(
         use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
     )
@@ -1746,6 +1746,18 @@ class Analyzer:
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
     )
+    cpik = self._compute_cpik_aggregate(
+        incremental_kpi_prior=self._compute_incremental_impact_aggregate(
+            use_posterior=False, use_kpi=True, **roi_kwargs
+        ),
+        incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
+            use_posterior=True, use_kpi=True, **roi_kwargs
+        ),
+        spend_with_total=spend_with_total,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+    )
     if use_kpi:
       roi = xr.Dataset()
       mroi = xr.Dataset()
@@ -1776,17 +1788,18 @@ class Analyzer:
       # aggregate_times=False.
       if use_kpi:
         warning = (
-            "Effectiveness is not reported because it does not have a clear"
-            " interpretation by time period."
+            "Effectiveness and CPIK are not reported because they do not have a"
+            " clear interpretation by time period."
         )
       else:
         warning = (
-            "ROI, mROI, and Effectiveness are not reported because they do not"
-            " have a clear interpretation by time period."
+            "ROI, mROI, Effectiveness, and CPIK are not reported because they"
+            " do not have a clear interpretation by time period."
         )
         roi *= np.nan
         mroi *= np.nan
       effectiveness *= np.nan
+      cpik *= np.nan
       warnings.warn(warning)
     return xr.merge([
         spend_data,
@@ -1795,6 +1808,7 @@ class Analyzer:
         roi,
         effectiveness,
         mroi,
+        cpik,
     ])
 
   def optimal_freq(
@@ -2862,6 +2876,24 @@ class Analyzer:
         prior=incremental_impact_prior / impressions_with_total,
         posterior=incremental_impact_posterior / impressions_with_total,
         metric_name=constants.EFFECTIVENESS,
+        xr_dims=xr_dims,
+        xr_coords=xr_coords,
+        confidence_level=confidence_level,
+    )
+
+  def _compute_cpik_aggregate(
+      self,
+      incremental_kpi_prior: tf.Tensor,
+      incremental_kpi_posterior: tf.Tensor,
+      spend_with_total: tf.Tensor,
+      xr_dims: Sequence[str],
+      xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
+      confidence_level: float,
+  ) -> xr.Dataset:
+    return _mean_and_ci(
+        prior=spend_with_total / incremental_kpi_prior,
+        posterior=spend_with_total / incremental_kpi_posterior,
+        metric_name=constants.CPIK,
         xr_dims=xr_dims,
         xr_coords=xr_coords,
         confidence_level=confidence_level,
