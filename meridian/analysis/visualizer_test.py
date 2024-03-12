@@ -1626,7 +1626,7 @@ class MediaSummaryTest(parameterized.TestCase):
     df = self.media_summary_revenue.summary_table(include_posterior=False)
     self.assertNotIn(c.POSTERIOR, df[c.DISTRIBUTION])
 
-  # TODO(b/323002234): Add a test for the KPI scenario.
+  # TODO(b/328807682): Add a test for the KPI scenario.
   def test_media_summary_summary_table_revenue(self):
     df = self.media_summary_revenue.summary_table()
     self.assertListEqual(
