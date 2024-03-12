@@ -30,7 +30,7 @@ you understand the differences between these MMM projects.
 # Install Meridian
 
 Run the following command to automatically install the most recent version from
-GitHub:
+GitHub. Note that Python 3.10 or higher is required.
 
 ```sh
 $ git clone https://github.com/google/meridian.git
