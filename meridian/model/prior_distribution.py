@@ -14,8 +14,8 @@
 
 """This file contains an object to store prior distributions.
 
-The PriorDistribution object contains distributions for various parameters used
-by the Meridian object.
+The `PriorDistribution` object contains distributions for various parameters
+used by the Meridian model object.
 """
 
 from __future__ import annotations
@@ -32,111 +32,111 @@ class PriorDistribution:
   """Contains prior distributions for each model parameter.
 
   PriorDistribution is a utility class for Meridian. The required shapes of the
-  arguments to PriorDistribution depend on modeling options and data shapes
-  passed to Meridian. For example, `ec_m` is a parameter that represents the
-  half-saturation for each media channel. Thus, the `ec_m` argument must have
+  arguments to `PriorDistribution` depend on the modeling options and data
+  shapes passed to Meridian. For example, `ec_m` is a parameter that represents
+  the half-saturation for each media channel. The `ec_m` argument must have
   either `batch_shape=[]` or `batch_shape` equal to the number of media
   channels. In the case of the former, each media channel gets the same prior.
 
-  An error will be raised upon Meridian construction if any prior distribution
-  has shape that cannot be broadcast to the shape designated by the model
+  An error is raised upon Meridian construction if any prior distribution
+  has a shape that cannot be broadcast to the shape designated by the model
   specification.
 
   The parameter batch shapes are as follows:
-    knot_values: `n_knots`
-    tau_g_excl_baseline: `n_geos - 1`
-    beta_m: `n_media_channels`
-    beta_rf: `n_rf_channels`
-    eta_m: `n_media_channels`
-    eta_rf: `n_rf_channels`
-    gamma_c: `n_controls`
-    xi_c: `n_controls`
-    alpha_m: `n_media_channels`
-    alpha_rf: `n_rf_channels`
-    ec_m: `n_media_channels`
-    ec_rf: `n_rf_channels`
-    slope_m: `n_media_channels`
-    slope_rf: `n_rf_channels`
-    sigma: `n_geos` if `unique_sigma_for_each_geo` else 1
-    roi_m: `n_media_channels`
-    roi_rf: `n_rf_channels`
+    - `knot_values`: `n_knots`
+    - `tau_g_excl_baseline`: `n_geos - 1`
+    - `beta_m`: `n_media_channels`
+    - `beta_rf`: `n_rf_channels`
+    - `eta_m`: `n_media_channels`
+    - `eta_rf`: `n_rf_channels`
+    - `gamma_c`: `n_controls`
+    - `xi_c`: `n_controls`
+    - `alpha_m`: `n_media_channels`
+    - `alpha_rf`: `n_rf_channels`
+    - `ec_m`: `n_media_channels`
+    - `ec_rf`: `n_rf_channels`
+    - `slope_m`: `n_media_channels`
+    - `slope_rf`: `n_rf_channels`
+    - `sigma`: `n_geos` if `unique_sigma_for_each_geo` else 1
+    - `roi_m`: `n_media_channels`
+    - `roi_rf`: `n_rf_channels`
 
   Attributes:
-    knot_values: prior distribution on knots for time effects. Default
-      distribution is Normal(0.0, 5.0).
-    tau_g_excl_baseline: prior distribution on geo effects which represent the
+    knot_values: Prior distribution on knots for time effects. Default
+      distribution is `Normal(0.0, 5.0)`.
+    tau_g_excl_baseline: Prior distribution on geo effects, which represent the
       average KPI of each geo relative to the baseline geo. This parameter is
       broadcast to a vector of length `n_geos - 1`, preserving the geo order and
       excluding the `baseline_geo`. After sampling, `Meridian.inference_data`
-      includes a modified version of this parameter simply called `tau_g` which
-      has length `n_geos` and contains a zero in the position corresponding to
+      includes a modified version of this parameter called `tau_g`, which has
+      length `n_geos` and contains a zero in the position corresponding to
       `baseline_geo`. Meridian ignores this distribution if `n_geos` = 1.
-      Default distribution is Normal(0.0, 5.0).
-    beta_m: prior distribution on a parameter for the hierarchical distribution
+      Default distribution is `Normal(0.0, 5.0)`.
+    beta_m: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for impression media channels (`beta_gm`). When
-      `media_effects_dist` is set to "normal", it is the hierarchical mean. When
-      `media_effects_dist` is set to "lognormal", it is the hierarchical
-      parameter for the mean of the underlying, log-transformed, Normal
+      `media_effects_dist` is set to `normal", it is the hierarchical mean.
+      When `media_effects_dist` is set to `lognormal`, it is the hierarchical
+      parameter for the mean of the underlying, log-transformed, `Normal`
       distribution. Meridian ignores this distribution if `use_roi_prior` is
-      `True` and uses the `roi_m` prior instead. Default distribution is
-      HalfNormal(5.0).
-    beta_rf: prior distribution on a parameter for the hierarchical distribution
+      `True` and uses `roi_m` prior instead. Default distribution is
+      `HalfNormal(5.0)`.
+    beta_rf: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for reach and frequency media channels
-      (`beta_grf`). When `media_effects_dist` is set to "normal", it is the
-      hierarchical mean. When `media_effects_dist` is set to "lognormal", it is
-      the hierarchical parameter for the mean of the underlying,
-      log-transformed, Normal distribution. Meridian ignores this distribution
+      (`beta_grf`). When `media_effects_dist` is set to `normal`, it is the
+      hierarchical mean. When `media_effects_dist` is set to `lognormal`, it
+      is the hierarchical parameter for the mean of the underlying,
+      log-transformed, `Normal` distribution. Meridian ignores this distribution
       if `use_roi_prior` is `True` and uses the `roi_m` prior instead. Default
-      distribution is HalfNormal(5.0).
-    eta_m: prior distribution on a parameter for the hierarchical distribution
-      of geo-level media effects for impression media channels (beta_gm). When
-      `media_effects_dist` is set to "normal", it is the hierarchical standard
-      deviation. When `media_effects_dist` is set to "lognormal" it is the
+      distribution is `HalfNormal(5.0)`.
+    eta_m: Prior distribution on a parameter for the hierarchical distribution
+      of geo-level media effects for impression media channels (`beta_gm`). When
+      `media_effects_dist` is set to `normal`, it is the hierarchical standard
+      deviation. When `media_effects_dist` is set to `lognormal` it is the
       hierarchical parameter for the standard deviation of the underlying,
-      log-transformed, Normal distribution. Default distribution is
-      HalfNormal(1.0).
-    eta_rf: prior distribution on a parameter for the hierarchical distribution
-      of geo-level media effects for RF media channels (beta_grf). When
-      `media_effects_dist` is set to "normal", it is the hierarchical standard
-      deviation. When `media_effects_dist` is set to "lognormal" it is the
+      log-transformed, `Normal` distribution. Default distribution is
+      `HalfNormal(1.0)`.
+    eta_rf: Prior distribution on a parameter for the hierarchical distribution
+      of geo-level media effects for RF media channels (`beta_grf`). When
+      `media_effects_dist` is set to `normal`, it is the hierarchical standard
+      deviation. When `media_effects_dist` is set to `lognormal` it is the
       hierarchical parameter for the standard deviation of the underlying,
-      log-transformed, Normal distribution. Default distribution is
-      HalfNormal(1.0).
-    gamma_c: prior distribution on hierarchical mean of gamma_gc which is the
-      coefficient on control c for geo g. Hierarchy is defined over geos.
-      Default distribution is Normal(0.0, 5.0).
-    xi_c: prior distribution on hierarchical standard deviation of gamma_gc
-      which is the coefficient on control c for geo g. Hierarchy is defined over
-      geos. Default distribution is HalfNormal(5.0).
-    alpha_m: prior distribution on the geometric decay Adstock parameter for
-      media input. Default distribution is Uniform(0.0, 1.0).
-    alpha_rf: prior distribution on the geometric decay Adstock parameter for rf
-      input. Default distribution is Uniform(0.0, 1.0).
-    ec_m: prior distribution on the half-saturation Hill parameter for media
-      input. Default distribution is TruncatedNormal(0.8, 0.8, 0.1, 10).
-    ec_rf: prior distribution on the half-saturation Hill parameter for rf
-      input. Default distribution is TransformedDistribution(LogNormal(0.7,
-      0.4),Shift(0.1)).
-    slope_m: prior distribution on the `slope` Hill parameter for media input.
-      Default distribution is Deterministic(1.0).
-    slope_rf: prior distribution on the `slope` Hill parameter for rf input.
-      Default distribution is LogNormal(0.7, 0.4).
-    sigma: prior distribution on the standard deviation of noise. Default
-      distribution is HalfNormal(5.0).
-    roi_m: prior distribution on hierarchical ROI in media input. Meridian
-      ignores this distribution if `use_roi_prior` is `False` and uses `beta_m`
-      instead. When `use_roi_prior` is `True` then `beta_m` is calculated as a
-      deterministic function of `roi_m`, `alpha_m`, `ec_m`, `slope_m` and the
-      spend associated with each media channel (i.e., the model is
-      reparameterized with `roi_m` in place of `beta_m`). Default distribution
-      is LogNormal(0.2, 0.9).
-    roi_rf: prior distribution on hierarchical ROI in rf input. Meridian ignores
-      this distribution if `use_roi_prior` is `False` and uses `beta_rf`
-      instead. When `use_roi_prior` is `True` then `beta_rf` is calculated as a
-      deterministic function of `roi_rf`, `alpha_rf`, `ec_rf`, `slope_rf` and
-      the spend associated with each media channel (i.e., the model is
-      reparameterized with `roi_rf` in place of `beta_rf`). Default distribution
-      is LogNormal(0.2, 0.9).
+      log-transformed, `Normal` distribution. Default distribution is
+      `HalfNormal(1.0)`.
+    gamma_c: Prior distribution on the hierarchical mean of `gamma_gc` which is
+      the coefficient on control `c` for geo `g`. Hierarchy is defined over
+      geos. Default distribution is `Normal(0.0, 5.0)`.
+    xi_c: Prior distribution on the hierarchical standard deviation of
+      `gamma_gc` which is the coefficient on control `c` for geo `g`. Hierarchy
+      is defined over geos. Default distribution is `HalfNormal(5.0)`.
+    alpha_m: Prior distribution on the `geometric decay` Adstock parameter for
+      media input. Default distribution is `Uniform(0.0, 1.0)`.
+    alpha_rf: Prior distribution on the `geometric decay` Adstock parameter for
+      RF input. Default distribution is `Uniform(0.0, 1.0)`.
+    ec_m: Prior distribution on the `half-saturation` Hill parameter for media
+      input. Default distribution is `TruncatedNormal(0.8, 0.8, 0.1, 10)`.
+    ec_rf: Prior distribution on the `half-saturation` Hill parameter for RF
+      input. Default distribution is `TransformedDistribution(LogNormal(0.7,
+      0.4),Shift(0.1))`.
+    slope_m: Prior distribution on the `slope` Hill parameter for media input.
+      Default distribution is `Deterministic(1.0)`.
+    slope_rf: Prior distribution on the `slope` Hill parameter for RF input.
+      Default distribution is `LogNormal(0.7, 0.4)`.
+    sigma: Prior distribution on the standard deviation of noise. Default
+      distribution is `HalfNormal(5.0)`.
+    roi_m: Prior distribution on the hierarchical ROI in media input. Meridian
+      ignores this distribution if `use_roi_prior` is `False` and uses
+      `beta_m` instead. When `use_roi_prior` is `True` then `beta_m` is
+      calculated as a deterministic function of `roi_m`, `alpha_m`, `ec_m`,
+      `slope_m`, and the spend associated with each media channel (for example,
+      the model is reparameterized with `roi_m` in place of `beta_m`). Default
+      distribution is `LogNormal(0.2, 0.9)`.
+    roi_rf: Prior distribution on the hierarchical ROI in RF input. Meridian
+      ignores this distribution if `use_roi_prior` is `False` and uses
+      `beta_rf` instead. When `use_roi_prior` is `True`, then `beta_rf` is
+      calculated as a deterministic function of `roi_rf`, `alpha_rf`, `ec_rf`,
+      `slope_rf`, and the spend associated with each media channel (for example,
+      the model is reparameterized with `roi_rf` in place of `beta_rf`). Default
+      distribution is `LogNormal(0.2, 0.9)`.
   """
 
   knot_values: tfp.distributions.Distribution = tfp.distributions.Normal(
@@ -256,13 +256,13 @@ class PriorDistribution:
     Args:
       n_geos: Number of geos.
       n_media_channels: Number of media channels used.
-      n_rf_channels: Number of rf channels used.
+      n_rf_channels: Number of reach and frequency channels used.
       n_controls: Number of controls used.
       sigma_shape: A number describing the shape of the sigma parameter. It's
-        either 1 (if sigma_for_each_geo=False) or `n_geos` (if
-        sigma_for_each_geo=True), see `ModelSpec`.
+        either `1` (if `sigma_for_each_geo=False`) or `n_geos` (if
+        `sigma_for_each_geo=True`). For more information, see `ModelSpec`.
       n_knots: Number of knots used.
-      is_national: A boolean indicator whether prior distribution should be
+      is_national: A boolean indicator whether the prior distribution will be
         adapted for a national model.
 
     Returns:
