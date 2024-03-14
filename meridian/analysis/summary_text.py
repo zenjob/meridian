@@ -68,10 +68,17 @@ ROI_BREAKDOWN_CARD_TITLE = 'Return on investment'
 ROI_BREAKDOWN_INSIGHTS_FORMAT = """Your return on investment (ROI) helps you
 understand how your marketing activities impacted your business objectives.
 {lead_roi_channel} drove the highest ROI at {lead_roi_ratio:.1f}. For every $1
-you spent on {lead_roi_channel}, you saw ${lead_roi_ratio:.1f} in revenue.
+you spent on {lead_roi_channel}, you saw ${lead_roi_ratio:.2f} in revenue.
 {lead_effectiveness_channel} had the highest effectiveness, which is your
 incremental revenue per media unit. {lead_mroi_channel} had the highest marginal
 ROI at {lead_mroi_channel_value:.2f}."""
+
+CPIK_BREAKDOWN_CARD_ID = 'cpik-breakdown'
+CPIK_BREAKDOWN_CARD_TITLE = 'Cost per incremental KPI'
+CPIK_BREAKDOWN_INSIGHTS_FORMAT = """Your cost per incremental KPI (CPIK) helps
+you understand how your marketing activities impacted your business objectives.
+{lead_cpik_channel} drove the lowest CPIK at ${lead_cpik_ratio:.2f}. For every
+KPI unit, you spent ${lead_cpik_ratio:.2f}."""
 
 ROI_EFFECTIVENESS_CHART_ID = 'roi-effectiveness-chart'
 ROI_EFFECTIVENESS_CHART_TITLE = 'ROI vs. effectiveness'
@@ -121,10 +128,10 @@ OPTIMAL_FREQUENCY_CHART_ID = 'optimal-frequency-chart'
 OPTIMAL_FREQUENCY_CHART_TITLE = '{metric} by weekly average frequency'
 OPTIMAL_FREQ_CHART_DESCRIPTION_FORMAT = """Note: Optimal frequency is the
 recommended average weekly impressions per user (# impressions / # reached
-users) that maximizes {metric}. When multiple channels have reach and frequency
-data, only the channel with the highest spend will be displayed. The same chart
-can be viewed for all other channels as described in "Optimize frequency" in the
-User Guide."""
+users) that {maximizes_performance}. When multiple channels have reach and
+frequency data, only the channel with the highest spend will be displayed. The
+same chart can be viewed for all other channels as described in "Optimize
+frequency" in the User Guide."""
 
 
 # Budget optimization texts.

@@ -41,6 +41,10 @@ ROI_BREAKDOWN_CARD_SPEC = formatter.CardSpec(
     id=summary_text.ROI_BREAKDOWN_CARD_ID,
     title=summary_text.ROI_BREAKDOWN_CARD_TITLE,
 )
+CPIK_BREAKDOWN_CARD_SEPC = formatter.CardSpec(
+    id=summary_text.CPIK_BREAKDOWN_CARD_ID,
+    title=summary_text.CPIK_BREAKDOWN_CARD_TITLE,
+)
 RESPONSE_CURVES_CARD_SPEC = formatter.CardSpec(
     id=summary_text.RESPONSE_CURVES_CARD_ID,
     title=summary_text.RESPONSE_CURVES_CARD_TITLE,
@@ -177,6 +181,9 @@ class Summarizer:
             template_env, selected_times=selected_times
         ),
         self._create_impact_contrib_card_html(template_env, media_summary),
+        self._create_performance_breakdown_card_html(
+            template_env, media_summary
+        ),
         self._create_response_curves_card_html(
             template_env=template_env,
             selected_times=selected_times,
@@ -185,12 +192,6 @@ class Summarizer:
             reach_frequency=reach_frequency,
         ),
     ]
-    # If Meridian's `revenue_per_kpi` exists, add into the card HTML in-between
-    # the KPI/Revenue contribution and Optimization sections.
-    if self._meridian.input_data.revenue_per_kpi is not None:
-      cards.insert(
-          2, self._create_roi_breakdown_card_html(template_env, media_summary)
-      )
     return cards
 
   def _create_model_fit_card_html(
@@ -323,6 +324,7 @@ class Summarizer:
       self,
       media_summary: visualizer.MediaSummary,
       metrics: Sequence[str],
+      ascending: bool = False,
   ) -> pd.DataFrame:
     return (
         media_summary.media_summary_metrics[metrics]
@@ -330,9 +332,21 @@ class Summarizer:
         .drop_sel(channel=c.ALL_CHANNELS)
         .to_dataframe()
         .drop(columns=[c.METRIC, c.DISTRIBUTION])
-        .sort_values(by=metrics, ascending=False)
+        .sort_values(by=metrics, ascending=ascending)
         .reset_index()
     )
+
+  def _create_performance_breakdown_card_html(
+      self,
+      template_env: jinja2.Environment,
+      media_summary: visualizer.MediaSummary,
+  ) -> str:
+    """Creates the HTML snippet for the ROI or CPIK Breakdown card."""
+    impact = self._kpi_or_revenue()
+    if impact == c.REVENUE:
+      return self._create_roi_breakdown_card_html(template_env, media_summary)
+    else:
+      return self._create_cpik_breakdown_card_html(template_env, media_summary)
 
   def _create_roi_breakdown_card_html(
       self,
@@ -340,12 +354,9 @@ class Summarizer:
       media_summary: visualizer.MediaSummary,
   ) -> str:
     """Creates the HTML snippet for the ROI Breakdown card."""
-    impact = self._kpi_or_revenue()
     roi_effectiveness_chart = formatter.ChartSpec(
         id=summary_text.ROI_EFFECTIVENESS_CHART_ID,
-        description=summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION.format(
-            impact=impact
-        ),
+        description=summary_text.ROI_EFFECTIVENESS_CHART_DESCRIPTION,
         chart_json=media_summary.plot_roi_vs_effectiveness().to_json(),
     )
     roi_marginal_chart = formatter.ChartSpec(
@@ -376,6 +387,30 @@ class Summarizer:
         ROI_BREAKDOWN_CARD_SPEC,
         insights,
         [roi_effectiveness_chart, roi_marginal_chart, roi_channel_chart],
+    )
+
+  def _create_cpik_breakdown_card_html(
+      self,
+      template_env: jinja2.Environment,
+      media_summary: visualizer.MediaSummary,
+  ) -> str:
+    """Creates the HTML snippet for the CPIK Breakdown card."""
+    cpik_channel_chart = formatter.ChartSpec(
+        id=summary_text.CPIK_CHANNEL_CHART_ID,
+        chart_json=media_summary.plot_cpik().to_json(),
+    )
+    df = self._get_sorted_posterior_mean_metrics_df(
+        media_summary, [c.CPIK], ascending=True
+    )
+    insights = summary_text.CPIK_BREAKDOWN_INSIGHTS_FORMAT.format(
+        lead_cpik_channel=df[c.CHANNEL][0].title(),
+        lead_cpik_ratio=df[c.CPIK][0],
+    )
+    return formatter.create_card_html(
+        template_env,
+        CPIK_BREAKDOWN_CARD_SEPC,
+        insights,
+        [cpik_channel_chart],
     )
 
   def _create_response_curves_card_html(
@@ -418,13 +453,13 @@ class Summarizer:
           if self._meridian.input_data.revenue_per_kpi is not None
           else 'minimize CPIK'
       )
-      metric = (
-          summary_text.ROI_LABEL
+      maximizes_performance = (
+          'maximizes ROI'
           if self._meridian.input_data.revenue_per_kpi is not None
-          else summary_text.CPIK_LABEL
+          else 'minimizes CPIK'
       )
       description = summary_text.OPTIMAL_FREQ_CHART_DESCRIPTION_FORMAT.format(
-          metric=metric
+          maximizes_performance=maximizes_performance,
       )
       insights = ' '.join([
           insights,
