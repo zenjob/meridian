@@ -15,8 +15,8 @@
 """Contains classes and methods to load input data for Meridian.
 
 The `InputDataLoader` abstract class provides a single method: `load()`
-which reads data from any of the supported sources and stores it as an InputData
-object.
+which reads data from any of the supported sources and stores it as an
+`InputData` object.
 """
 
 import abc
@@ -47,8 +47,8 @@ class XrDatasetDataLoader(InputDataLoader):
 
   Attributes:
     dataset: An `xr.Dataset` object containing the input data.
-    kpi_type: A string denoting whether the KPI is of a revenue or non-
-      revenue type. When the `kpi_type` is `non-revenue` and `revenue_per_kpi`
+    kpi_type: A string denoting whether the KPI is of a `revenue` or `non-
+      revenue` type. When the `kpi_type` is `non-revenue` and `revenue_per_kpi`
       exists, ROI calibration is used and the analysis is run on
       `revenue`. When `revenue_per_kpi` doesn't exist for the same
       `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
@@ -137,7 +137,7 @@ class XrDatasetDataLoader(InputDataLoader):
         the desired coordinates (`geo`, `time`, `media_time`, `media_channel`,
         and/or `rf_channel`, `control_variable`) or array names (`kpi`,
         `revenue_per_kpi`, `media`, `media_spend`, and/or `rf_spend`,
-        `controls`, `population). Mapping must be provided if the names in the
+        `controls`, `population`). Mapping must be provided if the names in the
         `input` dataset are different from the required ones, otherwise errors
         are thrown.
     """
@@ -457,7 +457,8 @@ class DataFrameDataLoader(InputDataLoader):
     `rf_spend_to_channel` are required.
 
   Example:
-  ```
+
+  ```python
     df = [...]
 
     coord_to_columns = CoordToColumns(
@@ -878,13 +879,11 @@ class CsvDataLoader(InputDataLoader):
       coord_to_columns: A `CoordToColumns` object whose fields are the desired
         coordinates of the `InputData` and the values are the current names of
         columns (or lists of columns) in the CSV file. Example:
-        ```
-        coord_to_columns = CoordToColumns( geo='dmas', time='dates',
+        `coord_to_columns = CoordToColumns( geo='dmas', time='dates',
         kpi='revenue', kpi_unit_value='revenue_per_conversions',
         media=['impressions_tv', impressions_yt', 'impressions_search'],
         spend=['spend_tv', 'spend_yt', 'spend_search'],
-        controls=['control_income'], population='population' )
-        ```
+        controls=['control_income'], population='population' )`
       kpi_type: A string denoting whether the KPI is of a `revenue` or `non-
         revenue` type. When the `kpi_type` is `non-revenue` and there exists a
         `revenue_per_kpi`, ROI calibration is used and the analysis is run on
@@ -893,37 +892,27 @@ class CsvDataLoader(InputDataLoader):
         KPI.
       media_to_channel: A dictionary whose keys are the actual column names for
         media data in the CSV file and values are the desired channel names, the
-        same as for the `media_spend` data. Example:
-        ``` media_to_channel =
-        {'media_tv': 'tv', 'media_yt': 'yt', 'media_fb': 'fb'}
-        ```
+        same as for the `media_spend` data. Example: `media_to_channel =
+        {'media_tv': 'tv', 'media_yt': 'yt', 'media_fb': 'fb'}`
       media_spend_to_channel: A dictionary whose keys are the actual column
         names for `media_spend` data in the CSV file and values are the desired
-        channel names, the same as for the `media` data. Example:
-        ```
-        media_spend_to_channel = {'spend_tv': 'tv', 'spend_yt': 'yt',
-        'spend_fb': 'fb'}
-        ```
+        channel names, the same as for the `media` data.
+        Example:`media_spend_to_channel = {'spend_tv': 'tv', 'spend_yt': 'yt',
+        'spend_fb': 'fb'}`
       reach_to_channel: A dictionary whose keys are the actual column names for
         `reach` data in the dataframe and values are the desired channel names,
-        the same as for the `rf_spend` data. Example:
-        ``` reach_to_channel =
-        {'reach_tv': 'tv', 'reach_yt': 'yt', 'reach_fb': 'fb'}
-        ```
+        the same as for the `rf_spend` data. Example: `reach_to_channel =
+        {'reach_tv': 'tv', 'reach_yt': 'yt', 'reach_fb': 'fb'}`
       frequency_to_channel: A dictionary whose keys are the actual column names
         for `frequency` data in the dataframe and values are the desired channel
         names, the same as for the `rf_spend` data. Example:
-        ```
-        frequency_to_channel = {'frequency_tv': 'tv', 'frequency_yt': 'yt',
-        'frequency_fb': 'fb'}
-        ```
+        `frequency_to_channel = {'frequency_tv': 'tv', 'frequency_yt': 'yt',
+        'frequency_fb': 'fb'}`
       rf_spend_to_channel: A dictionary whose keys are the actual column names
         for `rf_spend` data in the dataframe and values are the desired channel
         names, the same as for the `reach` and `frequency` data. Example:
-        ```
-        rf_spend_to_channel = {'rf_spend_tv': 'tv', 'rf_spend_yt': 'yt',
-        'rf_spend_fb': 'fb'}
-        ```
+        `rf_spend_to_channel = {'rf_spend_tv': 'tv', 'rf_spend_yt': 'yt',
+        'rf_spend_fb': 'fb'}`
     Note: In a national model, `geo` and `population` are optional. If
     `population` is provided, it is reset to a default value of 1.0`.
 

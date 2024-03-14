@@ -43,23 +43,24 @@ class PriorDistribution:
   specification.
 
   The parameter batch shapes are as follows:
-    - `knot_values`: `n_knots`
-    - `tau_g_excl_baseline`: `n_geos - 1`
-    - `beta_m`: `n_media_channels`
-    - `beta_rf`: `n_rf_channels`
-    - `eta_m`: `n_media_channels`
-    - `eta_rf`: `n_rf_channels`
-    - `gamma_c`: `n_controls`
-    - `xi_c`: `n_controls`
-    - `alpha_m`: `n_media_channels`
-    - `alpha_rf`: `n_rf_channels`
-    - `ec_m`: `n_media_channels`
-    - `ec_rf`: `n_rf_channels`
-    - `slope_m`: `n_media_channels`
-    - `slope_rf`: `n_rf_channels`
-    - `sigma`: `n_geos` if `unique_sigma_for_each_geo` else 1
-    - `roi_m`: `n_media_channels`
-    - `roi_rf`: `n_rf_channels`
+
+  - `knot_values`: `n_knots`
+  - `tau_g_excl_baseline`: `n_geos - 1`
+  - `beta_m`: `n_media_channels`
+  - `beta_rf`: `n_rf_channels`
+  - `eta_m`: `n_media_channels`
+  - `eta_rf`: `n_rf_channels`
+  - `gamma_c`: `n_controls`
+  - `xi_c`: `n_controls`
+  - `alpha_m`: `n_media_channels`
+  - `alpha_rf`: `n_rf_channels`
+  - `ec_m`: `n_media_channels`
+  - `ec_rf`: `n_rf_channels`
+  - `slope_m`: `n_media_channels`
+  - `slope_rf`: `n_rf_channels`
+  - `sigma`: `n_geos` if `unique_sigma_for_each_geo`, otherwise this is `1`
+  - `roi_m`: `n_media_channels`
+  - `roi_rf`: `n_rf_channels`
 
   Attributes:
     knot_values: Prior distribution on knots for time effects. Default
@@ -70,11 +71,11 @@ class PriorDistribution:
       excluding the `baseline_geo`. After sampling, `Meridian.inference_data`
       includes a modified version of this parameter called `tau_g`, which has
       length `n_geos` and contains a zero in the position corresponding to
-      `baseline_geo`. Meridian ignores this distribution if `n_geos` = 1.
+      `baseline_geo`. Meridian ignores this distribution if `n_geos = 1`.
       Default distribution is `Normal(0.0, 5.0)`.
     beta_m: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for impression media channels (`beta_gm`). When
-      `media_effects_dist` is set to `normal", it is the hierarchical mean.
+      `media_effects_dist` is set to `normal`, it is the hierarchical mean.
       When `media_effects_dist` is set to `lognormal`, it is the hierarchical
       parameter for the mean of the underlying, log-transformed, `Normal`
       distribution. Meridian ignores this distribution if `use_roi_prior` is
