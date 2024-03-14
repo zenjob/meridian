@@ -98,6 +98,9 @@ scale of the media spend."""
 ROI_CHANNEL_CHART_ID = 'roi-channel-chart'
 ROI_CHANNEL_CHART_TITLE_FORMAT = 'ROI by channel {ci}'
 
+CPIK_CHANNEL_CHART_ID = 'cpik-channel-chart'
+CPIK_CHANNEL_CHART_TITLE_FORMAT = 'CPIK by channel {ci}'
+
 RESPONSE_CURVES_CARD_ID = 'response-curves'
 RESPONSE_CURVES_CARD_TITLE = 'Response curves'
 RESPONSE_CURVES_INSIGHTS_FORMAT = """Your response curves depict the

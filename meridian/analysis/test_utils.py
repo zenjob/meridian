@@ -721,6 +721,7 @@ def generate_media_summary_metrics() -> xr.Dataset:
   cpm = np.random.random(size=len(channel))
   roi = np.random.lognormal(1, 1, size=shape)
   mroi = np.random.lognormal(0, 1, size=shape)
+  cpik = np.random.lognormal(0, 1, size=shape)
   incremental_impact = np.random.lognormal(10, 1, size=shape)
   effectiveness = np.random.lognormal(1, 1, size=shape)
   pct_of_contribution = np.random.randint(low=0, high=50, size=shape)
@@ -752,6 +753,10 @@ def generate_media_summary_metrics() -> xr.Dataset:
           c.MROI: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
               mroi,
+          ),
+          c.CPIK: (
+              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
+              cpik,
           ),
       },
       coords={

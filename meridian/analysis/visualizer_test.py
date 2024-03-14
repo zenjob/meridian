@@ -1626,7 +1626,6 @@ class MediaSummaryTest(parameterized.TestCase):
     df = self.media_summary_revenue.summary_table(include_posterior=False)
     self.assertNotIn(c.POSTERIOR, df[c.DISTRIBUTION])
 
-  # TODO(b/328807682): Add a test for the KPI scenario.
   def test_media_summary_summary_table_revenue(self):
     df = self.media_summary_revenue.summary_table()
     self.assertListEqual(
@@ -1644,6 +1643,34 @@ class MediaSummaryTest(parameterized.TestCase):
             c.ROI,
             c.EFFECTIVENESS,
             c.MROI,
+            c.CPIK,
+        ],
+    )
+
+  def test_media_summary_summary_table_kpi(self):
+    media_metrics = test_utils.generate_media_summary_metrics().drop_vars(
+        [c.ROI, c.MROI]
+    )
+    with mock.patch.object(
+        visualizer.MediaSummary,
+        "media_summary_metrics",
+        new=property(lambda unused_self: media_metrics),
+    ):
+      df = self.media_summary_kpi.summary_table()
+    self.assertListEqual(
+        list(df.columns),
+        [
+            c.CHANNEL,
+            c.DISTRIBUTION,
+            c.IMPRESSIONS,
+            summary_text.PCT_IMPRESSIONS_COL,
+            c.SPEND,
+            summary_text.PCT_SPEND_COL,
+            c.CPM,
+            summary_text.INC_KPI_COL,
+            summary_text.PCT_CONTRIBUTION_COL,
+            c.EFFECTIVENESS,
+            c.CPIK,
         ],
     )
 
@@ -1710,10 +1737,10 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertEqual(plot.layer[0].encoding.x.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(plot.layer[0].encoding.x.axis.labelAngle, -45)
-    self.assertEqual(plot.layer[0].encoding.y.shorthand, f"{c.MEAN}:Q")
+    self.assertEqual(plot.layer[0].encoding.y.shorthand, f"{c.ROI}:Q")
 
     self.assertEqual(plot.layer[1].encoding.x.shorthand, f"{c.CHANNEL}:N")
-    self.assertEqual(plot.layer[1].encoding.y.shorthand, f"{c.MEAN}:Q")
+    self.assertEqual(plot.layer[1].encoding.y.shorthand, f"{c.ROI}:Q")
     self.assertEqual(plot.layer[1].mark.align, "center")
     self.assertEqual(plot.layer[1].mark.baseline, "bottom")
     self.assertEqual(plot.layer[1].mark.dy, -5)
@@ -1726,6 +1753,44 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(
         plot.title.text,
         summary_text.ROI_CHANNEL_CHART_TITLE_FORMAT.format(
+            ci="with 90% credible interval"
+        ),
+    )
+    self.assertEqual(plot.layer[1].encoding.y.shorthand, f"{c.CI_HI}:Q")
+    self.assertEqual(plot.layer[1].encoding.y2.shorthand, f"{c.CI_LO}:Q")
+    self.assertTrue(plot.layer[1].mark.ticks)
+    self.assertTrue(plot.layer[2].mark.tooltip)
+
+    self.assertEqual(plot.layer[3].mark.align, "center")
+    self.assertEqual(plot.layer[3].mark.baseline, "bottom")
+    self.assertEqual(plot.layer[3].mark.dy, -5)
+    self.assertEqual(plot.layer[3].mark.type, "text")
+
+  def test_media_summary_plot_cpik_no_ci_plots_bar_chart(self):
+    plot = self.media_summary_revenue.plot_cpik(include_ci=False)
+    self.assertIsInstance(plot, alt.LayerChart)
+    self.assertEqual(plot.layer[0].encoding.x.shorthand, f"{c.CHANNEL}:N")
+    self.assertEqual(plot.layer[0].encoding.x.axis.labelAngle, -45)
+    self.assertEqual(plot.layer[0].encoding.y.shorthand, f"{c.CPIK}:Q")
+
+    self.assertEqual(plot.layer[1].encoding.x.shorthand, f"{c.CHANNEL}:N")
+    self.assertEqual(plot.layer[1].encoding.y.shorthand, f"{c.CPIK}:Q")
+    self.assertEqual(plot.layer[1].mark.align, "center")
+    self.assertEqual(plot.layer[1].mark.baseline, "bottom")
+    self.assertEqual(plot.layer[1].mark.dy, -5)
+    self.assertEqual(plot.layer[1].mark.type, "text")
+    self.assertEqual(
+        plot.title.text,
+        summary_text.CPIK_CHANNEL_CHART_TITLE_FORMAT.format(ci=""),
+    )
+
+  def test_media_summary_plot_cpik_include_ci(self):
+    plot = self.media_summary_revenue.plot_cpik(include_ci=True)
+    self.assertIsInstance(plot, alt.LayerChart)
+    self.assertLen(plot.layer, 4)
+    self.assertEqual(
+        plot.title.text,
+        summary_text.CPIK_CHANNEL_CHART_TITLE_FORMAT.format(
             ci="with 90% credible interval"
         ),
     )

@@ -750,7 +750,7 @@ class SummarizerTest(parameterized.TestCase):
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn('Channel 0 and Channel 1 drove the most', insights_text)
+    self.assertIn('Channel 2 and Channel 4 drove the most', insights_text)
 
   def test_roi_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
@@ -812,7 +812,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
     self.assertIn('Channel 1 drove the highest ROI at 13.8', insights_text)
-    self.assertIn('Channel 2 had the highest effectiveness', insights_text)
+    self.assertIn('Channel 1 had the highest effectiveness', insights_text)
     self.assertIn(
         'Channel 4 had the highest marginal\nROI at 1.54', insights_text
     )

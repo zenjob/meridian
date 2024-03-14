@@ -1413,7 +1413,7 @@ class MediaSummary:
       df[k] = df[k].astype(str) + '%'
 
     # Format monetary values.
-    monetary = [c.SPEND] + [c.INCREMENTAL_IMPACT] * use_revenue
+    monetary = [c.CPM, c.CPIK] + [c.SPEND, c.INCREMENTAL_IMPACT] * use_revenue
     for k in monetary:
       df[k] = '$' + df[k].astype(str)
 
@@ -1720,78 +1720,35 @@ class MediaSummary:
           'Not able to plot ROI-related metrics as `revenue_per_kpi` is'
           ' unknown.'
       )
-    roi_df = (
-        self.media_summary_metrics[c.ROI]
-        .sel(distribution=c.POSTERIOR)
-        .drop_sel(channel=c.ALL_CHANNELS)
-        .to_dataframe()
-        .reset_index()
-        .pivot(
-            index=c.CHANNEL,
-            columns=c.METRIC,
-            values=c.ROI,
-        )
-        .reset_index()
-    )
-
-    base = (
-        alt.Chart(roi_df)
-        .mark_bar(size=40, cornerRadiusEnd=2, color=c.BLUE_600)
-        .encode(
-            x=alt.X(
-                f'{c.CHANNEL}:N',
-                title='Channel',
-                axis=alt.Axis(labelAngle=-45),
-            ),
-            y=alt.Y(
-                f'{c.MEAN}:Q',
-                axis=alt.Axis(gridDash=[3, 2], **formatter.Y_AXIS_TITLE_CONFIG),
-                title=summary_text.ROI_LABEL,
-            ),
-        )
-        .properties(width=alt.Step(80))
-    )
-    roi_text = base.mark_text(
-        align='center',
-        baseline='bottom',
-        dy=-5,
-        fontSize=c.AXIS_FONT_SIZE,
-        color=c.GREY_900,
-    ).encode(text=alt.Text(f'{c.MEAN}:Q', format='.2f'))
-
-    bar_width = 2
     if include_ci:
       ci = int(self._confidence_level * 100)
       title = summary_text.ROI_CHANNEL_CHART_TITLE_FORMAT.format(
           ci=f'with {ci}% credible interval'
       )
-      error_bar = (
-          alt.Chart(roi_df)
-          .mark_errorbar(ticks=True, color=c.BLUE_300)
-          .encode(
-              alt.X(f'{c.CHANNEL}:N'),
-              alt.Y(f'{c.CI_HI}:Q', title='ROI'),
-              alt.Y2(f'{c.CI_LO}:Q'),
-              strokeWidth=alt.value(bar_width),
-          )
-      )
-      mean_dot = (
-          alt.Chart(roi_df)
-          .mark_point(filled=True, color=c.BLUE_300, tooltip=True)
-          .encode(alt.X(f'{c.CHANNEL}:N'), alt.Y(f'{c.MEAN}:Q'))
-      )
-      plot = base + error_bar + mean_dot + roi_text
     else:
       title = summary_text.ROI_CHANNEL_CHART_TITLE_FORMAT.format(ci='')
-      plot = base + roi_text
+    return self._plot_metric_bar_chart(
+        c.ROI, summary_text.ROI_LABEL, title, include_ci=include_ci
+    )
 
-    return (
-        plot.configure_tick(bandSize=10, thickness=bar_width)
-        .properties(
-            title=formatter.custom_title_params(title),
-            width=alt.Step(80),
-        )
-        .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
+  def plot_cpik(self, include_ci: bool = True) -> alt.Chart:
+    """Plots the CPIK bar chart for each channel.
+
+    Args:
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
+
+    Returns:
+      An Altair plot showing the CPIK per channel.
+    """
+    if include_ci:
+      ci = int(self._confidence_level * 100)
+      title = summary_text.CPIK_CHANNEL_CHART_TITLE_FORMAT.format(
+          ci=f'with {ci}% credible interval'
+      )
+    else:
+      title = summary_text.CPIK_CHANNEL_CHART_TITLE_FORMAT.format(ci='')
+    return self._plot_metric_bar_chart(
+        c.CPIK, summary_text.CPIK_LABEL, title, include_ci=include_ci
     )
 
   def plot_roi_vs_effectiveness(
@@ -1944,6 +1901,75 @@ class MediaSummary:
           )
       )
     return plot.properties(title=formatter.custom_title_params(title))
+
+  def _plot_metric_bar_chart(
+      self, metric: str, metric_label: str, title: str, include_ci: bool = True
+  ) -> alt.Chart:
+    """Plots a bar chart showing the specified metric for each channel.
+
+    Args:
+      metric: A media summary metric to plot.
+      metric_label: The label to use to identify the metric on the plot axis.
+      title: The title of the plot.
+      include_ci: If `True`, plots the credible interval. Defaults to `True`.
+
+    Returns:
+      An Altair plot showing the specified metric per channel.
+    """
+    df = self._media_summary_metric_to_df(metric)
+    base = (
+        alt.Chart(df)
+        .mark_bar(
+            size=c.BAR_SIZE, cornerRadiusEnd=c.CORNER_RADIUS, color=c.BLUE_600
+        )
+        .encode(
+            x=alt.X(
+                f'{c.CHANNEL}:N',
+                title='Channel',
+                axis=alt.Axis(labelAngle=-45),
+            ),
+            y=alt.Y(
+                f'{metric}:Q',
+                axis=alt.Axis(gridDash=[3, 2], **formatter.Y_AXIS_TITLE_CONFIG),
+                title=metric_label,
+            ),
+        )
+        .properties(width=alt.Step(80))
+    )
+    metric_text = base.mark_text(
+        align='center',
+        baseline='bottom',
+        dy=-5,
+        fontSize=c.AXIS_FONT_SIZE,
+        color=c.GREY_900,
+    ).encode(text=alt.Text(f'{metric}:Q', format='.2f'))
+
+    bar_width = 2
+    if include_ci:
+      error_bar = (
+          alt.Chart(df)
+          .mark_errorbar(ticks=True, color=c.BLUE_300)
+          .encode(
+              alt.X(f'{c.CHANNEL}:N'),
+              alt.Y(f'{c.CI_HI}:Q', title=metric_label),
+              alt.Y2(f'{c.CI_LO}:Q'),
+              strokeWidth=alt.value(bar_width),
+          )
+      )
+      mean_dot = (
+          alt.Chart(df)
+          .mark_point(filled=True, color=c.BLUE_300, tooltip=True)
+          .encode(alt.X(f'{c.CHANNEL}:N'), alt.Y(f'{metric}:Q'))
+      )
+      plot = base + error_bar + mean_dot + metric_text
+    else:
+      plot = base + metric_text
+
+    return (
+        plot.configure_tick(bandSize=10, thickness=bar_width)
+        .properties(title=formatter.custom_title_params(title))
+        .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
+    )
 
   def _transform_media_metrics_for_roi_bubble_plot(
       self, metric: str, selected_channels: Sequence[str] | None = None
@@ -2109,4 +2135,31 @@ class MediaSummary:
         metrics_dataset.to_dataframe()
         .drop(columns=[c.METRIC, c.DISTRIBUTION])
         .reset_index()
+    )
+
+  def _media_summary_metric_to_df(self, metric: str) -> pd.DataFrame:
+    """Transforms a media summary metric to a pivoted dataframe.
+
+    The dataframe includes the posterior data for the selected metric and its
+    credible interval per channel.
+
+    Args:
+      metric: The media summary metric to include in the dataframe.
+
+    Returns:
+      A dataframe of the posterior values for the selected metric.
+    """
+    return (
+        self.media_summary_metrics[metric]
+        .sel(distribution=c.POSTERIOR)
+        .drop_sel(channel=c.ALL_CHANNELS)
+        .to_dataframe()
+        .reset_index()
+        .pivot(
+            index=c.CHANNEL,
+            columns=c.METRIC,
+            values=metric,
+        )
+        .reset_index()
+        .rename(columns={c.MEAN: metric})
     )
