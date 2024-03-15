@@ -151,7 +151,10 @@ class Summarizer:
       self,
       start_date: dt.datetime | None = None,
       end_date: dt.datetime | None = None,
-  ) -> Sequence[str]:
+  ) -> Sequence[str] | None:
+    """Returns the selected times in the given time range."""
+    if start_date is None and end_date is None:
+      return None
     selected_times = [
         date
         for date in self._response_time_values
