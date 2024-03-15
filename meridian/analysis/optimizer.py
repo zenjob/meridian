@@ -132,14 +132,18 @@ class BudgetOptimizer:
     """Dataset holding the non-optimized budget metrics.
 
     For channels that have reach and frequency data, their performance metrics
-    (ROI, mROI, incremental impact) are based on historical frequency.
+    (ROI, mROI, incremental impact, CPIK) are based on historical frequency.
 
     The dataset contains the following:
 
       - Coordinates: `channel`
-      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`,
+      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
         `incremental_impact`
-      - Attributes: `budget`, `profit`, `total_incremental_impact`, `total_roi`
+      - Attributes: `start_date`, `end_date`, `budget`, `profit`,
+        `total_incremental_impact`, `total_roi`, `total_cpik`
+
+    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
+    CPIK is used.
 
     Raises:
       OptimizationNotRunError: Occurs when the optimization has not been run.
@@ -157,14 +161,18 @@ class BudgetOptimizer:
     """Dataset holding the non-optimized budget metrics.
 
     For channels that have reach and frequency data, their performance metrics
-    (ROI, mROI, incremental impact) are based on optimal frequency.
+    (ROI, mROI, incremental impact, CPIK) are based on optimal frequency.
 
     The dataset contains the following:
 
       - Coordinates: `channel`
-      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`,
+      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
         `incremental_impact`
-      - Attributes: `budget`, `profit`, `total_incremental_impact`, `total_roi`
+      - Attributes: `start_date`, `end_date`, `budget`, `profit`,
+        `total_incremental_impact`, `total_roi`, `total_cpik`
+
+    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
+    CPIK is used.
 
     Raises:
       OptimizationNotRunError: Occurs when the optimization has not been run.
@@ -187,9 +195,13 @@ class BudgetOptimizer:
     The dataset contains the following:
 
       - Coordinates: `channel`
-      - Data variables: `spend`, `pct_of_spend`, `incremental_impact`,
-        `roi, mroi`
-      - Attributes: `budget`, `profit`, `total_incremental_impact`, `total_roi`
+      - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
+        `incremental_impact`
+      - Attributes: `start_date`, `end_date`, `budget`, `profit`,
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `fixed_budget`
+
+    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
+    CPIK is used.
 
     Raises:
       OptimizationNotRunError: Occurs when the optimization has not been run.
@@ -1004,33 +1016,23 @@ class BudgetOptimizer:
     budget = np.sum(spend)
     total_incremental_impact = np.sum(incremental_impact)
     all_times = self._meridian.input_data.time.values.tolist()
-    data = xr.Dataset(
-        data_vars={
-            c.SPEND: ([c.CHANNEL], spend),
-            c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
-            c.INCREMENTAL_IMPACT: ([c.CHANNEL], incremental_impact),
-        },
-        coords={
-            c.CHANNEL: (
-                [c.CHANNEL],
-                self._meridian.input_data.get_all_channels(),
-            ),
-        },
-        attrs={
-            c.BUDGET: budget,
-            c.PROFIT: total_incremental_impact - budget,
-            c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
-            c.TOTAL_ROI: total_incremental_impact / budget,
-            c.START_DATE: (
-                min(selected_times) if selected_times else all_times[0]
-            ),
-            c.END_DATE: (
-                max(selected_times) if selected_times else all_times[-1]
-            ),
-        }
-        | (attrs or {}),
-    )
-    if not use_kpi:
+
+    data_vars = {
+        c.SPEND: ([c.CHANNEL], spend),
+        c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
+        c.INCREMENTAL_IMPACT: ([c.CHANNEL], incremental_impact),
+    }
+    attributes = {
+        c.START_DATE: min(selected_times) if selected_times else all_times[0],
+        c.END_DATE: max(selected_times) if selected_times else all_times[-1],
+        c.BUDGET: budget,
+        c.PROFIT: total_incremental_impact - budget,
+        c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
+    }
+    if use_kpi:
+      data_vars[c.CPIK] = ([c.CHANNEL], spend / incremental_impact)
+      attributes[c.TOTAL_CPIK] = budget / total_incremental_impact
+    else:
       roi = incremental_impact / spend
       marginal_roi = tf.math.reduce_mean(
           self._analyzer.marginal_roi(
@@ -1045,9 +1047,20 @@ class BudgetOptimizer:
           ),
           axis=(0, 1),
       )
-      data = data.assign(roi=([c.CHANNEL], roi))
-      data = data.assign(mroi=([c.CHANNEL], marginal_roi))
-    return data
+      data_vars[c.ROI] = ([c.CHANNEL], roi)
+      data_vars[c.MROI] = ([c.CHANNEL], marginal_roi)
+      attributes[c.TOTAL_ROI] = total_incremental_impact / budget
+
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords={
+            c.CHANNEL: (
+                [c.CHANNEL],
+                self._meridian.input_data.get_all_channels(),
+            ),
+        },
+        attrs=attributes | (attrs or {}),
+    )
 
   def _get_optimization_bounds(
       self,
@@ -1377,70 +1390,11 @@ class BudgetOptimizer:
 
   def _create_scenario_plan_section(self) -> str:
     """Creates the HTML card snippet for the scenario plan section."""
-    impact = self._kpi_or_revenue()
+    assert self._spend_bounds is not None
     card_spec = formatter.CardSpec(
         id=summary_text.SCENARIO_PLAN_CARD_ID,
         title=summary_text.SCENARIO_PLAN_CARD_TITLE,
     )
-
-    budget_diff = self.optimized_data.budget - self.nonoptimized_data.budget
-    budget_prefix = '+' if budget_diff > 0 else ''
-    current_budget = formatter.StatsSpec(
-        title=summary_text.CURRENT_BUDGET_LABEL,
-        stat=formatter.format_monetary_num(self.nonoptimized_data.budget),
-    )
-    optimized_budget = formatter.StatsSpec(
-        title=summary_text.OPTIMIZED_BUDGET_LABEL,
-        stat=formatter.format_monetary_num(self.optimized_data.budget),
-        delta=(budget_prefix + formatter.format_monetary_num(budget_diff)),
-    )
-
-    roi_diff = round(
-        self.optimized_data.total_roi - self.nonoptimized_data.total_roi, 1
-    )
-    roi_prefix = '+' if roi_diff > 0 else ''
-    current_roi = formatter.StatsSpec(
-        title=summary_text.CURRENT_ROI_LABEL,
-        stat=round(self.nonoptimized_data.total_roi, 1),
-    )
-    optimized_roi = formatter.StatsSpec(
-        title=summary_text.OPTIMIZED_ROI_LABEL,
-        stat=round(self.optimized_data.total_roi, 1),
-        delta=roi_prefix + str(roi_diff),
-    )
-
-    inc_impact_diff = (
-        self.optimized_data.total_incremental_impact
-        - self.nonoptimized_data.total_incremental_impact
-    )
-    inc_impact_prefix = '+' if inc_impact_diff > 0 else ''
-    current_inc_impact = formatter.StatsSpec(
-        title=summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=impact),
-        stat=formatter.format_monetary_num(
-            self.nonoptimized_data.total_incremental_impact,
-        ),
-    )
-    optimized_inc_impact = formatter.StatsSpec(
-        title=summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
-        stat=formatter.format_monetary_num(
-            self.optimized_data.total_incremental_impact,
-        ),
-        delta=inc_impact_prefix
-        + formatter.format_monetary_num(inc_impact_diff),
-    )
-    assert self._spend_bounds is not None
-    stats_specs = [
-        current_budget,
-        optimized_budget,
-        current_roi,
-        optimized_roi,
-        current_inc_impact,
-        optimized_inc_impact,
-    ]
-    # If revenue_per_kpi doesn't exist, remove the ROI specs.
-    if self._meridian.input_data.revenue_per_kpi is None:
-      stats_specs.remove(current_roi)
-      stats_specs.remove(optimized_roi)
 
     scenario_type = (
         summary_text.FIXED_BUDGET_LABEL.lower()
@@ -1467,8 +1421,77 @@ class BudgetOptimizer:
         self._template_env,
         card_spec,
         insights,
-        stats_specs=stats_specs,
+        stats_specs=self._create_scenario_stats_specs(),
     )
+
+  def _create_scenario_stats_specs(self) -> Sequence[formatter.StatsSpec]:
+    """Creates the stats to fill the scenario plan section."""
+    impact = self._kpi_or_revenue()
+    budget_diff = self.optimized_data.budget - self.nonoptimized_data.budget
+    budget_prefix = '+' if budget_diff > 0 else ''
+    current_budget = formatter.StatsSpec(
+        title=summary_text.CURRENT_BUDGET_LABEL,
+        stat=formatter.format_monetary_num(self.nonoptimized_data.budget),
+    )
+    optimized_budget = formatter.StatsSpec(
+        title=summary_text.OPTIMIZED_BUDGET_LABEL,
+        stat=formatter.format_monetary_num(self.optimized_data.budget),
+        delta=(budget_prefix + formatter.format_monetary_num(budget_diff)),
+    )
+
+    if impact == c.REVENUE:
+      diff = round(
+          self.optimized_data.total_roi - self.nonoptimized_data.total_roi, 1
+      )
+      current_performance_title = summary_text.CURRENT_ROI_LABEL
+      current_performance_stat = round(self.nonoptimized_data.total_roi, 1)
+      optimized_performance_title = summary_text.OPTIMIZED_ROI_LABEL
+      optimized_performance_stat = round(self.optimized_data.total_roi, 1)
+      optimized_performance_diff = f'+{str(diff)}' if diff > 0 else str(diff)
+    else:
+      diff = self.optimized_data.total_cpik - self.nonoptimized_data.total_cpik
+      current_performance_title = summary_text.CURRENT_CPIK_LABEL
+      current_performance_stat = f'${self.nonoptimized_data.total_cpik:.2f}'
+      optimized_performance_title = summary_text.OPTIMIZED_CPIK_LABEL
+      optimized_performance_stat = f'${self.optimized_data.total_cpik:.2f}'
+      optimized_performance_diff = formatter.compact_number(diff, 2, '$')
+    current_performance = formatter.StatsSpec(
+        title=current_performance_title,
+        stat=current_performance_stat,
+    )
+    optimized_performance = formatter.StatsSpec(
+        title=optimized_performance_title,
+        stat=optimized_performance_stat,
+        delta=optimized_performance_diff,
+    )
+
+    inc_impact_diff = (
+        self.optimized_data.total_incremental_impact
+        - self.nonoptimized_data.total_incremental_impact
+    )
+    inc_impact_prefix = '+' if inc_impact_diff > 0 else ''
+    current_inc_impact = formatter.StatsSpec(
+        title=summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=impact),
+        stat=formatter.format_monetary_num(
+            self.nonoptimized_data.total_incremental_impact,
+        ),
+    )
+    optimized_inc_impact = formatter.StatsSpec(
+        title=summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
+        stat=formatter.format_monetary_num(
+            self.optimized_data.total_incremental_impact,
+        ),
+        delta=inc_impact_prefix
+        + formatter.format_monetary_num(inc_impact_diff),
+    )
+    return [
+        current_budget,
+        optimized_budget,
+        current_performance,
+        optimized_performance,
+        current_inc_impact,
+        optimized_inc_impact,
+    ]
 
   def _create_budget_allocation_section(self) -> str:
     """Creates the HTML card snippet for the budget allocation section."""

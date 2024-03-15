@@ -360,6 +360,7 @@ BUDGET = 'budget'
 PROFIT = 'profit'
 TOTAL_INCREMENTAL_IMPACT = 'total_incremental_impact'
 TOTAL_ROI = 'total_roi'
+TOTAL_CPIK = 'total_cpik'
 
 
 # R-hat summary metrics.

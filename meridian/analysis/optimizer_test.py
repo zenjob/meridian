@@ -73,35 +73,41 @@ _N_DRAWS = 1
 def _create_budget_data(
     spend: np.ndarray,
     inc_impact: np.ndarray,
-    mroi: np.ndarray,
+    mroi: np.ndarray | None = None,
     channels: np.ndarray | None = None,
     attrs: Mapping[str, Any] | None = None,
+    use_kpi: bool = False,
 ) -> xr.Dataset:
   channels = (
       [f'channel {i}' for i in range(len(spend))]
       if channels is None
       else channels
   )
+  data_vars = {
+      c.SPEND: ([c.CHANNEL], spend),
+      c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
+      c.INCREMENTAL_IMPACT: ([c.CHANNEL], inc_impact),
+  }
+  attributes = {
+      c.START_DATE: '2020-01-05',
+      c.END_DATE: '2020-06-28',
+      c.BUDGET: sum(spend),
+      c.PROFIT: sum(inc_impact) - sum(spend),
+      c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact),
+  }
+  if use_kpi:
+    data_vars[c.CPIK] = ([c.CHANNEL], spend / inc_impact)
+    attributes[c.TOTAL_CPIK] = sum(spend) / sum(inc_impact)
+  else:
+    data_vars[c.ROI] = ([c.CHANNEL], inc_impact / spend)
+    data_vars[c.MROI] = ([c.CHANNEL], mroi)
+    attributes[c.TOTAL_ROI] = sum(inc_impact) / sum(spend)
   return xr.Dataset(
-      data_vars={
-          c.SPEND: ([c.CHANNEL], spend),
-          c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
-          c.INCREMENTAL_IMPACT: ([c.CHANNEL], inc_impact),
-          c.ROI: ([c.CHANNEL], inc_impact / spend),
-          c.MROI: ([c.CHANNEL], mroi),
-      },
+      data_vars=data_vars,
       coords={
           c.CHANNEL: ([c.CHANNEL], channels),
       },
-      attrs={
-          c.BUDGET: sum(spend),
-          c.PROFIT: sum(inc_impact) - sum(spend),
-          c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact),
-          c.TOTAL_ROI: sum(inc_impact) / sum(spend),
-          c.START_DATE: '2020-01-05',
-          c.END_DATE: '2020-06-28',
-      }
-      | (attrs or {}),
+      attrs=attributes | (attrs or {}),
   )
 
 
@@ -138,6 +144,17 @@ _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([220, 140, 240]),
     inc_impact=np.array([350, 210, 270]),
     mroi=np.array([1.4, 1.5, 1.6]),
+    attrs={c.FIXED_BUDGET: True},
+)
+_SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
+    spend=np.array([200, 100, 300]),
+    inc_impact=np.array([280, 150, 330]),
+    use_kpi=True,
+)
+_SAMPLE_OPTIMIZED_DATA_KPI = _create_budget_data(
+    spend=np.array([220, 140, 240]),
+    inc_impact=np.array([350, 210, 270]),
+    use_kpi=True,
     attrs={c.FIXED_BUDGET: True},
 )
 
@@ -1946,13 +1963,6 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(
             optimizer.BudgetOptimizer,
-            'nonoptimized_data_with_optimal_freq',
-            new=property(lambda unused_self: _SAMPLE_NON_OPTIMIZED_DATA),
-        )
-    )
-    self.enter_context(
-        mock.patch.object(
-            optimizer.BudgetOptimizer,
             'optimized_data',
             new=property(lambda unused_self: _SAMPLE_OPTIMIZED_DATA),
         )
@@ -1962,7 +1972,6 @@ class OptimizerOutputTest(parameterized.TestCase):
         np.array([0.7]),
         np.array([1.3]),
     )
-    self.budget_optimizer._spend_ratio = np.array([1.0, 1.0, 1.0])
     self.mock_spend_delta = self.enter_context(
         mock.patch.object(
             optimizer.BudgetOptimizer,
@@ -2062,9 +2071,33 @@ class OptimizerOutputTest(parameterized.TestCase):
         ),
     )
 
-  def test_output_scenario_plan_card_custom_spend_constraints(self):
+  def test_output_scenario_plan_card_custom_spend_constraint_upper(self):
     self.budget_optimizer._spend_bounds = (
         np.array([0.7, 0.6, 0.7, 0.6, 0.7]),
+        np.array([1.3]),
+    )
+    summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
+    card = analysis_test_utils.get_child_element(
+        summary_html_dom,
+        'body/cards/card',
+        attribs={'id': summary_text.SCENARIO_PLAN_CARD_ID},
+    )
+    insights_text = analysis_test_utils.get_child_element(
+        card, 'card-insights/p', {'class': 'insights-text'}
+    ).text
+    self.assertIsNotNone(insights_text)
+    self.assertEqual(
+        insights_text.strip(),
+        summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+            scenario_type='fixed',
+            start_date='2020-01-05',
+            end_date='2020-06-28',
+        ),
+    )
+
+  def test_output_scenario_plan_card_custom_spend_constraint_lower(self):
+    self.budget_optimizer._spend_bounds = (
+        np.array([0.7]),
         np.array([1.3, 1.4, 1.3, 1.4, 1.3]),
     )
     summary_html_dom = self._get_output_summary_html_dom(self.budget_optimizer)
@@ -2086,7 +2119,17 @@ class OptimizerOutputTest(parameterized.TestCase):
         ),
     )
 
-  def test_output_scenario_card_roi_removed_no_revenue_per_kpi(self):
+  @mock.patch.object(
+      optimizer.BudgetOptimizer,
+      'nonoptimized_data',
+      new=property(lambda unused_self: _SAMPLE_NON_OPTIMIZED_DATA_KPI),
+  )
+  @mock.patch.object(
+      optimizer.BudgetOptimizer,
+      'optimized_data',
+      new=property(lambda unused_self: _SAMPLE_OPTIMIZED_DATA_KPI),
+  )
+  def test_output_scenario_card_use_cpik_no_revenue_per_kpi(self):
     summary_html_dom = self._get_output_summary_html_dom(
         self.budget_optimizer_kpi_output
     )
@@ -2097,7 +2140,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
     stats_section = analysis_test_utils.get_child_element(card, 'stats-section')
     stats = stats_section.findall('stats')
-    self.assertLen(stats, 4)
+    self.assertLen(stats, 6)
 
     title = analysis_test_utils.get_child_element(stats[0], 'stats-title').text
     self.assertIsNotNone(title)
@@ -2107,8 +2150,14 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(title.strip(), 'Optimized budget')
     title = analysis_test_utils.get_child_element(stats[2], 'stats-title').text
     self.assertIsNotNone(title)
-    self.assertEqual(title.strip(), 'Current incremental KPI')
+    self.assertEqual(title.strip(), 'Current CPIK')
     title = analysis_test_utils.get_child_element(stats[3], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Optimized CPIK')
+    title = analysis_test_utils.get_child_element(stats[4], 'stats-title').text
+    self.assertIsNotNone(title)
+    self.assertEqual(title.strip(), 'Current incremental KPI')
+    title = analysis_test_utils.get_child_element(stats[5], 'stats-title').text
     self.assertIsNotNone(title)
     self.assertEqual(title.strip(), 'Optimized incremental KPI')
 
@@ -2586,8 +2635,10 @@ class OptimizerKPITest(parameterized.TestCase):
     )
     self.assertEqual(
         list(budget_dataset.data_vars),
-        [c.SPEND, c.PCT_OF_SPEND, c.INCREMENTAL_IMPACT],
+        [c.SPEND, c.PCT_OF_SPEND, c.INCREMENTAL_IMPACT, c.CPIK],
     )
+    self.assertIn(c.TOTAL_CPIK, list(budget_dataset.attrs.keys()))
+    self.assertNotIn(c.TOTAL_ROI, list(budget_dataset.attrs.keys()))
 
 
 if __name__ == '__main__':

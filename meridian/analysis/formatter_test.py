@@ -71,6 +71,17 @@ class FormatterTest(parameterized.TestCase):
     formatted_number = formatter.format_monetary_num(num)
     self.assertEqual(formatted_number, expected)
 
+  @parameterized.named_parameters(
+      ('decimals', -0.1234, 2, '$', '-$0.12'),
+      ('zero_precision_thousands', 12345, 0, '', '12k'),
+      ('round_up_thousands', 14900, 0, '$', '$15k'),
+      ('million_value', 3.21e6, 2, '$', '$3.21M'),
+      ('negative', -12345, 0, '$', '-$12k'),
+  )
+  def test_compact_number_correct(self, num, precision, currency, expected):
+    formatted_number = formatter.compact_number(num, precision, currency)
+    self.assertEqual(formatted_number, expected)
+
   def test_create_card_html_structure(self):
     template_env = formatter.create_template_env()
     card_spec = formatter.CardSpec(id='test_id', title='test_title')

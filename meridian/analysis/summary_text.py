@@ -154,6 +154,8 @@ FIXED_BUDGET_LABEL = 'Fixed'
 FLEXIBLE_BUDGET_LABEL = 'Flexible'
 CURRENT_ROI_LABEL = 'Current ROI'
 OPTIMIZED_ROI_LABEL = 'Optimized ROI'
+CURRENT_CPIK_LABEL = 'Current CPIK'
+OPTIMIZED_CPIK_LABEL = 'Optimized CPIK'
 CURRENT_INC_IMPACT_LABEL = 'Current incremental {impact}'
 OPTIMIZED_INC_IMPACT_LABEL = 'Optimized incremental {impact}'
 
