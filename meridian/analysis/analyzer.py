@@ -794,7 +794,7 @@ class Analyzer:
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
   ) -> tf.Tensor:
-    """Computes incremental sales on a batch of data.
+    """Computes incremental impact (revenue or KPI) on a batch of data.
 
     Args:
       media_scaled: `media` data scaled by the per-geo median, normalized by the
@@ -838,7 +838,7 @@ class Analyzer:
         periods.
 
     Returns:
-      Tensor of incremental sales modeled from parameter distributions.
+      Tensor of incremental impact modeled from parameter distributions.
     """
     self._check_revenue_data_exists(use_kpi)
     transformed_impact = self._get_modeled_incremental_kpi(

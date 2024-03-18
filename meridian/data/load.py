@@ -880,7 +880,7 @@ class CsvDataLoader(InputDataLoader):
         coordinates of the `InputData` and the values are the current names of
         columns (or lists of columns) in the CSV file. Example:
         `coord_to_columns = CoordToColumns( geo='dmas', time='dates',
-        kpi='revenue', kpi_unit_value='revenue_per_conversions',
+        kpi='revenue', revenue_per_kpi='revenue_per_conversions',
         media=['impressions_tv', impressions_yt', 'impressions_search'],
         spend=['spend_tv', 'spend_yt', 'spend_search'],
         controls=['control_income'], population='population' )`
@@ -896,8 +896,8 @@ class CsvDataLoader(InputDataLoader):
         {'media_tv': 'tv', 'media_yt': 'yt', 'media_fb': 'fb'}`
       media_spend_to_channel: A dictionary whose keys are the actual column
         names for `media_spend` data in the CSV file and values are the desired
-        channel names, the same as for the `media` data.
-        Example:`media_spend_to_channel = {'spend_tv': 'tv', 'spend_yt': 'yt',
+        channel names, the same as for the `media` data. Example:
+        `media_spend_to_channel = {'spend_tv': 'tv', 'spend_yt': 'yt',
         'spend_fb': 'fb'}`
       reach_to_channel: A dictionary whose keys are the actual column names for
         `reach` data in the dataframe and values are the desired channel names,
@@ -913,6 +913,7 @@ class CsvDataLoader(InputDataLoader):
         names, the same as for the `reach` and `frequency` data. Example:
         `rf_spend_to_channel = {'rf_spend_tv': 'tv', 'rf_spend_yt': 'yt',
         'rf_spend_fb': 'fb'}`
+
     Note: In a national model, `geo` and `population` are optional. If
     `population` is provided, it is reset to a default value of 1.0`.
 

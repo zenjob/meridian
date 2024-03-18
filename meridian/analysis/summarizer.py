@@ -67,8 +67,8 @@ class Summarizer:
     return visualizer.ModelDiagnostics(self._meridian)
 
   @functools.cached_property
-  def _response_time_values(self) -> Sequence[dt.datetime]:
-    """The response data array's `time` coordinates as `datetime` objects."""
+  def _kpi_time_values(self) -> Sequence[dt.datetime]:
+    """The KPI data array's `time` coordinates as `datetime` objects."""
     return [
         dt.datetime.strptime(value, c.DATE_FORMAT)
         for value in self._meridian.input_data.time.values
@@ -112,15 +112,15 @@ class Summarizer:
       end_date: dt.datetime | None = None,
   ) -> str:
     """Generate HTML results summary output (as sanitized content str)."""
-    start_date = start_date or min(self._response_time_values)
-    end_date = end_date or max(self._response_time_values)
+    start_date = start_date or min(self._kpi_time_values)
+    end_date = end_date or max(self._kpi_time_values)
 
-    if start_date not in self._response_time_values:
+    if start_date not in self._kpi_time_values:
       raise ValueError(
           f'start_date ({start_date.strftime(c.DATE_FORMAT)}) must be'
           ' in the time coordinates!'
       )
-    if end_date not in self._response_time_values:
+    if end_date not in self._kpi_time_values:
       raise ValueError(
           f'end_date ({end_date.strftime(c.DATE_FORMAT)}) must be'
           ' in the time coordinates!'
@@ -156,9 +156,7 @@ class Summarizer:
     if start_date is None and end_date is None:
       return None
     selected_times = [
-        date
-        for date in self._response_time_values
-        if start_date <= date <= end_date
+        date for date in self._kpi_time_values if start_date <= date <= end_date
     ]
     return [time.strftime(c.DATE_FORMAT) for time in selected_times]
 

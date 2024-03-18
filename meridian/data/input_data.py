@@ -70,10 +70,10 @@ class InputData:
       non-negative dependent variable. Typically this is the number of units
       sold, but it can be any metric, such as revenue or conversions.
     kpi_type: A string denoting whether the KPI is of a `revenue` or `non-
-      revenue` type. When the `kpi_type` is `non-revenue` and
-      `revenue_per_kpi` exists, ROI calibration is used and the analysis is run
-      on `revenue`. When the `revenue_per_kpi` doesn't exist for the same
-      `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
+      revenue` type. When the `kpi_type` is `non-revenue` and `revenue_per_kpi`
+      exists, ROI calibration is used and the analysis is run on `revenue`. When
+      the `revenue_per_kpi` doesn't exist for the same `kpi_type`, custom ROI
+      calibration is used and the analysis is run on KPI.
     controls: A DataArray of dimensions (`n_geos`, `n_times`, `n_controls`)
       containing control variable values.
     population: A DataArray of dimensions (`n_geos`) containing the population
@@ -90,8 +90,8 @@ class InputData:
       clicks. `n_media_times` >= `n_times` is required, and the final `n_times`
       time periods must align with the time window of `kpi` and `controls`. Due
       to lagged effects, we recommend that the time window for media includes up
-      to `max_lag` additional periods prior to this window. If `n_media_times`
-      < `n_times` + `max_lag`, the model effectively imputes media history. If
+      to `max_lag` additional periods prior to this window. If `n_media_times` <
+      `n_times` + `max_lag`, the model effectively imputes media history. If
       `n_media_times` > `n_times` + `max_lag`, then only the final `n_times` +
       `max_lag` periods are used to fit the model.
     media_spend: An optional DataArray containing the cost of each media
@@ -124,22 +124,21 @@ class InputData:
       the `kpi` and `controls` data. If lagged frequency is not included, or if
       the lagged frequency includes fewer than `max_lag` time periods, then the
       model calculates Adstock assuming that frequency execution is zero prior
-      to the first observed time period. We recommend including `n_times`
-      + `max_lag` time periods, unless the value of `max_lag` is prohibitively
-      large. If only `media` data is used, then `frequency` will be
-      `None`.
+      to the first observed time period. We recommend including `n_times` +
+      `max_lag` time periods, unless the value of `max_lag` is prohibitively
+      large. If only `media` data is used, then `frequency` will be `None`.
     rf_spend: An optional DataArray containing the cost of each reach and
       frequency channel. This is used as the denominator for ROI calculations.
       The DataArray shape can be (`n_rf_channels`), (`n_geos`, `n_times`,
       `n_rf_channels`), or (`n_geos`, `n_rf_channels`). The spend should be
       aggregated over geo and/or time dimensions that are not represented. We
       recommend that the spend total aligns with the time window of the `kpi`
-      and `controls` data, which is the time window over which incremental sales
-      of the ROI numerator is calculated). However, note that incremental impact
-      is influenced by media execution prior to this time window, through lagged
-      effects, and excludes lagged effects beyond the time window of media
-      executed during the time window. If only `media` data is used, `rf_spend`
-      will be `None`.
+      and `controls` data, which is the time window over which incremental
+      impact of the ROI numerator is calculated). However, note that incremental
+      impact is influenced by media execution prior to this time window, through
+      lagged effects, and excludes lagged effects beyond the time window of
+      media executed during the time window. If only `media` data is used,
+      `rf_spend` will be `None`.
   """
 
   kpi: xr.DataArray
