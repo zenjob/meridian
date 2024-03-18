@@ -1746,22 +1746,23 @@ class Analyzer:
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
     )
-    cpik = self._compute_cpik_aggregate(
-        incremental_kpi_prior=self._compute_incremental_impact_aggregate(
-            use_posterior=False, use_kpi=True, **roi_kwargs
-        ),
-        incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
-            use_posterior=True, use_kpi=True, **roi_kwargs
-        ),
-        spend_with_total=spend_with_total,
-        xr_dims=xr_dims_with_ci_and_distribution,
-        xr_coords=xr_coords_with_ci_and_distribution,
-        confidence_level=confidence_level,
-    )
     if use_kpi:
       roi = xr.Dataset()
       mroi = xr.Dataset()
+      cpik = self._compute_cpik_aggregate(
+          incremental_kpi_prior=self._compute_incremental_impact_aggregate(
+              use_posterior=False, use_kpi=True, **roi_kwargs
+          ),
+          incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
+              use_posterior=True, use_kpi=True, **roi_kwargs
+          ),
+          spend_with_total=spend_with_total,
+          xr_dims=xr_dims_with_ci_and_distribution,
+          xr_coords=xr_coords_with_ci_and_distribution,
+          confidence_level=confidence_level,
+      )
     else:
+      cpik = xr.Dataset()
       roi = self._compute_roi_aggregate(
           incremental_revenue_prior=incremental_impact_prior,
           incremental_revenue_posterior=incremental_impact_posterior,
@@ -1791,15 +1792,15 @@ class Analyzer:
             "Effectiveness and CPIK are not reported because they do not have a"
             " clear interpretation by time period."
         )
+        cpik *= np.nan
       else:
         warning = (
-            "ROI, mROI, Effectiveness, and CPIK are not reported because they"
-            " do not have a clear interpretation by time period."
+            "ROI, mROI, and Effectiveness are not reported because they do not"
+            " have a clear interpretation by time period."
         )
         roi *= np.nan
         mroi *= np.nan
       effectiveness *= np.nan
-      cpik *= np.nan
       warnings.warn(warning)
     return xr.merge([
         spend_data,

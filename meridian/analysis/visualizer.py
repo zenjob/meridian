@@ -1415,7 +1415,8 @@ class MediaSummary:
     # Format monetary values.
     monetary = [c.CPM, c.CPIK] + [c.SPEND, c.INCREMENTAL_IMPACT] * use_revenue
     for k in monetary:
-      df[k] = '$' + df[k].astype(str)
+      if k in df.columns:
+        df[k] = '$' + df[k].astype(str)
 
     # Format the model result data variables as mean (ci_lo, ci_hi).
     index_vars = [c.CHANNEL, c.DISTRIBUTION]
@@ -1740,6 +1741,11 @@ class MediaSummary:
     Returns:
       An Altair plot showing the CPIK per channel.
     """
+    if self._meridian.input_data.revenue_per_kpi is not None:
+      raise TypeError(
+          'CPIK metrics are only available when `revenue_per_kpi` is unknown.'
+          ' Please use `plot_roi_bar_chart()` instead.'
+      )
     if include_ci:
       ci = int(self._confidence_level * 100)
       title = summary_text.CPIK_CHANNEL_CHART_TITLE_FORMAT.format(

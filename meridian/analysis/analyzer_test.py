@@ -625,7 +625,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNotNone(media_summary.roi)
     self.assertIsNotNone(media_summary.effectiveness)
     self.assertIsNotNone(media_summary.mroi)
-    self.assertIsNotNone(media_summary.cpik)
     self.assertAllClose(
         media_summary.impressions, test_utils.SAMPLE_IMPRESSIONS
     )
@@ -668,9 +667,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertAllClose(
         media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
-    )
-    self.assertAllClose(
-        media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
     )
 
   @parameterized.product(
@@ -1805,8 +1801,8 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertTrue(issubclass(w[0].category, UserWarning))
       self.assertIn(
-          "ROI, mROI, Effectiveness, and CPIK are not reported because they do"
-          " not have a clear interpretation by time period.",
+          "ROI, mROI, and Effectiveness are not reported because they do not"
+          " have a clear interpretation by time period.",
           str(w[0].message),
       )
       self.assertTrue((media_summary.roi.isnull()).all())
@@ -2059,6 +2055,9 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.EFFECTIVENESS,
             constants.CPIK,
         ],
+    )
+    self.assertAllClose(
+        media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
     )
 
   def test_media_summary_metrics_no_time_period_warning(self):

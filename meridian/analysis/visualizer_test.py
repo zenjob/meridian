@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Hashable
 import os
 
 from absl.testing import absltest
@@ -1766,8 +1765,16 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.layer[3].mark.dy, -5)
     self.assertEqual(plot.layer[3].mark.type, "text")
 
+  def test_media_summary_revenue_plot_cpik_not_available(self):
+    with self.assertRaisesWithLiteralMatch(
+        TypeError,
+        "CPIK metrics are only available when `revenue_per_kpi` is unknown."
+        " Please use `plot_roi_bar_chart()` instead.",
+    ):
+      self.media_summary_revenue.plot_cpik()
+
   def test_media_summary_plot_cpik_no_ci_plots_bar_chart(self):
-    plot = self.media_summary_revenue.plot_cpik(include_ci=False)
+    plot = self.media_summary_kpi.plot_cpik(include_ci=False)
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertEqual(plot.layer[0].encoding.x.shorthand, f"{c.CHANNEL}:N")
     self.assertEqual(plot.layer[0].encoding.x.axis.labelAngle, -45)
@@ -1785,7 +1792,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_plot_cpik_include_ci(self):
-    plot = self.media_summary_revenue.plot_cpik(include_ci=True)
+    plot = self.media_summary_kpi.plot_cpik(include_ci=True)
     self.assertIsInstance(plot, alt.LayerChart)
     self.assertLen(plot.layer, 4)
     self.assertEqual(
