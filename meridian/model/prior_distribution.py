@@ -27,7 +27,7 @@ from meridian import constants
 import tensorflow_probability as tfp
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class PriorDistribution:
   """Contains prior distributions for each model parameter.
 
@@ -140,61 +140,77 @@ class PriorDistribution:
       distribution is `LogNormal(0.2, 0.9)`.
   """
 
-  knot_values: tfp.distributions.Distribution = tfp.distributions.Normal(
-      0.0, 5.0, name=constants.KNOT_VALUES
-  )
-  tau_g_excl_baseline: tfp.distributions.Distribution = (
-      tfp.distributions.Normal(0.0, 5.0, name=constants.TAU_G_EXCL_BASELINE)
-  )
-  beta_m: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      5.0, name=constants.BETA_M
-  )
-  beta_rf: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      5.0, name=constants.BETA_RF
-  )
-  eta_m: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      1.0, name=constants.ETA_M
-  )
-  eta_rf: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      1.0, name=constants.ETA_RF
-  )
-  gamma_c: tfp.distributions.Distribution = tfp.distributions.Normal(
-      0.0, 5.0, name=constants.GAMMA_C
-  )
-  xi_c: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      5.0, name=constants.XI_C
-  )
-  alpha_m: tfp.distributions.Distribution = tfp.distributions.Uniform(
-      0.0, 1.0, name=constants.ALPHA_M
-  )
-  alpha_rf: tfp.distributions.Distribution = tfp.distributions.Uniform(
-      0.0, 1.0, name=constants.ALPHA_RF
-  )
-  ec_m: tfp.distributions.Distribution = tfp.distributions.TruncatedNormal(
-      0.8, 0.8, 0.1, 10, name=constants.EC_M
-  )
-  ec_rf: tfp.distributions.Distribution = (
-      tfp.distributions.TransformedDistribution(
-          tfp.distributions.LogNormal(0.7, 0.4),
-          tfp.bijectors.Shift(0.1),
-          name=constants.EC_RF,
-      )
-  )
-  slope_m: tfp.distributions.Distribution = tfp.distributions.Deterministic(
-      1.0, name=constants.SLOPE_M
-  )
-  slope_rf: tfp.distributions.Distribution = tfp.distributions.LogNormal(
-      0.7, 0.4, name=constants.SLOPE_RF
-  )
-  sigma: tfp.distributions.Distribution = tfp.distributions.HalfNormal(
-      5.0, name=constants.SIGMA
-  )
-  roi_m: tfp.distributions.Distribution = tfp.distributions.LogNormal(
-      0.2, 0.9, name=constants.ROI_M
-  )
-  roi_rf: tfp.distributions.Distribution = tfp.distributions.LogNormal(
-      0.2, 0.9, name=constants.ROI_RF
-  )
+  def __init__(
+      self,
+      knot_values: tfp.distributions.Distribution | None = None,
+      tau_g_excl_baseline: tfp.distributions.Distribution | None = None,
+      beta_m: tfp.distributions.Distribution | None = None,
+      beta_rf: tfp.distributions.Distribution | None = None,
+      eta_m: tfp.distributions.Distribution | None = None,
+      eta_rf: tfp.distributions.Distribution | None = None,
+      gamma_c: tfp.distributions.Distribution | None = None,
+      xi_c: tfp.distributions.Distribution | None = None,
+      alpha_m: tfp.distributions.Distribution | None = None,
+      alpha_rf: tfp.distributions.Distribution | None = None,
+      ec_m: tfp.distributions.Distribution | None = None,
+      ec_rf: tfp.distributions.Distribution | None = None,
+      slope_m: tfp.distributions.Distribution | None = None,
+      slope_rf: tfp.distributions.Distribution | None = None,
+      sigma: tfp.distributions.Distribution | None = None,
+      roi_m: tfp.distributions.Distribution | None = None,
+      roi_rf: tfp.distributions.Distribution | None = None,
+  ):
+    self.knot_values = knot_values or tfp.distributions.Normal(
+        0.0, 5.0, name=constants.KNOT_VALUES
+    )
+    self.tau_g_excl_baseline = tau_g_excl_baseline or tfp.distributions.Normal(
+        0.0, 5.0, name=constants.TAU_G_EXCL_BASELINE
+    )
+    self.beta_m = beta_m or tfp.distributions.HalfNormal(
+        5.0, name=constants.BETA_M
+    )
+    self.beta_rf = beta_rf or tfp.distributions.HalfNormal(
+        5.0, name=constants.BETA_RF
+    )
+    self.eta_m = eta_m or tfp.distributions.HalfNormal(
+        1.0, name=constants.ETA_M
+    )
+    self.eta_rf = eta_rf or tfp.distributions.HalfNormal(
+        1.0, name=constants.ETA_RF
+    )
+    self.gamma_c = gamma_c or tfp.distributions.Normal(
+        0.0, 5.0, name=constants.GAMMA_C
+    )
+    self.xi_c = xi_c or tfp.distributions.HalfNormal(5.0, name=constants.XI_C)
+    self.alpha_m = alpha_m or tfp.distributions.Uniform(
+        0.0, 1.0, name=constants.ALPHA_M
+    )
+    self.alpha_rf = alpha_rf or tfp.distributions.Uniform(
+        0.0, 1.0, name=constants.ALPHA_RF
+    )
+    self.ec_m = ec_m or tfp.distributions.TruncatedNormal(
+        0.8, 0.8, 0.1, 10, name=constants.EC_M
+    )
+    self.ec_rf = ec_rf or tfp.distributions.TransformedDistribution(
+        tfp.distributions.LogNormal(0.7, 0.4),
+        tfp.bijectors.Shift(0.1),
+        name=constants.EC_RF,
+    )
+    self.slope_m = slope_m or tfp.distributions.Deterministic(
+        1.0, name=constants.SLOPE_M
+    )
+    self.slope_rf = slope_rf or tfp.distributions.LogNormal(
+        0.7, 0.4, name=constants.SLOPE_RF
+    )
+    self.sigma = sigma or tfp.distributions.HalfNormal(
+        5.0, name=constants.SIGMA
+    )
+    self.roi_m = roi_m or tfp.distributions.LogNormal(
+        0.2, 0.9, name=constants.ROI_M
+    )
+    self.roi_rf = roi_rf or tfp.distributions.LogNormal(
+        0.2, 0.9, name=constants.ROI_RF
+    )
 
   def has_deterministic_param(
       self, param: tfp.distributions.Distribution
