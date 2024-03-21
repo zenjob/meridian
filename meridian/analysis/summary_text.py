@@ -107,6 +107,10 @@ ROI_CHANNEL_CHART_TITLE_FORMAT = 'ROI by channel {ci}'
 
 CPIK_CHANNEL_CHART_ID = 'cpik-channel-chart'
 CPIK_CHANNEL_CHART_TITLE_FORMAT = 'CPIK by channel {ci}'
+CPIK_CHANNEL_CHART_DESCRIPTION = """Note: the mean of CPIK is calculated by
+averaging the posterior samples of spend per incremental KPI, which differs from
+the value obtained by dividing the spend by the mean of the posterior samples of
+incremental KPI."""
 
 RESPONSE_CURVES_CARD_ID = 'response-curves'
 RESPONSE_CURVES_CARD_TITLE = 'Response curves'

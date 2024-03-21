@@ -399,6 +399,7 @@ class Summarizer:
     cpik_channel_chart = formatter.ChartSpec(
         id=summary_text.CPIK_CHANNEL_CHART_ID,
         chart_json=media_summary.plot_cpik().to_json(),
+        description=summary_text.CPIK_CHANNEL_CHART_DESCRIPTION,
     )
     df = self._get_sorted_posterior_mean_metrics_df(
         media_summary, [c.CPIK], ascending=True

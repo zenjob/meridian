@@ -852,6 +852,25 @@ class SummarizerTest(parameterized.TestCase):
     self.assertIn('Channel 4 drove the lowest CPIK at $0.22', insights_text)
     self.assertIn('For every\nKPI unit, you spent $0.22.', insights_text)
 
+  def test_cpik_channel_chart_text(self):
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        self.summarizer_kpi,
+    )
+    card = test_utils.get_child_element(
+        summary_html_dom,
+        'body/cards/card',
+        attribs={'id': summary_text.CPIK_BREAKDOWN_CARD_ID},
+    )
+
+    cpik_chart_description = test_utils.get_child_element(
+        card, 'charts/chart/chart-description'
+    ).text
+    self.assertIsNotNone(cpik_chart_description)
+    self.assertEqual(
+        cpik_chart_description.strip(),
+        summary_text.CPIK_CHANNEL_CHART_DESCRIPTION,
+    )
+
   def test_response_curves_card_plotters_called(self):
     media_effects = self.media_effects
     reach_frequency = self.reach_frequency
