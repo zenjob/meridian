@@ -15,12 +15,12 @@
 """Auxiliary functions for knots calculations."""
 
 import bisect
-from collections.abc import Collection
+from collections import abc
 from typing import Sequence
 import numpy as np
 
 
-# TODO(b/322860895)
+# TODO(b/322860895): Reimplement with a more readable method.
 def _find_neighboring_knots_indices(
     times: np.ndarray,
     knot_locations: np.ndarray,
@@ -49,7 +49,7 @@ def _find_neighboring_knots_indices(
     if t <= knot_locations[0]:
       neighboring_knots_indices[t] = [0]
     elif t >= knot_locations[-1]:
-      neighboring_knots_indices[t] = [len(knot_locations)-1]
+      neighboring_knots_indices[t] = [len(knot_locations) - 1]
     else:
       bisect_index = bisect.bisect_left(knot_locations, t)
       neighboring_knots_indices[t] = [bisect_index - 1, bisect_index]
@@ -119,7 +119,7 @@ def _get_equally_spaced_knot_locations(n_times, n_knots):
 
 def get_knot_info(
     n_times: int,
-    knots: int | Collection[int] | None,
+    knots: int | abc.Collection[int] | None,
     is_national: bool = False,
 ) -> tuple[
     int, np.ndarray[int, np.dtype[int]], np.ndarray[int, np.dtype[float]]
@@ -164,7 +164,7 @@ def get_knot_info(
       )
     n_knots = knots
     knot_locations = _get_equally_spaced_knot_locations(n_times, n_knots)
-  elif isinstance(knots, Collection) and len(knots) > 0:
+  elif isinstance(knots, abc.Collection) and knots:
     if any(k < 0 for k in knots):
       raise ValueError('Knots must be all non-negative.')
     if any(k >= n_times for k in knots):
@@ -174,7 +174,7 @@ def get_knot_info(
     n_knots = len(knots)
     # np.unique also sorts
     knot_locations = np.unique(knots)
-  elif isinstance(knots, Collection):
+  elif isinstance(knots, abc.Collection):
     raise ValueError('Knots cannot be empty.')
   else:
     # knots is None

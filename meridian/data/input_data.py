@@ -17,9 +17,9 @@
 The `InputData` class is used to store all the input data to the model.
 """
 
-from collections.abc import Collection
+from collections import abc
 import dataclasses
-from datetime import datetime
+import datetime as dt
 import warnings
 
 from meridian import constants
@@ -28,7 +28,7 @@ import xarray as xr
 
 
 def _check_dim_collection(
-    array: xr.DataArray | None, dims: Collection[Collection[str]]
+    array: xr.DataArray | None, dims: abc.Collection[abc.Collection[str]]
 ):
   """Checks if a DataArray has the correct collection of dimensions.
 
@@ -36,8 +36,8 @@ def _check_dim_collection(
     array: A DataArray to be verified.
     dims: A collection of acceptable collections of dimensions. In case of the
       `media_spend` and `rf_spend` arrays, there are two acceptable collections
-      of dimensions: (`channel`) and (`geo`, `time`, `channel`) where `channel`
-      is either `media_channel` or `rf_channel`. In case of other arrays, there
+      of dimensions: `(channel)` and `(geo, time, channel)` where `channel` is
+      either `'media_channel'` or `'rf_channel'`. In case of other arrays, there
       is only one acceptable collection of dimensions.
 
   Raises:
@@ -66,46 +66,46 @@ class InputData:
   """A data container for advertising data in a format supported by Meridian.
 
   Attributes:
-    kpi: A DataArray of dimensions (`n_geos`, `n_times`) containing the
+    kpi: A DataArray of dimensions `(n_geos, n_times)` containing the
       non-negative dependent variable. Typically this is the number of units
       sold, but it can be any metric, such as revenue or conversions.
-    kpi_type: A string denoting whether the KPI is of a `revenue` or `non-
-      revenue` type. When the `kpi_type` is `non-revenue` and `revenue_per_kpi`
-      exists, ROI calibration is used and the analysis is run on `revenue`. When
-      the `revenue_per_kpi` doesn't exist for the same `kpi_type`, custom ROI
-      calibration is used and the analysis is run on KPI.
-    controls: A DataArray of dimensions (`n_geos`, `n_times`, `n_controls`)
+    kpi_type: A string denoting whether the KPI is of a `'revenue'` or
+      `'non-revenue'` type. When the `kpi_type` is `'non-revenue'` and
+      `revenue_per_kpi` exists, ROI calibration is used and the analysis is run
+      on revenue. When the `revenue_per_kpi` doesn't exist for the same
+      `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
+    controls: A DataArray of dimensions `(n_geos, n_times, n_controls)`
       containing control variable values.
-    population: A DataArray of dimensions (`n_geos`) containing the population
+    population: A DataArray of dimensions `(n_geos,)` containing the population
       of each group. This variable is used to scale the KPI and media for
       modeling.
-    revenue_per_kpi: An optional DataArray of dimensions (`n_geos`, `n_times`)
+    revenue_per_kpi: An optional DataArray of dimensions `(n_geos, n_times)`
       containing the average revenue amount per KPI unit. Although modeling is
       done on `kpi`, model analysis and optimization are done on `KPI *
       revenue_per_kpi` (revenue), if this value is available. If `kpi`
       corresponds to revenue, then an array of ones is passed automatically.
-    media: An optional DataArray of dimensions (`n_geos`, `n_media_times`,
-      `n_media_channels`) containing non-negative media execution values.
-      Typically this is impressions, but it can be any metric, such as cost or
-      clicks. `n_media_times` >= `n_times` is required, and the final `n_times`
+    media: An optional DataArray of dimensions `(n_geos, n_media_times,
+      n_media_channels)` containing non-negative media execution values.
+      Typically these are impressions, but it can be any metric, such as cost or
+      clicks. `n_media_times` ≥ `n_times` is required, and the final `n_times`
       time periods must align with the time window of `kpi` and `controls`. Due
       to lagged effects, we recommend that the time window for media includes up
       to `max_lag` additional periods prior to this window. If `n_media_times` <
       `n_times` + `max_lag`, the model effectively imputes media history. If
       `n_media_times` > `n_times` + `max_lag`, then only the final `n_times` +
       `max_lag` periods are used to fit the model.
-    media_spend: An optional DataArray containing the cost of each media
+    media_spend: An optional `DataArray` containing the cost of each media
       channel. This is used as the denominator for ROI calculations. The
-      DataArray shape can be (`n_geos`, `n_times`, `n_media_channels`) or
-      (`n_media_channels`) if the data is aggregated over `geo` and `time`
+      DataArray shape can be `(n_geos, n_times, n_media_channels)` or
+      `(n_media_channels,)` if the data is aggregated over `geo` and `time`
       dimensions. Align the total cost with the time window of the `kpi` and
       `controls` data, which is the time window over which the incremental
       revenue of the ROI numerator is calculated. The incremental revenue is
       influenced by media execution prior to this time window, through lagged
       effects.
-    reach: An optional DataArray of dimensions (`n_geos`, `n_media_times`,
-      `n_rf_channels`) containing non-negative `reach` values. It is required
-      that `n_media_times` >= `n_times`, and the final `n_times` time periods
+    reach: An optional `DataArray` of dimensions `(n_geos, n_media_times,
+      n_rf_channels)` containing non-negative `reach` values. It is required
+      that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
       must align with the time window of `kpi` and `controls`. The time window
       must include the time window of the `kpi` and `controls` data, but it is
       optional to include lagged time periods prior to the time window of the
@@ -115,22 +115,22 @@ class InputData:
       first observed time period. We recommend including `n_times` + `max_lag`
       time periods, unless the value of `max_lag` is prohibitively large. If
       only `media` data is used, then `reach` will be `None`.
-    frequency: An optional DataArray of dimensions (`n_geos`, `n_media_times`,
-      `n_rf_channels`) containing non-negative `frequency` values. It is
-      required that `n_media_times` >= `n_times`, and the final `n_times` time
-      periods must align with the time window of `kpi` and `controls`. The time
-      window must include the time window of the `kpi` and `controls` data, but
-      it is optional to include lagged time periods prior to the time window of
-      the `kpi` and `controls` data. If lagged frequency is not included, or if
-      the lagged frequency includes fewer than `max_lag` time periods, then the
+    frequency: An optional `DataArray` of dimensions `(n_geos, n_media_times,
+      n_rf_channels)` containing non-negative `frequency` values. It is required
+      that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
+      must align with the time window of `kpi` and `controls`. The time window
+      must include the time window of the `kpi` and `controls` data, but it is
+      optional to include lagged time periods prior to the time window of the
+      `kpi` and `controls` data. If lagged frequency is not included, or if the
+      lagged frequency includes fewer than `max_lag` time periods, then the
       model calculates Adstock assuming that frequency execution is zero prior
       to the first observed time period. We recommend including `n_times` +
       `max_lag` time periods, unless the value of `max_lag` is prohibitively
       large. If only `media` data is used, then `frequency` will be `None`.
-    rf_spend: An optional DataArray containing the cost of each reach and
+    rf_spend: An optional `DataArray` containing the cost of each reach and
       frequency channel. This is used as the denominator for ROI calculations.
-      The DataArray shape can be (`n_rf_channels`), (`n_geos`, `n_times`,
-      `n_rf_channels`), or (`n_geos`, `n_rf_channels`). The spend should be
+      The DataArray shape can be `(n_rf_channels,)`, `(n_geos, n_times,
+      n_rf_channels)`, or `(n_geos, n_rf_channels)`. The spend should be
       aggregated over geo and/or time dimensions that are not represented. We
       recommend that the spend total aligns with the time window of the `kpi`
       and `controls` data, which is the time window over which incremental
@@ -385,7 +385,7 @@ class InputData:
     """Validates the `time` dimensions format of the selected DataArray.
 
     The `time` dimension of the selected array must have labels that are
-    formatted in the Meridian conventional "yyyy-mm-dd" format.
+    formatted in the Meridian conventional `"yyyy-mm-dd"` format.
     """
     if array is None:
       return
@@ -394,7 +394,7 @@ class InputData:
     if time_values is not None:
       for time in time_values:
         try:
-          _ = datetime.strptime(time.item(), constants.DATE_FORMAT)
+          _ = dt.datetime.strptime(time.item(), constants.DATE_FORMAT)
         except (TypeError, ValueError) as exc:
           raise ValueError(
               f"Invalid time label: {time.item()}. Expected format:"
@@ -405,7 +405,7 @@ class InputData:
     if media_time_values is not None:
       for time in media_time_values:
         try:
-          _ = datetime.strptime(time.item(), constants.DATE_FORMAT)
+          _ = dt.datetime.strptime(time.item(), constants.DATE_FORMAT)
         except (TypeError, ValueError) as exc:
           raise ValueError(
               f"Invalid media_time label: {time.item()}. Expected format:"
@@ -465,7 +465,7 @@ class InputData:
     is concatenated to the end of media.
 
     Returns:
-      `np.ndarray` with dimensions (`n_geos`, `n_media_times`, `n_channels`)
+      `np.ndarray` with dimensions `(n_geos, n_media_times, n_channels)`
       containing media or reach * frequency for each `media_channel` or
       `rf_channel`.
     """
