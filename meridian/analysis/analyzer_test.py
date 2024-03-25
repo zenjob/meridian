@@ -784,11 +784,11 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     predictive_accuracy_dataset = (
         self.analyzer_media_and_rf.predictive_accuracy()
     )
-    self.assertAllEqual(
+    self.assertListEqual(
         list(predictive_accuracy_dataset[constants.METRIC].values),
         [constants.R_SQUARED, constants.MAPE, constants.WMAPE],
     )
-    self.assertAllEqual(
+    self.assertListEqual(
         list(predictive_accuracy_dataset[constants.GEO_GRANULARITY].values),
         [constants.GEO, constants.NATIONAL],
     )
@@ -797,9 +797,21 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         .to_dataframe()
         .reset_index()
     )
-    self.assertAllEqual(
-        df.columns,
+    self.assertListEqual(
+        list(df.columns),
         [constants.METRIC, constants.GEO_GRANULARITY, constants.VALUE],
+    )
+
+  @mock.patch.object(
+      model.Meridian, "is_national", new=property(lambda unused_self: True)
+  )
+  def test_predictive_accuracy_national(self):
+    predictive_accuracy_dataset = (
+        self.analyzer_media_and_rf.predictive_accuracy()
+    )
+    self.assertListEqual(
+        list(predictive_accuracy_dataset[constants.GEO_GRANULARITY].values),
+        [constants.NATIONAL],
     )
 
   @parameterized.product(
@@ -870,7 +882,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         .to_dataframe()
         .reset_index()
     )
-    self.assertAllEqual(
+    self.assertListEqual(
         list(df.columns),
         [
             constants.METRIC,

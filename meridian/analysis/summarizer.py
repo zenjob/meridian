@@ -244,9 +244,9 @@ class Summarizer:
             national_table[c.EVALUATION_SET_VAR] == eval_set
         ]
         row_values = [
-            '{:.2f}'.format(float(sliced_table_by_eval_set[c.R_SQUARED])),
-            '{:.0%}'.format(float(sliced_table_by_eval_set[c.MAPE])),
-            '{:.0%}'.format(float(sliced_table_by_eval_set[c.WMAPE])),
+            '{:.2f}'.format(sliced_table_by_eval_set[c.R_SQUARED].item()),
+            '{:.0%}'.format(sliced_table_by_eval_set[c.MAPE].item()),
+            '{:.0%}'.format(sliced_table_by_eval_set[c.WMAPE].item()),
         ]
         return row_values
 
@@ -262,9 +262,9 @@ class Summarizer:
     else:  # No holdout_id present, so metrics are taken from 'All Data'.
       row_values = [[
           summary_text.ALL_DATA_LABEL,
-          '{:.2f}'.format(float(national_table[c.R_SQUARED])),
-          '{:.0%}'.format(float(national_table[c.MAPE])),
-          '{:.0%}'.format(float(national_table[c.WMAPE])),
+          '{:.2f}'.format(national_table[c.R_SQUARED].item()),
+          '{:.0%}'.format(national_table[c.MAPE].item()),
+          '{:.0%}'.format(national_table[c.WMAPE].item()),
       ]]
 
     return formatter.TableSpec(

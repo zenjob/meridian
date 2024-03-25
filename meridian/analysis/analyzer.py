@@ -2075,11 +2075,9 @@ class Analyzer:
       )
       xr_data = {constants.VALUE: (xr_dims, stacked_total)}
       dataset = xr.Dataset(data_vars=xr_data, coords=xr_coords)
-    if self._meridian.is_national and any(
-        dataset[constants.GEO_GRANULARITY].isin(constants.GEO)
-    ):
+    if self._meridian.is_national:
       # Remove the geo-level coordinate.
-      dataset = dataset.sel(geo_granularity=constants.GEO)
+      dataset = dataset.sel(geo_granularity=[constants.NATIONAL])
     return dataset
 
   def _predictive_accuracy_helper(
