@@ -27,6 +27,11 @@ from meridian import constants
 import tensorflow_probability as tfp
 
 
+__all__ = [
+    'PriorDistribution',
+]
+
+
 @dataclasses.dataclass
 class PriorDistribution:
   """Contains prior distributions for each model parameter.

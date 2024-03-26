@@ -16,7 +16,7 @@
 
 from collections.abc import Mapping, Sequence
 import dataclasses
-from itertools import chain
+import itertools
 import warnings
 
 from meridian import constants
@@ -28,6 +28,11 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_probability as tfp
 import xarray as xr
+
+
+__all__ = [
+    "Analyzer",
+]
 
 
 def _calc_rsquared(expected, actual):
@@ -464,8 +469,8 @@ class Analyzer:
     """Filters and/or aggregates geo and time dimensions of a tensor.
 
     Args:
-      tensor: Tensor with dimensions `[..., n_geos, n_times]` or
-      `[..., n_geos, n_times, n_channels]`.
+      tensor: Tensor with dimensions `[..., n_geos, n_times]` or `[..., n_geos,
+        n_times, n_channels]`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included. The selected geos should match those in
         `InputData.geo`.
@@ -1205,14 +1210,14 @@ class Analyzer:
       use_posterior: If `True` then the posterior distribution is calculated.
         Otherwise, the prior distribution is calculated.
       new_media: Optional. Media data with the same shape as
-        `meridian.input.data.media`. Used to compute ROI for alternative
-        media data. Default uses `meridian.input.data.media`.
+        `meridian.input.data.media`. Used to compute ROI for alternative media
+        data. Default uses `meridian.input.data.media`.
       new_media_spend: Optional. `Media_spend` data with the same shape as
         `meridian.input.data.spend`. Used to compute ROI for alternative
         `media_spend` data. Default uses `meridian.input.data.media_spend`.
       new_reach: Optional. Reach data with the same shape as
-        `meridian.input.data.reach`. Used to compute ROI for alternative
-        reach data. Default uses `meridian.input.data.reach`.
+        `meridian.input.data.reach`. Used to compute ROI for alternative reach
+        data. Default uses `meridian.input.data.reach`.
       new_frequency: Optional. Frequency data with the same shape as
         `meridian.input.data.frequency`. Used to compute ROI for alternative
         frequency data. Default uses` meridian.input.data.frequency`.
@@ -1223,8 +1228,8 @@ class Analyzer:
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
         default, all time periods are included.
-      aggregate_geos: If `True`, the expected revenue is summed over all
-        of the regions.
+      aggregate_geos: If `True`, the expected revenue is summed over all of the
+        regions.
       aggregate_times: If `True`, the expected revenue is summed over all of
         time periods.
       by_reach: Used for a channel with reach and frequency. If `True`, returns
@@ -1329,9 +1334,9 @@ class Analyzer:
       aggregate_times: Boolean. If `True`, the expected revenue is summed over
         all of the time periods.
       batch_size: Integer representing the maximum draws per chain in each
-        batch. The calculation is run in batches to avoid memory exhaustion.
-        If a memory error occurs, try reducing `batch_size`. The calculation
-        will generally be faster with larger `batch_size` values.
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
 
     Returns:
       Tensor of ROI values with dimensions (`n_chains, n_draws, n_geos, n_times,
@@ -1605,9 +1610,9 @@ class Analyzer:
       aggregate_times: Boolean. If `True`, the expected impact is summed over
         all of the time periods.
       batch_size: Integer representing the maximum draws per chain in each
-        batch. The calculation is run in batches to avoid memory exhaustion.
-        If a memory error occurs, try reducing `batch_size`. The calculation
-        will generally be faster with larger `batch_size` values.
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
 
     Returns:
       An `xr.Dataset` with coordinates: `channel`, `metric` (mean, `ci_high`,
@@ -2239,14 +2244,14 @@ class Analyzer:
         include. By default, all time periods are included. Time dimension
         strings and integers must align with the `Meridian.n_times`.
       by_reach: Boolean. For channels with reach and frequency. If `True`, plots
-        the response curve by reach. If `False`, plots the response curve
-        by frequency.
+        the response curve by reach. If `False`, plots the response curve by
+        frequency.
       use_optimal_frequency: If `True`, uses the optimal frequency to plot the
         response curves. Defaults to `False`.
       batch_size: Integer representing the maximum draws per chain in each
-        batch. The calculation is run in batches to avoid memory exhaustion.
-        If a memory error occurs, try reducing `batch_size`. The calculation
-        will generally be faster with larger `batch_size` values.
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
 
     Returns:
         An XArray Dataset containing the data needed to visualize
@@ -2582,7 +2587,9 @@ class Analyzer:
     x_range_list = x_range_full_shape.flatten("F").tolist()
     # Doubles each value in the list to account for alternating prior
     # and posterior.
-    x_range_doubled = list(chain.from_iterable(zip(x_range_list, x_range_list)))
+    x_range_doubled = list(
+        itertools.chain.from_iterable(zip(x_range_list, x_range_list))
+    )
     media_units_arr.extend(x_range_doubled)
 
     df[constants.CHANNEL_TYPE] = channel_type
@@ -2690,8 +2697,8 @@ class Analyzer:
 
     Args:
       confidence_level: Confidence level for prior and posterior credible
-        intervals, represented as a value between zero and one.
-        Default is `0.9`.
+        intervals, represented as a value between zero and one. Default is
+        `0.9`.
       n_bins: Number of equal-width bins to include in the histogram for the
         plotting. Default is `25`.
 

@@ -14,8 +14,14 @@
 
 """Function definitions for Adstock and Hill calculations."""
 
-from abc import ABCMeta, abstractmethod
+import abc
 import tensorflow as tf
+
+__all__ = [
+    'AdstockHillTransformer',
+    'AdstockTransformer',
+    'HillTransformer',
+]
 
 
 def _validate_arguments(
@@ -65,22 +71,23 @@ def _adstock(
 
   if n_media_times - n_times_output < max_lag:
     pad_shape = (
-        media.shape[:-2] +
-        (max_lag - (n_media_times - n_times_output)) +
-        media.shape[-1]
+        media.shape[:-2]
+        + (max_lag - (n_media_times - n_times_output))
+        + media.shape[-1]
     )
     media = tf.concat([tf.zeros(pad_shape), media], axis=-2)
 
   window_size = max_lag + 1
   window_list = tf.TensorArray(tf.float32, size=window_size)
   for i in range(window_size):
-    window_list = window_list.write(i, media[..., i:i+n_times_output, :])
+    window_list = window_list.write(i, media[..., i : i + n_times_output, :])
   windowed = window_list.stack()
   n_weights = min(window_size, n_media_times)
-  l_range = tf.range(n_weights-1, -1, -1, dtype=tf.float32)
+  l_range = tf.range(n_weights - 1, -1, -1, dtype=tf.float32)
   weights = tf.expand_dims(alpha, -1) ** l_range
   normalization_factors = tf.expand_dims(
-      (1 - alpha ** (window_size)) / (1 - alpha), -1)
+      (1 - alpha ** (window_size)) / (1 - alpha), -1
+  )
   weights = tf.divide(weights, normalization_factors)
   return tf.einsum('...mw,w...gtm->...gtm', weights, windowed)
 
@@ -112,10 +119,10 @@ def _hill(
   return t1 / (t1 + t2)
 
 
-class AdstockHillTransformer(metaclass=ABCMeta):
+class AdstockHillTransformer(metaclass=abc.ABCMeta):
   """Abstract class to compute the Adstock and Hill transformation of media."""
 
-  @abstractmethod
+  @abc.abstractmethod
   def forward(self, media: tf.Tensor) -> tf.Tensor:
     """Computes the Adstock and Hill transformation of a given media tensor."""
     pass

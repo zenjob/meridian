@@ -31,6 +31,12 @@ import tensorflow as tf
 import xarray as xr
 
 
+__all__ = [
+    'BudgetOptimizer',
+    'OptimizationNotRunError',
+]
+
+
 _SpendConstraint: TypeAlias = float | Sequence[float]
 
 
