@@ -14,7 +14,7 @@
 
 """Meridian module for the geo-level Bayesian hierarchical media mix model."""
 
-from collections.abc import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 import os
 import warnings
 import arviz as az
@@ -152,6 +152,9 @@ class Meridian:
     self.input_data = input_data
 
     self.model_spec = model_spec if model_spec else spec.ModelSpec()
+
+    self._validate_data_dependent_model_spec()
+
     if self.is_national:
       _warn_setting_national_args(
           media_effects_dist=self.model_spec.media_effects_dist,
@@ -502,6 +505,89 @@ class Meridian:
   @property
   def inference_data(self) -> az.InferenceData:
     return self._inference_data
+
+  def _validate_data_dependent_model_spec(self):
+    """Validates that the data dependent model specs have correct shapes."""
+
+    if self.model_spec.roi_calibration_period is not None:
+      if self.is_national and (
+          self.model_spec.roi_calibration_period.shape
+          != (
+              self.n_media_times,
+              self.n_media_channels,
+          )
+      ):
+        raise ValueError(
+            "The shape of `roi_calibration_period`"
+            f" {self.model_spec.roi_calibration_period.shape} is different from"
+            f" `(n_media_times, n_media_channels) = ({self.n_media_times},"
+            f" {self.n_media_channels})`."
+        )
+      elif not self.is_national and (
+          self.model_spec.roi_calibration_period.shape
+          != (self.n_geos, self.n_media_times, self.n_media_channels)
+      ):
+        raise ValueError(
+            "The shape of `roi_calibration_period`"
+            f" {self.model_spec.roi_calibration_period.shape} is different from"
+            f" `(n_geos, n_media_times, n_media_channels) = ({self.n_geos},"
+            f" {self.n_media_times}, {self.n_media_channels})`."
+        )
+
+    if self.model_spec.rf_roi_calibration_period is not None:
+      if self.is_national and (
+          self.model_spec.rf_roi_calibration_period.shape
+          != (self.n_media_times, self.n_rf_channels)
+      ):
+
+        raise ValueError(
+            "The shape of `rf_roi_calibration_period`"
+            f" {self.model_spec.rf_roi_calibration_period.shape} is different"
+            f" from `(n_media_times, n_rf_channels) = ({self.n_media_times},"
+            f" {self.n_rf_channels})`."
+        )
+      elif not self.is_national and (
+          self.model_spec.rf_roi_calibration_period.shape
+          != (self.n_geos, self.n_media_times, self.n_rf_channels)
+      ):
+
+        raise ValueError(
+            "The shape of `rf_roi_calibration_period`"
+            f" {self.model_spec.rf_roi_calibration_period.shape} is different"
+            f" from `(n_geos, n_media_times, n_rf_channels) = ({self.n_geos},"
+            f" {self.n_media_times}, {self.n_rf_channels})`."
+        )
+
+    if self.model_spec.holdout_id is not None:
+      if self.is_national and (
+          self.model_spec.holdout_id.shape != (self.n_times,)
+      ):
+        raise ValueError(
+            f"The shape of `holdout_id` {self.model_spec.holdout_id.shape} is"
+            f" different from `(n_times,) = ({self.n_times},)`."
+        )
+      elif not self.is_national and (
+          self.model_spec.holdout_id.shape
+          != (
+              self.n_geos,
+              self.n_times,
+          )
+      ):
+        raise ValueError(
+            f"The shape of `holdout_id` {self.model_spec.holdout_id.shape} is"
+            f" different from `(n_geos, n_times) = ({self.n_geos},"
+            f" {self.n_times})`."
+        )
+
+    if self.model_spec.control_population_scaling_id is not None and (
+        self.model_spec.control_population_scaling_id.shape
+        != (self.n_controls,)
+    ):
+      raise ValueError(
+          "The shape of `control_population_scaling_id`"
+          f" {self.model_spec.control_population_scaling_id.shape} is different"
+          f" from `(n_controls,) = ({self.n_controls},)`."
+      )
 
   def _check_if_no_geo_variation(
       self,
@@ -984,18 +1070,11 @@ class Meridian:
         `model.experimental_pin(**pins).sample(n_chains)`.
       init_step_size: Optional integer determining where to initialize the step
         size for the leapfrog integrator. The structure must broadcast with
-        `current_state`. For example, if the initial state is:
-
-        ```
-        {
-            'a': tf.zeros(n_chains),
-            'b': tf.zeros([n_chains, n_features]),
-        }
-        ```
-
-        then any of `1.`, `{'a': 1., 'b': 1.}`, or
-        `{'a': tf.ones(n_chains), 'b': tf.ones([n_chains, n_features])}` will
-        work. Defaults to the dimension of the log density to the ¼ power.
+        `current_state`. For example, if the initial state is:  ``` { 'a':
+        tf.zeros(n_chains), 'b': tf.zeros([n_chains, n_features]), } ```  then
+        any of `1.`, `{'a': 1., 'b': 1.}`, or `{'a': tf.ones(n_chains), 'b':
+        tf.ones([n_chains, n_features])}` will work. Defaults to the dimension
+        of the log density to the ¼ power.
       dual_averaging_kwargs: Optional dict keyword arguments to pass to
         `tfp.mcmc.DualAveragingStepSizeAdaptation`. By default, a
         `target_accept_prob` of `0.85` is set, acceptance probabilities across

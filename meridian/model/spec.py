@@ -75,14 +75,14 @@ class ModelSpec:
       prior is used. Default: `True`.
     roi_calibration_period: An optional boolean array indicating the subset of
       `time` and `geo` for media ROI calibration. The array can be `(n_geos,
-      n_media_times, n_media_channels)` or `(n_media_times, n_media_channels)`.
-      If `None`, all times and geos are used for media ROI calibration. Default:
-      `None`.
+      n_media_times, n_media_channels)` for a geo-level model or
+      `(n_media_times, n_media_channels)` for a national model. If `None`, all
+      times and geos are used for media ROI calibration. Default: `None`.
     rf_roi_calibration_period: Optional boolean tensor indicating the subset of
       `time` and `geo` for reach and frequency ROI calibration. The array can be
-      `(n_geos, n_media_times, n_rf_channels)` or `(n_media_times,
-      n_rf_channels)`. If `None`, all times and geos are used for media ROI
-      calibration. Default: `None`.
+      `(n_geos, n_media_times, n_rf_channels)` for a geo-level model or
+      `(n_media_times, n_rf_channels)` for a national model. If `None`, all
+      times and geos are used for media ROI calibration. Default: `None`.
     knots: An optional integer or list of integers indicating the knots used to
       estimate time effects. When `knots` is a list of integers, the knot
       locations are provided by that list. Zero corresponds to a knot at the
@@ -104,13 +104,14 @@ class ModelSpec:
       meaning that they have a higher prior variance than the baseline geo. When
       set to `None`, the geo with the biggest population is used as the
       baseline. Default: `None`.
-    holdout_id: Optional boolean tensor of dimensions `(n_geos, n_times)` or
-      `(n_times,)` indicating which observations are part of the holdout sample,
-      which are excluded from the training sample. Only KPI or revenue (impact)
-      data is excluded from the training sample. Media data is still included as
-      it can affect Adstock for subsequent weeks. If "ROI priors" are used, such
-      as `use_roi_prior=True`, then the `roi_m` parameters correspond to the ROI
-      of all geos and times, even those in the holdout sample.
+    holdout_id: Optional boolean tensor of dimensions `(n_geos, n_times)` for a
+      geo-level model or `(n_times,)` for a national model, indicating which
+      observations are part of the holdout sample, which are excluded from the
+      training sample. Only KPI or revenue (impact) data is excluded from the
+      training sample. Media data is still included as it can affect Adstock for
+      subsequent weeks. If "ROI priors" are used, such as `use_roi_prior=True`,
+      then the `roi_m` parameters correspond to the ROI of all geos and times,
+      even those in the holdout sample.
     control_population_scaling_id: An optional boolean tensor of dimension
       `(n_controls,)` indicating the control variables for which the control
       value will be scaled by population.
