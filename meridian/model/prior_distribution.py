@@ -80,31 +80,31 @@ class PriorDistribution:
       Default distribution is `Normal(0.0, 5.0)`.
     beta_m: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for impression media channels (`beta_gm`). When
-      `media_effects_dist` is set to `normal`, it is the hierarchical mean.
-      When `media_effects_dist` is set to `lognormal`, it is the hierarchical
+      `media_effects_dist` is set to `'normal'`, it is the hierarchical mean.
+      When `media_effects_dist` is set to `'log_normal'`, it is the hierarchical
       parameter for the mean of the underlying, log-transformed, `Normal`
       distribution. Meridian ignores this distribution if `use_roi_prior` is
       `True` and uses `roi_m` prior instead. Default distribution is
       `HalfNormal(5.0)`.
     beta_rf: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for reach and frequency media channels
-      (`beta_grf`). When `media_effects_dist` is set to `normal`, it is the
-      hierarchical mean. When `media_effects_dist` is set to `lognormal`, it
+      (`beta_grf`). When `media_effects_dist` is set to `'normal'`, it is the
+      hierarchical mean. When `media_effects_dist` is set to `'log_normal'`, it
       is the hierarchical parameter for the mean of the underlying,
       log-transformed, `Normal` distribution. Meridian ignores this distribution
       if `use_roi_prior` is `True` and uses the `roi_m` prior instead. Default
       distribution is `HalfNormal(5.0)`.
     eta_m: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for impression media channels (`beta_gm`). When
-      `media_effects_dist` is set to `normal`, it is the hierarchical standard
-      deviation. When `media_effects_dist` is set to `lognormal` it is the
+      `media_effects_dist` is set to `'normal'`, it is the hierarchical standard
+      deviation. When `media_effects_dist` is set to `'log_normal'` it is the
       hierarchical parameter for the standard deviation of the underlying,
       log-transformed, `Normal` distribution. Default distribution is
       `HalfNormal(1.0)`.
     eta_rf: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for RF media channels (`beta_grf`). When
-      `media_effects_dist` is set to `normal`, it is the hierarchical standard
-      deviation. When `media_effects_dist` is set to `lognormal` it is the
+      `media_effects_dist` is set to `'normal'`, it is the hierarchical standard
+      deviation. When `media_effects_dist` is set to `'log_normal'` it is the
       hierarchical parameter for the standard deviation of the underlying,
       log-transformed, `Normal` distribution. Default distribution is
       `HalfNormal(1.0)`.
@@ -122,7 +122,7 @@ class PriorDistribution:
       input. Default distribution is `TruncatedNormal(0.8, 0.8, 0.1, 10)`.
     ec_rf: Prior distribution on the `half-saturation` Hill parameter for RF
       input. Default distribution is `TransformedDistribution(LogNormal(0.7,
-      0.4),Shift(0.1))`.
+      0.4), Shift(0.1))`.
     slope_m: Prior distribution on the `slope` Hill parameter for media input.
       Default distribution is `Deterministic(1.0)`.
     slope_rf: Prior distribution on the `slope` Hill parameter for RF input.
@@ -130,19 +130,19 @@ class PriorDistribution:
     sigma: Prior distribution on the standard deviation of noise. Default
       distribution is `HalfNormal(5.0)`.
     roi_m: Prior distribution on the hierarchical ROI in media input. Meridian
-      ignores this distribution if `use_roi_prior` is `False` and uses
-      `beta_m` instead. When `use_roi_prior` is `True` then `beta_m` is
-      calculated as a deterministic function of `roi_m`, `alpha_m`, `ec_m`,
-      `slope_m`, and the spend associated with each media channel (for example,
-      the model is reparameterized with `roi_m` in place of `beta_m`). Default
-      distribution is `LogNormal(0.2, 0.9)`.
+      ignores this distribution if `use_roi_prior` is `False` and uses `beta_m`
+      instead. When `use_roi_prior` is `True` then `beta_m` is calculated as a
+      deterministic function of `roi_m`, `alpha_m`, `ec_m`, `slope_m`, and the
+      spend associated with each media channel (for example, the model is
+      reparameterized with `roi_m` in place of `beta_m`). Default distribution
+      is `LogNormal(0.2, 0.9)`.
     roi_rf: Prior distribution on the hierarchical ROI in RF input. Meridian
-      ignores this distribution if `use_roi_prior` is `False` and uses
-      `beta_rf` instead. When `use_roi_prior` is `True`, then `beta_rf` is
-      calculated as a deterministic function of `roi_rf`, `alpha_rf`, `ec_rf`,
-      `slope_rf`, and the spend associated with each media channel (for example,
-      the model is reparameterized with `roi_rf` in place of `beta_rf`). Default
-      distribution is `LogNormal(0.2, 0.9)`.
+      ignores this distribution if `use_roi_prior` is `False` and uses `beta_rf`
+      instead. When `use_roi_prior` is `True`, then `beta_rf` is calculated as a
+      deterministic function of `roi_rf`, `alpha_rf`, `ec_rf`, `slope_rf`, and
+      the spend associated with each media channel (for example, the model is
+      reparameterized with `roi_rf` in place of `beta_rf`). Default distribution
+      is `LogNormal(0.2, 0.9)`.
   """
 
   def __init__(
@@ -385,17 +385,17 @@ class PriorDistribution:
 def _convert_to_deterministic_0_distribution(
     distribution: tfp.distributions.Distribution,
 ) -> tfp.distributions.Distribution:
-  """Converts the given `value` to Deterministic(0) distribution.
+  """Converts the given distribution to a `Deterministic(0)` one.
 
   Args:
-    distribution: tfp.distributions.Distribution object to be converted to
-      Deterministic(0) distribution.
+    distribution: `tfp.distributions.Distribution` object to be converted to
+      `Deterministic(0)` distribution.
 
   Returns:
-    tfp.distribution.Deterministic(0, distribution.name)
+    `tfp.distribution.Deterministic(0, distribution.name)`
 
   Raises:
-    Warning: If the argument distribution is not the Deterministic(0)
+    Warning: If the argument distribution is not a `Deterministic(0)`
     distribution.
   """
   if (

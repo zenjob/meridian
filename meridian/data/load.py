@@ -104,6 +104,7 @@ class XrDatasetDataLoader(InputDataLoader):
     In a national model, the dataset should consist of the following arrays of
     the following dimensions. We use `[1,]` to indicate an optional dimension
     with length 1:
+
     *   `kpi`: `([1,] time)`
     *   `revenue_per_kpi`: `([1,] time)`
     *   `controls`: `([1,] time, control_variable)`
@@ -454,10 +455,10 @@ class DataFrameDataLoader(InputDataLoader):
     df: The `pd.DataFrame` object to read from. One of the following conditions
       is required:
 
-      - There are no NAs in the dataframe
-      - For any number of initial periods there is only media data and NAs in
-        all of the non-media data columns (`kpi`, `revenue_per_kpi`,
-        `media_spend`, `controls`, and `population`).
+      *   There are no NAs in the dataframe
+      *   For any number of initial periods there is only media data and NAs in
+          all of the non-media data columns (`kpi`, `revenue_per_kpi`,
+          `media_spend`, `controls`, and `population`).
 
     coord_to_columns: A `CoordToColumns` object whose fields are the desired
       coordinates of the `InputData` and the values are the current names of
@@ -906,10 +907,10 @@ class CsvDataLoader(InputDataLoader):
       csv_path: The path to the CSV file to read from. One of the following
         conditions is required:
 
-        - There are no gaps in the data.
-        - For up to `max_lag` initial periods there is only media data and empty
-          cells in all the non-media data columns (`kpi`, `revenue_per_kpi`,
-          `media_spend`, `controls`, and `population`).
+        *   There are no gaps in the data.
+        *   For up to `max_lag` initial periods there is only media data and
+            empty cells in all the non-media data columns (`kpi`,
+            `revenue_per_kpi`, `media_spend`, `controls`, and `population`).
 
       coord_to_columns: A `CoordToColumns` object whose fields are the desired
         coordinates of the `InputData` and the values are the current names of

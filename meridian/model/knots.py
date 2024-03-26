@@ -15,8 +15,7 @@
 """Auxiliary functions for knots calculations."""
 
 import bisect
-from collections.abc import Collection
-import typing
+from collections.abc import Collection, Sequence
 import numpy as np
 
 
@@ -30,7 +29,7 @@ __all__ = [
 def _find_neighboring_knots_indices(
     times: np.ndarray,
     knot_locations: np.ndarray,
-) -> typing.Sequence[typing.Sequence[int] | None]:
+) -> Sequence[Sequence[int] | None]:
   """Return indices of neighboring knot locations.
 
   Return indices in `knot_locations` that correspond to the neighboring knot
@@ -73,18 +72,18 @@ def l1_distance_weights(
   given to that knot. If a time point lies outside the range of knots, then 100%
   weight is given to the nearest endpoint knot.
 
-  This function computes a `n_knots x n_times` array of weights that are used to
-  model trend and seasonality. For a given time, the array contains two non-zero
-  weights. The weights are inversely proportional to the L1 distance from the
-  given time to the neighboring knots. The two weights are normalized such that
-  they sum to 1.
+  This function computes an `(n_knots, n_times)` array of weights that are used
+  to model trend and seasonality. For a given time, the array contains two
+  non-zero weights. The weights are inversely proportional to the L1 distance
+  from the given time to the neighboring knots. The two weights are normalized
+  such that they sum to 1.
 
   Args:
     n_times: The number of time points.
     knot_locations: The location of knots within `0, 1, 2,..., (n_times-1)`.
 
   Returns:
-    A weight array with dimensions `n_knots x n_times` with values summing up
+    A weight array with dimensions `(n_knots, n_times)` with values summing up
     to 1 for each time period when summing over knots.
   """
   if knot_locations.ndim != 1:
@@ -138,10 +137,10 @@ def get_knot_info(
       used to estimate time effects. When `knots` is a collection of integers,
       the knot locations are provided by that collection. Zero corresponds to a
       knot at the first time period, one corresponds to a knot at the second
-      time, ..., and (`n_times - 1`) corresponds to a knot at the last time
+      time, ..., and `(n_times - 1)` corresponds to a knot at the last time
       period. When `knots` is an integer, then there are knots with locations
       equally spaced across the time periods (including knots at zero and
-      (`n_times - 1`). When `knots` is `1`, there is a single common regression
+      `(n_times - 1)`. When `knots` is `1`, there is a single common regression
       coefficient used for all time periods. If `knots` is `None`, then the
       numbers of knots used is equal to the number of time periods. This is
       equivalent to each time period having its own regression coefficient.

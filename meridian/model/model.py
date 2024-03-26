@@ -123,14 +123,14 @@ class Meridian:
     rf_spend: An optional tensor constructed from `input_data.rf_spend`.
     total_spend: A tensor containing total spend, including `media_spend` and
       `rf_spend`.
-    media_transformer: A MediaTransformer to scale media tensors using the
+    media_transformer: A `MediaTransformer` to scale media tensors using the
       model's media data.
-    reach_transformer: An optional MediaTransformer to scale RF tensors using
+    reach_transformer: An optional `MediaTransformer` to scale RF tensors using
       the model's RF data.
-    controls_transformer: A ControlsTransformer to scale controls tensors using
-      the model's controls data.
-    kpi_transformer: A KpiTransformer to scale KPI tensors using the model's KPI
-      data.
+    controls_transformer: A `ControlsTransformer` to scale controls tensors
+      using the model's controls data.
+    kpi_transformer: A `KpiTransformer` to scale KPI tensors using the model's
+      KPI data.
     media_scaled: The media tensor normalized by population and by the median
       value.
     reach_scaled: An optional reach tensor normalized by population and by the
@@ -142,7 +142,7 @@ class Meridian:
       effects across geos.
     unique_sigma_for_each_geo: A boolean indicating whether to use a unique
       residual variance for each geo.
-    prior_broadcast: A `PriorDistribution` object coontaining broadcasted
+    prior_broadcast: A `PriorDistribution` object containing broadcasted
       distributions.
   """
 
@@ -188,7 +188,7 @@ class Meridian:
     default_roi_rf = default_model_spec.prior.roi_rf
 
     # Check `roi_m` properties match default `roi_m` properties (that the
-    # distributions (e.g. Normal, Lognormal) and parameters (loc and scale) are
+    # distributions (e.g. Normal, LogNormal) and parameters (loc and scale) are
     # equal).
     roi_m_properties_equal = (
         isinstance(self.model_spec.prior.roi_m, type(default_roi_m))
@@ -208,8 +208,8 @@ class Meridian:
     ):
       raise ValueError(
           "Custom priors should be set during model creation since"
-          " `kpi_type`=`non_revenue` and `revenue_per_kpi` was not passed in."
-          " Further documentation available at"
+          " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
+          " Further documentation is available at"
           " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
       )
 
@@ -510,7 +510,7 @@ class Meridian:
       data_dims: Sequence[str],
       epsilon=1e-4,
   ):
-    """Raise an error if n_knots == n_time and data lacks geo variation."""
+    """Raise an error if `n_knots == n_time` and data lacks geo variation."""
 
     _, col_idx_full = np.where(np.std(scaled_data, axis=0) < epsilon)
     col_idx_unique, counts = np.unique(col_idx_full, return_counts=True)
@@ -541,10 +541,10 @@ class Meridian:
     """Transforms media using Adstock and Hill functions in the desired order.
 
     Args:
-      media: Tensor of dimensions `(n_geos, n_media_times,
-      n_media_channels)` containing non-negative media execution values.
-      Typically this is impressions, but it can be any metric, such as
-      `media_spend`. Clicks are often used for paid search ads.
+      media: Tensor of dimensions `(n_geos, n_media_times, n_media_channels)`
+        containing non-negative media execution values. Typically this is
+        impressions, but it can be any metric, such as `media_spend`. Clicks are
+        often used for paid search ads.
       alpha: Uniform distribution for Adstock and Hill calculations.
       ec: Shifted half-normal distribution for Adstock and Hill calculations.
       slope: Deterministic distribution for Adstock and Hill calculations.
@@ -586,7 +586,7 @@ class Meridian:
     Args:
       reach: Tensor of dimensions `(n_geos, n_media_times, n_rf_channels)`
         containing non-negative media for reach.
-      frequency: Tensor of dimensions (n_geos x n_media_times x n_rf_channels)
+      frequency: Tensor of dimensions `(n_geos, n_media_times, n_rf_channels)`
         containing non-negative media for frequency.
       alpha: Uniform distribution for Adstock and Hill calculations.
       ec: Shifted half-normal distribution for Adstock and Hill calculations.
@@ -652,7 +652,7 @@ class Meridian:
       )
       return (inc_revenue_m - random_effect_m) / media_contrib_m
     else:
-      # For lognormal, beta_m and eta_m are not mean & std.
+      # For log_normal, beta_m and eta_m are not mean & std.
       # The parameterization is beta_gm ~ exp(beta_m + eta_m * N(0, 1)).
       random_effect_m = tf.einsum(
           "gm,gm->m", tf.math.exp(beta_gm_dev * eta_m), media_contrib_gm
@@ -702,7 +702,7 @@ class Meridian:
       )
       return (inc_revenue_rf - random_effect_rf) / media_contrib_rf
     else:
-      # For lognormal, beta_rf and eta_rf are not mean & std.
+      # For log_normal, beta_rf and eta_rf are not mean & std.
       # The parameterization is beta_grf ~ exp(beta_rf + eta_rf * N(0, 1)).
       random_effect_rf = tf.einsum(
           "gm,gm->m",
@@ -984,11 +984,18 @@ class Meridian:
         `model.experimental_pin(**pins).sample(n_chains)`.
       init_step_size: Optional integer determining where to initialize the step
         size for the leapfrog integrator. The structure must broadcast with
-        `current_state`. For example, if the initial state is ``` {'a':
-        tf.zeros(n_chains), 'b': tf.zeros([n_chains, n_features])} ``` then any
-        of `1.`, `{'a': 1., 'b': 1.}`, or `{'a': tf.ones(n_chains), 'b':
-        tf.ones([n_chains, n_features])}` will work. Defaults to the dimension
-        of the log density to the 0.25 power.
+        `current_state`. For example, if the initial state is:
+
+        ```
+        {
+            'a': tf.zeros(n_chains),
+            'b': tf.zeros([n_chains, n_features]),
+        }
+        ```
+
+        then any of `1.`, `{'a': 1., 'b': 1.}`, or
+        `{'a': tf.ones(n_chains), 'b': tf.ones([n_chains, n_features])}` will
+        work. Defaults to the dimension of the log density to the ¼ power.
       dual_averaging_kwargs: Optional dict keyword arguments to pass to
         `tfp.mcmc.DualAveragingStepSizeAdaptation`. By default, a
         `target_accept_prob` of `0.85` is set, acceptance probabilities across
@@ -1003,9 +1010,9 @@ class Meridian:
         threshold. Default is `1000`.
       unrolled_leapfrog_steps: The number of leapfrogs to unroll per tree
         expansion step. Applies a direct linear multiplier to the maximum
-        trajectory length implied by `max_tree_depth`. Defaults is `1".
-      parallel_iterations: Number of iterations allowed to run in parallel.
-        Must be a positive integer. For more information, see `tf.while_loop`.
+        trajectory length implied by `max_tree_depth`. Defaults is `1`.
+      parallel_iterations: Number of iterations allowed to run in parallel. Must
+        be a positive integer. For more information, see `tf.while_loop`.
       seed: Used to set the seed for reproducible results. For more information,
         see [PRNGS and seeds]
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).

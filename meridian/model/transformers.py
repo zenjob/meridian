@@ -18,6 +18,13 @@ import numpy as np
 import tensorflow as tf
 
 
+__all__ = [
+    "MediaTransformer",
+    "ControlsTransformer",
+    "KpiTransformer",
+]
+
+
 class MediaTransformer:
   """Contains forward and inverse media transformation methods.
 
@@ -30,13 +37,12 @@ class MediaTransformer:
       media: tf.Tensor,
       population: tf.Tensor,
   ):
-    """Initializer.
+    """`MediaTransformer` constructor.
 
     Args:
-      media: A tensor of dimension (`n_geos, n_media_times,
-      n_media_channels`) containing the media data, used to compute the scale
-        factors.
-      population: A tensor of dimension (`n_geos`) containing the population of
+      media: A tensor of dimension `(n_geos, n_media_times, n_media_channels)`
+        containing the media data, used to compute the scale factors.
+      population: A tensor of dimension `(n_geos,)` containing the population of
         each geo, used to compute the scale factors.
     """
     population_scaled_media = tf.math.divide_no_nan(
@@ -81,15 +87,15 @@ class ControlsTransformer:
       population: tf.Tensor,
       population_scaling_id: tf.Tensor | None = None,
   ):
-    """Initializer.
+    """`ControlsTransformer` constructor.
 
     Args:
-      controls: A tensor of dimension (`n_geos, n_times, n_controls`)
-        containing the controls data, used to compute the mean and stddev.
-      population: A tensor of dimension (`n_geos`) containing the
-        population of each geo, used to compute the scale factors.
+      controls: A tensor of dimension `(n_geos, n_times, n_controls)` containing
+        the controls data, used to compute the mean and stddev.
+      population: A tensor of dimension `(n_geos,)` containing the population of
+        each geo, used to compute the scale factors.
       population_scaling_id: An optional boolean tensor of dimension
-        (`n_controls`) indicating the control variables for which the control
+        `(n_controls,)` indicating the control variables for which the control
         value will be scaled by population.
     """
     if population_scaling_id is not None:
@@ -134,12 +140,12 @@ class KpiTransformer:
       kpi: tf.Tensor,
       population: tf.Tensor,
   ):
-    """Initializer.
+    """`KpiTransformer` constructor.
 
     Args:
-      kpi: A tensor of dimension (`n_geos, n_times`) containing the KPI data,
+      kpi: A tensor of dimension `(n_geos, n_times)` containing the KPI data,
         used to compute the mean and stddev.
-      population: A tensor of dimension (`n_geos`) containing the population of
+      population: A tensor of dimension `(n_geos,)` containing the population of
         each geo, used to to compute the population scale factors.
     """
     self._population = population

@@ -129,19 +129,19 @@ class AdstockHillTransformer(metaclass=abc.ABCMeta):
 
 
 class AdstockTransformer(AdstockHillTransformer):
-  """Class to compute the Adstock transformation of media."""
+  """Computes the Adstock transformation of media."""
 
   def __init__(self, alpha: tf.Tensor, max_lag: int, n_times_output: int):
-    """Initializes the instance based on Adstock function parameters.
+    """Initializes this transformer based on Adstock function parameters.
 
     Args:
-      alpha: Tensor of `alpha` parameters taking values in `[0, 1)` with
-        dimensions `[..., n_media_channels]`. Batch dimensions (...) are
+      alpha: Tensor of `alpha` parameters taking values ≥ `[0, 1)` with
+        dimensions `[..., n_media_channels]`. Batch dimensions `(...)` are
         optional. Note that `alpha = 0` is allowed, so it is possible to put a
         point mass prior at zero (effectively no Adstock). However, `alpha = 1`
         is not allowed since the geometric sum formula is not defined, and there
         is no practical reason to have point mass at `alpha = 1`.
-      max_lag: Integer indicating the maximum number of lag periods (>= 0) to
+      max_lag: Integer indicating the maximum number of lag periods (≥ `0`) to
         include in the Adstock calculation.
       n_times_output: Integer indicating the number of time periods to include
         in the output tensor. Cannot exceed the number of time periods of the
@@ -167,16 +167,15 @@ class AdstockTransformer(AdstockHillTransformer):
 
     Args:
       media: Tensor of media values with dimensions `[..., n_geos,
-        n_media_times, n_media_channels]`. Batch dimensions (...) are optional,
-        but if batch dimensions are included, they must match the batch
-        dimensions of `alpha`. Media is not required to have batch dimensions
-        even if `alpha` contains batch dimensions.
+        n_media_times, n_media_channels]`. Batch dimensions `(...)` are
+        optional, but if batch dimensions are included, they must match the
+        batch dimensions of `alpha`. Media is not required to have batch
+        dimensions even if `alpha` contains batch dimensions.
 
     Returns:
       Tensor with dimensions `[..., n_geos, n_times_output, n_media_channels]`
       representing Adstock transformed media.
     """
-
     return _adstock(
         media=media,
         alpha=self._alpha,
@@ -193,10 +192,10 @@ class HillTransformer(AdstockHillTransformer):
 
     Args:
       ec: Tensor with dimensions `[..., n_media_channels]`. Batch dimensions
-        (...) are optional, but if batch dimensions are included, they must
+        `(...)` are optional, but if batch dimensions are included, they must
         match the batch dimensions of `ec`.
       slope: Tensor with dimensions `[..., n_media_channels]`. Batch dimensions
-        (...) are optional, but if batch dimensions are included, they must
+        `(...)` are optional, but if batch dimensions are included, they must
         match the batch dimensions of `slope`.
     """
     self._ec = ec
@@ -210,7 +209,7 @@ class HillTransformer(AdstockHillTransformer):
 
     Args:
       media: Tensor with dimensions `[..., n_geos, n_media_times,
-        n_media_channels]`. Batch dimensions (...) are optional, but if batch
+        n_media_channels]`. Batch dimensions `(...)` are optional, but if batch
         dimensions are included, they must match the batch dimensions of `slope`
         and `ec`. Media is not required to have batch dimensions even if `slope`
         and `ec` contain batch dimensions.

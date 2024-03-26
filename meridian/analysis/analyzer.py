@@ -98,9 +98,9 @@ def _scale_tensors_by_multiplier(
   """Get scaled tensors for incremental impact calculation.
 
   Args:
-    media: Optional Tensor with dimensions matching media.
-    reach: Optional Tensor with dimensions matching reach.
-    frequency: Optional Tensor with dimensions matching frequency.
+    media: Optional tensor with dimensions matching media.
+    reach: Optional tensor with dimensions matching reach.
+    frequency: Optional tensor with dimensions matching frequency.
     multiplier: Float indicating the factor to scale tensors by.
     by_reach: Boolean indicating whether to scale reach or frequency when rf
       data is available.
@@ -552,10 +552,10 @@ class Analyzer:
   ) -> tf.Tensor:
     """Calculates either the expected impact posterior or prior.
 
-    This calculates E(Impact|Media, Controls) for each posterior (or prior)
-    parameter draw, where Impact refers to either `revenue` if `use_kpi`=False,
-    or `kpi` if `use_kpi`=True. When `revenue_per_kpi` is not defined, `use_kpi`
-    cannot be False.
+    This calculates `E(Impact|Media, Controls)` for each posterior (or prior)
+    parameter draw, where Impact refers to either `revenue` if `use_kpi=False`,
+    or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi`
+    cannot be `False`.
 
     By default, this calculates expected impact conditional on the media and
     control values that the Meridian object was initialized with. The user can
@@ -592,8 +592,8 @@ class Analyzer:
         impact after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
       use_kpi: Boolean. If `True`, the expected KPI is calculated. If `False`,
-        the expected revenue (KPI * `revenue_per_kpi`) is calculated. Only used
-        if `inverse_transform_impact=True`. `use_kpi` must be True when
+        the expected revenue `(kpi * revenue_per_kpi)` is calculated. Only used
+        if `inverse_transform_impact=True`. `use_kpi` must be `True` when
         `revenue_per_kpi` is not defined.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
@@ -602,8 +602,8 @@ class Analyzer:
 
     Returns:
       Tensor of expected impact (either KPI or revenue, depending on the
-      `use_kpi` argument) with dimensions (`n_chains, n_draws, n_geos,
-      n_times`). The `n_geos` and `n_times` dimensions is dropped if
+      `use_kpi` argument) with dimensions `(n_chains, n_draws, n_geos,
+      n_times)`. The `n_geos` and `n_times` dimensions is dropped if
       `aggregate_geos=True` or `aggregate_time=True`, respectively.
     Raises:
       NotFittedModelError: if `sample_posterior()` (for `use_posterior=True`)
@@ -889,12 +889,12 @@ class Analyzer:
     """Calculates either the incremental impact posterior or prior.
 
     This calculates the incremental impact for each posterior or prior parameter
-    draw. Incremental impact is defined as E(Impact|Media, Controls) minus
-    E(Impact|Media_0, Controls), where `Media_0` means that media execution for
-    a given channel is set to zero and all other media are set to the values
+    draw. Incremental impact is defined as `E(Impact|Media, Controls)` minus
+    `E(Impact|Media_0, Controls)`, where `Media_0` means that media execution
+    for a given channel is set to zero and all other media are set to the values
     that the Meridian object was initialized with. This is the case for all geos
     and time periods, including lag periods. Impact refers to either
-    `revenue` if `use_kpi`=False, or `kpi` if `use_kpi`=True. When
+    `revenue` if `use_kpi=False`, or `kpi` if `use_kpi=True`. When
     `revenue_per_kpi` is not defined, `use_kpi` cannot be False.
 
     By default, this calculates incremental impact conditional on the media
@@ -916,10 +916,10 @@ class Analyzer:
     allowed with this method because of the additional complexites
     this introduces:
 
-    1. Corresponding price (revenue per KPI) data is also needed
-    2. If the model contains weekly effect parameters, then some method is
-      needed to estimate or predict these effects for time periods outside of
-      the training data window.
+    1.  corresponding price (revenue per KPI) data is also needed
+    2.  if the model contains weekly effect parameters, then some method is
+        needed to estimate or predict these effects for time periods outside of
+        the training data window.
 
     Args:
       use_posterior: Boolean. If `True`, then the incremental impact posterior
@@ -1051,21 +1051,21 @@ class Analyzer:
 
     Args:
       new_media: Optional. Media data, with the same shape as
-        meridian.input.data.media, to be used to compute ROI for alternative
-        media data. Default uses meridian.input.data.media.
-      new_media_spend: Optional. Media_spend data, with the same shape as
-        meridian.input.data.media_spend, to be used to compute ROI for
-        alternative media_spend data. Default uses
-        meridian.input.data.media_spend.
+        `meridian.input_data.media`, to be used to compute ROI for alternative
+        media data. Default uses `meridian.input_data.media`.
+      new_media_spend: Optional. Media spend data, with the same shape as
+        `meridian.input_data.media_spend`, to be used to compute ROI for
+        alternative `media_spend` data. Default uses
+        `meridian.input_data.media_spend`.
       new_reach: Optional. Reach data with the same shape as
-        meridian.input.data.reach, to be used to compute ROI for alternative
-        reach data. Default uses meridian.input.data.reach.
+        `meridian.input_data.reach`, to be used to compute ROI for alternative
+        reach data. Default uses `meridian.input_data.reach`.
       new_frequency: Optional. Frequency data with the same shape as
-        meridian.input.data.frequency, to be used to compute ROI for alternative
-        frequency data. Default uses meridian.input.data.frequency.
+        `meridian.input_data.frequency`, to be used to compute ROI for
+        alternative frequency data. Defaults to `meridian.input_data.frequency`.
       new_rf_spend: Optional. RF Spend data with the same shape as
-        meridian.input.data.rf_spend, to be used to compute ROI for alternative
-        rf_spend data. Default uses meridian.input.data.rf_spend.
+        `meridian.input_data.rf_spend`, to be used to compute ROI for
+        alternative `rf_spend` data. Defaults to `meridian.input_data.rf_spend`.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
@@ -1210,20 +1210,20 @@ class Analyzer:
       use_posterior: If `True` then the posterior distribution is calculated.
         Otherwise, the prior distribution is calculated.
       new_media: Optional. Media data with the same shape as
-        `meridian.input.data.media`. Used to compute ROI for alternative media
-        data. Default uses `meridian.input.data.media`.
-      new_media_spend: Optional. `Media_spend` data with the same shape as
-        `meridian.input.data.spend`. Used to compute ROI for alternative
-        `media_spend` data. Default uses `meridian.input.data.media_spend`.
+        `meridian.input_data.media`. Used to compute ROI for alternative media
+        data. Default uses `meridian.input_data.media`.
+      new_media_spend: Optional. Media spend data with the same shape as
+        `meridian.input_data.spend`. Used to compute ROI for alternative
+        `media_spend` data. Default uses `meridian.input_data.media_spend`.
       new_reach: Optional. Reach data with the same shape as
-        `meridian.input.data.reach`. Used to compute ROI for alternative reach
-        data. Default uses `meridian.input.data.reach`.
+        `meridian.input_data.reach`. Used to compute ROI for alternative reach
+        data. Default uses `meridian.input_data.reach`.
       new_frequency: Optional. Frequency data with the same shape as
-        `meridian.input.data.frequency`. Used to compute ROI for alternative
-        frequency data. Default uses` meridian.input.data.frequency`.
+        `meridian.input_data.frequency`. Used to compute ROI for alternative
+        frequency data. Default uses `meridian.input_data.frequency`.
       new_rf_spend: Optional. RF Spend data with the same shape as
-        `meridian.input.data.rf_spend`. Used to compute ROI for alternative
-        rf_spend data. Default uses meridian.input.data.rf_spend.
+        `meridian.input_data.rf_spend`. Used to compute ROI for alternative
+        `rf_spend` data. Default uses `meridian.input_data.rf_spend`.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
@@ -1241,8 +1241,8 @@ class Analyzer:
         larger `batch_size` values.
 
     Returns:
-      Tensor of mROI values with dimensions (`n_chains, n_draws, n_geos,
-      n_times, n_media_channels + n_rf_channels`). The `n_geos` and `n_times`
+      Tensor of mROI values with dimensions `(n_chains, n_draws, n_geos,
+      n_times, (n_media_channels + n_rf_channels))`. The `n_geos` and `n_times`
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
@@ -1339,8 +1339,8 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      Tensor of ROI values with dimensions (`n_chains, n_draws, n_geos, n_times,
-      n_media_channels, n_rf_channels`). The `n_geos` and `n_times`
+      Tensor of ROI values with dimensions `(n_chains, n_draws, n_geos, n_times,
+      n_media_channels, n_rf_channels)`. The `n_geos` and `n_times`
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
@@ -1425,8 +1425,8 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      Tensor of CPIK values with dimensions (`n_chains, n_draws, n_geos,
-      n_times, n_media_channels, n_rf_channels`). The `n_geos` and `n_times`
+      Tensor of CPIK values with dimensions `(n_chains, n_draws, n_geos,
+      n_times, n_media_channels, n_rf_channels)`. The `n_geos` and `n_times`
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
@@ -1615,7 +1615,7 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      An `xr.Dataset` with coordinates: `channel`, `metric` (mean, `ci_high`,
+      An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `ci_high`,
       `ci_low`), `distribution` (prior, posterior) and contains the following
       data variables: `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
@@ -1839,7 +1839,8 @@ class Analyzer:
     Args:
       freq_grid: List of frequency values. The ROI/CPIK of each channel is
         calculated for each frequency value in the list. By default, the list
-        includes numbers from 1.0 to the maximum frequency in increments of 0.1.
+        includes numbers from `1.0` to the maximum frequency in increments of
+        `0.1`.
       confidence_level: Confidence level for prior and posterior credible
         intervals, represented as a value between zero and one.
       use_posterior: Boolean. If `True`, posterior optimal frequencies are
@@ -1850,7 +1851,7 @@ class Analyzer:
         default, all time periods are included.
 
     Returns:
-      XArray Dataset containing two variables: `optimal_frequency` and
+      An xarray Dataset containing two variables: `optimal_frequency` and
         `roi_by_frequency` or `cpik_by_frequency`. `optimal_frequency` is the
         frequency that optimizes the posterior mean of ROI or CPIK.
         `roi_by_frequency` is the ROI for each frequency value while
@@ -1983,11 +1984,11 @@ class Analyzer:
         larger `batch_size` values.
 
     Returns:
-      An XArray Dataset containing the computed `R_Squared`, `MAPE`, and `wMAPE`
+      An xarray Dataset containing the computed `R_Squared`, `MAPE`, and `wMAPE`
       values, with coordinates `metric`, `geo_granularity`, `evaluation_set`,
       and accompanying data variable `value`. If `holdout_id` exists, the data
-      is split into `Train`, `Test`, and `All Data` subsections, and the three
-      metrics are computed for each.
+      is split into `'Train'`, `'Test'`, and `'All Data'` subsections, and the
+      three metrics are computed for each.
     """
     use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.is_national:
@@ -2090,20 +2091,20 @@ class Analyzer:
       actual_eval_set: np.ndarray,
       expected_eval_set: np.ndarray,
   ) -> list[np.floating]:
-    """Calculates the predictive accuracy metrics when holdout_id exists.
+    """Calculates the predictive accuracy metrics when `holdout_id` exists.
 
     Args:
-      actual_eval_set: Array with filtered and/or aggregated geo and time
-        dimensions for the meridian.kpi * meridian.revenue_per_kpi calculation
-        for either the `Train`, `Test`, or `All Data` evaluation sets.
-      expected_eval_set: Array of expected impact with dimensions `(n_chains,
-        n_draws, n_geos, n_times)` for either the `Train`, `Test`, or `All Data`
-        evaluation sets.
+      actual_eval_set: An array with filtered and/or aggregated geo and time
+        dimensions for the `meridian.kpi * meridian.revenue_per_kpi` calculation
+        for either the `'Train'`, `'Test'`, or `'All Data'` evaluation sets.
+      expected_eval_set: An array of expected impact with dimensions `(n_chains,
+        n_draws, n_geos, n_times)` for either the `'Train'`, `'Test'`, or
+        `'All Data'` evaluation sets.
 
     Returns:
       A list containing the `geo` or `national` level data for the `R_Squared`,
-      `MAPE`, and `wMAPE` metrics computed for either a `Train`, `Test`, or
-      `All Data` evaluation set.
+      `MAPE`, and `wMAPE` metrics computed for either a `'Train'`, `'Test'`, or
+      `'All Data'` evaluation set.
     """
     rsquared = _calc_rsquared(expected_eval_set, actual_eval_set)
     mape = _calc_mape(expected_eval_set, actual_eval_set)
@@ -2114,7 +2115,7 @@ class Analyzer:
     """Computes the R-hat values for each parameter in the model.
 
     Returns:
-      Dictionary of r-hat values where each parameter is a key and values are
+      A dictionary of r-hat values where each parameter is a key and values are
       r-hats corresponding to the parameter.
 
     Raises:
@@ -2161,23 +2162,24 @@ class Analyzer:
 
     Returns:
       A DataFrame with the following columns:
-        * n_params: The number of respective parameters in the model.
-        * avg_rhat: The average R-hat value for the respective parameter.
-        * n_params: The number of respective parameters in the model.
-        * avg_rhat: The average R-hat value for the respective parameter.
-        * max_rhat: The maximum R-hat value for the respective parameter.
-        * percent_bad_rhat: The percentage of R-hat values for the respective
+
+      *   `n_params`: The number of respective parameters in the model.
+      *   `avg_rhat`: The average R-hat value for the respective parameter.
+      *   `n_params`: The number of respective parameters in the model.
+      *   `avg_rhat`: The average R-hat value for the respective parameter.
+      *   `max_rhat`: The maximum R-hat value for the respective parameter.
+      *   `percent_bad_rhat`: The percentage of R-hat values for the respective
           parameter that are greater than `bad_r_hat_threshold`.
-        * row_idx_bad_rhat: The row indices of the R-hat values that are greater
-          than `bad_r_hat_threshold`.
-        * col_idx_bad_rhat: The column indices of the R-hat values that are
+      *   `row_idx_bad_rhat`: The row indices of the R-hat values that are
+          greater than `bad_r_hat_threshold`.
+      *   `col_idx_bad_rhat`: The column indices of the R-hat values that are
           greater than `bad_r_hat_threshold`.
 
     Raises:
       NotFittedModelError: If `self.sample_posterior()` is not called before
         calling this method.
       ValueError: If the number of dimensions of the R-hat array for a parameter
-        is not 1 or 2.
+        is not `1` or `2`.
     """
     r_hat = self._get_r_hat()
 
@@ -2254,8 +2256,8 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-        An XArray Dataset containing the data needed to visualize
-        response curves.
+        An xarray Dataset containing the data needed to visualize response
+        curves.
     """
     use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.is_national:
@@ -2367,7 +2369,7 @@ class Analyzer:
 
     Returns:
       Pandas DataFrame containing the channel, `time_units`, distribution,
-      `ci_hi`, `ci_lo`, and mean for the Adstock function.
+      `ci_hi`, `ci_lo`, and `mean` for the Adstock function.
     """
     if (
         constants.PRIOR not in self._meridian.inference_data.groups()
@@ -2468,16 +2470,16 @@ class Analyzer:
     Returns:
       A DataFrame with data needed to plot the Hill curves, with columns:
 
-      * channel: `media` or `rf` channel name.
-      * media_units: Media (for `media` channels) or average frequency (for
-      `rf` channels) units.
-      * distribution: Indication of `posterior` or `prior` draw.
-      * ci_hi: Upper bound of the credible interval of the value of the Hill
-      function.
-      * ci_lo: Lower bound of the credible interval of the value of the Hill
-      function.
-      * mean: Point-wise mean of the value of the Hill function per draw.
-      * channel_type: Indication of a `media` or `rf` channel.
+      *   `channel`: `media` or `rf` channel name.
+      *   `media_units`: Media (for `media` channels) or average frequency (for
+          `rf` channels) units.
+      *   `distribution`: Indication of `posterior` or `prior` draw.
+      *   `ci_hi`: Upper bound of the credible interval of the value of the Hill
+          function.
+      *   `ci_lo`: Lower bound of the credible interval of the value of the Hill
+          function.
+      *   `mean`: Point-wise mean of the value of the Hill function per draw.
+      *   channel_type: Indication of a `media` or `rf` channel.
     """
     if (
         channel_type == constants.MEDIA
@@ -2605,15 +2607,16 @@ class Analyzer:
 
     Returns:
       Pandas DataFrame with columns:
-      *   channel: `media` or `rf` channel name.
-      *   channel_type: `media` or `rf` channel type.
-      *   scaled_count_histogram: Scaled count of media units or average
+
+      *   `channel`: `media` or `rf` channel name.
+      *   `channel_type`: `media` or `rf` channel type.
+      *   `scaled_count_histogram`: Scaled count of media units or average
           frequencies within the bin.
-      *   count_histogram: True count value of media units or average
+      *   `count_histogram`: True count value of media units or average
           frequencies within the bin.
-      *   start_interval_histogram: Media unit or average frequency starting
+      *   `start_interval_histogram`: Media unit or average frequency starting
           point for a histogram bin.
-      *   end_interval_histogram: Media unit or average frequency ending point
+      *   `end_interval_histogram`: Media unit or average frequency ending point
           for a histogram bin.
 
       This DataFrame will be used to plot the histograms showing the relative
@@ -2704,24 +2707,25 @@ class Analyzer:
 
     Returns:
       Hill Curves pd.DataFrame with columns:
-      * channel: `media` or `rf` channel name.
-      * media_units: Media (for `media` channels) or average frequency (for
-      `rf` channels) units.
-      * distribution: Indication of `posterior` or `prior` draw.
-      * ci_hi: Upper bound of the credible interval of the value of the Hill
-      function.
-      * ci_lo: Lower bound of the credible interval of the value of the Hill
-      function.
-      * mean: Point-wise mean of the value of the Hill function per draw.
-      * channel_type: Indication of a `media` or `rf` channel.
-      * scaled_count_histogram: Scaled count of media units or average
-      frequencies within the bin.
-      * count_histogram: True count value of media units or average
-      frequencies within the bin.
-      * start_interval_histogram: Media unit or average frequency starting point
-      for a histogram bin.
-      * end_interval_histogram: Media unit or average frequency ending point for
-      a histogram bin.
+
+      *   `channel`: `media` or `rf` channel name.
+      *   `media_units`: Media (for `media` channels) or average frequency (for
+          `rf` channels) units.
+      *   `distribution`: Indication of `posterior` or `prior` draw.
+      *   `ci_hi`: Upper bound of the credible interval of the value of the Hill
+          function.
+      *   `ci_lo`: Lower bound of the credible interval of the value of the Hill
+          function.
+      *   `mean`: Point-wise mean of the value of the Hill function per draw.
+      *   `channel_type`: Indication of a `media` or `rf` channel.
+      *   `scaled_count_histogram`: Scaled count of media units or average
+          frequencies within the bin.
+      *   `count_histogram`: True count value of media units or average
+          frequencies within the bin.
+      *   `start_interval_histogram`: Media unit or average frequency starting
+          point for a histogram bin.
+      *   `end_interval_histogram`: Media unit or average frequency ending point
+          for a histogram bin.
     """
     if (
         constants.PRIOR not in self._meridian.inference_data.groups()
@@ -2843,12 +2847,13 @@ class Analyzer:
     """Computes the MediaSummary metrics involving the input data.
 
     Returns:
-      A xr.Dataset consisting of the following arrays:
-      * impressions
-      * pct_of_impressions
-      * spend
-      * pct_of_spend
-      * CPM (spend for every 1,000 impressions)
+      An xarray Dataset consisting of the following arrays:
+
+      * `impressions`
+      * `pct_of_impressions`
+      * `spend`
+      * `pct_of_spend`
+      * `cpm` (spend for every 1,000 impressions)
     """
     pct_of_impressions = (
         impressions_with_total / impressions_with_total[..., -1:] * 100
@@ -2915,7 +2920,7 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float,
   ) -> xr.Dataset:
-    """Computes the parts of MediaSummary related to mean expected impact."""
+    """Computes the parts of `MediaSummary` related to mean expected impact."""
     mean_expected_impact_prior = tf.reduce_mean(expected_impact_prior, (0, 1))
     mean_expected_impact_posterior = tf.reduce_mean(
         expected_impact_posterior, (0, 1)

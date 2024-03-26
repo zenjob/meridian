@@ -370,8 +370,8 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
         "Custom priors should be set during model creation since"
-        " `kpi_type`=`non_revenue` and `revenue_per_kpi` was not passed in."
-        " Further documentation available at"
+        " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
+        " Further documentation is available at"
         " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi",
     ):
       model.Meridian(
