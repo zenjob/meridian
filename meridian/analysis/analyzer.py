@@ -2605,16 +2605,16 @@ class Analyzer:
 
     Returns:
       Pandas DataFrame with columns:
-      * channel: `media` or `rf` channel name.
-      * channel_type: `media` or `rf` channel type.
-      * scaled_count_histogram: Scaled count of media units or average
-      frequencies within the bin.
-      * count_histogram: True count value of media units or average
-      frequencies within the bin.
-      * start_interval_histogram: Media unit or average frequency starting point
-      for a histogram bin.
-      * end_interval_histogram: Media unit or average frequency ending point for
-      a histogram bin.
+      *   channel: `media` or `rf` channel name.
+      *   channel_type: `media` or `rf` channel type.
+      *   scaled_count_histogram: Scaled count of media units or average
+          frequencies within the bin.
+      *   count_histogram: True count value of media units or average
+          frequencies within the bin.
+      *   start_interval_histogram: Media unit or average frequency starting
+          point for a histogram bin.
+      *   end_interval_histogram: Media unit or average frequency ending point
+          for a histogram bin.
 
       This DataFrame will be used to plot the histograms showing the relative
       distribution of media units per capita for media channels or average

@@ -226,7 +226,6 @@ class PriorDistribution:
 
   def __setstate__(self, state):
     # Override to support pickling.
-
     def _unpack_distribution_params(
         params: MutableMapping[str, Any]
     ) -> tfp.distributions.Distribution:

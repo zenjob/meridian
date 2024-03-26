@@ -15,16 +15,22 @@
 """Auxiliary functions for knots calculations."""
 
 import bisect
-from collections import abc
-from typing import Sequence
+from collections.abc import Collection
+import typing
 import numpy as np
+
+
+__all__ = [
+    'get_knot_info',
+    'l1_distance_weights',
+]
 
 
 # TODO(b/322860895): Reimplement with a more readable method.
 def _find_neighboring_knots_indices(
     times: np.ndarray,
     knot_locations: np.ndarray,
-) -> Sequence[Sequence[int] | None]:
+) -> typing.Sequence[typing.Sequence[int] | None]:
   """Return indices of neighboring knot locations.
 
   Return indices in `knot_locations` that correspond to the neighboring knot
@@ -119,7 +125,7 @@ def _get_equally_spaced_knot_locations(n_times, n_knots):
 
 def get_knot_info(
     n_times: int,
-    knots: int | abc.Collection[int] | None,
+    knots: int | Collection[int] | None,
     is_national: bool = False,
 ) -> tuple[
     int, np.ndarray[int, np.dtype[int]], np.ndarray[int, np.dtype[float]]
@@ -135,11 +141,10 @@ def get_knot_info(
       time, ..., and (`n_times - 1`) corresponds to a knot at the last time
       period. When `knots` is an integer, then there are knots with locations
       equally spaced across the time periods (including knots at zero and
-      (`n_times - 1`). When `knots` is `1`, there is a single common
-      regression coefficient used for all time periods. If `knots` is `None`,
-      then the numbers of knots used is equal to the number of time periods.
-      This is equivalent to each time period having its own regression
-      coefficient.
+      (`n_times - 1`). When `knots` is `1`, there is a single common regression
+      coefficient used for all time periods. If `knots` is `None`, then the
+      numbers of knots used is equal to the number of time periods. This is
+      equivalent to each time period having its own regression coefficient.
     is_national: A boolean indicator whether to adapt the knot information for a
       national model.
 
@@ -164,7 +169,7 @@ def get_knot_info(
       )
     n_knots = knots
     knot_locations = _get_equally_spaced_knot_locations(n_times, n_knots)
-  elif isinstance(knots, abc.Collection) and knots:
+  elif isinstance(knots, Collection) and knots:
     if any(k < 0 for k in knots):
       raise ValueError('Knots must be all non-negative.')
     if any(k >= n_times for k in knots):
@@ -174,7 +179,7 @@ def get_knot_info(
     n_knots = len(knots)
     # np.unique also sorts
     knot_locations = np.unique(knots)
-  elif isinstance(knots, abc.Collection):
+  elif isinstance(knots, Collection):
     raise ValueError('Knots cannot be empty.')
   else:
     # knots is None
