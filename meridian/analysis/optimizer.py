@@ -360,6 +360,8 @@ class BudgetOptimizer:
         attrs=constraints,
         batch_size=batch_size,
     )
+    self._spend_grid = spend_grid
+    self._incremental_impact_grid = incremental_impact_grid
 
   def output_optimization_summary(self, filename: str, filepath: str):
     """Generates and saves the HTML optimization summary output."""
