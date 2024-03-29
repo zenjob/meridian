@@ -31,12 +31,10 @@ def _validate_roi_calibration_period(
     array_name: str,
     media_channel_dim_name: str,
 ):
-  if array is not None and (len(array.shape) != 2) and (len(array.shape) != 3):
+  if array is not None and (len(array.shape) != 2):
     raise ValueError(
         f"The shape of the `{array_name}` array {array.shape} should be"
-        f" 2-dimensional (`n_media_times` x `{media_channel_dim_name}`) or"
-        " 3-dimensional (`n_geos` x `n_media_times` x"
-        f" `{media_channel_dim_name}`)."
+        f" 2-dimensional (`n_media_times` x `{media_channel_dim_name}`)."
     )
 
 
@@ -73,16 +71,14 @@ class ModelSpec:
     use_roi_prior: A boolean indicating whether to use ROI priors and the prior
       on `roi_m` in the prior. If `False`, then the prior on `beta_m` in the
       prior is used. Default: `True`.
-    roi_calibration_period: An optional boolean array indicating the subset of
-      `time` and `geo` for media ROI calibration. The array can be `(n_geos,
-      n_media_times, n_media_channels)` for a geo-level model or
-      `(n_media_times, n_media_channels)` for a national model. If `None`, all
-      times and geos are used for media ROI calibration. Default: `None`.
-    rf_roi_calibration_period: Optional boolean tensor indicating the subset of
-      `time` and `geo` for reach and frequency ROI calibration. The array can be
-      `(n_geos, n_media_times, n_rf_channels)` for a geo-level model or
-      `(n_media_times, n_rf_channels)` for a national model. If `None`, all
-      times and geos are used for media ROI calibration. Default: `None`.
+    roi_calibration_period: An optional boolean array of shape `(n_media_times,
+      n_media_channels)` indicating the subset of `time` for media ROI
+      calibration. If `None`, all times are used for media ROI calibration.
+      Default: `None`.
+    rf_roi_calibration_period: An optional boolean array of shape
+      `(n_media_times, n_rf_channels)` indicating the subset of `time` for reach
+      and frequency ROI calibration. If `None`, all times are used for media ROI
+      calibration. Default: `None`.
     knots: An optional integer or list of integers indicating the knots used to
       estimate time effects. When `knots` is a list of integers, the knot
       locations are provided by that list. Zero corresponds to a knot at the

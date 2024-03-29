@@ -509,54 +509,35 @@ class Meridian:
   def _validate_data_dependent_model_spec(self):
     """Validates that the data dependent model specs have correct shapes."""
 
-    if self.model_spec.roi_calibration_period is not None:
-      if self.is_national and (
-          self.model_spec.roi_calibration_period.shape
-          != (
-              self.n_media_times,
-              self.n_media_channels,
-          )
-      ):
-        raise ValueError(
-            "The shape of `roi_calibration_period`"
-            f" {self.model_spec.roi_calibration_period.shape} is different from"
-            f" `(n_media_times, n_media_channels) = ({self.n_media_times},"
-            f" {self.n_media_channels})`."
+    if (
+        self.model_spec.roi_calibration_period is not None
+        and self.model_spec.roi_calibration_period.shape
+        != (
+            self.n_media_times,
+            self.n_media_channels,
         )
-      elif not self.is_national and (
-          self.model_spec.roi_calibration_period.shape
-          != (self.n_geos, self.n_media_times, self.n_media_channels)
-      ):
-        raise ValueError(
-            "The shape of `roi_calibration_period`"
-            f" {self.model_spec.roi_calibration_period.shape} is different from"
-            f" `(n_geos, n_media_times, n_media_channels) = ({self.n_geos},"
-            f" {self.n_media_times}, {self.n_media_channels})`."
-        )
+    ):
+      raise ValueError(
+          "The shape of `roi_calibration_period`"
+          f" {self.model_spec.roi_calibration_period.shape} is different from"
+          f" `(n_media_times, n_media_channels) = ({self.n_media_times},"
+          f" {self.n_media_channels})`."
+      )
 
-    if self.model_spec.rf_roi_calibration_period is not None:
-      if self.is_national and (
-          self.model_spec.rf_roi_calibration_period.shape
-          != (self.n_media_times, self.n_rf_channels)
-      ):
-
-        raise ValueError(
-            "The shape of `rf_roi_calibration_period`"
-            f" {self.model_spec.rf_roi_calibration_period.shape} is different"
-            f" from `(n_media_times, n_rf_channels) = ({self.n_media_times},"
-            f" {self.n_rf_channels})`."
+    if (
+        self.model_spec.rf_roi_calibration_period is not None
+        and self.model_spec.rf_roi_calibration_period.shape
+        != (
+            self.n_media_times,
+            self.n_rf_channels,
         )
-      elif not self.is_national and (
-          self.model_spec.rf_roi_calibration_period.shape
-          != (self.n_geos, self.n_media_times, self.n_rf_channels)
-      ):
-
-        raise ValueError(
-            "The shape of `rf_roi_calibration_period`"
-            f" {self.model_spec.rf_roi_calibration_period.shape} is different"
-            f" from `(n_geos, n_media_times, n_rf_channels) = ({self.n_geos},"
-            f" {self.n_media_times}, {self.n_rf_channels})`."
-        )
+    ):
+      raise ValueError(
+          "The shape of `rf_roi_calibration_period`"
+          f" {self.model_spec.rf_roi_calibration_period.shape} is different"
+          f" from `(n_media_times, n_rf_channels) = ({self.n_media_times},"
+          f" {self.n_rf_channels})`."
+      )
 
     if self.model_spec.holdout_id is not None:
       if self.is_national and (

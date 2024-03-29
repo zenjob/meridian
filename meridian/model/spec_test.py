@@ -67,11 +67,8 @@ class ModelSpecTest(parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
       spec.ModelSpec(media_effects_dist=dist)
 
-  @parameterized.named_parameters(
-      ("2d", (3, 7)),
-      ("3d", (2, 5, 8)),
-  )
-  def test_spec_inits_valid_roi_calibration_works(self, shape):
+  def test_spec_inits_valid_roi_calibration_works(self):
+    shape = (3, 7)
     model_spec = spec.ModelSpec(
         roi_calibration_period=np.random.normal(size=shape)
     )
@@ -85,9 +82,15 @@ class ModelSpecTest(parameterized.TestCase):
           (14,),
           (
               "The shape of the `roi_calibration_period` array (14,) should be"
-              " 2-dimensional (`n_media_times` x `n_media_channels`) or"
-              " 3-dimensional (`n_geos` x `n_media_times` x"
-              " `n_media_channels`)."
+              " 2-dimensional (`n_media_times` x `n_media_channels`)."
+          ),
+      ),
+      (
+          "3d",
+          (5, 10, 15),
+          (
+              "The shape of the `roi_calibration_period` array (5, 10, 15)"
+              " should be 2-dimensional (`n_media_times` x `n_media_channels`)."
           ),
       ),
       (
@@ -95,9 +98,7 @@ class ModelSpecTest(parameterized.TestCase):
           (2, 4, 3, 5),
           (
               "The shape of the `roi_calibration_period` array (2, 4, 3, 5)"
-              " should be 2-dimensional (`n_media_times` x `n_media_channels`)"
-              " or 3-dimensional (`n_geos` x `n_media_times` x"
-              " `n_media_channels`)."
+              " should be 2-dimensional (`n_media_times` x `n_media_channels`)."
           ),
       ),
   )
@@ -111,8 +112,15 @@ class ModelSpecTest(parameterized.TestCase):
           (14,),
           (
               "The shape of the `rf_roi_calibration_period` array (14,) should"
-              " be 2-dimensional (`n_media_times` x `n_rf_channels`) or"
-              " 3-dimensional (`n_geos` x `n_media_times` x `n_rf_channels`)."
+              " be 2-dimensional (`n_media_times` x `n_rf_channels`)."
+          ),
+      ),
+      (
+          "3d",
+          (5, 10, 15),
+          (
+              "The shape of the `rf_roi_calibration_period` array (5, 10, 15)"
+              " should be 2-dimensional (`n_media_times` x `n_rf_channels`)."
           ),
       ),
       (
@@ -120,8 +128,7 @@ class ModelSpecTest(parameterized.TestCase):
           (2, 4, 3, 5),
           (
               "The shape of the `rf_roi_calibration_period` array (2, 4, 3, 5)"
-              " should be 2-dimensional (`n_media_times` x `n_rf_channels`) or"
-              " 3-dimensional (`n_geos` x `n_media_times` x `n_rf_channels`)."
+              " should be 2-dimensional (`n_media_times` x `n_rf_channels`)."
           ),
       ),
   )

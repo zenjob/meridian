@@ -117,11 +117,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   _N_RF_CHANNELS = 2
   _N_CONTROLS = 2
   _ROI_CALIBRATION_PERIOD = tf.cast(
-      tf.ones((_N_GEOS, _N_MEDIA_TIMES_SHORT, _N_MEDIA_CHANNELS)),
+      tf.ones((_N_MEDIA_TIMES_SHORT, _N_MEDIA_CHANNELS)),
       dtype=tf.bool,
   )
   _RF_ROI_CALIBRATION_PERIOD = tf.cast(
-      tf.ones((_N_GEOS, _N_MEDIA_TIMES_SHORT, _N_RF_CHANNELS)),
+      tf.ones((_N_MEDIA_TIMES_SHORT, _N_RF_CHANNELS)),
       dtype=tf.bool,
   )
 
@@ -301,25 +301,22 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="national",
           input_data_type="national",
-          error_msg=(
-              "The shape of `roi_calibration_period` (1, 2, 3) is different"
-              " from `(n_media_times, n_media_channels) = (203, 3)`."
-          ),
       ),
       dict(
           testcase_name="geo",
           input_data_type="geo",
-          error_msg=(
-              "The shape of `roi_calibration_period` (1, 2, 3) is different"
-              " from `(n_geos, n_media_times, n_media_channels) = (5, 203, 3)`."
-          ),
       ),
   )
   def test_init_with_wrong_roi_calibration_period_shape_fails(
-      self, input_data_type: str, error_msg: str
+      self,
+      input_data_type: str,
   ):
+    error_msg = (
+        "The shape of `roi_calibration_period` (2, 3) is different"
+        " from `(n_media_times, n_media_channels) = (203, 3)`."
+    )
     model_spec = spec.ModelSpec(
-        roi_calibration_period=np.ones((1, 2, 3), dtype=bool)
+        roi_calibration_period=np.ones((2, 3), dtype=bool)
     )
     input_data = (
         self.national_input_data_media_and_rf
@@ -336,23 +333,20 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="national",
           input_data_type="national",
-          error_msg=(
-              "The shape of `rf_roi_calibration_period` (4, 5) is different"
-              " from `(n_media_times, n_rf_channels) = (203, 2)`."
-          ),
       ),
       dict(
           testcase_name="geo",
           input_data_type="geo",
-          error_msg=(
-              "The shape of `rf_roi_calibration_period` (4, 5) is different"
-              " from `(n_geos, n_media_times, n_rf_channels) = (5, 203, 2)`."
-          ),
       ),
   )
   def test_init_with_wrong_rf_roi_calibration_period_shape_fails(
-      self, input_data_type: str, error_msg: str
+      self,
+      input_data_type: str,
   ):
+    error_msg = (
+        "The shape of `rf_roi_calibration_period` (4, 5) is different"
+        " from `(n_media_times, n_rf_channels) = (203, 2)`."
+    )
     model_spec = spec.ModelSpec(
         rf_roi_calibration_period=np.ones((4, 5), dtype=bool)
     )
@@ -1038,17 +1032,14 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="national",
           input_data_type="national",
-          roi_calibration_shape=(_N_MEDIA_TIMES, _N_MEDIA_CHANNELS),
       ),
       dict(
           testcase_name="geo-level",
           input_data_type="geo-level",
-          roi_calibration_shape=(_N_GEOS, _N_MEDIA_TIMES, _N_MEDIA_CHANNELS),
       ),
   )
-  def test_counterfactual_data_with_roi_calibration(
-      self, input_data_type: str, roi_calibration_shape: tuple[int, ...]
-  ):
+  def test_counterfactual_data_with_roi_calibration(self, input_data_type: str):
+    roi_calibration_shape = (self._N_MEDIA_TIMES, self._N_MEDIA_CHANNELS)
     roi_calibration_period = np.random.choice(
         a=[False, True], size=roi_calibration_shape
     )
@@ -1090,17 +1081,16 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="national",
           input_data_type="national",
-          rf_roi_calibration_shape=(_N_MEDIA_TIMES, _N_RF_CHANNELS),
       ),
       dict(
           testcase_name="geo-level",
           input_data_type="geo-level",
-          rf_roi_calibration_shape=(_N_GEOS, _N_MEDIA_TIMES, _N_RF_CHANNELS),
       ),
   )
   def test_counterfactual_data_with_rf_roi_calibration(
-      self, input_data_type: str, rf_roi_calibration_shape: tuple[int, ...]
+      self, input_data_type: str
   ):
+    rf_roi_calibration_shape = (self._N_MEDIA_TIMES, self._N_RF_CHANNELS)
     rf_roi_calibration_period = np.random.choice(
         a=[False, True], size=rf_roi_calibration_shape
     )
