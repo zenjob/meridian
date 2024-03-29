@@ -102,13 +102,6 @@ to pass internal review. If you submit a pull request and we believe that we can
 incorporate a change in the base code, we will reach out to you directly about
 this.
 
-## Contact
-
-* hiteshwadhwani@google.com, Hitesh Wadhwani, Product Manager, Meridian
-* vivekbeniwal@google.com, Vivek Beniwal, Engineering Lead
-* yingliug@google.com, Ying Liu, Data Science Lead
-
-
 ## Citing Meridian
 
 To cite this repository:
