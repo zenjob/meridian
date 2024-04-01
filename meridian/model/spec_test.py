@@ -23,8 +23,9 @@ class ModelSpecTest(parameterized.TestCase):
 
   def test_spec_inits_with_default_params(self):
     model_spec = spec.ModelSpec()
+    default_priors = prior_distribution.PriorDistribution()
 
-    self.assertEqual(model_spec.prior, prior_distribution.PriorDistribution())
+    self.assertEqual(repr(model_spec.prior), repr(default_priors))
     self.assertEqual(model_spec.media_effects_dist, "log_normal")
     self.assertEqual(model_spec.hill_before_adstock, False)
     self.assertEqual(model_spec.max_lag, 8)

@@ -521,7 +521,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     sample_spec = spec.ModelSpec()
 
     # Compare model spec.
-    self.assertEqual(meridian.model_spec, sample_spec)
+    self.assertEqual(repr(meridian.model_spec), repr(sample_spec))
 
   def test_init_with_default_national_parameters_works(self):
     meridian = model.Meridian(input_data=self.national_input_data_media_only)
@@ -533,7 +533,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     expected_spec = spec.ModelSpec()
 
     # Compare model spec.
-    self.assertEqual(meridian.model_spec, expected_spec)
+    self.assertEqual(repr(meridian.model_spec), repr(expected_spec))
 
   def test_init_geo_args_no_warning(self):
     with warnings.catch_warnings(record=True) as w:
