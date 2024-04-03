@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module to output budget optimization scenarios on the Meridian model."""
+"""Module to output budget optimization scenarios based on the model."""
 
 from collections.abc import Mapping, Sequence
 import math

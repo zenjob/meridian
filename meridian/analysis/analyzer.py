@@ -553,9 +553,9 @@ class Analyzer:
     """Calculates either the expected impact posterior or prior.
 
     This calculates `E(Impact|Media, Controls)` for each posterior (or prior)
-    parameter draw, where Impact refers to either `revenue` if `use_kpi=False`,
-    or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi`
-    cannot be `False`.
+    parameter draw, where `Impact` refers to either `revenue` if
+    `use_kpi=False`, or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not
+    defined, `use_kpi` cannot be `False`.
 
     By default, this calculates expected impact conditional on the media and
     control values that the Meridian object was initialized with. The user can
