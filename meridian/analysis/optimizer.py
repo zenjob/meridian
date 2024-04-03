@@ -36,6 +36,8 @@ __all__ = [
     'OptimizationNotRunError',
 ]
 
+# Disable max row limitations in Altair.
+alt.data_transformers.disable_max_rows()
 
 _SpendConstraint: TypeAlias = float | Sequence[float]
 
@@ -490,7 +492,7 @@ class BudgetOptimizer:
 
     Args:
       optimized: If `True`, shows the optimized spend. If `False`, shows the
-      non-optimized spend.
+        non-optimized spend.
 
     Returns:
       An Altair pie chart showing the spend by channel.
@@ -882,8 +884,8 @@ class BudgetOptimizer:
   ) -> tuple[np.ndarray, np.ndarray]:
     """Validates and returns the spend constraint requirements."""
 
-    def get_const_array(const: _SpendConstraint) -> np.ndarray:
-      if not const:
+    def get_const_array(const: _SpendConstraint | None) -> np.ndarray:
+      if const is None:
         const = np.array([0.3]) if fixed_budget else np.array([1.0])
       elif isinstance(const, (float, int)):
         const = np.array([const])
