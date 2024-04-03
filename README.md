@@ -29,12 +29,20 @@ you understand the differences between these MMM projects.
 
 # Install Meridian
 
-Run the following command to automatically install the most recent version from
-GitHub. Note that Python 3.10 or higher is required.
+Python 3.10 or higher is required to use {{product_name}}.
+
+To install {{product_name}}:
+
+1.  Follow the GitHub instructions to generate a [personal access
+    token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic),
+    which is required to access the Meridian repository.
+
+1.  Run the following command to automatically install the most recent version
+    from GitHub. The installer also verifies that enough GPU is
+    available.
 
 ```sh
-$ git clone https://github.com/google/meridian.git
-$ pip install .
+$ pip install --upgrade git+https://{github_token}@github.com/google/meridian.git
 ```
 
 ## How to use the Meridian library
