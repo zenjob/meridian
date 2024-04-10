@@ -57,8 +57,8 @@ class XrDatasetDataLoader(InputDataLoader):
     kpi_type: A string denoting whether the KPI is of a `'revenue'` or
       `'non-revenue'` type. When the `kpi_type` is `'non-revenue'` and
       `revenue_per_kpi` exists, ROI calibration is used and the analysis is run
-      on revenue. When `revenue_per_kpi` doesn't exist for the same
-      `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
+      on revenue. When `revenue_per_kpi` doesn't exist for the same `kpi_type`,
+      custom ROI calibration is used and the analysis is run on KPI.
 
   Example:
 
@@ -146,10 +146,10 @@ class XrDatasetDataLoader(InputDataLoader):
         coordinates or array names in the `input` dataset and whose values are
         the desired coordinates (`geo`, `time`, `media_time`, `media_channel`
         and/or `rf_channel`, `control_variable`) or array names (`kpi`,
-        `revenue_per_kpi`, `media`, `media_spend` and/or `rf_spend`,
-        `controls`, `population`). Mapping must be provided if the names in the
-        `input` dataset are different from the required ones, otherwise errors
-        are thrown.
+        `revenue_per_kpi`, `media`, `media_spend` and/or `rf_spend`, `controls`,
+        `population`). Mapping must be provided if the names in the `input`
+        dataset are different from the required ones, otherwise errors are
+        thrown.
     """
     self.kpi_type = kpi_type
     if name_mapping is None:
@@ -528,7 +528,7 @@ class DataFrameDataLoader(InputDataLoader):
           'rf_spend_tv': 'tv', 'rf_spend_yt': 'yt', 'rf_spend_fb': 'fb'
       }
       ```
-  """
+  """  # pyformat: disable
 
   df: pd.DataFrame
   coord_to_columns: CoordToColumns
@@ -992,8 +992,7 @@ class CsvDataLoader(InputDataLoader):
     `media_spend_to_channel` are required. If `reach` and `frequency` data is
     provided, then `reach_to_channel`, `frequency_to_channel`, and
     `rf_spend_to_channel` are required.
-
-    """
+    """  # pyformat: disable
     df = pd.read_csv(csv_path)
     self._df_loader = DataFrameDataLoader(
         df=df,
