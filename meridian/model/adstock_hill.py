@@ -78,10 +78,10 @@ def _adstock(
     media = tf.concat([tf.zeros(pad_shape), media], axis=-2)
 
   window_size = max_lag + 1
-  window_list = tf.TensorArray(tf.float32, size=window_size)
+  window_list = [None] * window_size
   for i in range(window_size):
-    window_list = window_list.write(i, media[..., i : i + n_times_output, :])
-  windowed = window_list.stack()
+    window_list[i] = media[..., i:i+n_times_output, :]
+  windowed = tf.stack(window_list)
   n_weights = min(window_size, n_media_times)
   l_range = tf.range(n_weights - 1, -1, -1, dtype=tf.float32)
   weights = tf.expand_dims(alpha, -1) ** l_range
