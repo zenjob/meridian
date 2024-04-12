@@ -36,6 +36,47 @@ class InputDataLoaderTest(parameterized.TestCase):
   _N_MEDIA_CHANNELS = 3
   _N_RF_CHANNELS = 2
 
+  SAMPLE_DATASET_NO_MEDIA_TIME = test_utils.random_dataset(
+      n_geos=50,
+      n_times=200,
+      n_media_times=203,
+      n_media_channels=10,
+      n_rf_channels=2,
+      n_controls=5,
+      remove_media_time=True,
+  )
+
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_KPI = copy.deepcopy(
+      SAMPLE_DATASET_NO_MEDIA_TIME
+  )
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_KPI['kpi'].loc[
+      {'geo': 'geo_1', 'time': '2024-11-11'}
+  ] = None
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_CONTROLS = copy.deepcopy(
+      SAMPLE_DATASET_NO_MEDIA_TIME
+  )
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_CONTROLS['controls'].loc[
+      {'geo': 'geo_1', 'time': '2024-11-11', 'control_variable': 'control_0'}
+  ] = None
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_REVENUE_PER_KPI = copy.deepcopy(
+      SAMPLE_DATASET_NO_MEDIA_TIME
+  )
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_REVENUE_PER_KPI['revenue_per_kpi'].loc[
+      {'geo': 'geo_1', 'time': '2024-11-11'}
+  ] = None
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_MEDIA_SPEND = copy.deepcopy(
+      SAMPLE_DATASET_NO_MEDIA_TIME
+  )
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_MEDIA_SPEND['media_spend'].loc[
+      {'geo': 'geo_1', 'time': '2024-11-11', 'media_channel': 'ch_2'}
+  ] = None
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_RF_SPEND = copy.deepcopy(
+      SAMPLE_DATASET_NO_MEDIA_TIME
+  )
+  SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_RF_SPEND['rf_spend'].loc[
+      {'geo': 'geo_1', 'time': '2024-11-11', 'rf_channel': 'rf_ch_1'}
+  ] = None
+
   def setUp(self):
     super().setUp()
 
@@ -183,6 +224,100 @@ class InputDataLoaderTest(parameterized.TestCase):
     xr.testing.assert_equal(data.population, dataset[constants.POPULATION])
     xr.testing.assert_equal(data.media, dataset[constants.MEDIA])
     xr.testing.assert_equal(data.media_spend, dataset[constants.MEDIA_SPEND])
+
+  def test_xr_dataset_data_loader_loads_lagged_dataset_without_media_time(self):
+    dataset = test_utils.random_dataset(
+        n_geos=50,
+        n_times=200,
+        n_media_times=203,
+        n_media_channels=10,
+        n_rf_channels=2,
+        n_controls=5,
+        remove_media_time=True,
+    )
+
+    self.assertNotIn(constants.MEDIA_TIME, dataset.coords.keys())
+
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
+    data = loader.load()
+
+    xr.testing.assert_equal(
+        data.kpi, dataset[constants.KPI].dropna(dim=constants.TIME)
+    )
+    xr.testing.assert_equal(
+        data.revenue_per_kpi,
+        dataset[constants.REVENUE_PER_KPI].dropna(dim=constants.TIME),
+    )
+    xr.testing.assert_equal(
+        data.controls, dataset[constants.CONTROLS].dropna(dim=constants.TIME)
+    )
+    xr.testing.assert_equal(data.population, dataset[constants.POPULATION])
+    xr.testing.assert_equal(
+        data.media,
+        dataset[constants.MEDIA].rename({constants.TIME: constants.MEDIA_TIME}),
+    )
+    xr.testing.assert_equal(
+        data.media_spend,
+        dataset[constants.MEDIA_SPEND].dropna(dim=constants.TIME),
+    )
+    xr.testing.assert_equal(
+        data.reach,
+        dataset[constants.REACH].rename({constants.TIME: constants.MEDIA_TIME}),
+    )
+    xr.testing.assert_equal(
+        data.frequency,
+        dataset[constants.FREQUENCY].rename(
+            {constants.TIME: constants.MEDIA_TIME}
+        ),
+    )
+    xr.testing.assert_equal(
+        data.rf_spend, dataset[constants.RF_SPEND].dropna(dim=constants.TIME)
+    )
+
+  def test_xr_dataset_data_loader_loads_not_lagged_dataset_without_media_time(
+      self,
+  ):
+    dataset = test_utils.random_dataset(
+        n_geos=50,
+        n_times=200,
+        n_media_times=200,
+        n_media_channels=10,
+        n_rf_channels=2,
+        n_controls=5,
+        remove_media_time=True,
+    )
+
+    self.assertNotIn(constants.MEDIA_TIME, dataset.coords.keys())
+
+    loader = load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
+    data = loader.load()
+
+    xr.testing.assert_equal(data.kpi, dataset[constants.KPI])
+    xr.testing.assert_equal(
+        data.revenue_per_kpi,
+        dataset[constants.REVENUE_PER_KPI],
+    )
+    xr.testing.assert_equal(data.controls, dataset[constants.CONTROLS])
+    xr.testing.assert_equal(data.population, dataset[constants.POPULATION])
+    xr.testing.assert_equal(
+        data.media,
+        dataset[constants.MEDIA].rename({constants.TIME: constants.MEDIA_TIME}),
+    )
+    xr.testing.assert_equal(
+        data.media_spend,
+        dataset[constants.MEDIA_SPEND],
+    )
+    xr.testing.assert_equal(
+        data.reach,
+        dataset[constants.REACH].rename({constants.TIME: constants.MEDIA_TIME}),
+    )
+    xr.testing.assert_equal(
+        data.frequency,
+        dataset[constants.FREQUENCY].rename(
+            {constants.TIME: constants.MEDIA_TIME}
+        ),
+    )
+    xr.testing.assert_equal(data.rf_spend, dataset[constants.RF_SPEND])
 
   def test_xr_dataset_data_loader_dataset_with_datetime_coords(self):
     dataset = test_utils.random_dataset(
@@ -506,6 +641,37 @@ class InputDataLoaderTest(parameterized.TestCase):
   def test_xr_dataset_data_loader_missing_data_fails(self, data, error_message):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
       _ = load.XrDatasetDataLoader(data, kpi_type=constants.NON_REVENUE)
+
+  @parameterized.named_parameters(
+      (
+          'kpi',
+          SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_KPI,
+      ),
+      (
+          'revenue_per_kpi',
+          SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_REVENUE_PER_KPI,
+      ),
+      (
+          'controls',
+          SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_CONTROLS,
+      ),
+      (
+          'media_spend',
+          SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_MEDIA_SPEND,
+      ),
+      (
+          'rf_spend',
+          SAMPLE_DATASET_NO_MEDIA_TIME_NA_IN_RF_SPEND,
+      ),
+  )
+  def test_xr_dataset_data_loader_nas_in_data_fails(self, dataset):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The 'lagged media' period (period with 100% NA values in all non-media"
+        " columns) ['2021-01-04' '2021-01-11' '2021-01-18' '2024-11-11'] is not"
+        ' a continuous window starting from the earliest time period.',
+    ):
+      load.XrDatasetDataLoader(dataset, kpi_type=constants.NON_REVENUE)
 
   def test_xr_dataset_data_loader_wrong_name_mapping_fails(self):
     dataset = test_utils.random_dataset(

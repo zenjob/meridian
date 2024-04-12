@@ -134,6 +134,13 @@ class XrDatasetDataLoader(InputDataLoader):
     )
     ```
 
+    Alternatively to using `media_time`, the `media`, `reach` and `frequency`
+    arrays can use the `time` coordinate, the same as the other arrays use.
+    In such case, the dimensions will be converted by the loader into `time`
+    and `media_time` and the lagged period will be determined by the missing
+    values in the other arrays, similarly to `DataFrameDataLoader` and
+    `CsvDataLoader`.
+
     Args:
       dataset: An `xarray.Dataset` object containing the input data.
       kpi_type: A string denoting whether the KPI is of a `'revenue'` or
@@ -209,6 +216,8 @@ class XrDatasetDataLoader(InputDataLoader):
           compat='override',
       )
 
+    if constants.MEDIA_TIME not in self.dataset.dims.keys():
+      self._add_media_time()
     self._normalize_time_coordinates(constants.TIME)
     self._normalize_time_coordinates(constants.MEDIA_TIME)
     self._validate_dataset()
@@ -286,6 +295,135 @@ class XrDatasetDataLoader(InputDataLoader):
           " dataset's coordinates/arrays. Please use the 'name_mapping'"
           ' argument to rename the coordinates/arrays.'
       )
+
+  def _add_media_time(self):
+    """Creates the `media_time` coordinate if it is not provided directly.
+
+    The user can either create both `time` and `media_time` coordinates directly
+    and use them to provide the lagged data for `media`, `reach` and `frequency`
+    arrays, or use the `time` coordinate for all arrays. In the second case,
+    the lagged period will be determined and the `media_time` and `time`
+    coordinates will be created based on the missing values in the other arrays:
+    `kpi`, `revenue_per_kpi`, `controls`, `media_spend`, `rf_spend`. The
+    analogous mechanism to determine the lagged period is used in
+    `DataFrameDataLoader` and `CsvDataLoader`.
+    """
+    # Check if there are no NAs in media.
+    if constants.MEDIA in self.dataset.data_vars.keys():
+      if self.dataset.media.isnull().any(axis=None):
+        raise ValueError('NA values found in the media array.')
+
+    # Check if there are no NAs in reach & frequency.
+    if constants.REACH in self.dataset.data_vars.keys():
+      if self.dataset.reach.isnull().any(axis=None):
+        raise ValueError('NA values found in the reach array.')
+    if constants.FREQUENCY in self.dataset.data_vars.keys():
+      if self.dataset.frequency.isnull().any(axis=None):
+        raise ValueError('NA values found in the frequency array.')
+
+    # Arrays in which NAs are expected in the lagged-media period.
+    na_arrays = [
+        constants.KPI,
+        constants.CONTROLS,
+    ]
+
+    na_mask = self.dataset[constants.KPI].isnull().any(
+        dim=constants.GEO
+    ) | self.dataset[constants.CONTROLS].isnull().any(
+        dim=[constants.GEO, constants.CONTROL_VARIABLE]
+    )
+
+    if constants.REVENUE_PER_KPI in self.dataset.data_vars.keys():
+      na_arrays.append(constants.REVENUE_PER_KPI)
+      na_mask |= (
+          self.dataset[constants.REVENUE_PER_KPI]
+          .isnull()
+          .any(dim=constants.GEO)
+      )
+    if constants.MEDIA_SPEND in self.dataset.data_vars.keys():
+      na_arrays.append(constants.MEDIA_SPEND)
+      na_mask |= (
+          self.dataset[constants.MEDIA_SPEND]
+          .isnull()
+          .any(dim=[constants.GEO, constants.MEDIA_CHANNEL])
+      )
+    if constants.RF_SPEND in self.dataset.data_vars.keys():
+      na_arrays.append(constants.RF_SPEND)
+      na_mask |= (
+          self.dataset[constants.RF_SPEND]
+          .isnull()
+          .any(dim=[constants.GEO, constants.RF_CHANNEL])
+      )
+
+    # Dates with at least one non-NA value in non-media columns
+    no_na_period = self.dataset[constants.TIME].isel(time=~na_mask).values
+
+    # Dates with 100% NA values in all non-media columns.
+    na_period = self.dataset[constants.TIME].isel(time=na_mask).values
+
+    # Check if na_period is a continuous window starting from the earliest time
+    # period.
+    if not np.all(
+        np.sort(na_period)
+        == np.sort(np.unique(self.dataset[constants.TIME]))[: len(na_period)]
+    ):
+      raise ValueError(
+          "The 'lagged media' period (period with 100% NA values in all"
+          f' non-media columns) {na_period} is not a continuous window starting'
+          ' from the earliest time period.'
+      )
+
+    # Check if for the non-lagged period, there are no NAs in non-media data
+    for array in na_arrays:
+      if np.any(np.isnan(self.dataset[array].isel(time=~na_mask))):
+        raise ValueError(
+            'NA values found in non-media columns outside the lagged-media'
+            f' period {na_period} (continuous window of 100% NA values in all'
+            ' non-media columns).'
+        )
+
+    # Create new `time` and `media_time` coordinates.
+    new_time = 'new_time'
+
+    new_dataset = self.dataset.assign_coords(
+        new_time=(new_time, no_na_period),
+    )
+
+    new_dataset[constants.KPI] = (
+        new_dataset[constants.KPI]
+        .dropna(dim=constants.TIME)
+        .rename({constants.TIME: new_time})
+    )
+    new_dataset[constants.CONTROLS] = (
+        new_dataset[constants.CONTROLS]
+        .dropna(dim=constants.TIME)
+        .rename({constants.TIME: new_time})
+    )
+
+    if constants.REVENUE_PER_KPI in new_dataset.data_vars.keys():
+      new_dataset[constants.REVENUE_PER_KPI] = (
+          new_dataset[constants.REVENUE_PER_KPI]
+          .dropna(dim=constants.TIME)
+          .rename({constants.TIME: new_time})
+      )
+
+    if constants.MEDIA_SPEND in new_dataset.data_vars.keys():
+      new_dataset[constants.MEDIA_SPEND] = (
+          new_dataset[constants.MEDIA_SPEND]
+          .dropna(dim=constants.TIME)
+          .rename({constants.TIME: new_time})
+      )
+
+    if constants.RF_SPEND in new_dataset.data_vars.keys():
+      new_dataset[constants.RF_SPEND] = (
+          new_dataset[constants.RF_SPEND]
+          .dropna(dim=constants.TIME)
+          .rename({constants.TIME: new_time})
+      )
+
+    self.dataset = new_dataset.rename(
+        {constants.TIME: constants.MEDIA_TIME, new_time: constants.TIME}
+    )
 
   def load(self) -> input_data.InputData:
     """Returns an `InputData` object containing the data from the dataset."""

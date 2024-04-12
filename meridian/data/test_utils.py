@@ -264,6 +264,7 @@ EXPECTED_NATIONAL_DATASET = xr.Dataset(
     data_vars=_NATIONAL_DATA_VARS_W_GEO | {c.POPULATION: (['geo'], [1.0])},
 )
 
+
 NATIONAL_DATA_DICT_WO_POPULATION_WO_GEO = immutabledict.immutabledict({
     'time': [
         _SAMPLE_START_DATE.strftime(c.DATE_FORMAT),
@@ -739,6 +740,7 @@ def random_dataset(
     n_rf_channels=None,
     revenue_per_kpi_value: float | None = 3.14,
     seed=0,
+    remove_media_time: bool = False,
 ):
   """Generates a random dataset."""
   if n_media_channels:
@@ -812,10 +814,24 @@ def random_dataset(
   dataset = xr.combine_by_coords([kpi, population, controls])
   if revenue_per_kpi is not None:
     dataset = xr.combine_by_coords([dataset, revenue_per_kpi])
-  if n_media_channels:
-    dataset = xr.combine_by_coords([dataset, media, media_spend])
-  if n_rf_channels:
-    dataset = xr.combine_by_coords([dataset, reach, frequency, rf_spend])
+  if media is not None:
+    media_renamed = (
+        media.rename({'media_time': 'time'}) if remove_media_time else media
+    )
+
+    dataset = xr.combine_by_coords([dataset, media_renamed, media_spend])
+  if reach is not None:
+    reach_renamed = (
+        reach.rename({'media_time': 'time'}) if remove_media_time else reach
+    )
+    frequency_renamed = (
+        frequency.rename({'media_time': 'time'})
+        if remove_media_time
+        else frequency
+    )
+    dataset = xr.combine_by_coords(
+        [dataset, reach_renamed, frequency_renamed, rf_spend]
+    )
   return dataset
 
 
@@ -990,8 +1006,7 @@ def sample_input_data_revenue(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`.
-  """
+  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
@@ -1026,8 +1041,7 @@ def sample_input_data_non_revenue_revenue_per_kpi(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`.
-  """
+  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
@@ -1061,8 +1075,7 @@ def sample_input_data_non_revenue_no_revenue_per_kpi(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for non-revenue and `revenue_per_kpi=None`.
-  """
+  """Generates sample InputData for non-revenue and `revenue_per_kpi=None`."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
