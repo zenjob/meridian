@@ -10,7 +10,7 @@ privacy-safe and does not use any cookie or user-level information.
 Meridian is an MMM framework that enables advertisers to set up and run their
 own in-house models. Meridian helps you answer key questions such as:
 
-*   How did the marketing channels drive my sales (or other KPI)?
+*   How did the marketing channels drive my revenue or other KPI?
 *   What was my marketing return on investment (ROI)?
 *   How do I optimize my marketing budget allocation for the future?
 
@@ -29,7 +29,10 @@ you understand the differences between these MMM projects.
 
 # Install Meridian
 
-Python 3.10 or higher is required to use {{product_name}}.
+Python 3.10 or higher is required to use {{product_name}}. We also recommend
+using a minimum of 1 GPU.
+
+Note: This project has been tested on V100 and T4 GPU using 16 GB of RAM.
 
 To install {{product_name}}:
 
