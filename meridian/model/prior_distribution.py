@@ -24,6 +24,7 @@ import dataclasses
 from typing import Any
 import warnings
 from meridian import constants
+import numpy as np
 import tensorflow_probability as tfp
 
 
@@ -309,7 +310,53 @@ class PriorDistribution:
     Returns:
       A new `PriorDistribution` broadcast from this prior distribution,
       according to the given data dimensionality.
+
+    Raises:
+      ValueError: If custom priors are not set for all channels.
     """
+
+    def _validate_media_custom_priors(
+        param: tfp.distributions.Distribution,
+    ) -> None:
+      if (
+          param.batch_shape.as_list()
+          and n_media_channels != param.batch_shape[0]
+      ):
+        raise ValueError(
+            'Custom priors must have length equal to the number of media'
+            ' channels, representing a custom prior for each channel. If you'
+            " can't determine a custom prior, consider using the default prior"
+            ' for that channel.'
+        )
+
+    _validate_media_custom_priors(self.roi_m)
+    _validate_media_custom_priors(self.alpha_m)
+    _validate_media_custom_priors(self.ec_m)
+    _validate_media_custom_priors(self.slope_m)
+    _validate_media_custom_priors(self.eta_m)
+    _validate_media_custom_priors(self.beta_m)
+
+    def _validate_rf_custom_priors(
+        param: tfp.distributions.Distribution,
+    ) -> None:
+      if (
+          param.batch_shape.as_list()
+          and n_media_channels != param.batch_shape[0]
+      ):
+        raise ValueError(
+            'Custom priors must have length equal to the number of RF channels,'
+            " representing a custom prior for each channel. If you can't"
+            ' determine a custom prior, consider using the default prior for'
+            ' that channel.'
+        )
+
+    _validate_rf_custom_priors(self.roi_rf)
+    _validate_rf_custom_priors(self.alpha_rf)
+    _validate_rf_custom_priors(self.ec_rf)
+    _validate_rf_custom_priors(self.slope_rf)
+    _validate_rf_custom_priors(self.eta_rf)
+    _validate_rf_custom_priors(self.beta_rf)
+
     knot_values = tfp.distributions.BatchBroadcast(
         self.knot_values,
         n_knots,
@@ -366,7 +413,11 @@ class PriorDistribution:
     )
     if (
         not isinstance(self.slope_m, tfp.distributions.Deterministic)
-        or self.slope_m.loc != 1.0
+        or (np.isscalar(self.slope_m.loc.numpy()) and self.slope_m.loc != 1.0)
+        or (
+            self.slope_m.batch_shape.as_list()
+            and any(x != 1.0 for x in self.slope_m.loc)
+        )
     ):
       warnings.warn(
           'Changing the prior for `slope_m` may lead to convex Hill curves.'

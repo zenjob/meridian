@@ -161,10 +161,10 @@ class PriorDistributionTest(parameterized.TestCase):
 
   def test_has_deterministic_param_broadcasted_distribution_correct(self):
     for d in self.sample_distributions:
-      is_determenistic_param = d == c.SLOPE_M
+      is_deterministic_param = d == c.SLOPE_M
       self.assertEqual(
           self.sample_broadcast.has_deterministic_param(d),
-          is_determenistic_param,
+          is_deterministic_param,
       )
 
   def test_broadcast_preserves_distribution(self):
@@ -292,10 +292,32 @@ class PriorDistributionTest(parameterized.TestCase):
     # Validate sigma.
     self.assertEqual(broadcast_distribution.sigma.batch_shape, (sigma_shape,))
 
-  def test_broadcast_custom_slope_m_raises_warning(self):
-    distribution = prior_distribution.PriorDistribution(
-        slope_m=tfp.distributions.LogNormal(0.7, 0.4, name=c.SLOPE_M)
-    )
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='scalar_deterministic',
+          slope_m=tfp.distributions.Deterministic(0.7, 0.4, name=c.SLOPE_M),
+      ),
+      dict(
+          testcase_name='scalar_non_deterministic',
+          slope_m=tfp.distributions.LogNormal(1.0, 0.4, name=c.SLOPE_M),
+      ),
+      dict(
+          testcase_name='list_deterministic',
+          slope_m=tfp.distributions.Deterministic(
+              [1.0, 1.1, 1.2, 1.3, 1.4, 1.5], 0.9, name=c.SLOPE_M
+          ),
+      ),
+      dict(
+          testcase_name='list_non_deterministic',
+          slope_m=tfp.distributions.LogNormal(
+              [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 0.9, name=c.SLOPE_M
+          ),
+      ),
+  )
+  def test_broadcast_custom_slope_m_raises_warning(
+      self, slope_m: prior_distribution.PriorDistribution
+  ):
+    distribution = prior_distribution.PriorDistribution(slope_m=slope_m)
     with warnings.catch_warnings(record=True) as warns:
       # Cause all warnings to always be triggered.
       warnings.simplefilter('always')
@@ -317,6 +339,144 @@ class PriorDistributionTest(parameterized.TestCase):
             ' may no longer produce a global optimum.',
             str(w.message),
         )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='roi_m',
+          distribution=prior_distribution.PriorDistribution(
+              roi_m=tfp.distributions.LogNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.ROI_M
+              )
+          ),
+      ),
+      dict(
+          testcase_name='alpha_m',
+          distribution=prior_distribution.PriorDistribution(
+              alpha_m=tfp.distributions.Uniform(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 1.0, name=c.ALPHA_M
+              )
+          ),
+      ),
+      dict(
+          testcase_name='ec_m',
+          distribution=prior_distribution.PriorDistribution(
+              ec_m=tfp.distributions.Deterministic(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.EC_M
+              )
+          ),
+      ),
+      dict(
+          testcase_name='slope_m',
+          distribution=prior_distribution.PriorDistribution(
+              slope_m=tfp.distributions.Deterministic(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.SLOPE_M
+              )
+          ),
+      ),
+      dict(
+          testcase_name='eta_m',
+          distribution=prior_distribution.PriorDistribution(
+              eta_m=tfp.distributions.HalfNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.ETA_M
+              )
+          ),
+      ),
+      dict(
+          testcase_name='beta_m',
+          distribution=prior_distribution.PriorDistribution(
+              beta_m=tfp.distributions.HalfNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.BETA_M
+              )
+          ),
+      ),
+  )
+  def test_custom_priors_dont_match_media_channels(
+      self, distribution: prior_distribution.PriorDistribution
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Custom priors must have length equal to the number of media channels,'
+        " representing a custom prior for each channel. If you can't determine"
+        ' a custom prior, consider using the default prior for that channel.',
+    ):
+      distribution.broadcast(
+          n_geos=_N_GEOS_NATIONAL,
+          n_media_channels=_N_MEDIA_CHANNELS,
+          n_rf_channels=_N_RF_CHANNELS,
+          n_controls=_N_CONTROLS,
+          sigma_shape=_N_GEOS_NATIONAL,
+          n_knots=_N_KNOTS,
+          is_national=False,
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='roi_rf',
+          distribution=prior_distribution.PriorDistribution(
+              roi_rf=tfp.distributions.LogNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.ROI_RF
+              )
+          ),
+      ),
+      dict(
+          testcase_name='alpha_rf',
+          distribution=prior_distribution.PriorDistribution(
+              alpha_rf=tfp.distributions.Uniform(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 1.0, name=c.ALPHA_RF
+              )
+          ),
+      ),
+      dict(
+          testcase_name='ec_rf',
+          distribution=prior_distribution.PriorDistribution(
+              ec_rf=tfp.distributions.Deterministic(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.EC_RF
+              )
+          ),
+      ),
+      dict(
+          testcase_name='slope_rf',
+          distribution=prior_distribution.PriorDistribution(
+              slope_rf=tfp.distributions.Deterministic(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.SLOPE_RF
+              )
+          ),
+      ),
+      dict(
+          testcase_name='eta_rf',
+          distribution=prior_distribution.PriorDistribution(
+              eta_rf=tfp.distributions.HalfNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.ETA_RF
+              )
+          ),
+      ),
+      dict(
+          testcase_name='beta_rf',
+          distribution=prior_distribution.PriorDistribution(
+              beta_rf=tfp.distributions.HalfNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.BETA_RF
+              )
+          ),
+      ),
+  )
+  def test_custom_priors_dont_match_rf_channels(
+      self, distribution: prior_distribution.PriorDistribution
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Custom priors must have length equal to the number of RF channels,'
+        " representing a custom prior for each channel. If you can't determine"
+        ' a custom prior, consider using the default prior for that channel.',
+    ):
+      distribution.broadcast(
+          n_geos=_N_GEOS_NATIONAL,
+          n_media_channels=_N_MEDIA_CHANNELS,
+          n_rf_channels=_N_RF_CHANNELS,
+          n_controls=_N_CONTROLS,
+          sigma_shape=_N_GEOS_NATIONAL,
+          n_knots=_N_KNOTS,
+          is_national=False,
+      )
 
   @parameterized.named_parameters(
       dict(
@@ -394,7 +554,7 @@ class PriorDistributionTest(parameterized.TestCase):
             str(w.message),
         )
 
-    # Validate Determenistic(0) distributions.
+    # Validate Deterministic(0) distributions.
     self.assertIsInstance(
         broadcast_distribution.tau_g_excl_baseline.parameters[c.DISTRIBUTION],
         tfp.distributions.Deterministic,
