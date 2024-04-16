@@ -29,12 +29,12 @@ you understand the differences between these MMM projects.
 
 # Install Meridian
 
-Python 3.10 or higher is required to use {{product_name}}. We also recommend
+Python 3.10 or higher is required to use Meridian. We also recommend
 using a minimum of 1 GPU.
 
 Note: This project has been tested on V100 and T4 GPU using 16 GB of RAM.
 
-To install {{product_name}}:
+To install Meridian:
 
 1.  Follow the GitHub instructions to generate a [personal access
     token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic),
