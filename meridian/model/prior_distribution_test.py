@@ -480,6 +480,44 @@ class PriorDistributionTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
+          testcase_name='roi_m',
+          distribution=prior_distribution.PriorDistribution(
+              gamma_c=tfp.distributions.LogNormal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.GAMMA_C
+              )
+          ),
+      ),
+      dict(
+          testcase_name='alpha_m',
+          distribution=prior_distribution.PriorDistribution(
+              xi_c=tfp.distributions.Uniform(
+                  [0.1, 0.2, 0.3, 0.4, 0.5], 1.0, name=c.XI_C
+              )
+          ),
+      ),
+  )
+  def test_custom_priors_dont_match_controls(
+      self, distribution: prior_distribution.PriorDistribution
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Custom priors must have length equal to the number of control'
+        ' variables, representing a custom prior for each control variable.'
+        " If you can't determine a custom prior, consider using the default"
+        ' prior for that variable.',
+    ):
+      distribution.broadcast(
+          n_geos=_N_GEOS_NATIONAL,
+          n_media_channels=_N_MEDIA_CHANNELS,
+          n_rf_channels=_N_RF_CHANNELS,
+          n_controls=_N_CONTROLS,
+          sigma_shape=_N_GEOS_NATIONAL,
+          n_knots=_N_KNOTS,
+          is_national=False,
+      )
+
+  @parameterized.named_parameters(
+      dict(
           testcase_name='with_deteremenistic(0)',
           tau_g_excl_baseline=tfp.distributions.Deterministic(
               0, name='tau_g_excl_baseline'

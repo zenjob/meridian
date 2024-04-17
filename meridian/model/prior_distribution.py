@@ -357,6 +357,20 @@ class PriorDistribution:
     _validate_rf_custom_priors(self.eta_rf)
     _validate_rf_custom_priors(self.beta_rf)
 
+    def _validate_control_custom_priors(
+        param: tfp.distributions.Distribution,
+    ) -> None:
+      if param.batch_shape.as_list() and n_controls != param.batch_shape[0]:
+        raise ValueError(
+            'Custom priors must have length equal to the number of control'
+            ' variables, representing a custom prior for each control variable.'
+            " If you can't determine a custom prior, consider using the default"
+            ' prior for that variable.'
+        )
+
+    _validate_control_custom_priors(self.gamma_c)
+    _validate_control_custom_priors(self.xi_c)
+
     knot_values = tfp.distributions.BatchBroadcast(
         self.knot_values,
         n_knots,
