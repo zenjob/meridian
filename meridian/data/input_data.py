@@ -361,9 +361,7 @@ class InputData:
     if array is None:
       return
 
-    if len(array[constants.MEDIA_TIME]) < len(
-        self.kpi.coords[constants.TIME]
-    ):
+    if len(array[constants.MEDIA_TIME]) < len(self.kpi.coords[constants.TIME]):
       raise ValueError(
           f"The '{constants.MEDIA_TIME}' dimension of the '{array.name}' array"
           f" ({len(array[constants.MEDIA_TIME])}) cannot be smaller"
