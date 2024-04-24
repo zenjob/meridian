@@ -748,24 +748,33 @@ class DataFrameDataLoader(InputDataLoader):
     geo_column_name = self.coord_to_columns.geo
     population_column_name = self.coord_to_columns.population
 
+    def set_default_population_with_lag_periods():
+      """Sets the `population` column.
+
+      The `population` column is set to the default value for non-lag periods,
+      and None for lag-periods. The lag periods are inferred from the Nan values
+      in the other non-media columns.
+      """
+      non_lagged_idx = self.df.isna().idxmin().max()
+      self.df[population_column_name] = (
+          constants.NATIONAL_MODEL_DEFAULT_POPULATION_VALUE
+      )
+      self.df.loc[:non_lagged_idx-1, population_column_name] = None
+
     if geo_column_name not in self.df.columns:
       self.df[geo_column_name] = constants.NATIONAL_MODEL_DEFAULT_GEO_NAME
 
-    if len(set(self.df[geo_column_name].values)) == 1:
+    if self.df[geo_column_name].nunique() == 1:
       self.df[geo_column_name] = constants.NATIONAL_MODEL_DEFAULT_GEO_NAME
       if population_column_name in self.df.columns:
         warnings.warn(
             'The `population` argument is ignored in a nationally aggregated'
             ' model. It will be reset to [1, 1, ..., 1]'
         )
-        self.df[population_column_name] = (
-            constants.NATIONAL_MODEL_DEFAULT_POPULATION_VALUE
-        )
+        set_default_population_with_lag_periods()
 
     if population_column_name not in self.df.columns:
-      self.df[population_column_name] = (
-          constants.NATIONAL_MODEL_DEFAULT_POPULATION_VALUE
-      )
+      set_default_population_with_lag_periods()
 
   def _validate_required_mappings(self):
     """Validates required mappings in `coord_to_columns`."""

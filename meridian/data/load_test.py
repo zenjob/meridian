@@ -1104,6 +1104,100 @@ class InputDataLoaderTest(parameterized.TestCase):
     xr.testing.assert_equal(data.rf_spend, dataset[constants.RF_SPEND])
 
   @parameterized.named_parameters(
+      ('not_lagged', 1, 200, 200, 10, 2, 5),
+      ('lagged', 1, 200, 203, 10, 2, 5),
+      ('single_lag', 1, 200, 201, 10, 2, 5),
+  )
+  def test_dataframe_data_loader_loads_random_dataset_national_media_and_rf(
+      self,
+      n_geos,
+      n_times,
+      n_media_times,
+      n_media_channels,
+      n_rf_channels,
+      n_controls,
+  ):
+    dataset = test_utils.random_dataset(
+        n_geos=n_geos,
+        n_times=n_times,
+        n_media_times=n_media_times,
+        n_media_channels=n_media_channels,
+        n_rf_channels=n_rf_channels,
+        n_controls=n_controls,
+    )
+    df = test_utils.dataset_to_dataframe(
+        dataset,
+        controls_column_names=test_utils._sample_names('control_', n_controls),
+        media_column_names=test_utils._sample_names('media_', n_media_channels),
+        media_spend_column_names=test_utils._sample_names(
+            'media_spend_', n_media_channels
+        ),
+        reach_column_names=test_utils._sample_names('reach_', n_rf_channels),
+        frequency_column_names=test_utils._sample_names(
+            'frequency_', n_rf_channels
+        ),
+        rf_spend_column_names=test_utils._sample_names(
+            'rf_spend_', n_rf_channels
+        ),
+    )
+
+    coord_to_columns = test_utils.sample_coord_to_columns(
+        n_controls=n_controls,
+        n_media_channels=n_media_channels,
+        n_rf_channels=n_rf_channels,
+    )
+
+    media_to_channel = {
+        f'media_{x}': f'ch_{x}' for x in range(n_media_channels)
+    }
+    media_spend_to_channel = {
+        f'media_spend_{x}': f'ch_{x}' for x in range(n_media_channels)
+    }
+    reach_to_channel = {
+        f'reach_{x}': f'rf_ch_{x}' for x in range(n_rf_channels)
+    }
+    frequency_to_channel = {
+        f'frequency_{x}': f'rf_ch_{x}' for x in range(n_rf_channels)
+    }
+    rf_spend_to_channel = {
+        f'rf_spend_{x}': f'rf_ch_{x}' for x in range(n_rf_channels)
+    }
+
+    loader = load.DataFrameDataLoader(
+        df=df,
+        coord_to_columns=coord_to_columns,
+        kpi_type=constants.NON_REVENUE,
+        media_to_channel=media_to_channel,
+        media_spend_to_channel=media_spend_to_channel,
+        reach_to_channel=reach_to_channel,
+        frequency_to_channel=frequency_to_channel,
+        rf_spend_to_channel=rf_spend_to_channel,
+    )
+
+    data = loader.load()
+    dataset = dataset.assign_coords(
+        {constants.GEO: [constants.NATIONAL_MODEL_DEFAULT_GEO_NAME]},
+    )
+    dataset.update({
+        constants.POPULATION: (
+            constants.GEO,
+            [constants.NATIONAL_MODEL_DEFAULT_POPULATION_VALUE],
+        )
+    })
+
+    xr.testing.assert_equal(data.kpi, dataset[constants.KPI])
+    xr.testing.assert_equal(
+        data.revenue_per_kpi, dataset[constants.REVENUE_PER_KPI]
+    )
+    xr.testing.assert_equal(data.controls, dataset[constants.CONTROLS])
+    xr.testing.assert_equal(data.population, dataset[constants.POPULATION])
+    xr.testing.assert_equal(data.media, dataset[constants.MEDIA])
+    xr.testing.assert_equal(data.media_spend, dataset[constants.MEDIA_SPEND])
+    xr.testing.assert_equal(data.reach, dataset[constants.REACH])
+    xr.testing.assert_equal(data.frequency, dataset[constants.FREQUENCY])
+    xr.testing.assert_equal(data.rf_spend, dataset[constants.RF_SPEND])
+
+  @parameterized.named_parameters(
       dict(
           testcase_name='with_population_with_geo_renamed',
           data=test_utils.NATIONAL_DATA_DICT_W_POPULATION_W_GEO_RENAMED,
