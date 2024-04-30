@@ -80,11 +80,11 @@ started quickly with using Meridian:
 [1]: https://developers.google.com/meridian
 [2]: https://developers.google.com/meridian/docs/basics/about-the-project
 [3]: https://developers.google.com/meridian/notebook/meridian-getting-started
-[4]: https://developers.google.com/meridian/docs/user-guide/overview
-[5]: https://developers.google.com/meridian/docs/advanced-modeling/model-fit
-[6]: https://developers.google.com/meridian/docs/model-debugging/model-debugging
+[4]: https://developers.google.com/meridian/docs/user-guide/installing
+[5]: https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#assessing-model-fit
+[6]: https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#model_debugging
 [7]: https://developers.google.com/meridian/docs/migrate
-[8]: https://developers.google.com/meridian/docs/api
+[8]: https://developers.google.com/meridian/reference/api/meridian
 [9]: https://developers.google.com/meridian/docs/reference-list
 
 ## Support
