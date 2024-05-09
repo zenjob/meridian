@@ -1125,7 +1125,7 @@ class BudgetOptimizer:
     upper_bound = np.round(self._spend_bounds[1] * spend, round_factor).astype(
         int
     )
-    return (lower_bound.squeeze(), upper_bound.squeeze())
+    return (lower_bound, upper_bound)
 
   def _update_incremental_impact_grid(
       self,
