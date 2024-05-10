@@ -2062,17 +2062,21 @@ class MediaSummaryTest(parameterized.TestCase):
         plot.facet.column.to_dict(),
         {
             "field": c.CHANNEL,
-            "header": {
-                "labelAlign": "right",
-                "labelAngle": -45,
-                "labelOrient": "bottom",
-                "title": None,
-            },
             "type": "nominal",
         },
     )
     self.assertEqual(plot.spacing, -1)
     self.assertEqual(plot.config.view.strokeOpacity, 0)
+    self.assertEqual(
+        plot.config.header.to_dict(),
+        {
+            "labelAlign": "right",
+            "labelAngle": -45,
+            "labelOrient": "bottom",
+            "title": None,
+            "labelBaseline": "middle",
+        },
+    )
     self.assertEqual(
         plot.title.text,
         summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=c.REVENUE),

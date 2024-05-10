@@ -1701,16 +1701,17 @@ class MediaSummary:
         layer.facet(
             column=alt.Column(
                 f'{c.CHANNEL}:N',
-                header=alt.Header(
-                    title=None,
-                    labelOrient='bottom',
-                    labelAngle=-45,
-                    labelAlign='right',
-                ),
             ),
             spacing=-1,  # Combine the facets to appear as 1 unfaceted plot.
         )
         .properties(title=formatter.custom_title_params(title))
+        .configure_header(
+            title=None,
+            labelOrient='bottom',
+            labelAngle=-45,
+            labelAlign='right',
+            labelBaseline='middle',
+        )
         .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
         .configure_view(strokeOpacity=0)  # Remove facet outlines.
     )
