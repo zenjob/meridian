@@ -215,7 +215,7 @@ class BudgetOptimizer:
       OptimizationNotRunError: Occurs when the optimization has not been run.
       The `optimized_data` is only available after running the optimization.
     """
-    if self._nonoptimized_data is None:
+    if self._optimized_data is None:
       raise OptimizationNotRunError(
           'Optimized data is only available after running optimize().'
       )
