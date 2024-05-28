@@ -2283,6 +2283,132 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           ),
       )
 
+  def test_sample_posterior_media_and_rf_sequential_returns_correct_shape(self):
+    mock_sample_posterior = self.enter_context(
+        mock.patch.object(
+            model,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_and_rf,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec(
+        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
+        rf_roi_calibration_period=self._RF_ROI_CALIBRATION_PERIOD,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=[self._N_CHAINS, self._N_CHAINS],
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+    )
+    mock_sample_posterior.assert_called_with(
+        n_draws=self._N_BURNIN + self._N_KEEP,
+        joint_dist=mock.ANY,
+        n_chains=self._N_CHAINS,
+        num_adaptation_steps=self._N_ADAPT,
+        current_state=None,
+        init_step_size=None,
+        dual_averaging_kwargs=None,
+        max_tree_depth=10,
+        max_energy_diff=500.0,
+        unrolled_leapfrog_steps=1,
+        parallel_iterations=10,
+        seed=None,
+    )
+    n_total_chains = self._N_CHAINS * 2
+    knots_shape = (n_total_chains, self._N_KEEP, self._N_TIMES_SHORT)
+    control_shape = (n_total_chains, self._N_KEEP, self._N_CONTROLS)
+    media_channel_shape = (n_total_chains, self._N_KEEP, self._N_MEDIA_CHANNELS)
+    rf_channel_shape = (n_total_chains, self._N_KEEP, self._N_RF_CHANNELS)
+    sigma_shape = (
+        (n_total_chains, self._N_KEEP, self._N_GEOS)
+        if meridian.unique_sigma_for_each_geo
+        else (n_total_chains, self._N_KEEP, 1)
+    )
+    geo_shape = (n_total_chains, self._N_KEEP, self._N_GEOS)
+    time_shape = (n_total_chains, self._N_KEEP, self._N_TIMES_SHORT)
+    geo_control_shape = geo_shape + (self._N_CONTROLS,)
+    geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
+    geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
+
+    posterior = meridian.inference_data.posterior
+    shape_to_params = {
+        knots_shape: [
+            getattr(posterior, attr) for attr in constants.KNOTS_PARAMETERS
+        ],
+        control_shape: [
+            getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
+        ],
+        media_channel_shape: [
+            getattr(posterior, attr) for attr in constants.MEDIA_PARAMETERS
+        ],
+        rf_channel_shape: [
+            getattr(posterior, attr) for attr in constants.RF_PARAMETERS
+        ],
+        sigma_shape: [
+            getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
+        ],
+        geo_shape: [
+            getattr(posterior, attr) for attr in constants.GEO_PARAMETERS
+        ],
+        time_shape: [
+            getattr(posterior, attr) for attr in constants.TIME_PARAMETERS
+        ],
+        geo_control_shape: [
+            getattr(posterior, attr)
+            for attr in constants.GEO_CONTROL_PARAMETERS
+        ],
+        geo_media_channel_shape: [
+            getattr(posterior, attr) for attr in constants.GEO_MEDIA_PARAMETERS
+        ],
+        geo_rf_channel_shape: [
+            getattr(posterior, attr) for attr in constants.GEO_RF_PARAMETERS
+        ],
+    }
+    for shape, params in shape_to_params.items():
+      for param in params:
+        self.assertEqual(param.shape, shape)
+
+    for attr in [
+        constants.STEP_SIZE,
+        constants.TARGET_LOG_PROBABILITY_ARVIZ,
+        constants.DIVERGING,
+        constants.N_STEPS,
+    ]:
+      self.assertEqual(
+          getattr(meridian.inference_data.sample_stats, attr).shape,
+          (
+              n_total_chains,
+              self._N_KEEP,
+          ),
+      )
+    for attr in [
+        constants.STEP_SIZE,
+        constants.TUNE,
+        constants.TARGET_LOG_PROBABILITY_TF,
+        constants.DIVERGING,
+        constants.ACCEPT_RATIO,
+        constants.N_STEPS,
+    ]:
+      self.assertEqual(
+          getattr(meridian.inference_data.trace, attr).shape,
+          (
+              n_total_chains,
+              self._N_KEEP,
+          ),
+      )
+
   def test_save_and_load_works(self):
     # The create_tempdir() method below internally uses command line flag
     # (--test_tmpdir) and such flags are not marked as parsed by default

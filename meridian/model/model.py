@@ -1021,7 +1021,7 @@ class Meridian:
 
   def sample_posterior(
       self,
-      n_chains: int,
+      n_chains: Sequence[int] | int,
       n_adapt: int,
       n_burnin: int,
       n_keep: int,
@@ -1041,7 +1041,14 @@ class Meridian:
     (https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/windowed_adaptive_nuts).
 
     Args:
-      n_chains: Number of MCMC chains.
+      n_chains: Number of MCMC chains. Given a sequence of integers,
+        `windowed_adaptive_nuts` will be called once for each element. The
+        `n_chains` argument of each `windowed_adaptive_nuts` call will be equal
+        to the respective integer element. Using a list of integers, one can
+        split the chains of a `windowed_adaptive_nuts` call into multiple calls
+        with fewer chains per call. This can reduce memory usage. This might
+        require an increased number of adaptation steps for convergence, as the
+        optimization is occurring across fewer chains per sampling call.
       n_adapt: Number of adaptation draws per chain.
       n_burnin: Number of burn-in draws per chain. Burn-in draws occur after
         adaptation draws and before the kept draws.
@@ -1080,48 +1087,69 @@ class Meridian:
         are passed directly to `joint_dist.experimental_pin(**pins)`.
     """
     seed = tfp.random.sanitize_seed(seed) if seed else None
+    n_chains_list = [n_chains] if isinstance(n_chains, int) else n_chains
+    total_chains = np.sum(n_chains_list)
 
-    mcmc = _xla_windowed_adaptive_nuts(
-        n_draws=n_burnin + n_keep,
-        joint_dist=self._get_joint_dist(),
-        n_chains=n_chains,
-        num_adaptation_steps=n_adapt,
-        current_state=current_state,
-        init_step_size=init_step_size,
-        dual_averaging_kwargs=dual_averaging_kwargs,
-        max_tree_depth=max_tree_depth,
-        max_energy_diff=max_energy_diff,
-        unrolled_leapfrog_steps=unrolled_leapfrog_steps,
-        parallel_iterations=parallel_iterations,
-        seed=seed,
-        **pins,
-    )
+    states = []
+    traces = []
+    for n_chains_batch in n_chains_list:
+      mcmc = _xla_windowed_adaptive_nuts(
+          n_draws=n_burnin + n_keep,
+          joint_dist=self._get_joint_dist(),
+          n_chains=n_chains_batch,
+          num_adaptation_steps=n_adapt,
+          current_state=current_state,
+          init_step_size=init_step_size,
+          dual_averaging_kwargs=dual_averaging_kwargs,
+          max_tree_depth=max_tree_depth,
+          max_energy_diff=max_energy_diff,
+          unrolled_leapfrog_steps=unrolled_leapfrog_steps,
+          parallel_iterations=parallel_iterations,
+          seed=seed,
+          **pins,
+      )
+      states.append(mcmc.all_states._asdict())
+      traces.append(mcmc.trace)
 
     mcmc_states = {
-        k: tf.einsum("ij...->ji...", v[n_burnin:, ...])
-        for k, v in mcmc.all_states._asdict().items()
+        k: tf.einsum(
+            "ij...->ji...",
+            tf.concat([state[k] for state in states], axis=1)[n_burnin:, ...],
+        )
+        for k in states[0].keys()
         if k not in constants.IGNORED_PRIOR_PARAMETERS
     }
     # Create Arviz InferenceData for posterior draws.
-    posterior_coords = self._create_inference_data_coords(n_chains, n_keep)
+    posterior_coords = self._create_inference_data_coords(total_chains, n_keep)
     posterior_dims = self._create_inference_data_dims()
     infdata_posterior = az.convert_to_inference_data(
         mcmc_states, coords=posterior_coords, dims=posterior_dims
     )
 
     # Save trace metrics in InferenceData.
-    trace = {
-        k: tf.broadcast_to(tf.transpose(v[n_burnin:, ...]), [n_chains, n_keep])
-        for k, v in mcmc.trace.items()
-        if k not in constants.IGNORED_TRACE_METRICS
-    }
+    mcmc_trace = {}
+    for k in traces[0].keys():
+      if k not in constants.IGNORED_TRACE_METRICS:
+        mcmc_trace[k] = tf.concat(
+            [
+                tf.broadcast_to(
+                    tf.transpose(trace[k][n_burnin:, ...]),
+                    [n_chains_list[i], n_keep],
+                )
+                for i, trace in enumerate(traces)
+            ],
+            axis=0,
+        )
+
     trace_coords = {
-        constants.CHAIN: np.arange(n_chains),
+        constants.CHAIN: np.arange(total_chains),
         constants.DRAW: np.arange(n_keep),
     }
-    trace_dims = {k: [constants.CHAIN, constants.DRAW] for k in trace.keys()}
+    trace_dims = {
+        k: [constants.CHAIN, constants.DRAW] for k in mcmc_trace.keys()
+    }
     infdata_trace = az.convert_to_inference_data(
-        trace, coords=trace_coords, dims=trace_dims, group="trace"
+        mcmc_trace, coords=trace_coords, dims=trace_dims, group="trace"
     )
 
     # Create Arviz InferenceData for divergent transitions and other sampling
@@ -1134,7 +1162,7 @@ class Meridian:
 
     sample_stats = {
         constants.SAMPLE_STATS_METRICS[k]: v
-        for k, v in trace.items()
+        for k, v in mcmc_trace.items()
         if k in constants.SAMPLE_STATS_METRICS
     }
     sample_stats_dims = {
@@ -1146,7 +1174,7 @@ class Meridian:
     # step size is used for all chains. Step size must be broadcast to the
     # correct shape.
     sample_stats[constants.STEP_SIZE] = tf.broadcast_to(
-        sample_stats[constants.STEP_SIZE], [n_chains, n_keep]
+        sample_stats[constants.STEP_SIZE], [total_chains, n_keep]
     )
     sample_stats_dims[constants.STEP_SIZE] = [constants.CHAIN, constants.DRAW]
     infdata_sample_stats = az.convert_to_inference_data(
