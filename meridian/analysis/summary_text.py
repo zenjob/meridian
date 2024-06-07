@@ -21,9 +21,7 @@ MODEL_RESULTS_TITLE = 'Marketing Mix Modeling Report'
 MODEL_FIT_CARD_ID = 'model-fit'
 MODEL_FIT_CARD_TITLE = 'Model fit'
 MODEL_FIT_INSIGHTS_FORMAT = """Model fit is a measure of how well your MMM fits
-your current data used to train the model. A well-fitted model produces more
-accurate outcomes and a model that is underfitted doesn't match the data
-closely."""
+your current data used to train the model."""
 
 EXPECTED_ACTUAL_IMPACT_CHART_ID = 'expected-actual-impact-chart'
 EXPECTED_ACTUAL_IMPACT_CHART_TITLE = 'Expected {impact} vs. actual {impact}'
@@ -35,9 +33,9 @@ PREDICTIVE_ACCURACY_TABLE_ID = 'model-fit-statistics-table-chart'
 PREDICTIVE_ACCURACY_TABLE_TITLE = 'Model fit metrics'
 PREDICTIVE_ACCURACY_TABLE_DESCRIPTION = """Note: R-squared measures the amount
 of variation in the data that is explained by the model. The closer it is to 1,
-the more accurate the model is. MAPE measures the mean absolute percentage
-difference between the prediction and the actual. The closer it is to 0, the
-more accurate the model. wMAPE is MAPE weighted by the actual {impact}."""
+the better the model fit. MAPE measures the mean absolute percentage difference
+between the expected and the actual. The closer it is to 0, the better the
+model fit. wMAPE is MAPE weighted by the actual {impact}."""
 
 CHANNEL_CONTRIB_CARD_ID = 'channel-contrib'
 CHANNEL_CONTRIB_CARD_TITLE = 'Channel contribution'
