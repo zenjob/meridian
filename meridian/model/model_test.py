@@ -807,12 +807,13 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        f"There are {data_name} variables that do not vary across geos, which"
-        " makes a model with n_knots=n_time unidentifiable. Such"
-        " identifiability issues can lead to poor model convergence. We"
-        " recommend decreasing the number of knots or dropping the following"
-        f" {data_name} variables, which do not vary across geos for all time"
-        f" periods: {dims_bad}",
+        f"The following {data_name} variables do not vary across geos, making a"
+        f" model with n_knots=n_time unidentifiable: {dims_bad}. This can lead"
+        " to poor model convergence. Since these variables only vary across"
+        " time and not across geo, they are collinear with time and redundant"
+        " in a model with a parameter for each time period.  To address this,"
+        " you can either: (1) decrease the number of knots (n_knots < n_time),"
+        " or (2) drop the listed variables that do not vary across geos.",
     ):
       model.Meridian(
           input_data=test_utils.sample_input_data_from_dataset(
