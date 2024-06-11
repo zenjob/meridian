@@ -93,7 +93,9 @@ class InputData:
       to `max_lag` additional periods prior to this window. If `n_media_times` <
       `n_times` + `max_lag`, the model effectively imputes media history. If
       `n_media_times` > `n_times` + `max_lag`, then only the final `n_times` +
-      `max_lag` periods are used to fit the model.
+      `max_lag` periods are used to fit the model. `media` and `media_spend`
+      must contain the same number of media channels in the same order. If
+      either of these arguments is passed, then the other is not optional.
     media_spend: An optional `DataArray` containing the cost of each media
       channel. This is used as the denominator for ROI calculations. The
       DataArray shape can be `(n_geos, n_times, n_media_channels)` or
@@ -102,7 +104,9 @@ class InputData:
       `controls` data, which is the time window over which the incremental
       revenue of the ROI numerator is calculated. The incremental revenue is
       influenced by media execution prior to this time window, through lagged
-      effects.
+      effects. `media` and `media_spend` must contain the same number of media
+      channels in the same order. If either of these arguments is passed, then
+      the other is not optional.
     reach: An optional `DataArray` of dimensions `(n_geos, n_media_times,
       n_rf_channels)` containing non-negative `reach` values. It is required
       that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
@@ -114,7 +118,10 @@ class InputData:
       calculates Adstock assuming that reach execution is zero prior to the
       first observed time period. We recommend including `n_times` + `max_lag`
       time periods, unless the value of `max_lag` is prohibitively large. If
-      only `media` data is used, then `reach` will be `None`.
+      only `media` data is used, then `reach` will be `None`. `reach`,
+      `frequency`, and `rf_spend` must contain the same number of media channels
+      in the same order. If any of these arguments is passed, then the others
+      are not optional.
     frequency: An optional `DataArray` of dimensions `(n_geos, n_media_times,
       n_rf_channels)` containing non-negative `frequency` values. It is required
       that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
@@ -127,6 +134,9 @@ class InputData:
       to the first observed time period. We recommend including `n_times` +
       `max_lag` time periods, unless the value of `max_lag` is prohibitively
       large. If only `media` data is used, then `frequency` will be `None`.
+      `reach`, `frequency`, and `rf_spend` must contain the same number of media
+      channels in the same order. If any of these arguments is passed, then the
+      others are not optional.
     rf_spend: An optional `DataArray` containing the cost of each reach and
       frequency channel. This is used as the denominator for ROI calculations.
       The DataArray shape can be `(n_rf_channels,)`, `(n_geos, n_times,
@@ -138,7 +148,9 @@ class InputData:
       impact is influenced by media execution prior to this time window, through
       lagged effects, and excludes lagged effects beyond the time window of
       media executed during the time window. If only `media` data is used,
-      `rf_spend` will be `None`.
+      `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend` must
+      contain the same number of media channels in the same order. If any of
+      these arguments is passed, then the others are not optional.
   """
 
   kpi: xr.DataArray
