@@ -92,6 +92,18 @@ class TestAdstock(parameterized.TestCase):
           alpha=_ALPHA,
           n_time_output=_N_MEDIA_TIMES - 1,
       ),
+      dict(
+          testcase_name="max_lag > n_media_times",
+          media=_MEDIA[..., :(_MAX_LAG - 1)],
+          alpha=_ALPHA,
+          n_time_output=_N_MEDIA_TIMES,
+      ),
+      dict(
+          testcase_name="excess lagged media history available",
+          media=_MEDIA,
+          alpha=_ALPHA,
+          n_time_output=_N_MEDIA_TIMES - _MAX_LAG - 1,
+      ),
   )
   def test_basic_output(self, media, alpha, n_time_output):
     """Basic test for valid output."""
@@ -147,58 +159,41 @@ class TestAdstock(parameterized.TestCase):
         atol=1e-4,
     )
 
-  @parameterized.named_parameters(
-      dict(
-          testcase_name=(
-              "adstock weight normalization methods are equivalent "
-              "when n_time_output = n_time - max_lag"
-          ),
-          media=_MEDIA,
-          alpha=_ALPHA,
-          max_lag=_MAX_LAG,
-          n_time_output=_N_MEDIA_TIMES - _MAX_LAG,
-          result=adstock_hill.AdstockTransformer(
-              alpha=_ALPHA,
-              max_lag=_MAX_LAG,
-              n_times_output=_N_MEDIA_TIMES - _MAX_LAG,
-          ).forward(_MEDIA),
-      ),
-      dict(
-          testcase_name="media all ones",
-          media=tf.ones_like(_MEDIA),
-          alpha=_ALPHA,
-          max_lag=_MAX_LAG,
-          n_time_output=_N_MEDIA_TIMES,
-          # TODO(b/294582673): Briefly explain the math.
-          result=tf.tile(
-              (
-                  1
-                  - _ALPHA[:, :, None, None, :]
-                  ** np.minimum(_MAX_LAG + 1, np.arange(1, _N_MEDIA_TIMES + 1))[
-                      :, None
-                  ]
-              )
-              / (1 - _ALPHA[:, :, None, None, :] ** (_MAX_LAG + 1)),
-              multiples=[1, 1, _N_GEOS, 1, 1],
-          ),
-      ),
-  )
-  def test_special_cases(
-      self,
-      media,
-      alpha,
-      max_lag,
-      n_time_output,
-      result,
-  ):
-    """Test special cases where expected output is known."""
-    msg = f"{adstock_hill.AdstockTransformer.__name__}() failed."
+  def test_media_all_ones(self):
+    # Calculate adstock on a media vector of all ones and no lag history.
     media_transformed = adstock_hill.AdstockTransformer(
-        alpha=alpha,
-        max_lag=max_lag,
-        n_times_output=n_time_output,
-    ).forward(media)
-    tf.debugging.assert_near(media_transformed, result, message=msg)
+        alpha=self._ALPHA,
+        max_lag=self._MAX_LAG,
+        n_times_output=self._N_MEDIA_TIMES,
+    ).forward(tf.ones_like(self._MEDIA))
+    # n_nonzero_terms is a tensor with length containing the number of nonzero
+    # terms in the adstock for each output time period.
+    n_nonzero_terms = np.minimum(
+        np.arange(1, self._N_MEDIA_TIMES + 1),
+        self._MAX_LAG + 1
+    )
+    # For each output time period and alpha value, the adstock is given by
+    # adstock = series1 / series2, where:
+    #   series1 = 1 + alpha + alpha^2 + ... + alpha^(n_nonzero_terms-1)
+    #           = (1-alpha^n_nonzero_terms) / (1-alpha)
+    #           := term1 / (1-alpha)
+    #   series2 = 1 + alpha + alpha^2 + ... + alpha^max_lag
+    #           = (1-alpha^(max_lag + 1)) / (1-alpha)
+    #           := term2 / (1-alpha)
+    # We can therefore write adstock = series1 / series2 = term1 / term2.
+
+    # `term1` has dimensions (n_chains, n_draws, n_output_times, n_channels).
+    term1 = 1 - self._ALPHA[:, :, None, :] ** n_nonzero_terms[:, None]
+    # `term2` has dimensions (n_chains, n_draws, n_channels).
+    term2 = 1 - self._ALPHA ** (self._MAX_LAG + 1)
+    # `result` has dimensions (n_chains, n_draws, n_output_times, n_channels).
+    result = term1 / term2[:, :, None, :]
+    # Broadcast `result` across geos.
+    result = tf.tile(
+        result[:, :, None, :, :],
+        multiples=[1, 1, self._N_GEOS, 1, 1]
+    )
+    tf.debugging.assert_near(media_transformed, result)
 
 
 class TestHill(parameterized.TestCase):

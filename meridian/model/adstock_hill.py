@@ -64,26 +64,41 @@ def _adstock(
   # media dims: batch_dims (optional), n_geos, n_media_times, n_channels.
   n_media_times = media.shape[-2]
 
-  # Drop any excess historical time periods that do affect output.
-  if n_media_times > n_times_output + max_lag:
-    n_media_times = n_times_output + max_lag
-    media = media[..., -n_media_times:, :]
+  # The window size is the number of time periods that go into the adstock
+  # weighted average for each output time period.
+  window_size = min(max_lag + 1, n_media_times)
 
-  if n_media_times - n_times_output < max_lag:
+  # Drop any excess historical time periods that do not affect output.
+  required_n_media_times = n_times_output + window_size - 1
+  if n_media_times > required_n_media_times:
+    # Note that ProductCoverage believes that unit tests should cover the case
+    # that both conditions (1) `n_media_times > required_n_media_times` and
+    # (2) `window_size = n_media_times`. However, this combination of conditions
+    # is not possible.
+    media = media[..., -required_n_media_times:, :]
+
+  # If necessary, pad the media tensor with zeros. For each output time period,
+  # we need a media history of at least `window_size` time periods from which to
+  # calculate the adstock. The purpose of padding is to allow us to apply
+  # a fixed window size calculation to all time periods. The purpose is NOT to
+  # ensure that we have `max_lag` historical time periods for each output time
+  # period. If `max_lag` is set to a huge value, it is not necessary to pad the
+  # data with a huge number of zeros. The `normalization_factors` normalize
+  # the weights to the correct values even if `window_size` < `max_lag`+1.
+  if n_media_times < required_n_media_times:
     pad_shape = (
         media.shape[:-2]
-        + (max_lag - (n_media_times - n_times_output))
+        + (required_n_media_times - n_media_times)
         + media.shape[-1]
     )
     media = tf.concat([tf.zeros(pad_shape), media], axis=-2)
 
-  window_size = max_lag + 1
+  # Adstock calculation.
   window_list = [None] * window_size
   for i in range(window_size):
     window_list[i] = media[..., i:i+n_times_output, :]
   windowed = tf.stack(window_list)
-  n_weights = min(window_size, n_media_times)
-  l_range = tf.range(n_weights - 1, -1, -1, dtype=tf.float32)
+  l_range = tf.range(window_size - 1, -1, -1, dtype=tf.float32)
   weights = tf.expand_dims(alpha, -1) ** l_range
   normalization_factors = tf.expand_dims(
       (1 - alpha ** (window_size)) / (1 - alpha), -1
