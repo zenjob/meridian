@@ -35,6 +35,7 @@ __all__ = [
     "Meridian",
     "NotFittedModelError",
     "MCMCSamplingError",
+    "MCMCOOMError",
 ]
 
 
@@ -44,6 +45,10 @@ class NotFittedModelError(Exception):
 
 class MCMCSamplingError(Exception):
   """The Markov Chain Monte Carlo (MCMC) sampling failed."""
+
+
+class MCMCOOMError(Exception):
+  """The Markov Chain Monte Carlo (MCMC) exceeds memory limits."""
 
 
 def _warn_setting_national_args(**kwargs):
@@ -1253,6 +1258,11 @@ class Meridian:
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
+
+    Throws:
+      MCMCOOMError: If the model is out of memory. Try reducing `n_keep` or pass
+        a list of integers as `n_chains` to sample chains serially (see
+        https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#gpu-oom-error).
     """
     seed = tfp.random.sanitize_seed(seed) if seed else None
     n_chains_list = [n_chains] if isinstance(n_chains, int) else n_chains
@@ -1261,21 +1271,28 @@ class Meridian:
     states = []
     traces = []
     for n_chains_batch in n_chains_list:
-      mcmc = _xla_windowed_adaptive_nuts(
-          n_draws=n_burnin + n_keep,
-          joint_dist=self._get_joint_dist(),
-          n_chains=n_chains_batch,
-          num_adaptation_steps=n_adapt,
-          current_state=current_state,
-          init_step_size=init_step_size,
-          dual_averaging_kwargs=dual_averaging_kwargs,
-          max_tree_depth=max_tree_depth,
-          max_energy_diff=max_energy_diff,
-          unrolled_leapfrog_steps=unrolled_leapfrog_steps,
-          parallel_iterations=parallel_iterations,
-          seed=seed,
-          **pins,
-      )
+      try:
+        mcmc = _xla_windowed_adaptive_nuts(
+            n_draws=n_burnin + n_keep,
+            joint_dist=self._get_joint_dist(),
+            n_chains=n_chains_batch,
+            num_adaptation_steps=n_adapt,
+            current_state=current_state,
+            init_step_size=init_step_size,
+            dual_averaging_kwargs=dual_averaging_kwargs,
+            max_tree_depth=max_tree_depth,
+            max_energy_diff=max_energy_diff,
+            unrolled_leapfrog_steps=unrolled_leapfrog_steps,
+            parallel_iterations=parallel_iterations,
+            seed=seed,
+            **pins,
+        )
+      except tf.errors.ResourceExhaustedError as error:
+        raise MCMCOOMError(
+            "ERROR: Out of memory. Try reducing `n_keep` or pass a list of"
+            " integers as `n_chains` to sample chains serially (see"
+            " https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#gpu-oom-error)"
+        ) from error
       states.append(mcmc.all_states._asdict())
       traces.append(mcmc.trace)
 

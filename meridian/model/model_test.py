@@ -2410,6 +2410,30 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           ),
       )
 
+  def test_sample_posterior_raises_oom_error_when_limits_exceeded(self):
+    self.enter_context(
+        mock.patch.object(
+            model,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            side_effect=tf.errors.ResourceExhaustedError(
+                None, None, "Resource exhausted"
+            ),
+        )
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=spec.ModelSpec(),
+    )
+
+    with self.assertRaises(model.MCMCOOMError):
+      meridian.sample_posterior(
+          n_chains=self._N_CHAINS,
+          n_adapt=self._N_ADAPT,
+          n_burnin=self._N_BURNIN,
+          n_keep=self._N_KEEP,
+      )
+
   def test_save_and_load_works(self):
     # The create_tempdir() method below internally uses command line flag
     # (--test_tmpdir) and such flags are not marked as parsed by default
