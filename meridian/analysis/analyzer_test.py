@@ -723,49 +723,50 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.mroi.shape, expected_shape)
 
   def test_optimal_frequency_data_media_and_rf_correct(self):
-    type(self.meridian_media_and_rf).inference_data = mock.PropertyMock(
-        return_value=self.inference_data_media_and_rf
-    )
-    optimal_frequency_dataset = self.analyzer_media_and_rf.optimal_freq(
-        freq_grid=list(np.arange(1, 7.1, 0.1)),
+    actual = self.analyzer_media_and_rf.optimal_freq(
+        freq_grid=[1.0, 2.0, 3.0],
         confidence_level=0.9,
         use_posterior=True,
     )
+    expected = xr.Dataset(
+        coords={
+            constants.FREQUENCY: ([constants.FREQUENCY], [1.0, 2.0, 3.0]),
+            constants.RF_CHANNEL: (
+                [constants.RF_CHANNEL],
+                ["rf_ch_0", "rf_ch_1"],
+            ),
+            constants.METRIC: (
+                [constants.METRIC],
+                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+            ),
+        },
+        data_vars={
+            constants.ROI: (
+                [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
+                [         # rf_ch_0.           # rf_ch_1
+                    [[2.66, 0.14, 10.37], [2.14, 0.22, 8.08]],  # freq=1.0
+                    [[2.98, 0.47, 10.30], [2.36, 0.40, 8.20]],  # freq=2.0
+                    [[2.67, 0.40, 9.00], [2.03, 0.38, 6.09]],  # freq=3.0
+                ],
+            ),
+            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 2.0]),
+        },
+        attrs={
+            constants.CONFIDENCE_LEVEL: 0.9,
+            "use_posterior": True,
+        },
+    )
 
-    roi_by_frequency_df = (
-        optimal_frequency_dataset[[constants.ROI]]
-        .to_dataframe()
-        .reset_index()
-        .pivot(
-            index=[constants.RF_CHANNEL, constants.FREQUENCY],
-            columns=constants.METRIC,
-            values=constants.ROI,
-        )
-        .reset_index()
+    xr.testing.assert_allclose(actual, expected, atol=0.1)
+    xr.testing.assert_allclose(actual.frequency, expected.frequency, atol=0.1)
+    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel, atol=0.1)
+    xr.testing.assert_allclose(actual.metric, expected.metric, atol=0.1)
+    xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
+    xr.testing.assert_allclose(
+        actual.optimal_frequency, expected.optimal_frequency, atol=0.1
     )
-    roi_by_frequency_df.rename(
-        columns={constants.MEAN: constants.ROI}, inplace=True
-    )
-    optimal_freq_df = (
-        optimal_frequency_dataset[[constants.OPTIMAL_FREQUENCY]]
-        .to_dataframe()
-        .reset_index()
-    )
-    final_df = roi_by_frequency_df.merge(
-        optimal_freq_df, on=constants.RF_CHANNEL
-    )
-
-    self.assertEqual(
-        list(final_df.columns),
-        [
-            constants.RF_CHANNEL,
-            constants.FREQUENCY,
-            constants.CI_HI,
-            constants.CI_LO,
-            constants.ROI,
-            constants.OPTIMAL_FREQUENCY,
-        ],
-    )
+    self.assertEqual(actual.confidence_level, 0.9)
+    self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_r_hat_summary_media_and_rf_correct(self):
     r_hat_summary = self.analyzer_media_and_rf.r_hat_summary()
@@ -1822,46 +1823,50 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self.assertTrue((media_summary.effectiveness.isnull()).all())
 
   def test_optimal_frequency_data_rf_only_correct(self):
-    optimal_frequency_dataset = self.analyzer_rf_only.optimal_freq(
-        freq_grid=list(np.arange(1, 7.1, 0.1)),
+    actual = self.analyzer_rf_only.optimal_freq(
+        freq_grid=[1.0, 2.0, 3.0],
         confidence_level=0.9,
         use_posterior=True,
     )
+    expected = xr.Dataset(
+        coords={
+            constants.FREQUENCY: ([constants.FREQUENCY], [1.0, 2.0, 3.0]),
+            constants.RF_CHANNEL: (
+                [constants.RF_CHANNEL],
+                ["rf_ch_0", "rf_ch_1"],
+            ),
+            constants.METRIC: (
+                [constants.METRIC],
+                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+            ),
+        },
+        data_vars={
+            constants.ROI: (
+                [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
+                [         # rf_ch_0.           # rf_ch_1
+                    [[1.37, 0.45, 4.93], [15.01, 0.70, 26.81]],  # freq=1.0
+                    [[1.44, 0.28, 5.30], [9.24, 0.71, 15.05]],  # freq=2.0
+                    [[1.32, 0.21, 4.18], [6.81, 0.62, 10.70]],  # freq=3.0
+                ],
+            ),
+            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 1.0]),
+        },
+        attrs={
+            constants.CONFIDENCE_LEVEL: 0.9,
+            "use_posterior": True,
+        },
+    )
 
-    roi_by_frequency_df = (
-        optimal_frequency_dataset[[constants.ROI]]
-        .to_dataframe()
-        .reset_index()
-        .pivot(
-            index=[constants.RF_CHANNEL, constants.FREQUENCY],
-            columns=constants.METRIC,
-            values=constants.ROI,
-        )
-        .reset_index()
+    xr.testing.assert_allclose(actual, expected, atol=0.1)
+    xr.testing.assert_allclose(actual.frequency, expected.frequency, atol=0.1)
+    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel, atol=0.1)
+    xr.testing.assert_allclose(actual.metric, expected.metric, atol=0.1)
+    xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
+    xr.testing.assert_allclose(
+        actual.optimal_frequency, expected.optimal_frequency, atol=0.1
     )
-    roi_by_frequency_df.rename(
-        columns={constants.MEAN: constants.ROI}, inplace=True
-    )
-    optimal_freq_df = (
-        optimal_frequency_dataset[[constants.OPTIMAL_FREQUENCY]]
-        .to_dataframe()
-        .reset_index()
-    )
-    final_df = roi_by_frequency_df.merge(
-        optimal_freq_df, on=constants.RF_CHANNEL
-    )
-
-    self.assertEqual(
-        list(final_df.columns),
-        [
-            constants.RF_CHANNEL,
-            constants.FREQUENCY,
-            constants.CI_HI,
-            constants.CI_LO,
-            constants.ROI,
-            constants.OPTIMAL_FREQUENCY,
-        ],
-    )
+    self.assertEqual(actual.confidence_level, 0.9)
+    self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_optimal_frequency_freq_grid(self):
     max_freq = np.max(np.array(self.analyzer_rf_only._meridian.frequency))
