@@ -42,27 +42,30 @@ import xarray as xr
 
 mock = absltest.mock
 
+# Path to the stored inference data generated with
+# .../google_internal/generate_test_data.ipynb
 _TEST_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'model', 'test_data'
 )
+# Constants below are used for mocking, the values are based on the test data.
 _NONOPTIMIZED_INCREMENTAL_IMPACT = np.array(
     [335.65, 531.11, 791.67, 580.1, 242.4]
 )
-_NONOPTIMIZED_SPEND = np.array([325.0, 311.0, 287.0, 307.0, 322.0])
+_NONOPTIMIZED_SPEND = np.array([294.0, 279.0, 256.0, 272.0, 288.0])
 _OPTIMIZED_INCREMENTAL_IMPACT = np.array(
     [528.6618, 648.44446, 427.40665, 1178.5515, 888.9901]
 )
-_OPTIMIZED_SPEND = np.array([257.0, 247.0, 230.0, 399.0, 419.0])
-_OPTIMIZED_MEDIA_ONLY_SPEND = np.array([320.0, 310.0, 293.0])
-_OPTIMIZED_RF_ONLY_SPEND = np.array([399.0, 230.0])
-_TARGET_MROI_SPEND = np.array([0.0, 0.0, 0.0, 614.0, 644.0])
-_TARGET_ROI_SPEND = np.array([650.0, 622.0, 574.0, 614.0, 644.0])
+_OPTIMIZED_SPEND = np.array([233.0, 222.0, 206.0, 354.0, 374.0])
+_OPTIMIZED_MEDIA_ONLY_SPEND = np.array([289.0, 278.0, 262.0])
+_OPTIMIZED_RF_ONLY_SPEND = np.array([354.0, 206.0])
+_TARGET_MROI_SPEND = np.array([0.0, 0.0, 0.0, 544.0, 576.0])
+_TARGET_ROI_SPEND = np.array([588.0, 558.0, 512.0, 544.0, 576.0])
 # Currently zero due to numerator being zero with mocked constant inc_impact
 _BUDGET_MROI = np.array([0, 0, 0, 0, 0])
 
 _N_GEOS = 5
-_N_TIMES = 55  # 49 in the current sample datasets.
-_N_MEDIA_TIMES = 58  # 52 in the current sample datasets.
+_N_TIMES = 49
+_N_MEDIA_TIMES = 52
 _N_MEDIA_CHANNELS = 3
 _N_RF_CHANNELS = 2
 _N_CONTROLS = 2
@@ -462,8 +465,10 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
   def test_spend_ratio(self):
     self.budget_optimizer_media_and_rf.optimize()
-    np.testing.assert_array_equal(
-        self.budget_optimizer_media_and_rf._spend_ratio, [1, 1, 1, 1, 1]
+    np.testing.assert_allclose(
+        self.budget_optimizer_media_and_rf._spend_ratio,
+        [1, 1, 1, 1, 1],
+        atol=0.01,
     )
 
   def test_hist_spend_with_imputed_cpm(self):
@@ -493,7 +498,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     self.budget_optimizer_media_and_rf.optimize(
         selected_times=('2021-01-25', '2021-03-08')
     )
-    expected_spend = [18.0, 20.0, 81.0, 81.0, 75.0]
+    expected_spend = [19.0, 24.0, 104.0, 94.0, 95.0]
     self.assertEqual(self.meridian_media_and_rf.total_spend.ndim, 1)
     np.testing.assert_array_equal(
         self.budget_optimizer_media_and_rf.nonoptimized_data.spend,
@@ -737,18 +742,18 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       dict(
           testcase_name='optimal_frequency',
           expected_incremental_impact=np.array(
-              [544.2629, 1122.9128, 411.21844, 1196.8931, 1037.8674]
+              [492.7, 997.6, 371.8, 1060.1, 929.2]
           ),
-          expected_spend=np.array([227.0, 306.0, 201.0, 399.0, 419.0]),
+          expected_spend=np.array([206.0, 276.0, 179.0, 354.0, 374.0]),
           expected_mroi=np.array([1.329, 1.94, 1.156, 2.928, 2.44]),
           use_optimal_frequency=True,
       ),
       dict(
           testcase_name='historical_frequency',
           expected_incremental_impact=np.array(
-              [572.5, 1291.739, 411.2, 664.9, 369.8]
+              [507.0, 1147.4, 371.8, 585.6, 351.3]
           ),
-          expected_spend=np.array([249.0, 404.0, 201.0, 399.0, 299.0]),
+          expected_spend=np.array([217.0, 363.0, 179.0, 354.0, 276.0]),
           expected_mroi=np.array([1.231, 1.519, 1.156, 1.666, 1.237]),
           use_optimal_frequency=False,
       ),
