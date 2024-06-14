@@ -165,7 +165,7 @@ class InputData:
   rf_spend: xr.DataArray | None = None
 
   def __post_init__(self):
-    self._validate_kpi_type()
+    self._validate_kpi()
     self._validate_scenarios()
     self._validate_names()
     self._validate_dimensions()
@@ -271,15 +271,18 @@ class InputData:
             UserWarning,
         )
 
-  def _validate_kpi_type(self):
+  def _validate_kpi(self):
     if (
         self.kpi_type != constants.REVENUE
         and self.kpi_type != constants.NON_REVENUE
     ):
       raise ValueError(
-          f"Invalid kpi_type: {self.kpi_type}; must be one of"
-          f" {constants.REVENUE} or {constants.NON_REVENUE}."
+          f"Invalid kpi_type: `{self.kpi_type}`; must be one of"
+          f" `{constants.REVENUE}` or `{constants.NON_REVENUE}`."
       )
+
+    if (self.kpi.values < 0).any():
+      raise ValueError("KPI values must be non-negative.")
 
   def _validate_names(self):
     """Verifies that the names of the data arrays are correct."""

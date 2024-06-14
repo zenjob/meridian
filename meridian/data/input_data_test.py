@@ -180,6 +180,39 @@ class InputDataTest(parameterized.TestCase):
           media_spend=self.media_spend,
       )
 
+  def test_validate_kpi_wrong_type(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Invalid kpi_type: `wrong_type`; must be one of `revenue` or"
+            " `non_revenue`."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type="wrong_type",
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
+  def test_validate_kpi_negative_values(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex="KPI values must be non-negative.",
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi * -1,
+          kpi_type=constants.REVENUE,
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
   def test_scenarios_kpi_type_revenue_revenue_per_kpi_set_to_ones(self):
     input_data_test = input_data.InputData(
         controls=self.not_lagged_controls,
