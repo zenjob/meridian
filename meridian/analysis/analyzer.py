@@ -46,7 +46,7 @@ def _calc_mape(expected, actual):
 
 
 def _calc_weighted_mape(expected, actual):
-  """Calculates wMAPE between actual and expected impact."""
+  """Calculates wMAPE between actual and expected impact (weighted by actual)."""
   return np.nansum(np.abs(actual - expected)) / np.nansum(actual)
 
 
@@ -1958,14 +1958,21 @@ class Analyzer:
   ) -> xr.Dataset:
     """Calculate `R-Squared`, `MAPE`, and `wMAPE` goodness of fit metrics.
 
-    `R-Squared`, `MAPE`, and `wMAPE` are calculated on the KPI scale when
-    `revenue_per_kpi = None`, or the revenue scale (`KPI * revenue_per_kpi`)
-    when `revenue_per_kpi` is specified, which is the same scale as the ROI
-    numerator (incremental revenue).
+    `R-Squared`, `MAPE` (mean absolute percentage error), and `wMAPE` (weighted
+    absolute percentage error) are calculated on the revenue scale
+    (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or the KPI
+    scale when `revenue_per_kpi = None`. This is the same scale as what is used
+    in the ROI numerator (i.e., incremental revenue).
+
+    Prediction errors in `wMAPE` are weighted by the actual revenue
+    (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or weighted
+    by the KPI scale when `revenue_per_kpi = None`. This means that percentage
+    errors when revenue is high are weighted more heavily than errors when
+    revenue is low.
 
     `R-Squared`, `MAPE` and `wMAPE` are calculated both at the model-level (one
     observation per geo and time period) and at the national-level (aggregating
-    KPI or revenue impact) across geos so there is one observation per time
+    KPI or revenue impact across geos so there is one observation per time
     period).
 
     `R-Squared`, `MAPE`, and `wMAPE` are calculated for the full sample. If the
