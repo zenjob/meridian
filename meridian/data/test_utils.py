@@ -996,7 +996,6 @@ def sample_input_data_from_dataset(dataset: xr.Dataset, kpi_type: str):
   )
 
 
-# Scenario 1, where KPI is `revenue` with no `revenue_per_kpi`.
 def sample_input_data_revenue(
     n_geos: int = 10,
     n_times: int = 50,
@@ -1006,7 +1005,7 @@ def sample_input_data_revenue(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`."""
+  """Generates sample InputData for `kpi_type='revenue'`."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
@@ -1019,8 +1018,8 @@ def sample_input_data_revenue(
   )
   return input_data.InputData(
       kpi=dataset.kpi,
-      kpi_type=c.NON_REVENUE,
-      revenue_per_kpi=dataset.revenue_per_kpi,
+      kpi_type=c.REVENUE,
+      revenue_per_kpi=None,
       population=dataset.population,
       controls=dataset.controls,
       media=dataset.media if n_media_channels else None,
@@ -1031,7 +1030,6 @@ def sample_input_data_revenue(
   )
 
 
-# Scenario 2, where KPI is `non_revenue` with `revenue_per_kpi`.
 def sample_input_data_non_revenue_revenue_per_kpi(
     n_geos: int = 10,
     n_times: int = 50,
@@ -1041,7 +1039,7 @@ def sample_input_data_non_revenue_revenue_per_kpi(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for `revenue_per_kpi` and `kpi_type='revenue'`."""
+  """Generates sample InputData for `non_revenue` KPI w/ revenue_per_kpi."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
@@ -1065,7 +1063,6 @@ def sample_input_data_non_revenue_revenue_per_kpi(
   )
 
 
-# Scenario 3, where KPI is `non_revenue` with no `revenue_per_kpi`.
 def sample_input_data_non_revenue_no_revenue_per_kpi(
     n_geos: int = 10,
     n_times: int = 50,
@@ -1075,7 +1072,7 @@ def sample_input_data_non_revenue_no_revenue_per_kpi(
     n_rf_channels: int | None = None,
     seed: int = 0,
 ):
-  """Generates sample InputData for non-revenue and `revenue_per_kpi=None`."""
+  """Generates sample InputData for `non_revenue` KPI w/o revenue_per_kpi."""
   dataset = random_dataset(
       n_geos=n_geos,
       n_times=n_times,
