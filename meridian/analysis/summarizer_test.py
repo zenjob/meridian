@@ -154,7 +154,7 @@ class SummarizerTest(parameterized.TestCase):
     self.media_summary.media_summary_metrics = media_metrics
 
     frequency_data = test_utils.generate_optimal_frequency_data(
-        channel_prefix='channel', num_channels=2
+        channel_prefix='rf_ch', num_channels=2
     )
     self.reach_frequency.optimal_frequency_data = frequency_data
     self.mock_meridian_revenue.n_rf_channels = 2
@@ -747,7 +747,7 @@ class SummarizerTest(parameterized.TestCase):
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn('Channel 2 and Channel 4 drove the most', insights_text)
+    self.assertIn('Ch_2 and Rf_Ch_1 drove the most', insights_text)
 
   def test_roi_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
@@ -808,10 +808,10 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
-    self.assertIn('Channel 1 drove the highest ROI at 13.8', insights_text)
-    self.assertIn('Channel 1 had the highest effectiveness', insights_text)
+    self.assertIn('Ch_1 drove the highest ROI at 13.8', insights_text)
+    self.assertIn('Ch_1 had the highest effectiveness', insights_text)
     self.assertIn(
-        'Channel 4 had the highest marginal\nROI at 1.54', insights_text
+        'Rf_Ch_1 had the highest marginal\nROI at 1.54', insights_text
     )
 
   def test_cpik_breakdown_card_plotters_called(self):
@@ -849,7 +849,7 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
-    self.assertIn('Channel 4 drove the lowest CPIK at $0.22', insights_text)
+    self.assertIn('Rf_Ch_1 drove the lowest CPIK at $0.22', insights_text)
     self.assertIn('For every\nKPI unit, you spent $0.22.', insights_text)
 
   def test_cpik_channel_chart_text(self):
@@ -922,16 +922,16 @@ class SummarizerTest(parameterized.TestCase):
     reach_frequency = self.reach_frequency
 
     media_summary.media_summary_metrics.spend.data = [
-        100,  # 'channel 0'
-        200,  # 'channel 1'
-        300,  # 'channel 2'
-        400,  # 'channel 3'
-        500,  # 'channel 4'
+        100,  # 'ch_0'
+        200,  # 'ch_1'
+        300,  # 'ch_2'
+        400,  # 'rf_ch_0'
+        500,  # 'rf_ch_1'
         1500,  # 'All Channels'
     ]
     reach_frequency.optimal_frequency_data.optimal_frequency.data = [
-        1.23,  # 'channel 0'
-        2.34,  # 'channel 1' << this should be selected for plotting
+        1.23,  # 'rf_ch_0'
+        2.34,  # 'rf_ch_1' << this should be selected for plotting
     ]
 
     summary_html_dom = self._get_output_model_results_summary_html_dom(
@@ -947,7 +947,7 @@ class SummarizerTest(parameterized.TestCase):
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
     self.assertIsNotNone(insights_text)
-    self.assertIn('for channel 1 is 2.3 ', insights_text.replace('\n', ' '))
+    self.assertIn('for rf_ch_1 is 2.3 ', insights_text.replace('\n', ' '))
     self.assertIn('to maximize ROI', insights_text.replace('\n', ' '))
 
   def test_response_curves_card_insights_no_rf(self):

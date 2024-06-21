@@ -1586,6 +1586,7 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
+      optimal_frequency: Sequence[float] | None = None,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Returns media summary metrics.
@@ -1609,6 +1610,10 @@ class Analyzer:
         of the regions.
       aggregate_times: Boolean. If `True`, the expected impact is summed over
         all of the time periods.
+      optimal_frequency: An optional list with dimension `n_rf_channels`,
+        containing the optimal frequency per channel, that maximizes posterior
+        mean roi. Default value is `None`, and historical frequency is used for
+        the metrics calculation.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -1651,9 +1656,14 @@ class Analyzer:
       )
 
     if self._meridian.n_rf_channels > 0:
+      new_frequency = (
+          self._meridian.frequency
+          if optimal_frequency is None
+          else tf.ones_like(self._meridian.frequency) * optimal_frequency
+      )
       impressions_list.append(
           self._meridian.reach[:, -self._meridian.n_times :, :]
-          * self._meridian.frequency[:, -self._meridian.n_times :, :]
+          * new_frequency[:, -self._meridian.n_times :, :]
       )
     aggregated_impressions = self.filter_and_aggregate_geos_and_times(
         tensor=tf.concat(impressions_list, axis=-1), **dim_kwargs
@@ -1851,11 +1861,12 @@ class Analyzer:
         default, all time periods are included.
 
     Returns:
-      An xarray Dataset containing two variables: `optimal_frequency` and
-        `roi_by_frequency` or `cpik_by_frequency`. `optimal_frequency` is the
-        frequency that optimizes the posterior mean of ROI or CPIK.
-        `roi_by_frequency` is the ROI for each frequency value while
-        `cpik_by_frequency` is the CPIK fro each frequency value.
+      An xarray Dataset containing the following variables: `optimal_frequency`,
+        `roi_by_frequency` or `cpik_by_frequency`, `optimal_incremental_impact`,
+        `optimal_effectiveness` and `optimal_pct_of_contribution`.
+        `optimal_frequency` is the frequency that optimizes the posterior mean
+        of ROI or CPIK. `roi_by_frequency` is the ROI for each frequency value
+        while `cpik_by_frequency` is the CPIK fro each frequency value.
 
     Raises:
       NotFittedModelError: If `sample_posterior()` (for `use_posterior=True`)
@@ -1925,6 +1936,17 @@ class Analyzer:
         else []
     )
     metric_name = constants.ROI if use_roi else constants.CPIK
+    optimal_frequency = [freq_grid[i] for i in optimal_freq_idx]
+    media_summary = self.media_summary_metrics(
+        confidence_level=confidence_level,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+        optimal_frequency=optimal_frequency,
+    ).sel({
+        constants.CHANNEL: rf_channel_values,
+        constants.DISTRIBUTION: dist_type,
+    })
+
     return xr.Dataset(
         data_vars={
             metric_name: (
@@ -1933,8 +1955,21 @@ class Analyzer:
             ),
             constants.OPTIMAL_FREQUENCY: (
                 [constants.RF_CHANNEL],
-                [freq_grid[i] for i in optimal_freq_idx],
+                optimal_frequency,
             ),
+            constants.OPTIMAL_INCREMENTAL_IMPACT: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                media_summary.incremental_impact.data,
+            ),
+            constants.OPTIMAL_EFFECTIVENESS: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                media_summary.effectiveness.data,
+            ),
+            constants.OPTIMAL_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                media_summary.pct_of_contribution.data,
+            ),
+            # TODO(b/346381974): Add optimal ROI,mROI or CPIK.
         },
         coords={
             constants.FREQUENCY: ([constants.FREQUENCY], freq_grid),
@@ -2105,8 +2140,8 @@ class Analyzer:
         dimensions for the `meridian.kpi * meridian.revenue_per_kpi` calculation
         for either the `'Train'`, `'Test'`, or `'All Data'` evaluation sets.
       expected_eval_set: An array of expected impact with dimensions `(n_chains,
-        n_draws, n_geos, n_times)` for either the `'Train'`, `'Test'`, or
-        `'All Data'` evaluation sets.
+        n_draws, n_geos, n_times)` for either the `'Train'`, `'Test'`, or `'All
+        Data'` evaluation sets.
 
     Returns:
       A list containing the `geo` or `national` level data for the `R_Squared`,

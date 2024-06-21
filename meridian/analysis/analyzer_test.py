@@ -364,7 +364,10 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       ),
   )
   def test_marginal_roi_media_and_rf_use_prior(
-      self, use_posterior: bool, by_reach: bool, expected_mroi: tuple[float]
+      self,
+      use_posterior: bool,
+      by_reach: bool,
+      expected_mroi: tuple[float, ...],
   ):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
@@ -743,13 +746,25 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         data_vars={
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [         # rf_ch_0.           # rf_ch_1
+                [  # rf_ch_0.           # rf_ch_1
                     [[2.66, 0.14, 10.37], [2.14, 0.22, 8.08]],  # freq=1.0
                     [[2.98, 0.47, 10.30], [2.36, 0.40, 8.20]],  # freq=2.0
                     [[2.67, 0.40, 9.00], [2.03, 0.38, 6.09]],  # freq=3.0
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 2.0]),
+            constants.OPTIMAL_INCREMENTAL_IMPACT: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[449.5, 71.9, 1537.3], [362.5, 81.7, 972.7]],
+            ),
+            constants.OPTIMAL_EFFECTIVENESS: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[0.00031, 0.00005, 0.00105], [0.00025, 0.00006, 0.00066]],
+            ),
+            constants.OPTIMAL_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[2.27, 0.36, 7.77], [1.83, 0.41, 4.92]],
+            ),
         },
         attrs={
             constants.CONFIDENCE_LEVEL: 0.9,
@@ -764,6 +779,21 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
     xr.testing.assert_allclose(
         actual.optimal_frequency, expected.optimal_frequency, atol=0.1
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_incremental_impact,
+        expected.optimal_incremental_impact,
+        atol=0.1,
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_effectiveness,
+        expected.optimal_effectiveness,
+        atol=0.00001,
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_pct_of_contribution,
+        expected.optimal_pct_of_contribution,
+        atol=0.01,
     )
     self.assertEqual(actual.confidence_level, 0.9)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
@@ -1722,7 +1752,10 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       ),
   )
   def test_marginal_roi_rf_only(
-      self, use_posterior: bool, by_reach: bool, expected_mroi: tuple[float]
+      self,
+      use_posterior: bool,
+      by_reach: bool,
+      expected_mroi: tuple[float, ...],
   ):
     mroi = self.analyzer_rf_only.marginal_roi(
         by_reach=by_reach,
@@ -1843,13 +1876,25 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         data_vars={
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [         # rf_ch_0.           # rf_ch_1
+                [  # rf_ch_0.           # rf_ch_1
                     [[1.37, 0.45, 4.93], [15.01, 0.70, 26.81]],  # freq=1.0
                     [[1.44, 0.28, 5.30], [9.24, 0.71, 15.05]],  # freq=2.0
                     [[1.32, 0.21, 4.18], [6.81, 0.62, 10.70]],  # freq=3.0
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 1.0]),
+            constants.OPTIMAL_INCREMENTAL_IMPACT: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[236.1, 37.4, 749.3], [1232.2, 115.9, 1933.7]],
+            ),
+            constants.OPTIMAL_EFFECTIVENESS: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[0.00016, 0.00003, 0.00051], [0.00168, 0.00016, 0.00263]],
+            ),
+            constants.OPTIMAL_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[0.0028, 0.0004, 0.0090], [0.0148, 0.0014, 0.0233]],
+            ),
         },
         attrs={
             constants.CONFIDENCE_LEVEL: 0.9,
@@ -1864,6 +1909,21 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
     xr.testing.assert_allclose(
         actual.optimal_frequency, expected.optimal_frequency, atol=0.1
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_incremental_impact,
+        expected.optimal_incremental_impact,
+        atol=0.1,
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_effectiveness,
+        expected.optimal_effectiveness,
+        atol=0.00001,
+    )
+    xr.testing.assert_allclose(
+        actual.optimal_pct_of_contribution,
+        expected.optimal_pct_of_contribution,
+        atol=0.0001,
     )
     self.assertEqual(actual.confidence_level, 0.9)
     self.assertEqual(actual.use_posterior, expected.use_posterior)

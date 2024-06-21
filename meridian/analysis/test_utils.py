@@ -711,7 +711,7 @@ def generate_predictive_accuracy_table(
 
 def generate_media_summary_metrics() -> xr.Dataset:
   """Helper method to generate simulated media summary metrics data."""
-  channel = [f"channel {i}" for i in range(5)]
+  channel = [f"ch_{i}" for i in range(3)] + [f"rf_ch_{i}" for i in range(2)]
   channel.append(c.ALL_CHANNELS)
   metric = [c.MEAN, c.CI_LO, c.CI_HI]
   distribution = [c.PRIOR, c.POSTERIOR]
@@ -870,7 +870,7 @@ def generate_optimal_frequency_data(
 ) -> xr.Dataset:
   """Helper method to generate simulated optimal frequency data."""
   frequency = list(np.arange(1, 7.05, 0.1))
-  rf_channel = [f"{channel_prefix} {i}" for i in range(num_channels)]
+  rf_channel = [f"{channel_prefix}_{i}" for i in range(num_channels)]
   metric = [c.MEAN, c.CI_LO, c.CI_HI]
 
   np.random.seed(0)
@@ -878,6 +878,15 @@ def generate_optimal_frequency_data(
       1, 1, size=(len(frequency), len(rf_channel), len(metric))
   )
   optimal_frequency = np.random.lognormal(1, 1, size=(len(rf_channel)))
+  optimal_effectiveness = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
+  optimal_incremental_impact = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
+  optimal_pct_of_contribution = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
 
   metric_name = c.ROI if use_roi else c.CPIK
   return xr.Dataset(
@@ -890,6 +899,18 @@ def generate_optimal_frequency_data(
               [c.RF_CHANNEL],
               optimal_frequency,
           ),
+          c.OPTIMAL_EFFECTIVENESS: (
+              [c.RF_CHANNEL, c.METRIC],
+              optimal_effectiveness,
+          ),
+          c.OPTIMAL_INCREMENTAL_IMPACT: (
+              [c.RF_CHANNEL, c.METRIC],
+              optimal_incremental_impact,
+          ),
+          c.OPTIMAL_PCT_OF_CONTRIBUTION: (
+              [c.RF_CHANNEL, c.METRIC],
+              optimal_pct_of_contribution,
+          ),
       },
       coords={
           c.FREQUENCY: frequency,
@@ -901,7 +922,9 @@ def generate_optimal_frequency_data(
 
 def generate_hill_curves_dataframe() -> pd.DataFrame:
   """Helper method to generate simulated hill curve data."""
-  channel_names = [f"channel {i}" for i in range(5)]
+  channel_names = [f"ch_{i}" for i in range(3)] + [
+      f"rf_ch_{i}" for i in range(2)
+  ]
   channel_array = []
   channel_type_array = []
   for i, channel in enumerate(channel_names):
@@ -958,7 +981,9 @@ def generate_hill_curves_dataframe() -> pd.DataFrame:
 
 def generate_adstock_decay_data() -> pd.DataFrame:
   """Helper method to generate simulated adstock decay data."""
-  channel_names = [f"channel {i}" for i in range(5)]
+  channel_names = [f"ch_{i}" for i in range(3)] + [
+      f"rf_ch_{i}" for i in range(2)
+  ]
 
   channel_array, time_units_array = [], []
   np.random.seed(0)

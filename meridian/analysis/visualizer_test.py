@@ -805,13 +805,13 @@ class ReachAndFrequencyTest(parameterized.TestCase):
       self,
   ):
     plot = self.reach_and_frequency.plot_optimal_frequency(
-        ["rf_channel 0", "rf_channel 3"]
+        ["rf_channel_0", "rf_channel_3"]
     )
     plot_data = plot.data
     channels = plot_data[c.RF_CHANNEL].unique().tolist()
     num_channels = len(channels)
-    self.assertIn("rf_channel 0", channels)
-    self.assertIn("rf_channel 3", channels)
+    self.assertIn("rf_channel_0", channels)
+    self.assertIn("rf_channel_3", channels)
     self.assertEqual(num_channels, 2)
 
   def test_reach_and_frequency_plot_optimal_freq_correct_wrong_channel(self):
@@ -2250,7 +2250,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.encoding.y.shorthand, c.MROI)
 
   def test_media_summary_plot_roi_vs_mroi_selected_channels(self):
-    selected_channels = ["channel 1", "channel 3"]
+    selected_channels = ["ch_0", "ch_2"]
     plot = self.media_summary_revenue.plot_roi_vs_mroi(
         selected_channels=selected_channels
     )

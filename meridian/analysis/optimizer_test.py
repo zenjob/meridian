@@ -244,6 +244,13 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             new=property(lambda unused_self: self.inference_data_media_and_rf),
         )
     )
+    self.enter_context(
+        mock.patch.object(
+            analyzer.Analyzer,
+            'media_summary_metrics',
+            return_value=analysis_test_utils.generate_media_summary_metrics(),
+        )
+    )
 
   def test_not_fitted_meridian_model_raises_exception(self):
     not_fitted_mmm = mock.create_autospec(model.Meridian, instance=True)
@@ -2594,6 +2601,13 @@ class OptimizerKPITest(parameterized.TestCase):
             new=property(
                 lambda unused_self: self.inference_data_media_and_rf_kpi
             ),
+        )
+    )
+    self.enter_context(
+        mock.patch.object(
+            analyzer.Analyzer,
+            'media_summary_metrics',
+            return_value=analysis_test_utils.generate_media_summary_metrics(),
         )
     )
 
