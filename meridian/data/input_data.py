@@ -372,6 +372,9 @@ class InputData:
 
     The `time` dimension of the selected array cannot be smaller than the
     `time` dimension of the `kpi` array."
+
+    Args:
+      array: An optional DataArray to validate.
     """
     if array is None:
       return
@@ -399,6 +402,9 @@ class InputData:
 
     The `time` dimension of the selected array must have labels that are
     formatted in the Meridian conventional `"yyyy-mm-dd"` format.
+
+    Args:
+      array: An optional DataArray to validate.
     """
     if array is None:
       return
