@@ -155,7 +155,6 @@ class Meridian:
       self, input_data: data.InputData, model_spec: spec.ModelSpec | None = None
   ):
     self.input_data = input_data
-
     self.model_spec = model_spec if model_spec else spec.ModelSpec()
 
     self._validate_data_dependent_model_spec()
@@ -188,38 +187,8 @@ class Meridian:
     )
 
     self._kpi = tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
-    # Check that custom priors were not set, by confirming that model_spec's
-    # `roi_m` and `roi_rf` properties equal the default `roi_m` and `roi_rf`
-    # properties. If the properties are equal then custom priors were not set.
-    default_model_spec = spec.ModelSpec()
-    default_roi_m = default_model_spec.prior.roi_m
-    default_roi_rf = default_model_spec.prior.roi_rf
 
-    # Check `roi_m` properties match default `roi_m` properties (that the
-    # distributions (e.g. Normal, LogNormal) and parameters (loc and scale) are
-    # equal).
-    roi_m_properties_equal = (
-        isinstance(self.model_spec.prior.roi_m, type(default_roi_m))
-        and self.model_spec.prior.roi_m.parameters == default_roi_m.parameters
-    )
-    # Check `roi_rf` properties match default `roi_rf` properties.
-    roi_rf_properties_equal = (
-        isinstance(self.model_spec.prior.roi_rf, type(default_roi_rf))
-        and self.model_spec.prior.roi_rf.parameters == default_roi_rf.parameters
-    )
-
-    if (
-        self.input_data.revenue_per_kpi is None
-        and self.input_data.kpi_type == constants.NON_REVENUE
-        and roi_m_properties_equal
-        and roi_rf_properties_equal
-    ):
-      raise ValueError(
-          "Custom priors should be set during model creation since"
-          " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
-          " Further documentation is available at"
-          " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
-      )
+    self._validate_custom_priors()
 
     if input_data.revenue_per_kpi is not None:
       self._revenue_per_kpi = tf.convert_to_tensor(
@@ -227,6 +196,7 @@ class Meridian:
       )
     else:
       self._revenue_per_kpi = None
+
     self._controls = tf.convert_to_tensor(
         self.input_data.controls, dtype=tf.float32
     )
@@ -250,6 +220,7 @@ class Meridian:
     self._kpi_transformer = transformers.KpiTransformer(
         self.kpi, self.population
     )
+
     self._controls_scaled = self.controls_transformer.forward(self.controls)
     self._kpi_scaled = self.kpi_transformer.forward(self.kpi)
 
@@ -331,24 +302,7 @@ class Meridian:
       self._reach_counterfactual_scaled = None
       self._rf_spend_counterfactual = None
 
-    if not self.is_national:
-      self._check_if_no_geo_variation(
-          self.controls_scaled,
-          "controls",
-          self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
-      )
-      if input_data.media is not None:
-        self._check_if_no_geo_variation(
-            self.media_scaled,
-            "media",
-            self.input_data.media.coords[constants.MEDIA_CHANNEL].values,
-        )
-      if input_data.reach is not None:
-        self._check_if_no_geo_variation(
-            self.reach_scaled,
-            "reach",
-            self.input_data.reach.coords[constants.RF_CHANNEL].values,
-        )
+    self._validate_geo_invariants()
 
     if isinstance(self.model_spec.baseline_geo, int):
       if (
@@ -573,6 +527,64 @@ class Meridian:
           "The shape of `control_population_scaling_id`"
           f" {self.model_spec.control_population_scaling_id.shape} is different"
           f" from `(n_controls,) = ({self.n_controls},)`."
+      )
+
+  def _validate_custom_priors(self):
+    """Validates custom priors invariants."""
+    # Check that custom priors were not set, by confirming that model_spec's
+    # `roi_m` and `roi_rf` properties equal the default `roi_m` and `roi_rf`
+    # properties. If the properties are equal then custom priors were not set.
+    default_model_spec = spec.ModelSpec()
+    default_roi_m = default_model_spec.prior.roi_m
+    default_roi_rf = default_model_spec.prior.roi_rf
+
+    # Check `roi_m` properties match default `roi_m` properties (that the
+    # distributions (e.g. Normal, LogNormal) and parameters (loc and scale) are
+    # equal).
+    roi_m_properties_equal = (
+        isinstance(self.model_spec.prior.roi_m, type(default_roi_m))
+        and self.model_spec.prior.roi_m.parameters == default_roi_m.parameters
+    )
+    # Check `roi_rf` properties match default `roi_rf` properties.
+    roi_rf_properties_equal = (
+        isinstance(self.model_spec.prior.roi_rf, type(default_roi_rf))
+        and self.model_spec.prior.roi_rf.parameters == default_roi_rf.parameters
+    )
+
+    if (
+        self.input_data.revenue_per_kpi is None
+        and self.input_data.kpi_type == constants.NON_REVENUE
+        and roi_m_properties_equal
+        and roi_rf_properties_equal
+    ):
+      raise ValueError(
+          "Custom priors should be set during model creation since"
+          " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
+          " Further documentation is available at"
+          " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
+      )
+
+  def _validate_geo_invariants(self):
+    """Validates non-national model invariants."""
+    if self.is_national:
+      return
+
+    self._check_if_no_geo_variation(
+        self.controls_scaled,
+        "controls",
+        self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
+    )
+    if self.input_data.media is not None:
+      self._check_if_no_geo_variation(
+          self.media_scaled,
+          "media",
+          self.input_data.media.coords[constants.MEDIA_CHANNEL].values,
+      )
+    if self.input_data.reach is not None:
+      self._check_if_no_geo_variation(
+          self.reach_scaled,
+          "reach",
+          self.input_data.reach.coords[constants.RF_CHANNEL].values,
       )
 
   def _check_if_no_geo_variation(
