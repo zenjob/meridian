@@ -736,9 +736,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ),
         model_spec=spec.ModelSpec(media_effects_dist=media_effects_dist),
     )
-    self.assertEqual(
-        meridian.media_effects_dist, expected_media_effects_dist
-    )
+    self.assertEqual(meridian.media_effects_dist, expected_media_effects_dist)
 
   @parameterized.named_parameters(
       dict(
@@ -883,11 +881,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_rf_attributes_not_set(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_only)
     self.assertEqual(meridian.n_rf_channels, 0)
-    self.assertIsNone(meridian.reach_transformer)
-    self.assertIsNone(meridian.reach_scaled)
-    self.assertIsNone(meridian._reach_counterfactual)
-    self.assertIsNone(meridian._reach_counterfactual_scaled)
-    self.assertIsNone(meridian._rf_spend_counterfactual)
+    self.assertIsNone(meridian.rf_tensors.reach_transformer)
+    self.assertIsNone(meridian.rf_tensors.reach_scaled)
+    self.assertIsNone(meridian.rf_tensors.reach_counterfactual)
+    self.assertIsNone(meridian.rf_tensors.reach_counterfactual_scaled)
+    self.assertIsNone(meridian.rf_tensors.rf_spend_counterfactual)
 
   def test_scaled_data_shape(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)
@@ -905,10 +903,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
     if (
         self.input_data_with_media_and_rf.reach is not None
-        and meridian.reach_scaled is not None
+        and meridian.rf_tensors.reach_scaled is not None
     ):
       self.assertAllEqual(
-          meridian.reach_scaled.shape,
+          meridian.rf_tensors.reach_scaled.shape,
           self.input_data_with_media_and_rf.reach.shape,
           msg=(
               "Shape of `_reach_scaled` does not match the shape of `reach`"
@@ -979,12 +977,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           atol=atol,
       )
     if (
-        meridian.reach_scaled is not None
-        and meridian.reach_transformer is not None
+        meridian.rf_tensors.reach_scaled is not None
+        and meridian.rf_tensors.reach_transformer is not None
         and self.input_data_with_media_and_rf.reach is not None
     ):
       self.assertAllClose(
-          meridian.reach_transformer.inverse(meridian.reach_scaled),
+          meridian.rf_tensors.reach_transformer.inverse(meridian.reach_scaled),
           self.input_data_with_media_and_rf.reach,
           atol=atol,
       )
@@ -1019,17 +1017,17 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         meridian.media_tensors.media_spend_counterfactual,
         tf.zeros_like(self.input_data_with_media_and_rf.media_spend),
     )
-    if meridian.reach_scaled is not None:
+    if meridian.rf_tensors.reach_scaled is not None:
       self.assertAllEqual(
-          meridian._reach_counterfactual,
+          meridian.rf_tensors.reach_counterfactual,
           tf.zeros_like(self.input_data_with_media_and_rf.reach),
       )
       self.assertAllEqual(
-          meridian._reach_counterfactual_scaled,
-          tf.zeros_like(meridian.reach_scaled),
+          meridian.rf_tensors.reach_counterfactual_scaled,
+          tf.zeros_like(meridian.rf_tensors.reach_scaled),
       )
       self.assertAllEqual(
-          meridian._rf_spend_counterfactual,
+          meridian.rf_tensors.rf_spend_counterfactual,
           tf.zeros_like(self.input_data_with_media_and_rf.rf_spend),
       )
 
@@ -1115,7 +1113,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     if meridian.input_data.reach is not None:
       self.assertAllClose(
-          meridian._reach_counterfactual,
+          meridian.rf_tensors.reach_counterfactual,
           tf.where(
               rf_roi_calibration_period,
               0,
@@ -1123,12 +1121,14 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           ),
       )
       self.assertAllClose(
-          meridian._reach_counterfactual_scaled,
-          tf.where(rf_roi_calibration_period, 0, meridian.reach_scaled),
+          meridian.rf_tensors.reach_counterfactual_scaled,
+          tf.where(
+              rf_roi_calibration_period, 0, meridian.rf_tensors.reach_scaled
+          ),
       )
 
       self.assertAllClose(
-          meridian._rf_spend_counterfactual,
+          meridian.rf_tensors.rf_spend_counterfactual,
           tf.where(
               rf_roi_calibration_period[..., -meridian.n_times :, :],
               0,
@@ -1522,7 +1522,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           coef_logprobs[parname], log_prob_parts["unpinned"][parname][0]
       )
     transformed_reach = meridian.adstock_hill_rf(
-        reach=meridian.reach_scaled,
+        reach=meridian.rf_tensors.reach_scaled,
         frequency=meridian.frequency,
         alpha=par[constants.ALPHA_RF],
         ec=par[constants.EC_RF],
@@ -1666,7 +1666,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         slope=par[constants.SLOPE_M],
     )[0, :, :, :]
     transformed_reach = meridian.adstock_hill_rf(
-        reach=meridian.reach_scaled,
+        reach=meridian.rf_tensors.reach_scaled,
         frequency=meridian.frequency,
         alpha=par[constants.ALPHA_RF],
         ec=par[constants.EC_RF],

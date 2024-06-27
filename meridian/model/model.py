@@ -171,6 +171,85 @@ def _derive_media_tensors(
   )
 
 
+@dataclasses.dataclass(frozen=True)
+class RfTensors:
+  """Container for Reach & Frequency (RF) media values tensors.
+
+  Attributes:
+    reach: A tensor constructed from `InputData.reach`.
+    frequency: A tensor constructed from `InputData.frequency`.
+    rf_spend: A tensor constructed from `InputData.rf_spend`.
+    reach_transformer: A `MediaTransformer` to scale RF tensors using the
+      model's RF data.
+    reach_scaled: A reach tensor normalized by population and by the median
+      value.
+    reach_counterfactual: A reach tensor with media counterfactual values. If
+      ROI priors are used, then the ROI of R&F channels is based on the
+      difference in expected sales between the `reach` tensor and this
+      `reach_counterfactual` tensor.
+    reach_counterfactual_scaled: A reach tensor with media counterfactual scaled
+      values.
+    rf_spend_counterfactual: A reach tensor with media spend counterfactual
+      values. If ROI priors are used, then the ROI of R&F channels is based on
+      the spend difference between `rf_spend` tensor and this
+      `rf_spend_counterfactual` tensor.
+  """
+
+  reach: tf.Tensor | None = None
+  frequency: tf.Tensor | None = None
+  rf_spend: tf.Tensor | None = None
+  reach_transformer: transformers.MediaTransformer | None = None
+  reach_scaled: tf.Tensor | None = None
+  reach_counterfactual: tf.Tensor | None = None
+  reach_counterfactual_scaled: tf.Tensor | None = None
+  rf_spend_counterfactual: tf.Tensor | None = None
+
+
+def _derive_rf_tensors(
+    input_data: data.InputData,
+    model_spec: spec.ModelSpec,
+) -> RfTensors:
+  """Derives an RfMediaTensors container from RF media values in given input."""
+  if input_data.reach is None:
+    return RfTensors()
+
+  reach = tf.convert_to_tensor(input_data.reach, dtype=tf.float32)
+  frequency = tf.convert_to_tensor(input_data.frequency, dtype=tf.float32)
+  rf_spend = tf.convert_to_tensor(input_data.rf_spend, dtype=tf.float32)
+  reach_transformer = transformers.MediaTransformer(
+      reach, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
+  )
+  reach_scaled = reach_transformer.forward(reach)  # pytype: disable=attribute-error  # always-use-property-annotation
+  if model_spec.rf_roi_calibration_period is None:
+    reach_counterfactual = tf.zeros_like(reach)
+    reach_counterfactual_scaled = tf.zeros_like(reach_scaled)
+    rf_spend_counterfactual = tf.zeros_like(rf_spend)
+  else:
+    reach_counterfactual = tf.where(
+        model_spec.rf_roi_calibration_period, 0, reach
+    )
+    reach_counterfactual_scaled = tf.where(
+        model_spec.rf_roi_calibration_period, 0, reach_scaled
+    )
+    n_times = len(input_data.time)
+    rf_spend_counterfactual = tf.where(
+        model_spec.rf_roi_calibration_period[..., -n_times:, :],
+        0,
+        rf_spend,
+    )
+
+  return RfTensors(
+      reach=reach,
+      frequency=frequency,
+      rf_spend=rf_spend,
+      reach_transformer=reach_transformer,
+      reach_scaled=reach_scaled,
+      reach_counterfactual=reach_counterfactual,
+      reach_counterfactual_scaled=reach_counterfactual_scaled,
+      rf_spend_counterfactual=rf_spend_counterfactual,
+  )
+
+
 class Meridian:
   """Contains the main functionality for fitting the Meridian MMM model.
 
@@ -196,15 +275,19 @@ class Meridian:
       use `media_tensors.media`.
     media_spend: An optional tensor constructed from `input_data.media_spend`.
       Deprecated; use `media_tensors.media_spend` instead.
-    reach: An optional tensor constructed from `input_data.reach`.
+    rf_tensors: A collection of Reach & Frequency (RF) media tensors.
+    reach: An optional tensor constructed from `input_data.reach`. Deprecated;
+      use `rf_tensors.reach`.
     frequency: An optional tensor constructed from `input_data.frequency`.
+      Deprecated; use `rf_tensors.frequency`.
     rf_spend: An optional tensor constructed from `input_data.rf_spend`.
-    total_spend: A tensor containing total spend, including `media_spend` and
-      `rf_spend`.
+      Deprecated; use `rf_tensors.rf_spend`.
+    total_spend: A tensor containing total spend, including
+      `media_tensors.media_spend` and `rf_tensors.rf_spend`.
     media_transformer: A `MediaTransformer` to scale media tensors using the
       model's media data. Deprecated; use `media_tensors.media_transformer`.
     reach_transformer: An optional `MediaTransformer` to scale RF tensors using
-      the model's RF data.
+      the model's RF data. Deprecated; use `rf_tensors.reach_transformer`.
     controls_transformer: A `ControlsTransformer` to scale controls tensors
       using the model's controls data.
     kpi_transformer: A `KpiTransformer` to scale KPI tensors using the model's
@@ -212,7 +295,7 @@ class Meridian:
     media_scaled: The media tensor normalized by population and by the median
       value. Deprecated; use `media_tensors.media_scaled`.
     reach_scaled: An optional reach tensor normalized by population and by the
-      median value.
+      median value. Deprecated; use `rf_tensors.reach_scaled`.
     controls_scaled: The controls tensor normalized by population and by the
       median value.
     kpi_scaled: The KPI tensor normalized by population and by the median value.
@@ -309,47 +392,8 @@ class Meridian:
     self._media_tensors = _derive_media_tensors(
         self.input_data, self.model_spec
     )
-
-    # Set RF attributes.
-    if self.input_data.reach is not None:
-      self._reach = tf.convert_to_tensor(
-          self.input_data.reach, dtype=tf.float32
-      )
-      self._frequency = tf.convert_to_tensor(
-          self.input_data.frequency, dtype=tf.float32
-      )
-      self._rf_spend = tf.convert_to_tensor(
-          self.input_data.rf_spend, dtype=tf.float32
-      )
-      self._reach_transformer = transformers.MediaTransformer(
-          self.reach, self.population
-      )
-      self._reach_scaled = self.reach_transformer.forward(self.reach)  # pytype: disable=attribute-error  # always-use-property-annotation
-      if self.model_spec.rf_roi_calibration_period is not None:
-        self._reach_counterfactual = tf.where(
-            self.model_spec.rf_roi_calibration_period, 0, self.reach
-        )
-        self._reach_counterfactual_scaled = tf.where(
-            self.model_spec.rf_roi_calibration_period, 0, self.reach_scaled
-        )
-        self._rf_spend_counterfactual = tf.where(
-            self.model_spec.rf_roi_calibration_period[..., -self.n_times :, :],
-            0,
-            self.rf_spend,
-        )
-      else:
-        self._reach_counterfactual = tf.zeros_like(self.reach)
-        self._reach_counterfactual_scaled = tf.zeros_like(self.reach_scaled)
-        self._rf_spend_counterfactual = tf.zeros_like(self.rf_spend)
-    else:
-      self._reach = None
-      self._frequency = None
-      self._rf_spend = None
-      self._reach_transformer = None
-      self._reach_scaled = None
-      self._reach_counterfactual = None
-      self._reach_counterfactual_scaled = None
-      self._rf_spend_counterfactual = None
+    # Derive and set RF media tensors from RF media values in the input data.
+    self._rf_tensors = _derive_rf_tensors(self.input_data, self.model_spec)
 
     self._validate_geo_invariants()
 
@@ -403,6 +447,10 @@ class Meridian:
     return self._media_tensors
 
   @property
+  def rf_tensors(self) -> RfTensors:
+    return self._rf_tensors
+
+  @property
   def media(self) -> tf.Tensor | None:
     return self.media_tensors.media
 
@@ -412,15 +460,15 @@ class Meridian:
 
   @property
   def reach(self) -> tf.Tensor | None:
-    return self._reach
+    return self.rf_tensors.reach
 
   @property
   def frequency(self) -> tf.Tensor | None:
-    return self._frequency
+    return self.rf_tensors.frequency
 
   @property
   def rf_spend(self) -> tf.Tensor | None:
-    return self._rf_spend
+    return self.rf_tensors.rf_spend
 
   @property
   def total_spend(self) -> tf.Tensor:
@@ -468,7 +516,7 @@ class Meridian:
 
   @property
   def reach_transformer(self) -> transformers.MediaTransformer | None:
-    return self._reach_transformer
+    return self.rf_tensors.reach_transformer
 
   @property
   def controls_transformer(self) -> transformers.ControlsTransformer:
@@ -484,7 +532,7 @@ class Meridian:
 
   @property
   def reach_scaled(self) -> tf.Tensor | None:
-    return self._reach_scaled
+    return self.rf_tensors.reach_scaled
 
   @property
   def controls_scaled(self) -> tf.Tensor:
@@ -635,7 +683,7 @@ class Meridian:
       )
     if self.input_data.reach is not None:
       self._check_if_no_geo_variation(
-          self.reach_scaled,
+          self.rf_tensors.reach_scaled,
           "reach",
           self.input_data.reach.coords[constants.RF_CHANNEL].values,
       )
@@ -812,13 +860,13 @@ class Meridian:
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_rf`."""
     inc_revenue_rf = roi_rf * tf.reduce_sum(
-        self.rf_spend - self._rf_spend_counterfactual,
-        range(self.rf_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
+        self.rf_tensors.rf_spend - self.rf_tensors.rf_spend_counterfactual,
+        range(self.rf_tensors.rf_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
     )
     if self.model_spec.rf_roi_calibration_period is not None:
       rf_counterfactual_transformed = self.adstock_hill_rf(
-          reach=self._reach_counterfactual_scaled,
-          frequency=self.frequency,
+          reach=self.rf_tensors.reach_counterfactual_scaled,
+          frequency=self.rf_tensors.frequency,
           alpha=alpha_rf,
           ec=ec_rf,
           slope=slope_rf,
@@ -930,7 +978,7 @@ class Meridian:
         )
         combined_beta = tf.concat([combined_beta, beta_gm], axis=-1)
 
-      if self.reach is not None:
+      if self.rf_tensors.reach is not None:
         alpha_rf = yield self._prior_broadcast.alpha_rf
         ec_rf = yield self._prior_broadcast.ec_rf
         eta_rf = yield self._prior_broadcast.eta_rf
@@ -942,8 +990,8 @@ class Meridian:
             name=constants.BETA_GRF_DEV,
         )
         rf_transformed = self.adstock_hill_rf(
-            reach=self.reach_scaled,
-            frequency=self.frequency,
+            reach=self.rf_tensors.reach_scaled,
+            frequency=self.rf_tensors.frequency,
             alpha=alpha_rf,
             ec=ec_rf,
             slope=slope_rf,
@@ -1156,8 +1204,8 @@ class Meridian:
         name=constants.BETA_GRF_DEV,
     ).sample(**sample_kwargs)
     rf_transformed = self.adstock_hill_rf(
-        reach=self.reach_scaled,
-        frequency=self.frequency,
+        reach=self.rf_tensors.reach_scaled,
+        frequency=self.rf_tensors.frequency,
         alpha=rf_vars[constants.ALPHA_RF],
         ec=rf_vars[constants.EC_RF],
         slope=rf_vars[constants.SLOPE_RF],
@@ -1239,7 +1287,9 @@ class Meridian:
         else {}
     )
     rf_vars = (
-        self._sample_rf_priors(n_draws, seed) if self.reach is not None else {}
+        self._sample_rf_priors(n_draws, seed)
+        if self.rf_tensors.reach is not None
+        else {}
     )
 
     return base_vars | media_vars | rf_vars
