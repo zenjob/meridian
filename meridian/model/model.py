@@ -15,6 +15,7 @@
 """Meridian module for the geo-level Bayesian hierarchical media mix model."""
 
 from collections.abc import Mapping, Sequence
+import dataclasses
 import os
 import warnings
 import arviz as az
@@ -101,12 +102,81 @@ def _xla_windowed_adaptive_nuts(**kwargs):
   return tfp.experimental.mcmc.windowed_adaptive_nuts(**kwargs)
 
 
+@dataclasses.dataclass(frozen=True)
+class MediaTensors:
+  """Container for media tensors.
+
+  Attributes:
+    media: A tensor constructed from `InputData.media`.
+    media_spend: A tensor constructed from `InputData.media_spend`.
+    media_transformer: A `MediaTransformer` to scale media tensors using the
+      model's media data.
+    media_scaled: The media tensor normalized by population and by the median
+      value.
+    media_counterfactual: A tensor containing the media counterfactual values.
+    media_counterfactual_scaled: A tensor containing the media counterfactual
+      scaled values.
+    media_spend_counterfactual: A tensor containing the media spend
+      counterfactual values.
+  """
+
+  media: tf.Tensor | None = None
+  media_spend: tf.Tensor | None = None
+  media_transformer: transformers.MediaTransformer | None = None
+  media_scaled: tf.Tensor | None = None
+  media_counterfactual: tf.Tensor | None = None
+  media_counterfactual_scaled: tf.Tensor | None = None
+  media_spend_counterfactual: tf.Tensor | None = None
+
+
+def _derive_media_tensors(
+    input_data: data.InputData,
+    model_spec: spec.ModelSpec,
+) -> MediaTensors:
+  """Derives a MediaTensors container from media values in given input data."""
+  if input_data.media is None:
+    return MediaTensors()
+
+  # Derive and set media tensors from media values in the input data.
+  media = tf.convert_to_tensor(input_data.media, dtype=tf.float32)
+  media_spend = tf.convert_to_tensor(input_data.media_spend, dtype=tf.float32)
+  media_transformer = transformers.MediaTransformer(
+      media, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
+  )
+  media_scaled = media_transformer.forward(media)  # pytype: disable=attribute-error  # always-use-property-annotation
+  if model_spec.roi_calibration_period is None:
+    media_counterfactual = tf.zeros_like(media)
+    media_counterfactual_scaled = tf.zeros_like(media_scaled)
+    media_spend_counterfactual = tf.zeros_like(media_spend)
+  else:
+    media_counterfactual = tf.where(model_spec.roi_calibration_period, 0, media)
+    media_counterfactual_scaled = tf.where(
+        model_spec.roi_calibration_period, 0, media_scaled
+    )
+    n_times = len(input_data.time)
+    media_spend_counterfactual = tf.where(
+        model_spec.roi_calibration_period[..., -n_times:, :],
+        0,
+        media_spend,
+    )
+
+  return MediaTensors(
+      media=media,
+      media_spend=media_spend,
+      media_transformer=media_transformer,
+      media_scaled=media_scaled,
+      media_counterfactual=media_counterfactual,
+      media_counterfactual_scaled=media_counterfactual_scaled,
+      media_spend_counterfactual=media_spend_counterfactual,
+  )
+
+
 class Meridian:
   """Contains the main functionality for fitting the Meridian MMM model.
 
   Attributes:
-    model_spec: A `ModelSpec` object containing the model specification.
     input_data: An `InputData` object containing the input data for the model.
+    model_spec: A `ModelSpec` object containing the model specification.
     inference_data: An `arviz.InferenceData` object containing the resulting
       data from fitting the model.
     n_geos: Number of geos in the data.
@@ -121,15 +191,18 @@ class Meridian:
     revenue_per_kpi: A tensor constructed from `input_data.revenue_per_kpi`.
     controls: A tensor constructed from `input_data.controls`.
     population: A tensor constructed from `input_data.population`.
-    media: An optional tensor constructed from `input_data.media`.
+    media_tensors: A collection of media tensors derived from `input_data`.
+    media: An optional tensor constructed from `input_data.media`. Deprecated;
+      use `media_tensors.media`.
     media_spend: An optional tensor constructed from `input_data.media_spend`.
+      Deprecated; use `media_tensors.media_spend` instead.
     reach: An optional tensor constructed from `input_data.reach`.
     frequency: An optional tensor constructed from `input_data.frequency`.
     rf_spend: An optional tensor constructed from `input_data.rf_spend`.
     total_spend: A tensor containing total spend, including `media_spend` and
       `rf_spend`.
     media_transformer: A `MediaTransformer` to scale media tensors using the
-      model's media data.
+      model's media data. Deprecated; use `media_tensors.media_transformer`.
     reach_transformer: An optional `MediaTransformer` to scale RF tensors using
       the model's RF data.
     controls_transformer: A `ControlsTransformer` to scale controls tensors
@@ -137,7 +210,7 @@ class Meridian:
     kpi_transformer: A `KpiTransformer` to scale KPI tensors using the model's
       KPI data.
     media_scaled: The media tensor normalized by population and by the median
-      value.
+      value. Deprecated; use `media_tensors.media_scaled`.
     reach_scaled: An optional reach tensor normalized by population and by the
       median value.
     controls_scaled: The controls tensor normalized by population and by the
@@ -152,11 +225,19 @@ class Meridian:
   """
 
   def __init__(
-      self, input_data: data.InputData, model_spec: spec.ModelSpec | None = None
+      self,
+      input_data: data.InputData,
+      model_spec: spec.ModelSpec | None = None,
   ):
     self.input_data = input_data
     self.model_spec = model_spec if model_spec else spec.ModelSpec()
+    self._validate_input_and_derive_attributes()
 
+  def _validate_input_and_derive_attributes(self):
+    """Validates input and derives object states and attributes.
+
+    This is a helper method for the constructor.
+    """
     self._validate_data_dependent_model_spec()
 
     if self.is_national:
@@ -190,7 +271,7 @@ class Meridian:
 
     self._validate_custom_priors()
 
-    if input_data.revenue_per_kpi is not None:
+    if self.input_data.revenue_per_kpi is not None:
       self._revenue_per_kpi = tf.convert_to_tensor(
           self.input_data.revenue_per_kpi, dtype=tf.float32
       )
@@ -224,45 +305,13 @@ class Meridian:
     self._controls_scaled = self.controls_transformer.forward(self.controls)
     self._kpi_scaled = self.kpi_transformer.forward(self.kpi)
 
-    # Set Media attributes.
-    if input_data.media is not None:
-      self._media = tf.convert_to_tensor(
-          self.input_data.media, dtype=tf.float32
-      )
-      self._media_spend = tf.convert_to_tensor(
-          self.input_data.media_spend, dtype=tf.float32
-      )
-      self._media_transformer = transformers.MediaTransformer(
-          self.media, self.population
-      )
-      self._media_scaled = self.media_transformer.forward(self.media)  # pytype: disable=attribute-error  # always-use-property-annotation
-      if self.model_spec.roi_calibration_period is not None:
-        self._media_counterfactual = tf.where(
-            self.model_spec.roi_calibration_period, 0, self.media
-        )
-        self._media_counterfactual_scaled = tf.where(
-            self.model_spec.roi_calibration_period, 0, self.media_scaled
-        )
-        self._media_spend_counterfactual = tf.where(
-            self.model_spec.roi_calibration_period[..., -self.n_times :, :],
-            0,
-            self.media_spend,
-        )
-      else:
-        self._media_counterfactual = tf.zeros_like(self.media)
-        self._media_counterfactual_scaled = tf.zeros_like(self.media_scaled)
-        self._media_spend_counterfactual = tf.zeros_like(self.media_spend)
-    else:
-      self._media = None
-      self._media_spend = None
-      self._media_transformer = None
-      self._media_scaled = None
-      self._media_counterfactual = None
-      self._media_counterfactual_scaled = None
-      self._media_spend_counterfactual = None
+    # Derive and set media tensors from media values in the input data.
+    self._media_tensors = _derive_media_tensors(
+        self.input_data, self.model_spec
+    )
 
     # Set RF attributes.
-    if input_data.reach is not None:
+    if self.input_data.reach is not None:
       self._reach = tf.convert_to_tensor(
           self.input_data.reach, dtype=tf.float32
       )
@@ -350,12 +399,16 @@ class Meridian:
     return self._population
 
   @property
+  def media_tensors(self) -> MediaTensors:
+    return self._media_tensors
+
+  @property
   def media(self) -> tf.Tensor | None:
-    return self._media
+    return self.media_tensors.media
 
   @property
   def media_spend(self) -> tf.Tensor | None:
-    return self._media_spend
+    return self.media_tensors.media_spend
 
   @property
   def reach(self) -> tf.Tensor | None:
@@ -411,7 +464,7 @@ class Meridian:
 
   @property
   def media_transformer(self) -> transformers.MediaTransformer | None:
-    return self._media_transformer
+    return self.media_tensors.media_transformer
 
   @property
   def reach_transformer(self) -> transformers.MediaTransformer | None:
@@ -427,7 +480,7 @@ class Meridian:
 
   @property
   def media_scaled(self) -> tf.Tensor | None:
-    return self._media_scaled
+    return self.media_tensors.media_scaled
 
   @property
   def reach_scaled(self) -> tf.Tensor | None:
@@ -576,7 +629,7 @@ class Meridian:
     )
     if self.input_data.media is not None:
       self._check_if_no_geo_variation(
-          self.media_scaled,
+          self.media_tensors.media_scaled,
           "media",
           self.input_data.media.coords[constants.MEDIA_CHANNEL].values,
       )
@@ -707,12 +760,13 @@ class Meridian:
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_m`."""
     inc_revenue_m = roi_m * tf.reduce_sum(
-        self.media_spend - self._media_spend_counterfactual,
-        range(self.media_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
+        self.media_tensors.media_spend
+        - self.media_tensors.media_spend_counterfactual,
+        range(self.media_tensors.media_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
     )
     if self.model_spec.roi_calibration_period is not None:
       media_counterfactual_transformed = self.adstock_hill_media(
-          media=self._media_counterfactual_scaled,
+          media=self.media_tensors.media_counterfactual_scaled,
           alpha=alpha_m,
           ec=ec_m,
           slope=slope_m,
@@ -829,7 +883,7 @@ class Meridian:
           shape=(self.n_geos, self.n_times, 0), dtype=tf.float32
       )
       combined_beta = tf.zeros(shape=(self.n_geos, 0), dtype=tf.float32)
-      if self.media is not None:
+      if self.media_tensors.media is not None:
         alpha_m = yield self._prior_broadcast.alpha_m
         ec_m = yield self._prior_broadcast.ec_m
         eta_m = yield self._prior_broadcast.eta_m
@@ -841,7 +895,10 @@ class Meridian:
             name=constants.BETA_GM_DEV,
         )
         media_transformed = self.adstock_hill_media(
-            media=self.media_scaled, alpha=alpha_m, ec=ec_m, slope=slope_m
+            media=self.media_tensors.media_scaled,
+            alpha=alpha_m,
+            ec=ec_m,
+            slope=slope_m,
         )
         if self.model_spec.use_roi_prior:
           beta_m_value = self._get_roi_prior_beta_m_value(
@@ -967,6 +1024,7 @@ class Meridian:
   def _create_inference_data_coords(
       self, n_chains: int, n_draws: int
   ) -> Mapping[str, np.ndarray | Sequence[str]]:
+    """Creates data coordinates for inference data."""
     media_channel_values = (
         self.input_data.media_channel
         if self.input_data.media_channel is not None
@@ -1035,7 +1093,7 @@ class Meridian:
         name=constants.BETA_GM_DEV,
     ).sample(**sample_kwargs)
     media_transformed = self.adstock_hill_media(
-        media=self.media_scaled,
+        media=self.media_tensors.media_scaled,
         alpha=media_vars[constants.ALPHA_M],
         ec=media_vars[constants.EC_M],
         slope=media_vars[constants.SLOPE_M],
@@ -1177,7 +1235,7 @@ class Meridian:
 
     media_vars = (
         self._sample_media_priors(n_draws, seed)
-        if self.media is not None
+        if self.media_tensors.media is not None
         else {}
     )
     rf_vars = (

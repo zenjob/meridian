@@ -655,12 +655,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     if input_data.media is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.media, dtype=tf.float32),
-          meridian.media,
+          meridian.media_tensors.media,
       )
     if input_data.media_spend is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.media_spend, dtype=tf.float32),
-          meridian.media_spend,
+          meridian.media_tensors.media_spend,
       )
     if input_data.reach is not None:
       self.assertAllEqual(
@@ -736,7 +736,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ),
         model_spec=spec.ModelSpec(media_effects_dist=media_effects_dist),
     )
-    self.assertEqual(meridian.media_effects_dist, expected_media_effects_dist)
+    self.assertEqual(
+        meridian.media_effects_dist, expected_media_effects_dist
+    )
 
   @parameterized.named_parameters(
       dict(
@@ -872,11 +874,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_media_attributes_not_set(self):
     meridian = model.Meridian(input_data=self.input_data_with_rf_only)
     self.assertEqual(meridian.n_media_channels, 0)
-    self.assertIsNone(meridian.media_transformer)
-    self.assertIsNone(meridian.media_scaled)
-    self.assertIsNone(meridian._media_counterfactual)
-    self.assertIsNone(meridian._media_counterfactual_scaled)
-    self.assertIsNone(meridian._media_spend_counterfactual)
+    self.assertIsNone(meridian.media_tensors.media_transformer)
+    self.assertIsNone(meridian.media_tensors.media_scaled)
+    self.assertIsNone(meridian.media_tensors.media_counterfactual)
+    self.assertIsNone(meridian.media_tensors.media_counterfactual_scaled)
+    self.assertIsNone(meridian.media_tensors.media_spend_counterfactual)
 
   def test_rf_attributes_not_set(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_only)
@@ -891,10 +893,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)
     if (
         self.input_data_with_media_and_rf.media is not None
-        and meridian.media_scaled is not None
+        and meridian.media_tensors.media_scaled is not None
     ):
       self.assertAllEqual(
-          meridian.media_scaled.shape,
+          meridian.media_tensors.media_scaled.shape,
           self.input_data_with_media_and_rf.media.shape,
           msg=(
               "Shape of `_media_scaled` does not match the shape of `media`"
@@ -965,12 +967,14 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     # errors.
     atol = np.finfo(np.float32).eps * 100
     if (
-        meridian.media_scaled is not None
-        and meridian.media_transformer is not None
+        meridian.media_tensors.media_scaled is not None
+        and meridian.media_tensors.media_transformer is not None
         and self.input_data_with_media_and_rf.media is not None
     ):
       self.assertAllClose(
-          meridian.media_transformer.inverse(meridian.media_scaled),
+          meridian.media_tensors.media_transformer.inverse(
+              meridian.media_scaled
+          ),
           self.input_data_with_media_and_rf.media,
           atol=atol,
       )
@@ -1004,15 +1008,15 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     self.assertAllEqual(
-        meridian._media_counterfactual,
+        meridian.media_tensors.media_counterfactual,
         tf.zeros_like(self.input_data_with_media_and_rf.media),
     )
     self.assertAllEqual(
-        meridian._media_counterfactual_scaled,
-        tf.zeros_like(meridian.media_scaled),
+        meridian.media_tensors.media_counterfactual_scaled,
+        tf.zeros_like(meridian.media_tensors.media_scaled),
     )
     self.assertAllEqual(
-        meridian._media_spend_counterfactual,
+        meridian.media_tensors.media_spend_counterfactual,
         tf.zeros_like(self.input_data_with_media_and_rf.media_spend),
     )
     if meridian.reach_scaled is not None:
@@ -1057,24 +1061,26 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     self.assertAllClose(
-        meridian._media_counterfactual,
+        meridian.media_tensors.media_counterfactual,
         tf.where(
             roi_calibration_period,
             0,
-            meridian.media,
+            meridian.media_tensors.media,
         ),
     )
     self.assertAllClose(
-        meridian._media_counterfactual_scaled,
-        tf.where(roi_calibration_period, 0, meridian.media_scaled),
+        meridian.media_tensors.media_counterfactual_scaled,
+        tf.where(
+            roi_calibration_period, 0, meridian.media_tensors.media_scaled
+        ),
     )
 
     self.assertAllClose(
-        meridian._media_spend_counterfactual,
+        meridian.media_tensors.media_spend_counterfactual,
         tf.where(
             roi_calibration_period[..., -meridian.n_times :, :],
             0,
-            meridian.media_spend,
+            meridian.media_tensors.media_spend,
         ),
     )
 
@@ -1217,7 +1223,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ),
     )
     meridian.adstock_hill_media(
-        media=meridian.media,
+        media=meridian.media_tensors.media,
         alpha=np.ones(shape=(self._N_MEDIA_CHANNELS,)),
         ec=np.ones(shape=(self._N_MEDIA_CHANNELS,)),
         slope=np.ones(shape=(self._N_MEDIA_CHANNELS,)),
@@ -1389,7 +1395,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           coef_logprobs[parname], log_prob_parts["unpinned"][parname][0]
       )
     transformed_media = meridian.adstock_hill_media(
-        media=meridian.media_scaled,
+        media=meridian.media_tensors.media_scaled,
         alpha=par[constants.ALPHA_M],
         ec=par[constants.EC_M],
         slope=par[constants.SLOPE_M],
@@ -1654,7 +1660,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           coef_logprobs[parname], log_prob_parts["unpinned"][parname][0]
       )
     transformed_media = meridian.adstock_hill_media(
-        media=meridian.media_scaled,
+        media=meridian.media_tensors.media_scaled,
         alpha=par[constants.ALPHA_M],
         ec=par[constants.EC_M],
         slope=par[constants.SLOPE_M],
