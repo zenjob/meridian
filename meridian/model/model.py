@@ -319,7 +319,7 @@ class Meridian:
       )
     self._inference_data = az.InferenceData()
 
-    self._n_knots, self._knot_locations, self._weights = knots.get_knot_info(
+    self._knot_info = knots.get_knot_info(
         n_times=self.n_times,
         knots=self.model_spec.knots,
         is_national=self.is_national,
@@ -335,7 +335,7 @@ class Meridian:
         n_rf_channels=self.n_rf_channels,
         n_controls=self.n_controls,
         sigma_shape=sigma_shape,
-        n_knots=self._n_knots,
+        n_knots=self._knot_info.n_knots,
         is_national=self.is_national,
     )
 
@@ -658,7 +658,7 @@ class Meridian:
     col_idx_bad = col_idx_unique[np.where(counts == data_n_time)[0]]
     dims_bad = [data_dims[i] for i in col_idx_bad]
 
-    if col_idx_bad.shape[0] and self._n_knots == self.n_times:
+    if col_idx_bad.shape[0] and self._knot_info.n_knots == self.n_times:
       raise ValueError(
           f"The following {data_name} variables do not vary across geos, making"
           f" a model with n_knots=n_time unidentifiable: {dims_bad}. This can"
@@ -765,9 +765,9 @@ class Meridian:
     media_counterfactual_scaled = self.media_tensors.media_counterfactual_scaled
     # If we got here, then we should already have media tensors derived from
     # non-None InputData.media data.
-    assert(media_spend is not None)
-    assert(media_spend_counterfactual is not None)
-    assert(media_counterfactual_scaled is not None)
+    assert media_spend is not None
+    assert media_spend_counterfactual is not None
+    assert media_counterfactual_scaled is not None
 
     inc_revenue_m = roi_m * tf.reduce_sum(
         media_spend - media_spend_counterfactual,
@@ -826,10 +826,10 @@ class Meridian:
     frequency = self.rf_tensors.frequency
     # If we got here, then we should already have RF media tensors derived from
     # non-None InputData.reach data.
-    assert(rf_spend is not None)
-    assert(rf_spend_counterfactual is not None)
-    assert(reach_counterfactual_scaled is not None)
-    assert(frequency is not None)
+    assert rf_spend is not None
+    assert rf_spend_counterfactual is not None
+    assert reach_counterfactual_scaled is not None
+    assert frequency is not None
 
     inc_revenue_rf = roi_rf * tf.reduce_sum(
         rf_spend - rf_spend_counterfactual,
@@ -893,7 +893,9 @@ class Meridian:
       )
       tau_t = yield tfp.distributions.Deterministic(
           tf.einsum(
-              "k,kt->t", knot_values, tf.convert_to_tensor(self._weights)
+              "k,kt->t",
+              knot_values,
+              tf.convert_to_tensor(self._knot_info.weights),
           ),
           name=constants.TAU_T,
       )
@@ -1061,7 +1063,7 @@ class Meridian:
         constants.GEO: self.input_data.geo,
         constants.TIME: self.input_data.time,
         constants.MEDIA_TIME: self.input_data.media_time,
-        constants.KNOTS: np.arange(self._n_knots),
+        constants.KNOTS: np.arange(self._knot_info.n_knots),
         constants.CONTROL_VARIABLE: self.input_data.control_variable,
         constants.MEDIA_CHANNEL: media_channel_values,
         constants.RF_CHANNEL: rf_channel_values,
@@ -1237,7 +1239,7 @@ class Meridian:
         tf.einsum(
             "...k,kt->...t",
             base_vars[constants.KNOT_VALUES],
-            tf.convert_to_tensor(self._weights),
+            tf.convert_to_tensor(self._knot_info.weights),
         ),
         name=constants.TAU_T,
     ).sample()

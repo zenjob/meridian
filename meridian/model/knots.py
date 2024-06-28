@@ -16,10 +16,12 @@
 
 import bisect
 from collections.abc import Collection, Sequence
+import dataclasses
 import numpy as np
 
 
 __all__ = [
+    'KnotInfo',
     'get_knot_info',
     'l1_distance_weights',
 ]
@@ -122,13 +124,27 @@ def _get_equally_spaced_knot_locations(n_times, n_knots):
   return np.linspace(0, n_times - 1, n_knots, dtype=int)
 
 
+@dataclasses.dataclass(frozen=True)
+class KnotInfo:
+  """A newtype that contains the number of knots, knot locations, and weights.
+
+  Attributes:
+    n_knots: the number of knots
+    knot_locations: the location of knots
+    weights: the weights used to multiply with the knot values to get time-
+      varying coefficients.
+  """
+
+  n_knots: int
+  knot_locations: np.ndarray[int, np.dtype[int]]
+  weights: np.ndarray[int, np.dtype[float]]
+
+
 def get_knot_info(
     n_times: int,
     knots: int | Collection[int] | None,
     is_national: bool = False,
-) -> tuple[
-    int, np.ndarray[int, np.dtype[int]], np.ndarray[int, np.dtype[float]]
-]:
+) -> KnotInfo:
   """Return number of knots, knot locations, and weights.
 
   Args:
@@ -148,9 +164,9 @@ def get_knot_info(
       national model.
 
   Returns:
-    A tuple `(n_knots, knot_locations, weights)` with the number of knots,
-    the location of knots, and the weights used to multiply with the knot values
-    to get time-varying coefficients.
+    A KnotInfo that contains the number of knots, the location of knots, and the
+    weights used to multiply with the knot values to get time-varying
+    coefficients.
   """
 
   if isinstance(knots, int):
@@ -190,4 +206,4 @@ def get_knot_info(
   else:
     weights = l1_distance_weights(n_times, knot_locations)
 
-  return n_knots, knot_locations, weights
+  return KnotInfo(n_knots, knot_locations, weights)

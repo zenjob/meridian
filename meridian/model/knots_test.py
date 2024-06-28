@@ -194,13 +194,15 @@ class GetKnotInfoTest(parameterized.TestCase):
       expected_knot_locations,
       expected_weights,
   ):
-    n_knots, knot_locations, weights = knots.get_knot_info(
+    match knots.get_knot_info(
         n_times=n_times, knots=knots_param, is_national=is_national
-    )
-
-    self.assertEqual(n_knots, expected_n_knots)
-    self.assertTrue((knot_locations == expected_knot_locations).all())
-    self.assertTrue(np.allclose(weights, expected_weights))
+    ):
+      case knots.KnotInfo(n_knots, knot_locations, weights):
+        self.assertEqual(n_knots, expected_n_knots)
+        self.assertTrue((knot_locations == expected_knot_locations).all())
+        self.assertTrue(np.allclose(weights, expected_weights))
+      case _:
+        self.fail("Unexpected return type.")
 
   @parameterized.named_parameters(
       dict(

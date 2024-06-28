@@ -415,7 +415,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         input_data=self.input_data_with_media_only, model_spec=model_spec
     )
 
-    self.assertEqual(meridian._n_knots, expected_n_knots)
+    self.assertEqual(meridian._knot_info.n_knots, expected_n_knots)
 
   @parameterized.named_parameters(
       dict(
@@ -469,7 +469,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         knots_module,
         "get_knot_info",
         autospec=True,
-        return_value=(3, [2, 5, 8], np.eye(3)),
+        return_value=knots_module.KnotInfo(3, np.array([2, 5, 8]), np.eye(3)),
     ) as mock_get_knot_info:
       input_data = (
           self.national_input_data_media_only
@@ -831,7 +831,8 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     # Validate `n_knots` shape distributions.
     self.assertEqual(
-        meridian.prior_broadcast.knot_values.batch_shape, (meridian._n_knots,)
+        meridian.prior_broadcast.knot_values.batch_shape,
+        (meridian._knot_info.n_knots,),
     )
 
     # Validate `n_media_channels` shape distributions.
