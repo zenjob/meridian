@@ -114,10 +114,15 @@ class MediaTensors:
     media_scaled: The media tensor normalized by population and by the median
       value.
     media_counterfactual: A tensor containing the media counterfactual values.
+      If ROI priors are used, then the ROI of media channels is based on the
+      difference in expected sales between the `media` tensor and this
+      `media_counterfactual` tensor.
     media_counterfactual_scaled: A tensor containing the media counterfactual
       scaled values.
     media_spend_counterfactual: A tensor containing the media spend
-      counterfactual values.
+      counterfactual values. If ROI priors are used, then the ROI of media
+      channels is based on the spend difference between `media_spend` tensor and
+      this `media_spend_counterfactual` tensor.
   """
 
   media: tf.Tensor | None = None
@@ -271,31 +276,13 @@ class Meridian:
     controls: A tensor constructed from `input_data.controls`.
     population: A tensor constructed from `input_data.population`.
     media_tensors: A collection of media tensors derived from `input_data`.
-    media: An optional tensor constructed from `input_data.media`. Deprecated;
-      use `media_tensors.media`.
-    media_spend: An optional tensor constructed from `input_data.media_spend`.
-      Deprecated; use `media_tensors.media_spend` instead.
     rf_tensors: A collection of Reach & Frequency (RF) media tensors.
-    reach: An optional tensor constructed from `input_data.reach`. Deprecated;
-      use `rf_tensors.reach`.
-    frequency: An optional tensor constructed from `input_data.frequency`.
-      Deprecated; use `rf_tensors.frequency`.
-    rf_spend: An optional tensor constructed from `input_data.rf_spend`.
-      Deprecated; use `rf_tensors.rf_spend`.
     total_spend: A tensor containing total spend, including
       `media_tensors.media_spend` and `rf_tensors.rf_spend`.
-    media_transformer: A `MediaTransformer` to scale media tensors using the
-      model's media data. Deprecated; use `media_tensors.media_transformer`.
-    reach_transformer: An optional `MediaTransformer` to scale RF tensors using
-      the model's RF data. Deprecated; use `rf_tensors.reach_transformer`.
     controls_transformer: A `ControlsTransformer` to scale controls tensors
       using the model's controls data.
     kpi_transformer: A `KpiTransformer` to scale KPI tensors using the model's
       KPI data.
-    media_scaled: The media tensor normalized by population and by the median
-      value. Deprecated; use `media_tensors.media_scaled`.
-    reach_scaled: An optional reach tensor normalized by population and by the
-      median value. Deprecated; use `rf_tensors.reach_scaled`.
     controls_scaled: The controls tensor normalized by population and by the
       median value.
     kpi_scaled: The KPI tensor normalized by population and by the median value.
@@ -451,26 +438,6 @@ class Meridian:
     return self._rf_tensors
 
   @property
-  def media(self) -> tf.Tensor | None:
-    return self.media_tensors.media
-
-  @property
-  def media_spend(self) -> tf.Tensor | None:
-    return self.media_tensors.media_spend
-
-  @property
-  def reach(self) -> tf.Tensor | None:
-    return self.rf_tensors.reach
-
-  @property
-  def frequency(self) -> tf.Tensor | None:
-    return self.rf_tensors.frequency
-
-  @property
-  def rf_spend(self) -> tf.Tensor | None:
-    return self.rf_tensors.rf_spend
-
-  @property
   def total_spend(self) -> tf.Tensor:
     return tf.convert_to_tensor(
         self.input_data.get_total_spend(), dtype=tf.float32
@@ -511,28 +478,12 @@ class Meridian:
     return self.n_geos == 1
 
   @property
-  def media_transformer(self) -> transformers.MediaTransformer | None:
-    return self.media_tensors.media_transformer
-
-  @property
-  def reach_transformer(self) -> transformers.MediaTransformer | None:
-    return self.rf_tensors.reach_transformer
-
-  @property
   def controls_transformer(self) -> transformers.ControlsTransformer:
     return self._controls_transformer
 
   @property
   def kpi_transformer(self) -> transformers.KpiTransformer:
     return self._kpi_transformer
-
-  @property
-  def media_scaled(self) -> tf.Tensor | None:
-    return self.media_tensors.media_scaled
-
-  @property
-  def reach_scaled(self) -> tf.Tensor | None:
-    return self.rf_tensors.reach_scaled
 
   @property
   def controls_scaled(self) -> tf.Tensor:

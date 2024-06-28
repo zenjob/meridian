@@ -524,14 +524,16 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             hist_spend, spend
         )
     )
-    expected_media = self.meridian_media_and_rf.media * tf.math.divide_no_nan(
-        new_media_spend, hist_spend[:_N_MEDIA_CHANNELS]
+    expected_media = (
+        self.meridian_media_and_rf.media_tensors.media
+        * tf.math.divide_no_nan(new_media_spend, hist_spend[:_N_MEDIA_CHANNELS])
     )
     expected_media_spend = spend[:_N_MEDIA_CHANNELS]
-    expected_reach = self.meridian_media_and_rf.reach * tf.math.divide_no_nan(
-        new_rf_spend, hist_spend[-_N_RF_CHANNELS:]
+    expected_reach = (
+        self.meridian_media_and_rf.rf_tensors.reach
+        * tf.math.divide_no_nan(new_rf_spend, hist_spend[-_N_RF_CHANNELS:])
     )
-    expected_frequency = self.meridian_media_and_rf.frequency
+    expected_frequency = self.meridian_media_and_rf.rf_tensors.frequency
     expected_rf_spend = spend[-_N_RF_CHANNELS:]
     np.testing.assert_allclose(new_media, expected_media)
     np.testing.assert_allclose(new_media_spend, expected_media_spend)
@@ -550,12 +552,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             optimal_frequency=optimal_frequency,
         )
     )
-    expected_media = self.meridian_media_and_rf.media * tf.math.divide_no_nan(
-        new_media_spend, hist_spend[:_N_MEDIA_CHANNELS]
+    expected_media = (
+        self.meridian_media_and_rf.media_tensors.media
+        * tf.math.divide_no_nan(new_media_spend, hist_spend[:_N_MEDIA_CHANNELS])
     )
     expected_media_spend = spend[:_N_MEDIA_CHANNELS]
     rf_media = (
-        self.meridian_media_and_rf.reach * self.meridian_media_and_rf.frequency
+        self.meridian_media_and_rf.rf_tensors.reach
+        * self.meridian_media_and_rf.rf_tensors.frequency
     )
     expected_reach = tf.math.divide_no_nan(
         rf_media
@@ -566,7 +570,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimal_frequency,
     )
     expected_frequency = (
-        tf.ones_like(self.meridian_media_and_rf.frequency) * optimal_frequency
+        tf.ones_like(self.meridian_media_and_rf.rf_tensors.frequency)
+        * optimal_frequency
     )
     expected_rf_spend = spend[-_N_RF_CHANNELS:]
     np.testing.assert_allclose(new_media, expected_media)
@@ -879,7 +884,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
     np.testing.assert_allclose(
-        mock_kwargs['new_frequency'], self.meridian_media_and_rf.frequency
+        mock_kwargs['new_frequency'],
+        self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
@@ -1012,7 +1018,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
     np.testing.assert_allclose(
-        mock_kwargs['new_frequency'], self.meridian_media_and_rf.frequency
+        mock_kwargs['new_frequency'],
+        self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
@@ -1072,7 +1079,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     new_frequency = (
-        tf.ones_like(self.meridian_media_and_rf.frequency) * optimal_frequency
+        tf.ones_like(self.meridian_media_and_rf.rf_tensors.frequency)
+        * optimal_frequency
     )
     mock_incremental_impact.assert_called_with(
         new_media=mock.ANY,
@@ -1207,7 +1215,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     new_frequency = (
-        tf.ones_like(self.meridian_media_and_rf.frequency) * optimal_frequency
+        tf.ones_like(self.meridian_media_and_rf.rf_tensors.frequency)
+        * optimal_frequency
     )
     mock_incremental_impact.assert_called_with(
         new_media=None,

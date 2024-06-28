@@ -665,17 +665,17 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     if input_data.reach is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.reach, dtype=tf.float32),
-          meridian.reach,
+          meridian.rf_tensors.reach,
       )
     if input_data.frequency is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.frequency, dtype=tf.float32),
-          meridian.frequency,
+          meridian.rf_tensors.frequency,
       )
     if input_data.rf_spend is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.rf_spend, dtype=tf.float32),
-          meridian.rf_spend,
+          meridian.rf_tensors.rf_spend,
       )
     if input_data.media_spend is not None and input_data.rf_spend is not None:
       self.assertAllClose(
@@ -971,7 +971,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.assertAllClose(
           meridian.media_tensors.media_transformer.inverse(
-              meridian.media_scaled
+              meridian.media_tensors.media_scaled
           ),
           self.input_data_with_media_and_rf.media,
           atol=atol,
@@ -982,7 +982,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         and self.input_data_with_media_and_rf.reach is not None
     ):
       self.assertAllClose(
-          meridian.rf_tensors.reach_transformer.inverse(meridian.reach_scaled),
+          meridian.rf_tensors.reach_transformer.inverse(
+              meridian.rf_tensors.reach_scaled
+          ),
           self.input_data_with_media_and_rf.reach,
           atol=atol,
       )
@@ -1117,7 +1119,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           tf.where(
               rf_roi_calibration_period,
               0,
-              meridian.reach,
+              meridian.rf_tensors.reach,
           ),
       )
       self.assertAllClose(
@@ -1132,7 +1134,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           tf.where(
               rf_roi_calibration_period[..., -meridian.n_times :, :],
               0,
-              meridian.rf_spend,
+              meridian.rf_tensors.rf_spend,
           ),
       )
 
@@ -1265,8 +1267,8 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         model_spec=spec.ModelSpec(),
     )
     meridian.adstock_hill_rf(
-        reach=meridian.reach,
-        frequency=meridian.frequency,
+        reach=meridian.rf_tensors.reach,
+        frequency=meridian.rf_tensors.frequency,
         alpha=np.ones(shape=(self._N_RF_CHANNELS,)),
         ec=np.ones(shape=(self._N_RF_CHANNELS,)),
         slope=np.ones(shape=(self._N_RF_CHANNELS,)),
@@ -1523,7 +1525,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
     transformed_reach = meridian.adstock_hill_rf(
         reach=meridian.rf_tensors.reach_scaled,
-        frequency=meridian.frequency,
+        frequency=meridian.rf_tensors.frequency,
         alpha=par[constants.ALPHA_RF],
         ec=par[constants.EC_RF],
         slope=par[constants.SLOPE_RF],
@@ -1667,7 +1669,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     )[0, :, :, :]
     transformed_reach = meridian.adstock_hill_rf(
         reach=meridian.rf_tensors.reach_scaled,
-        frequency=meridian.frequency,
+        frequency=meridian.rf_tensors.frequency,
         alpha=par[constants.ALPHA_RF],
         ec=par[constants.EC_RF],
         slope=par[constants.SLOPE_RF],

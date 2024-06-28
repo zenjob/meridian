@@ -937,7 +937,7 @@ class BudgetOptimizer:
     together and getting rf_media(impressions), and then calculating
     new_rf_media given the same formula for new_media. new_frequency is
     optimal_frequency if optimal_frequency is not none, and
-    self._meridian.frequency otherwise. new_reach is calculated using
+    self._meridian.rf_tensors.frequency otherwise. new_reach is calculated using
     (new_rf_media / new_frequency). new_spend and new_rf_spend are taken from
     their respective indexes in spend.
 
@@ -960,7 +960,7 @@ class BudgetOptimizer:
               spend[: self._meridian.n_media_channels],
               hist_spend[: self._meridian.n_media_channels],
           )
-          * self._meridian.media
+          * self._meridian.media_tensors.media
       )
       new_media_spend = tf.convert_to_tensor(
           spend[: self._meridian.n_media_channels]
@@ -969,7 +969,9 @@ class BudgetOptimizer:
       new_media = None
       new_media_spend = None
     if self._meridian.n_rf_channels > 0:
-      rf_media = self._meridian.reach * self._meridian.frequency
+      rf_media = (
+          self._meridian.rf_tensors.reach * self._meridian.rf_tensors.frequency
+      )
       new_rf_media = (
           tf.math.divide_no_nan(
               spend[-self._meridian.n_rf_channels :],
@@ -978,7 +980,7 @@ class BudgetOptimizer:
           * rf_media
       )
       frequency = (
-          self._meridian.frequency
+          self._meridian.rf_tensors.frequency
           if optimal_frequency is None
           else optimal_frequency
       )
@@ -1160,7 +1162,7 @@ class BudgetOptimizer:
     if self._meridian.n_media_channels > 0:
       new_media = (
           multipliers_grid[i, : self._meridian.n_media_channels]
-          * self._meridian.media
+          * self._meridian.media_tensors.media
       )
     else:
       new_media = None
@@ -1169,18 +1171,20 @@ class BudgetOptimizer:
       new_frequency = None
       new_reach = None
     elif optimal_frequency is not None:
-      new_frequency = tf.ones_like(self._meridian.frequency) * optimal_frequency
+      new_frequency = (
+          tf.ones_like(self._meridian.rf_tensors.frequency) * optimal_frequency
+      )
       new_reach = tf.math.divide_no_nan(
           multipliers_grid[i, -self._meridian.n_rf_channels :]
-          * self._meridian.reach
-          * self._meridian.frequency,
+          * self._meridian.rf_tensors.reach
+          * self._meridian.rf_tensors.frequency,
           new_frequency,
       )
     else:
-      new_frequency = self._meridian.frequency
+      new_frequency = self._meridian.rf_tensors.frequency
       new_reach = (
           multipliers_grid[i, -self._meridian.n_rf_channels :]
-          * self._meridian.reach
+          * self._meridian.rf_tensors.reach
       )
 
     # incremental_impact returns a three dimensional tensor with dims

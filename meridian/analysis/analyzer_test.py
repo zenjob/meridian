@@ -1439,13 +1439,15 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
   def test_roi_media_only_default_returns_correct_value(self):
     roi = self.analyzer_media_only.roi()
     total_spend = self.analyzer_media_only.filter_and_aggregate_geos_and_times(
-        self.meridian_media_only.media_spend
+        self.meridian_media_only.media_tensors.media_spend
     )
     expected_roi = self.analyzer_media_only.incremental_impact() / total_spend
     self.assertAllClose(expected_roi, roi)
 
   def test_roi_zero_media_returns_zero(self):
-    new_media = tf.zeros_like(self.meridian_media_only.media, dtype=tf.float32)
+    new_media = tf.zeros_like(
+        self.meridian_media_only.media_tensors.media, dtype=tf.float32
+    )
     roi = self.analyzer_media_only.roi(new_media=new_media)
     self.assertAllClose(
         roi, tf.zeros((_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS)), atol=2e-6
@@ -1805,7 +1807,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
   def test_roi_rf_only_default_returns_correct_value(self):
     roi = self.analyzer_rf_only.roi()
     total_spend = self.analyzer_rf_only.filter_and_aggregate_geos_and_times(
-        self.meridian_rf_only.rf_spend
+        self.meridian_rf_only.rf_tensors.rf_spend
     )
     expeted_roi = self.analyzer_rf_only.incremental_impact() / total_spend
     self.assertAllClose(expeted_roi, roi)
@@ -1929,18 +1931,21 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_optimal_frequency_freq_grid(self):
-    max_freq = np.max(np.array(self.analyzer_rf_only._meridian.frequency))
+    max_freq = np.max(
+        np.array(self.analyzer_rf_only._meridian.rf_tensors.frequency)
+    )
     freq_grid = list(np.arange(1, max_freq, 0.1))
     roi = np.zeros(
         (len(freq_grid), self.analyzer_rf_only._meridian.n_rf_channels, 3)
     )
     for i, freq in enumerate(freq_grid):
       new_frequency = (
-          tf.ones_like(self.analyzer_rf_only._meridian.frequency) * freq
+          tf.ones_like(self.analyzer_rf_only._meridian.rf_tensors.frequency)
+          * freq
       )
       new_reach = (
-          self.analyzer_rf_only._meridian.frequency
-          * self.analyzer_rf_only._meridian.reach
+          self.analyzer_rf_only._meridian.rf_tensors.frequency
+          * self.analyzer_rf_only._meridian.rf_tensors.reach
           / new_frequency
       )
       dim_kwargs = {
