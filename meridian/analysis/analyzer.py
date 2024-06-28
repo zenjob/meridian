@@ -35,6 +35,28 @@ __all__ = [
 ]
 
 
+def get_mean_and_ci(
+    data: np.ndarray | tf.Tensor,
+    confidence_level: float,
+    axis: tuple[int, ...] = (0, 1),
+) -> np.ndarray | tf.Tensor:
+  """Computes mean and confidence intervals for the given data.
+
+  Args:
+    data: Data for the metric.
+    confidence_level: The threshold for computing the confidence intervals.
+    axis: Axis or axes along which the mean and quantiles are computed.
+
+  Returns:
+    A numpy array or tf.Tensor containing mean and confidence intervals.
+  """
+  mean = np.mean(data, axis=axis, keepdims=False)
+  ci_lo = np.quantile(data, (1 - confidence_level) / 2, axis=axis)
+  ci_hi = np.quantile(data, (1 + confidence_level) / 2, axis=axis)
+
+  return np.stack([mean, ci_lo, ci_hi], axis=-1)
+
+
 def _calc_rsquared(expected, actual):
   """Calculates r-squared between actual and expected impact."""
   return 1 - np.nanmean((expected - actual) ** 2) / np.nanvar(actual)
@@ -143,17 +165,13 @@ def _mean_and_ci(
     An xarray Dataset containing mean and confidence intervals for prior and
     posterior data for the metric.
   """
-  prior_mean = np.mean(prior, (0, 1))
-  prior_ci_lo = np.quantile(prior, (1 - confidence_level) / 2, (0, 1))
-  prior_ci_hi = np.quantile(prior, (1 + confidence_level) / 2, (0, 1))
-  posterior_mean = np.mean(posterior, (0, 1))
-  posterior_ci_lo = np.quantile(posterior, (1 - confidence_level) / 2, (0, 1))
-  posterior_ci_hi = np.quantile(posterior, (1 + confidence_level) / 2, (0, 1))
-  prior_metrics = np.stack([prior_mean, prior_ci_lo, prior_ci_hi], axis=-1)
-  posterior_metrics = np.stack(
-      [posterior_mean, posterior_ci_lo, posterior_ci_hi], axis=-1
+  metrics = np.stack(
+      [
+          get_mean_and_ci(prior, confidence_level),
+          get_mean_and_ci(posterior, confidence_level),
+      ],
+      axis=-1,
   )
-  metrics = np.stack([prior_metrics, posterior_metrics], axis=-1)
   xr_data = {metric_name: (xr_dims, metrics)}
   return xr.Dataset(data_vars=xr_data, coords=xr_coords)
 
@@ -1538,26 +1556,9 @@ class Analyzer:
         aggregate_times=False,
         use_kpi=use_kpi,
     )
-    expected = np.stack(
-        [
-            np.mean(expected_tensor, (0, 1)),
-            np.quantile(expected_tensor, (1 - confidence_level) / 2, (0, 1)),
-            np.quantile(expected_tensor, (1 + confidence_level) / 2, (0, 1)),
-        ],
-        axis=-1,
-    )
-    baseline = np.stack(
-        [
-            np.mean(baseline_tensor, (0, 1)),
-            np.quantile(baseline_tensor, (1 - confidence_level) / 2, (0, 1)),
-            np.quantile(baseline_tensor, (1 + confidence_level) / 2, (0, 1)),
-        ],
-        axis=-1,
-    )
-    if use_kpi:
-      actual = mmm.kpi
-    else:
-      actual = mmm.kpi * mmm.revenue_per_kpi
+    expected = get_mean_and_ci(expected_tensor, confidence_level)
+    baseline = get_mean_and_ci(baseline_tensor, confidence_level)
+    actual = mmm.kpi if use_kpi else mmm.kpi * mmm.revenue_per_kpi
 
     coords = {
         constants.GEO: ([constants.GEO], mmm.input_data.geo.data),
@@ -1965,13 +1966,7 @@ class Analyzer:
             use_posterior=use_posterior,
             **dim_kwargs,
         )[..., -self._meridian.n_rf_channels :]
-      metric[i, :, 0] = np.mean(metric_temp, (0, 1))
-      metric[i, :, 1] = np.quantile(
-          metric_temp, (1 - confidence_level) / 2, (0, 1)
-      )
-      metric[i, :, 2] = np.quantile(
-          metric_temp, (1 + confidence_level) / 2, (0, 1)
-      )
+      metric[i, :] = get_mean_and_ci(metric_temp, confidence_level)
 
     optimal_freq_idx = (
         np.nanargmax(metric[:, :, 0], axis=0)
@@ -2404,13 +2399,10 @@ class Analyzer:
           **tensor_kwargs,
           **dim_kwargs,
       )
-      incremental_impact[i, :, 0] = np.mean(incimpact_temp, (0, 1))
-      incremental_impact[i, :, 1] = np.quantile(
-          incimpact_temp, (1 - confidence_level) / 2, (0, 1)
+      incremental_impact[i, :] = get_mean_and_ci(
+          incimpact_temp, confidence_level
       )
-      incremental_impact[i, :, 2] = np.quantile(
-          incimpact_temp, (1 + confidence_level) / 2, (0, 1)
-      )
+
     if self._meridian.n_media_channels > 0 and self._meridian.n_rf_channels > 0:
       spend = tf.concat(
           [

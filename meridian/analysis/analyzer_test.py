@@ -133,6 +133,15 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
 
+  def test_get_mean_and_ci(self):
+    data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
+    result = analyzer.get_mean_and_ci(data, confidence_level=0.9)
+    np.testing.assert_allclose(
+        result,
+        np.array([[4.5, 1.3, 9.1], [4, 2, 6.7], [3.5, 1.3, 5.7]]),
+        atol=0.1
+    )
+
   def test_expected_impact_wrong_controls_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
