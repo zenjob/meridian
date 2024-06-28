@@ -155,6 +155,14 @@ class KpiTransformer:
     self._population_scaled_mean = tf.reduce_mean(population_scaled_kpi)
     self._population_scaled_stdev = tf.math.reduce_std(population_scaled_kpi)
 
+  @property
+  def population_scaled_mean(self):
+    return self._population_scaled_mean
+
+  @property
+  def population_scaled_stdev(self):
+    return self._population_scaled_stdev
+
   @tf.function(jit_compile=True)
   def forward(self, kpi: tf.Tensor) -> tf.Tensor:
     """Scales a given `kpi` tensor using the stored coefficients."""

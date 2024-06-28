@@ -33,10 +33,12 @@ import tensorflow_probability as tfp
 
 
 __all__ = [
-    "Meridian",
-    "NotFittedModelError",
     "MCMCSamplingError",
     "MCMCOOMError",
+    "MediaTensors",
+    "Meridian",
+    "NotFittedModelError",
+    "RfTensors",
 ]
 
 
@@ -148,7 +150,7 @@ def _derive_media_tensors(
   media_transformer = transformers.MediaTransformer(
       media, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
   )
-  media_scaled = media_transformer.forward(media)  # pytype: disable=attribute-error  # always-use-property-annotation
+  media_scaled = media_transformer.forward(media)
   if model_spec.roi_calibration_period is None:
     media_counterfactual = tf.zeros_like(media)
     media_counterfactual_scaled = tf.zeros_like(media_scaled)
@@ -224,7 +226,7 @@ def _derive_rf_tensors(
   reach_transformer = transformers.MediaTransformer(
       reach, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
   )
-  reach_scaled = reach_transformer.forward(reach)  # pytype: disable=attribute-error  # always-use-property-annotation
+  reach_scaled = reach_transformer.forward(reach)
   if model_spec.rf_roi_calibration_period is None:
     reach_counterfactual = tf.zeros_like(reach)
     reach_counterfactual_scaled = tf.zeros_like(reach_scaled)
@@ -758,14 +760,22 @@ class Meridian:
       media_transformed: tf.Tensor,
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_m`."""
+    media_spend = self.media_tensors.media_spend
+    media_spend_counterfactual = self.media_tensors.media_spend_counterfactual
+    media_counterfactual_scaled = self.media_tensors.media_counterfactual_scaled
+    # If we got here, then we should already have media tensors derived from
+    # non-None InputData.media data.
+    assert(media_spend is not None)
+    assert(media_spend_counterfactual is not None)
+    assert(media_counterfactual_scaled is not None)
+
     inc_revenue_m = roi_m * tf.reduce_sum(
-        self.media_tensors.media_spend
-        - self.media_tensors.media_spend_counterfactual,
-        range(self.media_tensors.media_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
+        media_spend - media_spend_counterfactual,
+        range(media_spend.ndim - 1),
     )
     if self.model_spec.roi_calibration_period is not None:
       media_counterfactual_transformed = self.adstock_hill_media(
-          media=self.media_tensors.media_counterfactual_scaled,
+          media=media_counterfactual_scaled,
           alpha=alpha_m,
           ec=ec_m,
           slope=slope_m,
@@ -779,7 +789,7 @@ class Meridian:
         "...gtm,g,,gt->...gm",
         media_transformed - media_counterfactual_transformed,
         self.population,
-        self.kpi_transformer._population_scaled_stdev,  # pylint: disable=protected-access
+        self.kpi_transformer.population_scaled_stdev,
         revenue_per_kpi,
     )
 
@@ -810,14 +820,25 @@ class Meridian:
       rf_transformed: tf.Tensor,
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_rf`."""
+    rf_spend = self.rf_tensors.rf_spend
+    rf_spend_counterfactual = self.rf_tensors.rf_spend_counterfactual
+    reach_counterfactual_scaled = self.rf_tensors.reach_counterfactual_scaled
+    frequency = self.rf_tensors.frequency
+    # If we got here, then we should already have RF media tensors derived from
+    # non-None InputData.reach data.
+    assert(rf_spend is not None)
+    assert(rf_spend_counterfactual is not None)
+    assert(reach_counterfactual_scaled is not None)
+    assert(frequency is not None)
+
     inc_revenue_rf = roi_rf * tf.reduce_sum(
-        self.rf_tensors.rf_spend - self.rf_tensors.rf_spend_counterfactual,
-        range(self.rf_tensors.rf_spend.ndim - 1),  # pytype: disable=attribute-error  # always-use-property-annotation
+        rf_spend - rf_spend_counterfactual,
+        range(rf_spend.ndim - 1),
     )
     if self.model_spec.rf_roi_calibration_period is not None:
       rf_counterfactual_transformed = self.adstock_hill_rf(
-          reach=self.rf_tensors.reach_counterfactual_scaled,
-          frequency=self.rf_tensors.frequency,
+          reach=reach_counterfactual_scaled,
+          frequency=frequency,
           alpha=alpha_rf,
           ec=ec_rf,
           slope=slope_rf,
@@ -832,7 +853,7 @@ class Meridian:
         "...gtm,g,,gt->...gm",
         rf_transformed - rf_counterfactual_transformed,
         self.population,
-        self.kpi_transformer._population_scaled_stdev,  # pylint: disable=protected-access
+        self.kpi_transformer.population_scaled_stdev,
         revenue_per_kpi,
     )
     if self.media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:

@@ -194,6 +194,24 @@ class KpiTransformerTest(absltest.TestCase):
     self._kpi2 = tfd.HalfNormal(10).sample([self._n_geos, self._n_times])
     self._population = tfd.Uniform(100, 1000).sample([self._n_geos])
 
+  def test_population_scaled_mean(self):
+    transformer = transformers.KpiTransformer(
+        kpi=self._kpi1, population=self._population
+    )
+    tf.debugging.assert_near(
+        transformer.population_scaled_mean,
+        tf.reduce_mean(self._kpi1 / self._population[:, tf.newaxis]),
+    )
+
+  def test_population_scaled_stdev(self):
+    transformer = transformers.KpiTransformer(
+        kpi=self._kpi1, population=self._population
+    )
+    tf.debugging.assert_near(
+        transformer.population_scaled_stdev,
+        tf.math.reduce_std(self._kpi1 / self._population[:, tf.newaxis]),
+    )
+
   def test_output_shape_and_range(self):
     transformer = transformers.KpiTransformer(
         kpi=self._kpi1, population=self._population
