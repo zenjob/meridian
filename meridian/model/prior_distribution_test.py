@@ -480,7 +480,7 @@ class PriorDistributionTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='roi_m',
+          testcase_name='gamma_c',
           distribution=prior_distribution.PriorDistribution(
               gamma_c=tfp.distributions.LogNormal(
                   [0.1, 0.2, 0.3, 0.4, 0.5], 0.9, name=c.GAMMA_C
@@ -488,7 +488,7 @@ class PriorDistributionTest(parameterized.TestCase):
           ),
       ),
       dict(
-          testcase_name='alpha_m',
+          testcase_name='xi_c',
           distribution=prior_distribution.PriorDistribution(
               xi_c=tfp.distributions.Uniform(
                   [0.1, 0.2, 0.3, 0.4, 0.5], 1.0, name=c.XI_C
@@ -518,7 +518,7 @@ class PriorDistributionTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name='with_deteremenistic(0)',
+          testcase_name='with_deteremenistic_0',
           tau_g_excl_baseline=tfp.distributions.Deterministic(
               0, name='tau_g_excl_baseline'
           ),
@@ -528,7 +528,7 @@ class PriorDistributionTest(parameterized.TestCase):
           number_of_warnings=0,
       ),
       dict(
-          testcase_name='with_deteremenistic(1)',
+          testcase_name='with_deteremenistic_1',
           tau_g_excl_baseline=tfp.distributions.Deterministic(
               1, name='tau_g_excl_baseline'
           ),
@@ -538,7 +538,7 @@ class PriorDistributionTest(parameterized.TestCase):
           number_of_warnings=4,
       ),
       dict(
-          testcase_name='with_non-deteremenistic_defaults',
+          testcase_name='with_non_deteremenistic_defaults',
           tau_g_excl_baseline=None,
           eta_m=None,
           eta_rf=None,
