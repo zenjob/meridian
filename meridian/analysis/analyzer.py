@@ -39,7 +39,7 @@ def get_mean_and_ci(
     data: np.ndarray | tf.Tensor,
     confidence_level: float,
     axis: tuple[int, ...] = (0, 1),
-) -> np.ndarray | tf.Tensor:
+) -> np.ndarray:
   """Computes mean and confidence intervals for the given data.
 
   Args:
@@ -1525,12 +1525,52 @@ class Analyzer:
       numerator = cpik_spend
     return tf.math.divide_no_nan(numerator, incremental_kpi)
 
+  def _calculate_mean_and_ci_by_dataset(
+      self,
+      tensor: tf.Tensor,
+      confidence_level: float,
+      split_by_holdout: bool,
+  ) -> np.ndarray:
+    """Calculates the mean and ci and splits the tensor by holdout_id if needed."""
+    if not split_by_holdout:
+      return get_mean_and_ci(tensor, confidence_level=confidence_level)
+
+    train = get_mean_and_ci(
+        np.where(self._meridian.model_spec.holdout_id, np.nan, tensor),
+        confidence_level=confidence_level,
+    )
+    test = get_mean_and_ci(
+        np.where(self._meridian.model_spec.holdout_id, tensor, np.nan),
+        confidence_level=confidence_level,
+    )
+    return np.stack(
+        [
+            train,
+            test,
+            get_mean_and_ci(tensor, confidence_level=confidence_level),
+        ],
+        axis=-1,
+    )
+
+  def _can_split_by_holdout_id(self, split_by_holdout_id: bool) -> bool:
+    """Returns whether the data can be split by holdout_id."""
+    if split_by_holdout_id and self._meridian.model_spec.holdout_id is None:
+      warnings.warn(
+          "`split_by_holdout_id` is True but `holdout_id` is `None`. Data will"
+          " not be split."
+      )
+    return (
+        split_by_holdout_id and self._meridian.model_spec.holdout_id is not None
+    )
+
   def expected_vs_actual_data(
-      self, confidence_level: float = 0.9
+      self, split_by_holdout_id: bool = False, confidence_level: float = 0.9
   ) -> xr.Dataset:
     """Calculates the data for the expected versus actual impact over time.
 
     Args:
+      split_by_holdout_id: Boolean. If `True` and `holdout_id` exists, the data
+        is split into `'Train'`, `'Test'`, and `'All Data'` subsections.
       confidence_level: Confidence level for expected impact credible intervals,
         represented as a value between zero and one. Default: `0.9`.
 
@@ -1539,10 +1579,15 @@ class Analyzer:
     """
     mmm = self._meridian
     use_kpi = self._meridian.input_data.revenue_per_kpi is None
-    expected_tensor = self.expected_impact(
+    can_split_by_holdout = self._can_split_by_holdout_id(split_by_holdout_id)
+    expected_impact = self.expected_impact(
         aggregate_geos=False, aggregate_times=False, use_kpi=use_kpi
     )
-    baseline_tensor = self.expected_impact(
+    expected = self._calculate_mean_and_ci_by_dataset(
+        expected_impact, confidence_level, can_split_by_holdout
+    )
+
+    baseline_expected_impact = self.expected_impact(
         new_media=tf.zeros_like(mmm.media_tensors.media)
         if mmm.media_tensors.media is not None
         else None,
@@ -1556,8 +1601,9 @@ class Analyzer:
         aggregate_times=False,
         use_kpi=use_kpi,
     )
-    expected = get_mean_and_ci(expected_tensor, confidence_level)
-    baseline = get_mean_and_ci(baseline_tensor, confidence_level)
+    baseline = self._calculate_mean_and_ci_by_dataset(
+        baseline_expected_impact, confidence_level, can_split_by_holdout
+    )
     actual = mmm.kpi if use_kpi else mmm.kpi * mmm.revenue_per_kpi
 
     coords = {
@@ -1568,13 +1614,27 @@ class Analyzer:
             [constants.MEAN, constants.CI_LO, constants.CI_HI],
         ),
     }
+    expected_and_baseline_dims = (
+        constants.GEO,
+        constants.TIME,
+        constants.METRIC,
+    )
+    if can_split_by_holdout:
+      coords[constants.EVALUATION_SET_VAR] = (
+          [constants.EVALUATION_SET_VAR],
+          list(constants.EVALUATION_SET),
+      )
+      expected_and_baseline_dims = expected_and_baseline_dims + (
+          constants.EVALUATION_SET_VAR,
+      )
+
     data_vars = {
         constants.EXPECTED: (
-            (constants.GEO, constants.TIME, constants.METRIC),
+            expected_and_baseline_dims,
             expected,
         ),
         constants.BASELINE: (
-            (constants.GEO, constants.TIME, constants.METRIC),
+            expected_and_baseline_dims,
             baseline,
         ),
         constants.ACTUAL: ((constants.GEO, constants.TIME), actual),

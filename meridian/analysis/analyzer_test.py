@@ -139,7 +139,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     np.testing.assert_allclose(
         result,
         np.array([[4.5, 1.3, 9.1], [4, 2, 6.7], [3.5, 1.3, 5.7]]),
-        atol=0.1
+        atol=0.1,
     )
 
   def test_expected_impact_wrong_controls_raises_exception(self):
@@ -972,8 +972,64 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         response_data_spend[-1],
     )
 
-  def test_expected_vs_actual_correct_data(self):
-    ds = self.analyzer_media_and_rf.expected_vs_actual_data()
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="default",
+          holdout_id=None,
+          split_by_holdout_id=False,
+          expected_shape=(
+              _N_GEOS,
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+          ),
+      ),
+      dict(
+          testcase_name="split_by_holdout_id_true_wo_holdout_id",
+          holdout_id=None,
+          split_by_holdout_id=True,
+          expected_shape=(
+              _N_GEOS,
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+          ),
+      ),
+      dict(
+          testcase_name="split_by_holdout_id_true_w_holdout_id",
+          holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
+          split_by_holdout_id=True,
+          expected_shape=(
+              _N_GEOS,
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+              3,  # [train, test, all]
+          ),
+      ),
+      dict(
+          testcase_name="split_by_holdout_id_false_w_holdout_id",
+          holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
+          split_by_holdout_id=False,
+          expected_shape=(
+              _N_GEOS,
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+          ),
+      ),
+  )
+  def test_expected_vs_actual_correct_data(
+      self,
+      holdout_id: np.ndarray | None,
+      split_by_holdout_id: bool,
+      expected_shape: tuple[int, ...],
+  ):
+    model_spec = spec.ModelSpec(holdout_id=holdout_id)
+    meridian = model.Meridian(
+        model_spec=model_spec, input_data=self.input_data_media_and_rf
+    )
+    meridian_analyzer = analyzer.Analyzer(meridian)
+
+    ds = meridian_analyzer.expected_vs_actual_data(
+        split_by_holdout_id=split_by_holdout_id
+    )
 
     self.assertListEqual(
         list(ds.geo.values), list(self.input_data_media_and_rf.geo.values)
@@ -986,42 +1042,28 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         [constants.MEAN, constants.CI_LO, constants.CI_HI],
     )
 
-    expected_shape = (
-        _N_GEOS,
-        _N_TIMES,
-        3,  # [mean, ci_lo, ci_hi]
-    )
     self.assertEqual(ds.expected.shape, expected_shape)
     self.assertEqual(ds.baseline.shape, expected_shape)
-    self.assertEqual(ds.actual.shape, (_N_GEOS, _N_TIMES))  # No ci_lo, ci_hi.
+    self.assertEqual(ds.actual.shape, (_N_GEOS, _N_TIMES))
     self.assertEqual(ds.confidence_level, 0.9)
 
-    self.assertTrue(
-        np.all(
-            ds.expected.sel(metric=constants.CI_HI)
-            >= ds.expected.sel(metric=constants.MEAN)
-        )
+    np.testing.assert_array_less(
+        ds.expected.sel(metric=constants.MEAN),
+        ds.expected.sel(metric=constants.CI_HI),
     )
-    self.assertTrue(
-        np.all(
-            ds.expected.sel(metric=constants.CI_LO)
-            <= ds.expected.sel(metric=constants.MEAN)
-        )
+    np.testing.assert_array_less(
+        ds.expected.sel(metric=constants.CI_LO),
+        ds.expected.sel(metric=constants.MEAN),
     )
-    self.assertTrue(
-        np.all(
-            ds.baseline.sel(metric=constants.CI_HI)
-            >= ds.baseline.sel(metric=constants.MEAN)
-        )
+    np.testing.assert_array_less(
+        ds.baseline.sel(metric=constants.MEAN),
+        ds.baseline.sel(metric=constants.CI_HI),
     )
-    self.assertTrue(
-        np.all(
-            ds.baseline.sel(metric=constants.CI_LO)
-            <= ds.baseline.sel(metric=constants.MEAN)
-        )
+    np.testing.assert_array_less(
+        ds.baseline.sel(metric=constants.CI_LO),
+        ds.baseline.sel(metric=constants.MEAN),
     )
-
-    self.assertTrue(np.all(ds.baseline < ds.expected))
+    np.testing.assert_array_less(ds.baseline, ds.expected)
 
     # Test the math for a sample of the actual impact metrics.
     self.assertAllClose(
@@ -1029,6 +1071,23 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         [178.26823, 121.92347, 164.19545, 27.069845, 176.33078],
         atol=1e-5,
     )
+
+  def test_expected_vs_actual_warns_if_split_by_holdout_id_without_holdout_id(
+      self,
+  ):
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter("always")
+      self.analyzer_media_and_rf.expected_vs_actual_data(
+          split_by_holdout_id=True
+      )
+
+      self.assertLen(w, 1)
+      self.assertTrue(issubclass(w[0].category, UserWarning))
+      self.assertIn(
+          "`split_by_holdout_id` is True but `holdout_id` is `None`. Data will"
+          " not be split.",
+          str(w[0].message),
+      )
 
   def test_adstock_decay_dataframe(self):
     adstock_decay_dataframe = self.analyzer_media_and_rf.adstock_decay(

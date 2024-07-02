@@ -537,7 +537,7 @@ class ModelFitTest(absltest.TestCase):
         self.model_fit_kpi_type_revenue.model_fit_data.confidence_level, 0.9
     )
     self.model_fit_kpi_type_revenue.update_confidence_level(0.8)
-    self.mock_analyzer_method.assert_called_with(0.8)
+    self.mock_analyzer_method.assert_called_with(confidence_level=0.8)
 
   def test_model_fit_plots_selected_times(self):
     times = ["2023-01-01", "2023-01-08", "2023-01-15"]

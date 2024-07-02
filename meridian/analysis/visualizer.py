@@ -97,8 +97,8 @@ class ModelDiagnostics:
         names from `meridian.InputData`. Set either `selected_geos` or
         `n_top_largest_geos`, do not set both.
       selected_times: Optional list of a subset of time dimensions to include.
-        By default, all times are included. Times must match the time
-        dimensions from `meridian.InputData`.
+        By default, all times are included. Times must match the time dimensions
+        from `meridian.InputData`.
       column_var: Optional string that indicates whether to pivot the table by
         `metric`, `geo_granularity` or `evaluation_set`. By default,
         `column_var=None` indicates that the `metric`, `geo_granularity` and
@@ -357,7 +357,7 @@ class ModelFit:
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
     self._model_fit_data = self._analyzer.expected_vs_actual_data(
-        confidence_level
+        confidence_level=confidence_level
     )
 
   @property
@@ -373,7 +373,7 @@ class ModelFit:
 
   def update_confidence_level(self, confidence_level: float):
     self._model_fit_data = self._analyzer.expected_vs_actual_data(
-        confidence_level
+        confidence_level=confidence_level
     )
 
   def plot_model_fit(
@@ -398,9 +398,9 @@ class ModelFit:
       n_top_largest_geos: Optional number of largest geos by population to
         include. By default, all geos are included. Set either `selected_geos`
         or `n_top_largest_geos`, do not set both.
-      show_geo_level: If `True`, plots at the geo-level instead of one
-        national level plot. Only available if `selected_geos` or
-        `n_top_largest_geos` is provided.
+      show_geo_level: If `True`, plots at the geo-level instead of one national
+        level plot. Only available if `selected_geos` or `n_top_largest_geos` is
+        provided.
       include_baseline: If `True`, shows the expected baseline impact without
         any media execution.
       include_ci: If `True`, shows the credible intervals for the expected
