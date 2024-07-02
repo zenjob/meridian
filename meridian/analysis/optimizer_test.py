@@ -51,17 +51,31 @@ _TEST_DATA_DIR = os.path.join(
 _NONOPTIMIZED_INCREMENTAL_IMPACT = np.array(
     [335.65, 531.11, 791.67, 580.1, 242.4]
 )
+_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
+    [335.65, 335.65, 335.65],
+    [531.11, 531.11, 531.11],
+    [791.67, 791.67, 791.67],
+    [580.1, 580.1, 580.1],
+    [242.4, 242.4, 242.4],
+])
 _NONOPTIMIZED_SPEND = np.array([294.0, 279.0, 256.0, 272.0, 288.0])
-_OPTIMIZED_INCREMENTAL_IMPACT = np.array(
-    [528.6618, 648.44446, 427.40665, 1178.5515, 888.9901]
-)
+_OPTIMIZED_INCREMENTAL_IMPACT = np.array([528.7, 648.4, 427.4, 1178.6, 889.0])
+_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
+    [528.7, 528.7, 528.7],
+    [648.4, 648.4, 648.4],
+    [427.4, 427.4, 427.4],
+    [1178.6, 1178.6, 1178.6],
+    [889.0, 889.0, 889.0],
+])
 _OPTIMIZED_SPEND = np.array([233.0, 222.0, 206.0, 354.0, 374.0])
 _OPTIMIZED_MEDIA_ONLY_SPEND = np.array([289.0, 278.0, 262.0])
 _OPTIMIZED_RF_ONLY_SPEND = np.array([354.0, 206.0])
 _TARGET_MROI_SPEND = np.array([0.0, 0.0, 0.0, 544.0, 576.0])
 _TARGET_ROI_SPEND = np.array([588.0, 558.0, 512.0, 544.0, 576.0])
 # Currently zero due to numerator being zero with mocked constant inc_impact
-_BUDGET_MROI = np.array([0, 0, 0, 0, 0])
+_BUDGET_MROI_WITH_CI = np.array(
+    [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
+)
 
 _N_GEOS = 5
 _N_TIMES = 49
@@ -89,26 +103,33 @@ def _create_budget_data(
   data_vars = {
       c.SPEND: ([c.CHANNEL], spend),
       c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
-      c.INCREMENTAL_IMPACT: ([c.CHANNEL], inc_impact),
+      c.INCREMENTAL_IMPACT: ([c.CHANNEL, c.METRIC], inc_impact),
   }
   attributes = {
       c.START_DATE: '2020-01-05',
       c.END_DATE: '2020-06-28',
       c.BUDGET: sum(spend),
-      c.PROFIT: sum(inc_impact) - sum(spend),
-      c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact),
+      c.PROFIT: sum(inc_impact[:, 0]) - sum(spend),
+      c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact[:, 0]),
   }
   if use_kpi:
-    data_vars[c.CPIK] = ([c.CHANNEL], spend / inc_impact)
-    attributes[c.TOTAL_CPIK] = sum(spend) / sum(inc_impact)
+    data_vars[c.CPIK] = (
+        [c.CHANNEL, c.METRIC],
+        tf.transpose(spend / tf.transpose(inc_impact)),
+    )
+    attributes[c.TOTAL_CPIK] = sum(spend) / sum(inc_impact[:, 0])
   else:
-    data_vars[c.ROI] = ([c.CHANNEL], inc_impact / spend)
-    data_vars[c.MROI] = ([c.CHANNEL], mroi)
-    attributes[c.TOTAL_ROI] = sum(inc_impact) / sum(spend)
+    data_vars[c.ROI] = (
+        [c.CHANNEL, c.METRIC],
+        tf.transpose(tf.math.divide_no_nan(tf.transpose(inc_impact), spend)),
+    )
+    data_vars[c.MROI] = ([c.CHANNEL, c.METRIC], mroi)
+    attributes[c.TOTAL_ROI] = sum(inc_impact[:, 0]) / sum(spend)
   return xr.Dataset(
       data_vars=data_vars,
       coords={
           c.CHANNEL: ([c.CHANNEL], channels),
+          c.METRIC: ([c.METRIC], [c.MEAN, c.CI_LO, c.CI_HI]),
       },
       attrs=attributes | (attrs or {}),
   )
@@ -140,23 +161,23 @@ def _verify_actual_vs_expected_budget_data(
 
 _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([200, 100, 300]),
-    inc_impact=np.array([280, 150, 330]),
-    mroi=np.array([1.2, 1.3, 1.4]),
+    inc_impact=np.array([[280, 280, 280], [150, 150, 150], [330, 330, 330]]),
+    mroi=np.array([[1.2, 1.2, 1.2], [1.3, 1.3, 1.3], [1.4, 1.4, 1.4]]),
 )
 _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([220, 140, 240]),
-    inc_impact=np.array([350, 210, 270]),
-    mroi=np.array([1.4, 1.5, 1.6]),
+    inc_impact=np.array([[350, 349, 351], [210, 209, 211], [270, 269, 271]]),
+    mroi=np.array([[1.4, 1.4, 1.4], [1.5, 1.5, 1.5], [1.6, 1.6, 1.6]]),
     attrs={c.FIXED_BUDGET: True},
 )
 _SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([200, 100, 300]),
-    inc_impact=np.array([280, 150, 330]),
+    inc_impact=np.array([[280, 279, 281], [150, 149, 151], [330, 329, 331]]),
     use_kpi=True,
 )
 _SAMPLE_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([220, 140, 240]),
-    inc_impact=np.array([350, 210, 270]),
+    inc_impact=np.array([[350, 349, 351], [210, 209, 211], [270, 269, 271]]),
     use_kpi=True,
     attrs={c.FIXED_BUDGET: True},
 )
@@ -603,8 +624,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND,
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT,
-        mroi=_BUDGET_MROI,
+        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
     )
     self.budget_optimizer_media_and_rf.optimize()
@@ -622,8 +643,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[:_N_MEDIA_CHANNELS],
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS],
-        mroi=_BUDGET_MROI[:_N_MEDIA_CHANNELS],
+        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
     )
     self.budget_optimizer_media_only.optimize()
@@ -640,8 +661,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[-_N_RF_CHANNELS:],
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:],
-        mroi=_BUDGET_MROI[-_N_RF_CHANNELS:],
+        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        mroi=_BUDGET_MROI_WITH_CI[-_N_RF_CHANNELS:],
         channels=self.input_data_rf_only.get_all_channels(),
     )
     self.budget_optimizer_rf_only.optimize()
@@ -657,8 +678,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT,
-        mroi=_BUDGET_MROI,
+        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
     )
@@ -680,8 +701,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_MEDIA_ONLY_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS],
-        mroi=_BUDGET_MROI[:_N_MEDIA_CHANNELS],
+        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
     )
@@ -701,8 +722,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_RF_ONLY_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:],
-        mroi=_BUDGET_MROI[-self.meridian_rf_only.n_rf_channels :],
+        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        mroi=_BUDGET_MROI_WITH_CI[-self.meridian_rf_only.n_rf_channels :],
         channels=self.input_data_rf_only.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
     )
@@ -721,8 +742,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_TARGET_MROI_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT,
-        mroi=_BUDGET_MROI,
+        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: False, c.TARGET_MROI: 1},
     )
@@ -739,8 +760,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_TARGET_ROI_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT,
-        mroi=_BUDGET_MROI,
+        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: False, c.TARGET_ROI: 1},
     )
@@ -753,20 +774,40 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='optimal_frequency',
-          expected_incremental_impact=np.array(
-              [492.7, 997.6, 371.8, 1060.1, 929.2]
-          ),
+          expected_incremental_impact=np.array([
+              [492.7, 109.0, 1446.7],
+              [997.6, 105.1, 2916.5],
+              [371.8, 68.4, 884.3],
+              [1060.1, 167.5, 3775.0],
+              [929.2, 159.3, 3520.5],
+          ]),
           expected_spend=np.array([206.0, 276.0, 179.0, 354.0, 374.0]),
-          expected_mroi=np.array([1.329, 1.94, 1.156, 2.928, 2.44]),
+          expected_mroi=np.array([
+              [1.325, 0.191, 4.342],
+              [1.932, 0.208, 5.986],
+              [1.175, 0.183, 3.125],
+              [2.995, 0.473, 10.663],
+              [2.484, 0.426, 9.413],
+          ]),
           use_optimal_frequency=True,
       ),
       dict(
           testcase_name='historical_frequency',
-          expected_incremental_impact=np.array(
-              [507.0, 1147.4, 371.8, 585.6, 351.3]
-          ),
+          expected_incremental_impact=np.array([
+              [507.0, 111.0, 1493.7],
+              [1147.4, 121.1, 3380.3],
+              [371.8, 68.4, 884.3],
+              [585.6, 93.5, 1999.5],
+              [351.3, 78.6, 951.2],
+          ]),
           expected_spend=np.array([217.0, 363.0, 179.0, 354.0, 276.0]),
-          expected_mroi=np.array([1.231, 1.519, 1.156, 1.666, 1.237]),
+          expected_mroi=np.array([
+              [1.269, 0.179, 4.174],
+              [1.523, 0.160, 4.711],
+              [1.175, 0.183, 3.125],
+              [1.654, 0.264, 5.648],
+              [1.272, 0.285, 3.446],
+          ]),
           use_optimal_frequency=False,
       ),
   )

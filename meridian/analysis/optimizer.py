@@ -233,6 +233,7 @@ class BudgetOptimizer:
       target_mroi: float | None = None,
       gtol: float = 0.0001,
       use_optimal_frequency: bool = True,
+      confidence_level: float = 0.9,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ):
     """Finds the optimal budget allocation that maximizes impact.
@@ -277,6 +278,7 @@ class BudgetOptimizer:
       use_optimal_frequency: If `True`, uses `optimal_frequency` calculated by
         trained Meridian model for optimization. If `False`, uses historical
         frequency.
+      confidence_level: The threshold for computing the confidence intervals.
       batch_size: Maximum draws per chain in each batch. The calculation is run
         in batches to avoid memory exhaustion. If a memory error occurs, try
         reducing `batch_size`. The calculation will generally be faster with
@@ -345,6 +347,7 @@ class BudgetOptimizer:
         hist_spend=hist_spend,
         spend=rounded_spend,
         selected_times=selected_time_dims,
+        confidence_level=confidence_level,
         batch_size=batch_size,
     )
     self._nonoptimized_data_with_optimal_freq = self._create_budget_dataset(
@@ -352,6 +355,7 @@ class BudgetOptimizer:
         spend=rounded_spend,
         selected_times=selected_time_dims,
         optimal_frequency=optimal_frequency,
+        confidence_level=confidence_level,
         batch_size=batch_size,
     )
     self._optimized_data = self._create_budget_dataset(
@@ -360,6 +364,7 @@ class BudgetOptimizer:
         selected_times=selected_time_dims,
         optimal_frequency=optimal_frequency,
         attrs=constraints,
+        confidence_level=confidence_level,
         batch_size=batch_size,
     )
     self._spend_grid = spend_grid
@@ -739,6 +744,7 @@ class BudgetOptimizer:
         self.nonoptimized_data_with_optimal_freq[
             [c.SPEND, c.INCREMENTAL_IMPACT]
         ]
+        .sel(metric=c.MEAN, drop=True)
         .to_dataframe()
         .reset_index()
         .rename(columns={c.INCREMENTAL_IMPACT: c.MEAN})
@@ -746,6 +752,7 @@ class BudgetOptimizer:
     current_points_df[c.SPEND_LEVEL] = summary_text.NONOPTIMIZED_SPEND_LABEL
     optimal_points_df = (
         self.optimized_data[[c.SPEND, c.INCREMENTAL_IMPACT]]
+        .sel(metric=c.MEAN, drop=True)
         .to_dataframe()
         .reset_index()
         .rename(columns={c.INCREMENTAL_IMPACT: c.MEAN})
@@ -771,6 +778,8 @@ class BudgetOptimizer:
   def _get_delta_data(self, metric: str) -> pd.DataFrame:
     """Calculates and sorts the optimized delta for the specified metric."""
     delta = self.optimized_data[metric] - self.nonoptimized_data[metric]
+    if c.METRIC in delta.dims:
+      delta = delta.sel(metric=c.MEAN, drop=True)
     df = delta.to_dataframe().reset_index()
     return pd.concat([
         df[df[metric] < 0].sort_values([metric]),
@@ -1003,6 +1012,7 @@ class BudgetOptimizer:
       selected_times: Sequence[str] | None = None,
       optimal_frequency: Sequence[float] | None = None,
       attrs: Mapping[str, Any] | None = None,
+      confidence_level: float = 0.9,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Creates the budget dataset."""
@@ -1014,25 +1024,30 @@ class BudgetOptimizer:
         )
     )
     use_kpi = self._meridian.revenue_per_kpi is None
-    incremental_impact = tf.math.reduce_mean(
-        self._analyzer.incremental_impact(
-            new_media=new_media,
-            new_reach=new_reach,
-            new_frequency=new_frequency,
-            selected_times=selected_times,
-            use_kpi=use_kpi,
-            batch_size=batch_size,
-        ),
-        axis=(0, 1),
+    incremental_impact = self._analyzer.incremental_impact(
+        new_media=new_media,
+        new_reach=new_reach,
+        new_frequency=new_frequency,
+        selected_times=selected_times,
+        use_kpi=use_kpi,
+        batch_size=batch_size,
+    )
+    incremental_impact_with_mean_and_ci = analyzer.get_mean_and_ci(
+        data=incremental_impact,
+        confidence_level=confidence_level,
     )
     budget = np.sum(spend)
-    total_incremental_impact = np.sum(incremental_impact)
+    # Total of `mean` column.
+    total_incremental_impact = np.sum(incremental_impact_with_mean_and_ci[:, 0])
     all_times = self._meridian.input_data.time.values.tolist()
 
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
         c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
-        c.INCREMENTAL_IMPACT: ([c.CHANNEL], incremental_impact),
+        c.INCREMENTAL_IMPACT: (
+            [c.CHANNEL, c.METRIC],
+            incremental_impact_with_mean_and_ci,
+        ),
     }
     attributes = {
         c.START_DATE: min(selected_times) if selected_times else all_times[0],
@@ -1042,12 +1057,23 @@ class BudgetOptimizer:
         c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
     }
     if use_kpi:
-      data_vars[c.CPIK] = ([c.CHANNEL], spend / incremental_impact)
-      attributes[c.TOTAL_CPIK] = budget / total_incremental_impact
+      cpik = analyzer.get_mean_and_ci(
+          data=tf.math.divide_no_nan(spend, incremental_impact),
+          confidence_level=confidence_level,
+      )
+      data_vars[c.CPIK] = ([c.CHANNEL, c.METRIC], cpik)
+      total_inc_impact = np.sum(incremental_impact, -1)
+      attributes[c.TOTAL_CPIK] = np.mean(
+          tf.math.divide_no_nan(budget, total_inc_impact),
+          axis=(0, 1),
+      )
     else:
-      roi = incremental_impact / spend
-      marginal_roi = tf.math.reduce_mean(
-          self._analyzer.marginal_roi(
+      roi = analyzer.get_mean_and_ci(
+          data=tf.math.divide_no_nan(incremental_impact, spend),
+          confidence_level=confidence_level,
+      )
+      marginal_roi = analyzer.get_mean_and_ci(
+          data=self._analyzer.marginal_roi(
               new_media=new_media,
               new_reach=new_reach,
               new_frequency=new_frequency,
@@ -1057,10 +1083,10 @@ class BudgetOptimizer:
               batch_size=batch_size,
               by_reach=True,
           ),
-          axis=(0, 1),
+          confidence_level=confidence_level,
       )
-      data_vars[c.ROI] = ([c.CHANNEL], roi)
-      data_vars[c.MROI] = ([c.CHANNEL], marginal_roi)
+      data_vars[c.ROI] = ([c.CHANNEL, c.METRIC], roi)
+      data_vars[c.MROI] = ([c.CHANNEL, c.METRIC], marginal_roi)
       attributes[c.TOTAL_ROI] = total_incremental_impact / budget
 
     return xr.Dataset(
@@ -1069,6 +1095,10 @@ class BudgetOptimizer:
             c.CHANNEL: (
                 [c.CHANNEL],
                 self._meridian.input_data.get_all_channels(),
+            ),
+            c.METRIC: (
+                [c.METRIC],
+                [c.MEAN, c.CI_LO, c.CI_HI],
             ),
         },
         attrs=attributes | (attrs or {}),
