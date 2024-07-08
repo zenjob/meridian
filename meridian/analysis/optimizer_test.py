@@ -615,6 +615,65 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     ):
       _ = self.budget_optimizer_media_and_rf.optimized_data
 
+  def test_optimization_grid_before_optimization_raises_error(self):
+    with self.assertRaisesWithLiteralMatch(
+        optimizer.OptimizationNotRunError,
+        'Optimization grid is only available after running optimize().',
+    ):
+      _ = self.budget_optimizer_media_and_rf.optimization_grid
+
+  @mock.patch.object(optimizer.BudgetOptimizer, '_create_grids', autospec=True)
+  def test_optimization_grid(self, mock_incremental_impact):
+    expected_spend_grid = np.array(
+        [
+            [500.0, 600.0, 700.0, 800.0, 900.0],
+            [700.0, 800.0, 900.0, 1000.0, 1100.0],
+            [900.0, 1000.0, 1100.0, 1200.0, np.nan],
+            [1100.0, 1200.0, 1300.0, np.nan, np.nan],
+            [1300.0, 1400.0, np.nan, np.nan, np.nan],
+            [1500.0, np.nan, np.nan, np.nan, np.nan],
+        ],
+    )
+    expected_incremental_impact_grid = np.array(
+        [
+            [1.0, 1.0, 1.0, 0.66666667, 0.81818182],
+            [1.0, 1.0, 1.0, 0.83333333, 1.0],
+            [1.0, 1.0, 1.0, 1.0, np.nan],
+            [1.0, 1.0, 1.0, np.nan, np.nan],
+            [1.0, 1.0, 1.0, np.nan, np.nan],
+            [1.0, 1.0, 1.0, np.nan, np.nan],
+        ],
+    )
+    mock_incremental_impact.return_value = [
+        expected_spend_grid,
+        expected_incremental_impact_grid,
+    ]
+    expected_data = xr.Dataset(
+        data_vars={
+            c.SPEND_GRID: (
+                [c.GRID_SPEND_INDEX, c.CHANNEL],
+                expected_spend_grid,
+            ),
+            c.INCREMENTAL_IMPACT_GRID: (
+                [c.GRID_SPEND_INDEX, c.CHANNEL],
+                expected_incremental_impact_grid,
+            ),
+        },
+        coords={
+            c.GRID_SPEND_INDEX: (
+                [c.GRID_SPEND_INDEX],
+                np.arange(0, len(expected_spend_grid)),
+            ),
+            c.CHANNEL: (
+                [c.CHANNEL],
+                self.input_data_media_and_rf.get_all_channels(),
+            ),
+        },
+    )
+    self.budget_optimizer_media_and_rf.optimize()
+    actual_data = self.budget_optimizer_media_and_rf.optimization_grid
+    self.assertEqual(actual_data, expected_data)
+
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_media_and_rf(
       self, mock_incremental_impact

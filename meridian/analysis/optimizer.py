@@ -134,6 +134,7 @@ class BudgetOptimizer:
     self._spend_bounds = None
     self._use_optimal_frequency = True
     self._spend_ratio = None
+    self._optimization_grid = None
 
   @property
   def nonoptimized_data(self) -> xr.Dataset:
@@ -220,6 +221,25 @@ class BudgetOptimizer:
           'Optimized data is only available after running optimize().'
       )
     return self._optimized_data
+
+  @property
+  def optimization_grid(self) -> xr.Dataset:
+    """Dataset holding the grid information used for optimization.
+
+    The dataset contains the following:
+
+      - Coordinates:  `grid_spend_index`, `channel`
+      - Data variables: `spend_grid`, `incremental_impact_grid`
+
+    Raises:
+      OptimizationNotRunError: Occurs when the optimization has not been run.
+      The `optimization_grid` is only available after running the optimization.
+    """
+    if self._optimization_grid is None:
+      raise OptimizationNotRunError(
+          'Optimization grid is only available after running optimize().'
+      )
+    return self._optimization_grid
 
   def optimize(
       self,
@@ -367,8 +387,53 @@ class BudgetOptimizer:
         confidence_level=confidence_level,
         batch_size=batch_size,
     )
-    self._spend_grid = spend_grid
-    self._incremental_impact_grid = incremental_impact_grid
+
+    self._optimization_grid = self._create_optimization_grid(
+        spend_grid=spend_grid,
+        incremental_impact_grid=incremental_impact_grid,
+    )
+
+  def _create_optimization_grid(
+      self,
+      spend_grid: np.ndarray,
+      incremental_impact_grid: np.ndarray,
+  ) -> xr.Dataset:
+    """Creates the optimization grid dataset.
+
+    Args:
+      spend_grid: Discrete two-dimensional grid with the number of rows equal to
+        the maximum number of spend points among all channels, and the number of
+        columns is equal to the number of total channels, containing spend by
+        channel.
+      incremental_impact_grid: Discrete two-dimensional grid with the size same
+        as the `spend_grid` containing incremental impact by channel.
+
+    Returns:
+      The optimization grid dataset. The dataset contains the following:
+        - Coordinates:  `grid_spend_index`, `channel`
+        - Data variables: `spend_grid`, `incremental_impact_grid`.
+    """
+    data_vars = {
+        c.SPEND_GRID: ([c.GRID_SPEND_INDEX, c.CHANNEL], spend_grid),
+        c.INCREMENTAL_IMPACT_GRID: (
+            [c.GRID_SPEND_INDEX, c.CHANNEL],
+            incremental_impact_grid,
+        ),
+    }
+
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords={
+            c.GRID_SPEND_INDEX: (
+                [c.GRID_SPEND_INDEX],
+                np.arange(0, len(spend_grid)),
+            ),
+            c.CHANNEL: (
+                [c.CHANNEL],
+                self._meridian.input_data.get_all_channels(),
+            ),
+        },
+    )
 
   def output_optimization_summary(self, filename: str, filepath: str):
     """Generates and saves the HTML optimization summary output."""

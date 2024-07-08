@@ -397,6 +397,9 @@ SPEND_CONSTRAINT = 'spend_constraint'
 SPEND_LEVEL = 'spend_level'
 LOWER_BOUND = 'lower_bound'
 UPPER_BOUND = 'upper_bound'
+SPEND_GRID = 'spend_grid'
+INCREMENTAL_IMPACT_GRID = 'incremental_impact_grid'
+GRID_SPEND_INDEX = 'grid_spend_index'
 
 
 # Optimization constraints.
