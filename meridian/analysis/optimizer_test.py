@@ -523,17 +523,28 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             ),
         )
     )
-    self.budget_optimizer_media_and_rf.optimize(
+
+    # To make the above mock work as intended, we have to recreate the model and
+    # optimizer objects, since the `total_spend` property in the shared SUT objs
+    # had by now been locked in.
+    meridian_media_and_rf = model.Meridian(
+        input_data=self.input_data_media_and_rf
+    )
+    budget_optimizer_media_and_rf = optimizer.BudgetOptimizer(
+        meridian_media_and_rf
+    )
+
+    budget_optimizer_media_and_rf.optimize(
         selected_times=('2021-01-25', '2021-03-08')
     )
     expected_spend = [19.0, 24.0, 104.0, 94.0, 95.0]
-    self.assertEqual(self.meridian_media_and_rf.total_spend.ndim, 1)
+    self.assertEqual(meridian_media_and_rf.total_spend.ndim, 1)
     np.testing.assert_array_equal(
-        self.budget_optimizer_media_and_rf.nonoptimized_data.spend,
+        budget_optimizer_media_and_rf.nonoptimized_data.spend,
         expected_spend,
     )
     self.assertEqual(
-        self.budget_optimizer_media_and_rf.nonoptimized_data.budget,
+        budget_optimizer_media_and_rf.nonoptimized_data.budget,
         np.sum(expected_spend),
     )
 

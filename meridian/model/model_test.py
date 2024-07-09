@@ -389,7 +389,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         error_msg,
     ):
-      model.Meridian(input_data=input_data, model_spec=model_spec)
+      _ = model.Meridian(
+          input_data=input_data, model_spec=model_spec
+      ).holdout_id
 
   def test_init_with_wrong_control_population_scaling_id_shape_fails(self):
     model_spec = spec.ModelSpec(
@@ -400,9 +402,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         "The shape of `control_population_scaling_id` (7,) is different from"
         " `(n_controls,) = (2,)`.",
     ):
-      model.Meridian(
+      _ = model.Meridian(
           input_data=self.input_data_with_media_and_rf, model_spec=model_spec
-      )
+      ).controls_scaled
 
   @parameterized.named_parameters(
       ("none", None, 200), ("int", 3, 3), ("list", [0, 50, 100, 150], 4)
@@ -415,7 +417,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         input_data=self.input_data_with_media_only, model_spec=model_spec
     )
 
-    self.assertEqual(meridian._knot_info.n_knots, expected_n_knots)
+    self.assertEqual(meridian.knot_info.n_knots, expected_n_knots)
 
   @parameterized.named_parameters(
       dict(
@@ -452,9 +454,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         msg,
     ):
-      model.Meridian(
+      _ = model.Meridian(
           input_data=self.input_data_with_media_only, model_spec=model_spec
-      )
+      ).knot_info
 
   @parameterized.named_parameters(
       dict(testcase_name="none", knots=None, is_national=False),
@@ -476,10 +478,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           if is_national
           else self.input_data_with_media_only
       )
-      model.Meridian(
+      _ = model.Meridian(
           input_data=input_data,
           model_spec=spec.ModelSpec(knots=knots),
-      )
+      ).knot_info
       mock_get_knot_info.assert_called_once_with(
           self._N_TIMES, knots, is_national
       )
@@ -506,10 +508,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         side_effect=ValueError(error_msg),
     ):
       with self.assertRaisesWithLiteralMatch(ValueError, error_msg):
-        model.Meridian(
+        _ = model.Meridian(
             input_data=self.input_data_with_media_only,
             model_spec=spec.ModelSpec(knots=4),
-        )
+        ).knot_info
 
   def test_init_with_default_parameters_works(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_only)
@@ -549,12 +551,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_init_national_args_with_broadcast_warnings(self):
     with warnings.catch_warnings(record=True) as warns:
       warnings.simplefilter("module")
-      model.Meridian(
+      _ = model.Meridian(
           input_data=self.national_input_data_media_only,
           model_spec=spec.ModelSpec(
               media_effects_dist=constants.MEDIA_EFFECTS_NORMAL
           ),
-      )
+      ).prior_broadcast
       self.assertLen(warns, 4)
       for w in warns:
         self.assertTrue(issubclass(w.category, UserWarning))
@@ -567,10 +569,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_init_national_args_with_model_spec_warnings(self):
     with warnings.catch_warnings(record=True) as w:
       warnings.simplefilter("module")
-      model.Meridian(
+      _ = model.Meridian(
           input_data=self.national_input_data_media_only,
           model_spec=spec.ModelSpec(unique_sigma_for_each_geo=True),
-      )
+      ).prior_broadcast
       self.assertLen(w, 6)
       # 4 warnings from the broadcasting + 2 from model spec.
       self.assertTrue(
@@ -832,7 +834,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     # Validate `n_knots` shape distributions.
     self.assertEqual(
         meridian.prior_broadcast.knot_values.batch_shape,
-        (meridian._knot_info.n_knots,),
+        (meridian.knot_info.n_knots,),
     )
 
     # Validate `n_media_channels` shape distributions.
@@ -1158,7 +1160,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         input_data=self.input_data_with_media_only,
         model_spec=spec.ModelSpec(baseline_geo=baseline_geo),
     )
-    self.assertEqual(meridian._baseline_geo_idx, expected_idx)
+    self.assertEqual(meridian.baseline_geo_idx, expected_idx)
 
   @parameterized.named_parameters(
       dict(
@@ -1176,10 +1178,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       self, baseline_geo: int | str | None, msg: str
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, msg):
-      model.Meridian(
+      _ = model.Meridian(
           input_data=self.input_data_with_media_only,
           model_spec=spec.ModelSpec(baseline_geo=baseline_geo),
-      )
+      ).baseline_geo_idx
 
   # TODO(b/295163156) Move this test to a higher-level public API unit test.
   @parameterized.named_parameters(

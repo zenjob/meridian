@@ -16,6 +16,7 @@
 
 from collections.abc import Mapping, Sequence
 import dataclasses
+import functools
 import os
 import warnings
 import arviz as az
@@ -263,8 +264,8 @@ class Meridian:
   Attributes:
     input_data: An `InputData` object containing the input data for the model.
     model_spec: A `ModelSpec` object containing the model specification.
-    inference_data: An `arviz.InferenceData` object containing the resulting
-      data from fitting the model.
+    inference_data: A _mutable_ `arviz.InferenceData` object containing the
+      resulting data from fitting the model.
     n_geos: Number of geos in the data.
     n_media_channels: Number of media channels in the data.
     n_rf_channels: Number of reach and frequency (RF) channels in the data.
@@ -273,8 +274,10 @@ class Meridian:
     n_media_times: Number of time periods in the media data.
     is_national: A boolean indicating whether the data is national (single geo)
       or not (multiple geos).
+    knot_info: A `KnotInfo` derived from input data and model spec.
     kpi: A tensor constructed from `input_data.kpi`.
-    revenue_per_kpi: A tensor constructed from `input_data.revenue_per_kpi`.
+    revenue_per_kpi: A tensor constructed from `input_data.revenue_per_kpi`. If
+      `input_data.revenue_per_kpi` is None, then this is also None.
     controls: A tensor constructed from `input_data.controls`.
     population: A tensor constructed from `input_data.population`.
     media_tensors: A collection of media tensors derived from `input_data`.
@@ -294,6 +297,8 @@ class Meridian:
       residual variance for each geo.
     prior_broadcast: A `PriorDistribution` object containing broadcasted
       distributions.
+    baseline_geo_idx: The index of the baseline geo.
+    holdout_id: A tensor containing the holdout id, if present.
   """
 
   def __init__(
@@ -301,15 +306,10 @@ class Meridian:
       input_data: data.InputData,
       model_spec: spec.ModelSpec | None = None,
   ):
-    self.input_data = input_data
-    self.model_spec = model_spec if model_spec else spec.ModelSpec()
-    self._validate_input_and_derive_attributes()
+    self._input_data = input_data
+    self._model_spec = model_spec if model_spec else spec.ModelSpec()
+    self._inference_data = az.InferenceData()
 
-  def _validate_input_and_derive_attributes(self):
-    """Validates input and derives object states and attributes.
-
-    This is a helper method for the constructor.
-    """
     self._validate_data_dependent_model_spec()
 
     if self.is_national:
@@ -317,129 +317,51 @@ class Meridian:
           media_effects_dist=self.model_spec.media_effects_dist,
           unique_sigma_for_each_geo=self.model_spec.unique_sigma_for_each_geo,
       )
-    self._inference_data = az.InferenceData()
-
-    self._knot_info = knots.get_knot_info(
-        n_times=self.n_times,
-        knots=self.model_spec.knots,
-        is_national=self.is_national,
-    )
-
-    sigma_shape = (
-        len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
-    )
-
-    self._prior_broadcast = self.model_spec.prior.broadcast(
-        n_geos=self.n_geos,
-        n_media_channels=self.n_media_channels,
-        n_rf_channels=self.n_rf_channels,
-        n_controls=self.n_controls,
-        sigma_shape=sigma_shape,
-        n_knots=self._knot_info.n_knots,
-        is_national=self.is_national,
-    )
-
-    self._kpi = tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
 
     self._validate_custom_priors()
-
-    if self.input_data.revenue_per_kpi is not None:
-      self._revenue_per_kpi = tf.convert_to_tensor(
-          self.input_data.revenue_per_kpi, dtype=tf.float32
-      )
-    else:
-      self._revenue_per_kpi = None
-
-    self._controls = tf.convert_to_tensor(
-        self.input_data.controls, dtype=tf.float32
-    )
-    self._population = tf.convert_to_tensor(
-        self.input_data.population, dtype=tf.float32
-    )
-
-    if self.model_spec.control_population_scaling_id is not None:
-      controls_population_scaling_id = tf.convert_to_tensor(
-          self.model_spec.control_population_scaling_id, dtype=bool
-      )
-    else:
-      controls_population_scaling_id = None
-
-    self._controls_transformer = transformers.ControlsTransformer(
-        controls=self.controls,
-        population=self.population,
-        population_scaling_id=controls_population_scaling_id,
-    )
-
-    self._kpi_transformer = transformers.KpiTransformer(
-        self.kpi, self.population
-    )
-
-    self._controls_scaled = self.controls_transformer.forward(self.controls)
-    self._kpi_scaled = self.kpi_transformer.forward(self.kpi)
-
-    # Derive and set media tensors from media values in the input data.
-    self._media_tensors = _derive_media_tensors(
-        self.input_data, self.model_spec
-    )
-    # Derive and set RF media tensors from RF media values in the input data.
-    self._rf_tensors = _derive_rf_tensors(self.input_data, self.model_spec)
-
     self._validate_geo_invariants()
 
-    if isinstance(self.model_spec.baseline_geo, int):
-      if (
-          self.model_spec.baseline_geo < 0
-          or self.model_spec.baseline_geo >= self.n_geos
-      ):
-        raise ValueError(
-            f"Baseline geo index {self.model_spec.baseline_geo} out of range"
-            f" [0, {self.n_geos - 1}]."
-        )
-      self._baseline_geo_idx = self.model_spec.baseline_geo
-    elif isinstance(self.model_spec.baseline_geo, str):
-      # np.where returns a 1-D tuple, its first element is an array of found
-      # elements.
-      index = np.where(self.input_data.geo == self.model_spec.baseline_geo)[0]
-      if index.size == 0:
-        raise ValueError(
-            f"Baseline geo '{self.model_spec.baseline_geo}' not found."
-        )
-      # Geos are unique, so index is a 1-element array.
-      self._baseline_geo_idx = index[0]
-    else:
-      self._baseline_geo_idx = tf.argmax(self.population)
-
-    if self.model_spec.holdout_id is not None:
-      tensor = tf.convert_to_tensor(self.model_spec.holdout_id, dtype=bool)
-      self._holdout_id = tensor[tf.newaxis, ...] if self.is_national else tensor
-    else:
-      self._holdout_id = None
+  @property
+  def input_data(self) -> data.InputData:
+    return self._input_data
 
   @property
-  def kpi(self) -> tf.Tensor:
-    return self._kpi
+  def model_spec(self) -> spec.ModelSpec:
+    return self._model_spec
 
   @property
-  def revenue_per_kpi(self) -> tf.Tensor | None:
-    return self._revenue_per_kpi
+  def inference_data(self) -> az.InferenceData:
+    return self._inference_data
 
-  @property
-  def controls(self) -> tf.Tensor:
-    return self._controls
-
-  @property
-  def population(self) -> tf.Tensor:
-    return self._population
-
-  @property
+  @functools.cached_property
   def media_tensors(self) -> MediaTensors:
-    return self._media_tensors
+    return _derive_media_tensors(self.input_data, self.model_spec)
 
-  @property
+  @functools.cached_property
   def rf_tensors(self) -> RfTensors:
-    return self._rf_tensors
+    return _derive_rf_tensors(self.input_data, self.model_spec)
 
-  @property
+  @functools.cached_property
+  def kpi(self) -> tf.Tensor:
+    return tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
+
+  @functools.cached_property
+  def revenue_per_kpi(self) -> tf.Tensor | None:
+    if self.input_data.revenue_per_kpi is None:
+      return None
+    return tf.convert_to_tensor(
+        self.input_data.revenue_per_kpi, dtype=tf.float32
+    )
+
+  @functools.cached_property
+  def controls(self) -> tf.Tensor:
+    return tf.convert_to_tensor(self.input_data.controls, dtype=tf.float32)
+
+  @functools.cached_property
+  def population(self) -> tf.Tensor:
+    return tf.convert_to_tensor(self.input_data.population, dtype=tf.float32)
+
+  @functools.cached_property
   def total_spend(self) -> tf.Tensor:
     return tf.convert_to_tensor(
         self.input_data.get_total_spend(), dtype=tf.float32
@@ -451,17 +373,15 @@ class Meridian:
 
   @property
   def n_media_channels(self) -> int:
-    if self.input_data.media_channel is not None:
-      return len(self.input_data.media_channel)
-    else:
+    if self.input_data.media_channel is None:
       return 0
+    return len(self.input_data.media_channel)
 
   @property
   def n_rf_channels(self) -> int:
-    if self.input_data.rf_channel is not None:
-      return len(self.input_data.rf_channel)
-    else:
+    if self.input_data.rf_channel is None:
       return 0
+    return len(self.input_data.rf_channel)
 
   @property
   def n_controls(self) -> int:
@@ -479,30 +399,49 @@ class Meridian:
   def is_national(self) -> bool:
     return self.n_geos == 1
 
-  @property
+  @functools.cached_property
+  def knot_info(self) -> knots.KnotInfo:
+    return knots.get_knot_info(
+        n_times=self.n_times,
+        knots=self.model_spec.knots,
+        is_national=self.is_national,
+    )
+
+  @functools.cached_property
   def controls_transformer(self) -> transformers.ControlsTransformer:
-    return self._controls_transformer
+    if self.model_spec.control_population_scaling_id is not None:
+      controls_population_scaling_id = tf.convert_to_tensor(
+          self.model_spec.control_population_scaling_id, dtype=bool
+      )
+    else:
+      controls_population_scaling_id = None
 
-  @property
+    return transformers.ControlsTransformer(
+        controls=self.controls,
+        population=self.population,
+        population_scaling_id=controls_population_scaling_id,
+    )
+
+  @functools.cached_property
   def kpi_transformer(self) -> transformers.KpiTransformer:
-    return self._kpi_transformer
+    return transformers.KpiTransformer(self.kpi, self.population)
 
-  @property
+  @functools.cached_property
   def controls_scaled(self) -> tf.Tensor:
-    return self._controls_scaled
+    return self.controls_transformer.forward(self.controls)
 
-  @property
+  @functools.cached_property
   def kpi_scaled(self) -> tf.Tensor:
-    return self._kpi_scaled
+    return self.kpi_transformer.forward(self.kpi)
 
-  @property
+  @functools.cached_property
   def media_effects_dist(self) -> str:
     if self.is_national:
       return constants.NATIONAL_MODEL_SPEC_ARGS[constants.MEDIA_EFFECTS_DIST]
     else:
       return self.model_spec.media_effects_dist
 
-  @property
+  @functools.cached_property
   def unique_sigma_for_each_geo(self) -> bool:
     if self.is_national:
       return constants.NATIONAL_MODEL_SPEC_ARGS[
@@ -511,13 +450,54 @@ class Meridian:
     else:
       return self.model_spec.unique_sigma_for_each_geo
 
-  @property
-  def prior_broadcast(self) -> prior_distribution.PriorDistribution:
-    return self._prior_broadcast
+  @functools.cached_property
+  def baseline_geo_idx(self) -> int:
+    """Returns the index of the baseline geo."""
+    if isinstance(self.model_spec.baseline_geo, int):
+      if (
+          self.model_spec.baseline_geo < 0
+          or self.model_spec.baseline_geo >= self.n_geos
+      ):
+        raise ValueError(
+            f"Baseline geo index {self.model_spec.baseline_geo} out of range"
+            f" [0, {self.n_geos - 1}]."
+        )
+      return self.model_spec.baseline_geo
+    elif isinstance(self.model_spec.baseline_geo, str):
+      # np.where returns a 1-D tuple, its first element is an array of found
+      # elements.
+      index = np.where(self.input_data.geo == self.model_spec.baseline_geo)[0]
+      if index.size == 0:
+        raise ValueError(
+            f"Baseline geo '{self.model_spec.baseline_geo}' not found."
+        )
+      # Geos are unique, so index is a 1-element array.
+      return index[0]
+    else:
+      return tf.argmax(self.population)
 
-  @property
-  def inference_data(self) -> az.InferenceData:
-    return self._inference_data
+  @functools.cached_property
+  def holdout_id(self) -> tf.Tensor | None:
+    if self.model_spec.holdout_id is None:
+      return None
+    tensor = tf.convert_to_tensor(self.model_spec.holdout_id, dtype=bool)
+    return tensor[tf.newaxis, ...] if self.is_national else tensor
+
+  @functools.cached_property
+  def prior_broadcast(self) -> prior_distribution.PriorDistribution:
+    sigma_shape = (
+        len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
+    )
+
+    return self.model_spec.prior.broadcast(
+        n_geos=self.n_geos,
+        n_media_channels=self.n_media_channels,
+        n_rf_channels=self.n_rf_channels,
+        n_controls=self.n_controls,
+        sigma_shape=sigma_shape,
+        n_knots=self.knot_info.n_knots,
+        is_national=self.is_national,
+    )
 
   def _validate_data_dependent_model_spec(self):
     """Validates that the data dependent model specs have correct shapes."""
@@ -658,7 +638,7 @@ class Meridian:
     col_idx_bad = col_idx_unique[np.where(counts == data_n_time)[0]]
     dims_bad = [data_dims[i] for i in col_idx_bad]
 
-    if col_idx_bad.shape[0] and self._knot_info.n_knots == self.n_times:
+    if col_idx_bad.shape[0] and self.knot_info.n_knots == self.n_times:
       raise ValueError(
           f"The following {data_name} variables do not vary across geos, making"
           f" a model with n_knots=n_time unidentifiable: {dims_bad}. This can"
@@ -872,58 +852,105 @@ class Meridian:
       )
       return tf.math.log(inc_revenue_rf) - tf.math.log(random_effect_rf)
 
+  def populate_cached_properties(self):
+    """Eagerly activates all cached properties.
+
+    This is useful for creating a `tf.function` computation graph with this
+    Meridian object as part of a captured closure. Within the computation graph,
+    internal state mutations are problematic, so we want to freeze the object's
+    states before the computation graph is created.
+    """
+    cls = self.__class__
+    # "Freeze" all @cached_property attributes by simply accessing them (with
+    # `getattr()`).
+    cached_properties = [
+        attr
+        for attr in dir(self)
+        if isinstance(getattr(cls, attr, cls), functools.cached_property)
+    ]
+    for attr in cached_properties:
+      _ = getattr(self, attr)
+
   def _get_joint_dist_unpinned(self) -> tfp.distributions.Distribution:
     """Returns JointDistributionCoroutineAutoBatched function for MCMC."""
 
+    self.populate_cached_properties()
+
+    # This lists all the derived properties and states of this Meridian object
+    # that are referenced by the joint distribution coroutine.
+    # That is, these are the list of captured parameters.
+    prior_broadcast = self.prior_broadcast
+    baseline_geo_idx = self.baseline_geo_idx
+    knot_info = self.knot_info
+    n_geos = self.n_geos
+    n_times = self.n_times
+    n_media_channels = self.n_media_channels
+    n_rf_channels = self.n_rf_channels
+    n_controls = self.n_controls
+    holdout_id = self.holdout_id
+    media_tensors = self.media_tensors
+    rf_tensors = self.rf_tensors
+    controls_scaled = self.controls_scaled
+    media_effects_dist = self.media_effects_dist
+    model_spec = self.model_spec
+    adstock_hill_media_fn = self.adstock_hill_media
+    adstock_hill_rf_fn = self.adstock_hill_rf
+    get_roi_prior_beta_m_value_fn = self._get_roi_prior_beta_m_value
+    get_roi_prior_beta_rf_value_fn = self._get_roi_prior_beta_rf_value
+
+    # TODO(b/349416835): Extract this coroutine to be unittestable on its own.
+    # This MCMC sampling technique is complex enough to have its own abstraction
+    # and testable API, rather than being embedded as a private method in the
+    # Meridian class.
     @tfp.distributions.JointDistributionCoroutineAutoBatched
     def joint_dist_unpinned():
       # Sample directly from prior.
-      knot_values = yield self._prior_broadcast.knot_values
-      gamma_c = yield self._prior_broadcast.gamma_c
-      xi_c = yield self._prior_broadcast.xi_c
-      sigma = yield self._prior_broadcast.sigma
+      knot_values = yield prior_broadcast.knot_values
+      gamma_c = yield prior_broadcast.gamma_c
+      xi_c = yield prior_broadcast.xi_c
+      sigma = yield prior_broadcast.sigma
 
       tau_g_excl_baseline = yield tfp.distributions.Sample(
-          self._prior_broadcast.tau_g_excl_baseline,
+          prior_broadcast.tau_g_excl_baseline,
           name=constants.TAU_G_EXCL_BASELINE,
       )
       tau_g = yield _get_tau_g(
           tau_g_excl_baseline=tau_g_excl_baseline,
-          baseline_geo_idx=self._baseline_geo_idx,
+          baseline_geo_idx=baseline_geo_idx,
       )
       tau_t = yield tfp.distributions.Deterministic(
           tf.einsum(
               "k,kt->t",
               knot_values,
-              tf.convert_to_tensor(self._knot_info.weights),
+              tf.convert_to_tensor(knot_info.weights),
           ),
           name=constants.TAU_T,
       )
 
       tau_gt = tau_g[:, tf.newaxis] + tau_t
       combined_media_transformed = tf.zeros(
-          shape=(self.n_geos, self.n_times, 0), dtype=tf.float32
+          shape=(n_geos, n_times, 0), dtype=tf.float32
       )
-      combined_beta = tf.zeros(shape=(self.n_geos, 0), dtype=tf.float32)
-      if self.media_tensors.media is not None:
-        alpha_m = yield self._prior_broadcast.alpha_m
-        ec_m = yield self._prior_broadcast.ec_m
-        eta_m = yield self._prior_broadcast.eta_m
-        roi_m = yield self._prior_broadcast.roi_m
-        slope_m = yield self._prior_broadcast.slope_m
+      combined_beta = tf.zeros(shape=(n_geos, 0), dtype=tf.float32)
+      if media_tensors.media is not None:
+        alpha_m = yield prior_broadcast.alpha_m
+        ec_m = yield prior_broadcast.ec_m
+        eta_m = yield prior_broadcast.eta_m
+        roi_m = yield prior_broadcast.roi_m
+        slope_m = yield prior_broadcast.slope_m
         beta_gm_dev = yield tfp.distributions.Sample(
             tfp.distributions.Normal(0, 1),
-            [self.n_geos, self.n_media_channels],
+            [n_geos, n_media_channels],
             name=constants.BETA_GM_DEV,
         )
-        media_transformed = self.adstock_hill_media(
-            media=self.media_tensors.media_scaled,
+        media_transformed = adstock_hill_media_fn(
+            media=media_tensors.media_scaled,
             alpha=alpha_m,
             ec=ec_m,
             slope=slope_m,
         )
-        if self.model_spec.use_roi_prior:
-          beta_m_value = self._get_roi_prior_beta_m_value(
+        if model_spec.use_roi_prior:
+          beta_m_value = get_roi_prior_beta_m_value_fn(
               alpha_m,
               beta_gm_dev,
               ec_m,
@@ -936,9 +963,9 @@ class Meridian:
               beta_m_value, name=constants.BETA_M
           )
         else:
-          beta_m = yield self._prior_broadcast.beta_m
+          beta_m = yield prior_broadcast.beta_m
 
-        if self.media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
+        if media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
           beta_gm_value = beta_m + eta_m * beta_gm_dev
         else:
           # MEDIA_EFFECTS_LOG_NORMAL
@@ -952,27 +979,27 @@ class Meridian:
         )
         combined_beta = tf.concat([combined_beta, beta_gm], axis=-1)
 
-      if self.rf_tensors.reach is not None:
-        alpha_rf = yield self._prior_broadcast.alpha_rf
-        ec_rf = yield self._prior_broadcast.ec_rf
-        eta_rf = yield self._prior_broadcast.eta_rf
-        roi_rf = yield self._prior_broadcast.roi_rf
-        slope_rf = yield self._prior_broadcast.slope_rf
+      if rf_tensors.reach is not None:
+        alpha_rf = yield prior_broadcast.alpha_rf
+        ec_rf = yield prior_broadcast.ec_rf
+        eta_rf = yield prior_broadcast.eta_rf
+        roi_rf = yield prior_broadcast.roi_rf
+        slope_rf = yield prior_broadcast.slope_rf
         beta_grf_dev = yield tfp.distributions.Sample(
             tfp.distributions.Normal(0, 1),
-            [self.n_geos, self.n_rf_channels],
+            [n_geos, n_rf_channels],
             name=constants.BETA_GRF_DEV,
         )
-        rf_transformed = self.adstock_hill_rf(
-            reach=self.rf_tensors.reach_scaled,
-            frequency=self.rf_tensors.frequency,
+        rf_transformed = adstock_hill_rf_fn(
+            reach=rf_tensors.reach_scaled,
+            frequency=rf_tensors.frequency,
             alpha=alpha_rf,
             ec=ec_rf,
             slope=slope_rf,
         )
 
-        if self.model_spec.use_roi_prior:
-          beta_rf_value = self._get_roi_prior_beta_rf_value(
+        if model_spec.use_roi_prior:
+          beta_rf_value = get_roi_prior_beta_rf_value_fn(
               alpha_rf,
               beta_grf_dev,
               ec_rf,
@@ -986,9 +1013,9 @@ class Meridian:
               name=constants.BETA_RF,
           )
         else:
-          beta_rf = yield self._prior_broadcast.beta_rf
+          beta_rf = yield prior_broadcast.beta_rf
 
-        if self.media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
+        if media_effects_dist == constants.MEDIA_EFFECTS_NORMAL:
           beta_grf_value = beta_rf + eta_rf * beta_grf_dev
         else:
           # MEDIA_EFFECTS_LOG_NORMAL
@@ -1002,12 +1029,10 @@ class Meridian:
         )
         combined_beta = tf.concat([combined_beta, beta_grf], axis=-1)
 
-      sigma_gt = tf.transpose(
-          tf.broadcast_to(sigma, [self.n_times, self.n_geos])
-      )
+      sigma_gt = tf.transpose(tf.broadcast_to(sigma, [n_times, n_geos]))
       gamma_gc_dev = yield tfp.distributions.Sample(
           tfp.distributions.Normal(0, 1),
-          [self.n_geos, self.n_controls],
+          [n_geos, n_controls],
           name=constants.GAMMA_GC_DEV,
       )
       gamma_gc = yield tfp.distributions.Deterministic(
@@ -1016,17 +1041,17 @@ class Meridian:
       y_pred = (
           tau_gt
           + tf.einsum("gtm,gm->gt", combined_media_transformed, combined_beta)
-          + tf.einsum("gtc,gc->gt", self.controls_scaled, gamma_gc)
+          + tf.einsum("gtc,gc->gt", controls_scaled, gamma_gc)
       )
       # If there are any holdout observations, the holdout KPI values will
       # be replaced with zeros using `experimental_pin`. For these
       # observations, we set the posterior mean equal to zero and standard
       # deviation to `1/sqrt(2pi)`, so the log-density is 0 regardless of the
       # sampled posterior parameter values.
-      if self._holdout_id is not None:
-        y_pred_holdout = tf.where(self._holdout_id, 0.0, y_pred)
+      if holdout_id is not None:
+        y_pred_holdout = tf.where(holdout_id, 0.0, y_pred)
         test_sd = tf.cast(1.0 / np.sqrt(2.0 * np.pi), tf.float32)
-        sigma_gt_holdout = tf.where(self._holdout_id, test_sd, sigma_gt)
+        sigma_gt_holdout = tf.where(holdout_id, test_sd, sigma_gt)
         yield tfp.distributions.Normal(
             y_pred_holdout, sigma_gt_holdout, name="y"
         )
@@ -1037,8 +1062,8 @@ class Meridian:
 
   def _get_joint_dist(self) -> tfp.distributions.Distribution:
     y = (
-        tf.where(self._holdout_id, 0.0, self.kpi_scaled)
-        if self._holdout_id is not None
+        tf.where(self.holdout_id, 0.0, self.kpi_scaled)
+        if self.holdout_id is not None
         else self.kpi_scaled
     )
     return self._get_joint_dist_unpinned().experimental_pin(y=y)
@@ -1063,7 +1088,7 @@ class Meridian:
         constants.GEO: self.input_data.geo,
         constants.TIME: self.input_data.time,
         constants.MEDIA_TIME: self.input_data.media_time,
-        constants.KNOTS: np.arange(self._knot_info.n_knots),
+        constants.KNOTS: np.arange(self.knot_info.n_knots),
         constants.CONTROL_VARIABLE: self.input_data.control_variable,
         constants.MEDIA_CHANNEL: media_channel_values,
         constants.RF_CHANNEL: rf_channel_values,
@@ -1099,7 +1124,7 @@ class Meridian:
       n_media_channels] or [n_draws, n_media_channels] containing the
       samples.
     """
-    prior = self._prior_broadcast
+    prior = self.prior_broadcast
     sample_shape = [1, n_draws]
     sample_kwargs = {constants.SAMPLE_SHAPE: sample_shape, constants.SEED: seed}
     media_vars = {
@@ -1162,7 +1187,7 @@ class Meridian:
       A mapping of RF parameter names to a tensor of shape [n_draws, n_geos,
       n_rf_channels] or [n_draws, n_rf_channels] containing the samples.
     """
-    prior = self._prior_broadcast
+    prior = self.prior_broadcast
     sample_shape = [1, n_draws]
     sample_kwargs = {constants.SAMPLE_SHAPE: sample_shape, constants.SEED: seed}
     rf_vars = {
@@ -1220,7 +1245,7 @@ class Meridian:
     # random numbers that are generated are deterministic.
     if seed is not None:
       tf.keras.utils.set_random_seed(1)
-    prior = self._prior_broadcast
+    prior = self.prior_broadcast
     sample_shape = [1, n_draws]
     sample_kwargs = {constants.SAMPLE_SHAPE: sample_shape, constants.SEED: seed}
 
@@ -1232,14 +1257,14 @@ class Meridian:
         constants.SIGMA: prior.sigma.sample(**sample_kwargs),
         constants.TAU_G: _get_tau_g(
             tau_g_excl_baseline=tau_g_excl_baseline,
-            baseline_geo_idx=self._baseline_geo_idx,
+            baseline_geo_idx=self.baseline_geo_idx,
         ).sample(),
     }
     base_vars[constants.TAU_T] = tfp.distributions.Deterministic(
         tf.einsum(
             "...k,kt->...t",
             base_vars[constants.KNOT_VALUES],
-            tf.convert_to_tensor(self._knot_info.weights),
+            tf.convert_to_tensor(self.knot_info.weights),
         ),
         name=constants.TAU_T,
     ).sample()
@@ -1284,7 +1309,7 @@ class Meridian:
     prior_inference_data = az.convert_to_inference_data(
         prior_draws, coords=prior_coords, dims=prior_dims, group=constants.PRIOR
     )
-    self._inference_data.extend(prior_inference_data, join="right")
+    self.inference_data.extend(prior_inference_data, join="right")
 
   def sample_posterior(
       self,
@@ -1465,7 +1490,7 @@ class Meridian:
     posterior_inference_data = az.concat(
         infdata_posterior, infdata_trace, infdata_sample_stats
     )
-    self._inference_data.extend(posterior_inference_data, join="right")
+    self.inference_data.extend(posterior_inference_data, join="right")
 
 
 def save_mmm(mmm: Meridian, file_path: str):

@@ -181,6 +181,10 @@ class Analyzer:
 
   def __init__(self, meridian: model.Meridian):
     self._meridian = meridian
+    # Make the meridian object ready for methods in this analyzer that create
+    # tf.function computation graphs: it should be frozen for no more internal
+    # states mutation before those graphs execute.
+    self._meridian.populate_cached_properties()
 
   @tf.function(jit_compile=True)
   def _get_kpi_means(
