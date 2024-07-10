@@ -2146,7 +2146,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     cls.analyzer_kpi = analyzer.Analyzer(cls.meridian_kpi)
     inference_data = _build_inference_data(
         _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
-        _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
+        _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH,
     )
     cls.enter_context(
         mock.patch.object(
