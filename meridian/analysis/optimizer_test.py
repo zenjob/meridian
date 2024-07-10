@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Optimization tests using mocked data.
+
+The unit tests generally follow this procedure:
+1) Load InferenceData MCMC results from disk.
+2) Run an optimization scenario based on the InferenceData.
+3) Compare optimizaton results against the values in the constants below. These
+  values are obtained from a previous optimization run that is assumed to be
+  correct.
+"""
 from collections.abc import Mapping
 import os
 import tempfile
@@ -42,12 +51,17 @@ import xarray as xr
 
 mock = absltest.mock
 
+
 # Path to the stored inference data generated with
 # .../google_internal/generate_test_data.ipynb
 _TEST_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'model', 'test_data'
 )
 # Constants below are used for mocking, the values are based on the test data.
+
+# Expected incremental revenue under the actual historical budget scenario,
+# where the model contains both R&F and non-R&F channels. The name
+# "nonoptimized" refers to an attribute name of the Optimizer class.
 _NONOPTIMIZED_INCREMENTAL_IMPACT = np.array(
     [335.65, 531.11, 791.67, 580.1, 242.4]
 )
@@ -58,7 +72,11 @@ _NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [580.1, 580.1, 580.1],
     [242.4, 242.4, 242.4],
 ])
+# Actual historical spend. The name "nonoptimized" refers to an attribute name
+# of the Optimizer class.
 _NONOPTIMIZED_SPEND = np.array([294.0, 279.0, 256.0, 272.0, 288.0])
+# Correct incremental impact for a fixed budget scenario, where the model
+# contains both R&F and non-R&F channels.
 _OPTIMIZED_INCREMENTAL_IMPACT = np.array([528.7, 648.4, 427.4, 1178.6, 889.0])
 _OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [528.7, 528.7, 528.7],
@@ -67,10 +85,20 @@ _OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [1178.6, 1178.6, 1178.6],
     [889.0, 889.0, 889.0],
 ])
+# Correct optimal spend allocation for fixed budget scenario, where the model
+# contains both R&F and non-R&F channels.
 _OPTIMIZED_SPEND = np.array([233.0, 222.0, 206.0, 354.0, 374.0])
+# Correct optimal spend allocation for fixed budget scenario, where the model
+# contains only non-R&F channels.
 _OPTIMIZED_MEDIA_ONLY_SPEND = np.array([289.0, 278.0, 262.0])
+# Correct optimal spend allocation for fixed budget scenario, where the model
+# contains only R&F channels.
 _OPTIMIZED_RF_ONLY_SPEND = np.array([354.0, 206.0])
+# Correct optimal spend allocation for a flexible budget optimization scenario
+# using a target mROI value.
 _TARGET_MROI_SPEND = np.array([0.0, 0.0, 0.0, 544.0, 576.0])
+# Correct optimal spend allocation for a flexible budget optimization scenario
+# using a target ROI value.
 _TARGET_ROI_SPEND = np.array([588.0, 558.0, 512.0, 544.0, 576.0])
 # Currently zero due to numerator being zero with mocked constant inc_impact
 _BUDGET_MROI_WITH_CI = np.array(
