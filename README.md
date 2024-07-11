@@ -72,7 +72,7 @@ started quickly with using Meridian:
 | [Getting started colab][3]  | Install and quickly learn how to use Meridian with this colab tutorial using sample data. |
 | [User guide][4]             | A detailed walk-through of how to use Meridian and generating visualizations using your own data. |
 | [Advanced modeling considerations][5]    | Advanced modeling guidance for model refinement and edge cases. |
-| [Model debugging and troubleshooting][6] | Guidance for coding errors, model debugging, and troubleshooting. |
+| [Post-modeling][6]          | Post-modeling guidance for model fit, visualizations, optimizations, refreshing the model, and debugging. |
 | [Migrate from LMMM][7]      | Learn about the differences between Meridian and LightweightMMM as you consider migrating. |
 | [API Reference][8]          | API reference documentation for the Meridian package. |
 | [Reference list][9]         | White papers and other referenced material.    |
@@ -81,8 +81,8 @@ started quickly with using Meridian:
 [2]: https://developers.google.com/meridian/docs/basics/about-the-project
 [3]: https://developers.google.com/meridian/notebook/meridian-getting-started
 [4]: https://developers.google.com/meridian/docs/user-guide/installing
-[5]: https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#assessing-model-fit
-[6]: https://developers.google.com/meridian/docs/advanced-modeling/additional-considerations#model_debugging
+[5]: https://developers.google.com/meridian/docs/advanced-modeling/control-variables
+[6]: https://developers.google.com/meridian/docs/advanced-modeling/model-fit
 [7]: https://developers.google.com/meridian/docs/migrate
 [8]: https://developers.google.com/meridian/reference/api/meridian
 [9]: https://developers.google.com/meridian/docs/reference-list
