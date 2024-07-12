@@ -878,40 +878,71 @@ def generate_optimal_frequency_data(
       1, 1, size=(len(frequency), len(rf_channel), len(metric))
   )
   optimal_frequency = np.random.lognormal(1, 1, size=(len(rf_channel)))
-  optimal_effectiveness = np.random.lognormal(
+  optimized_effectiveness = np.random.lognormal(
       1, 1, size=(len(rf_channel), len(metric))
   )
-  optimal_incremental_impact = np.random.lognormal(
+  optimized_incremental_impact = np.random.lognormal(
       1, 1, size=(len(rf_channel), len(metric))
   )
-  optimal_pct_of_contribution = np.random.lognormal(
+  optimized_pct_of_contribution = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
+  optimized_roi = np.random.lognormal(1, 1, size=(len(rf_channel), len(metric)))
+  optimized_mroi_by_reach = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
+  optimized_mroi_by_frequency = np.random.lognormal(
+      1, 1, size=(len(rf_channel), len(metric))
+  )
+  optimized_cpik = np.random.lognormal(
       1, 1, size=(len(rf_channel), len(metric))
   )
 
   metric_name = c.ROI if use_roi else c.CPIK
+  data_vars = {
+      metric_name: (
+          [c.FREQUENCY, c.RF_CHANNEL, c.METRIC],
+          metric_by_frequency,
+      ),
+      c.OPTIMAL_FREQUENCY: (
+          [c.RF_CHANNEL],
+          optimal_frequency,
+      ),
+      c.OPTIMIZED_EFFECTIVENESS: (
+          [c.RF_CHANNEL, c.METRIC],
+          optimized_effectiveness,
+      ),
+      c.OPTIMIZED_INCREMENTAL_IMPACT: (
+          [c.RF_CHANNEL, c.METRIC],
+          optimized_incremental_impact,
+      ),
+      c.OPTIMIZED_PCT_OF_CONTRIBUTION: (
+          [c.RF_CHANNEL, c.METRIC],
+          optimized_pct_of_contribution,
+      ),
+  }
+
+  if use_roi:
+    data_vars[c.OPTIMIZED_ROI] = (
+        (c.RF_CHANNEL, c.METRIC),
+        optimized_roi,
+    )
+    data_vars[c.OPTIMIZED_MROI_BY_REACH] = (
+        (c.RF_CHANNEL, c.METRIC),
+        optimized_mroi_by_reach,
+    )
+    data_vars[c.OPTIMIZED_MROI_BY_FREQUENCY] = (
+        (c.RF_CHANNEL, c.METRIC),
+        optimized_mroi_by_frequency,
+    )
+  else:
+    data_vars[c.OPTIMIZED_CPIK] = (
+        (c.RF_CHANNEL, c.METRIC),
+        optimized_cpik,
+    )
+
   return xr.Dataset(
-      data_vars={
-          metric_name: (
-              [c.FREQUENCY, c.RF_CHANNEL, c.METRIC],
-              metric_by_frequency,
-          ),
-          c.OPTIMAL_FREQUENCY: (
-              [c.RF_CHANNEL],
-              optimal_frequency,
-          ),
-          c.OPTIMAL_EFFECTIVENESS: (
-              [c.RF_CHANNEL, c.METRIC],
-              optimal_effectiveness,
-          ),
-          c.OPTIMAL_INCREMENTAL_IMPACT: (
-              [c.RF_CHANNEL, c.METRIC],
-              optimal_incremental_impact,
-          ),
-          c.OPTIMAL_PCT_OF_CONTRIBUTION: (
-              [c.RF_CHANNEL, c.METRIC],
-              optimal_pct_of_contribution,
-          ),
-      },
+      data_vars=data_vars,
       coords={
           c.FREQUENCY: frequency,
           c.RF_CHANNEL: rf_channel,
