@@ -21,6 +21,7 @@ The unit tests generally follow this procedure:
   values are obtained from a previous optimization run that is assumed to be
   correct.
 """
+
 from collections.abc import Mapping
 import os
 import tempfile
@@ -215,6 +216,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   # TODO(b/302713435): Update the sample datasets to span over 1 year.
   def setUp(self):
     super(OptimizerAlgorithmTest, self).setUp()
+
     self.input_data_media_and_rf = (
         data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=_N_GEOS,
@@ -873,38 +875,42 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       dict(
           testcase_name='optimal_frequency',
           expected_incremental_impact=np.array([
-              [492.7, 109.0, 1446.7],
-              [997.6, 105.1, 2916.5],
-              [371.8, 68.4, 884.3],
-              [1060.1, 167.5, 3775.0],
-              [929.2, 159.3, 3520.5],
+              [236.076, 58.012, 424.930],
+              [410.907, 163.526, 672.655],
+              [86.256, 42.073, 133.431],
+              [1619.135, 567.352, 2663.730],
+              [2493.011, 645.398, 4406.364],
           ]),
-          expected_spend=np.array([206.0, 276.0, 179.0, 354.0, 374.0]),
+          expected_spend=np.array(
+              [206.0, 276.0, 179.0, 354.0, 374.0], dtype=np.float32
+          ),
           expected_mroi=np.array([
-              [1.325, 0.191, 4.342],
-              [1.932, 0.208, 5.986],
-              [1.175, 0.183, 3.125],
-              [2.995, 0.473, 10.663],
-              [2.484, 0.426, 9.413],
+              [1.019, 0.247, 1.837],
+              [1.192, 0.327, 2.103],
+              [0.380, 0.168, 0.604],
+              [4.573, 1.602, 7.524],
+              [6.665, 1.725, 11.781],
           ]),
           use_optimal_frequency=True,
       ),
       dict(
           testcase_name='historical_frequency',
           expected_incremental_impact=np.array([
-              [507.0, 111.0, 1493.7],
-              [1147.4, 121.1, 3380.3],
-              [371.8, 68.4, 884.3],
-              [585.6, 93.5, 1999.5],
-              [351.3, 78.6, 951.2],
+              [236.076, 58.012, 424.930],
+              [447.231, 173.279, 736.961],
+              [86.256, 42.073, 133.431],
+              [371.527, 154.408, 587.871],
+              [595.45, 210.373, 995.229],
           ]),
-          expected_spend=np.array([217.0, 363.0, 179.0, 354.0, 276.0]),
+          expected_spend=np.array(
+              [206.0, 307.0, 179.0, 323.0, 374.0], dtype=np.float32
+          ),
           expected_mroi=np.array([
-              [1.269, 0.179, 4.174],
-              [1.523, 0.160, 4.711],
-              [1.175, 0.183, 3.125],
-              [1.654, 0.264, 5.648],
-              [1.272, 0.285, 3.446],
+              [1.019, 0.247, 1.837],
+              [1.147, 0.299, 2.040],
+              [0.380, 0.168, 0.604],
+              [1.150, 0.478, 1.820],
+              [1.592, 0.562, 2.661],
           ]),
           use_optimal_frequency=False,
       ),

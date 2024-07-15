@@ -372,7 +372,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           expected_mroi=test_utils.MROI_MEDIA_AND_RF_USE_POSTERIOR_BY_REACH,
       ),
   )
-  def test_marginal_roi_media_and_rf_use_prior(
+  def test_marginal_roi_media_and_rf(
       self,
       use_posterior: bool,
       by_reach: bool,
@@ -756,35 +756,38 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
                 [  # rf_ch_0.           # rf_ch_1
-                    [[2.66, 0.14, 10.37], [2.14, 0.22, 8.08]],  # freq=1.0
-                    [[2.98, 0.47, 10.30], [2.36, 0.40, 8.20]],  # freq=2.0
-                    [[2.67, 0.40, 9.00], [2.03, 0.38, 6.09]],  # freq=3.0
+                    [[4.57, 1.60, 7.52], [6.60, 1.69, 11.70]],  # freq=1.0
+                    [[2.47, 0.97, 3.97], [3.66, 1.09, 6.32]],  # freq=2.0
+                    [[1.72, 0.71, 2.73], [2.53, 0.82, 4.30]],  # freq=3.0
                 ],
             ),
-            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 2.0]),
+            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[449.5, 71.9, 1537.3], [362.5, 81.7, 972.7]],
+                [[313.0, 130.1, 495.3], [454.7, 159.1, 761.4]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.00031, 0.00005, 0.00105], [0.00025, 0.00006, 0.00066]],
+                [
+                    [0.000427, 0.000177, 0.000676],
+                    [0.000618, 0.000216, 0.001036],
+                ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[2.27, 0.36, 7.77], [1.83, 0.41, 4.92]],
+                [[1.44, 0.59, 2.27], [2.09, 0.73, 3.50]],
             ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.65, 0.26, 5.65], [1.26, 0.28, 3.38]],
+                [[1.150, 0.478, 1.819], [1.579, 0.552, 2.644]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.65, 0.26, 5.65], [1.26, 0.28, 3.38]],
+                [[1.150, 0.478, 1.819], [1.579, 0.552, 2.645]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.60, 0.10, 2.09], [0.44, 0.06, 1.29]],
+                [[0.118, 0.095, 0.139], [0.152, 0.141, 0.164]],
             ),
         },
         attrs={
@@ -1974,35 +1977,35 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
                 [  # rf_ch_0.           # rf_ch_1
-                    [[1.37, 0.45, 4.93], [15.01, 0.70, 26.81]],  # freq=1.0
-                    [[1.44, 0.28, 5.30], [9.24, 0.71, 15.05]],  # freq=2.0
-                    [[1.32, 0.21, 4.18], [6.81, 0.62, 10.70]],  # freq=3.0
+                    [[3.34, 0.20, 10.17], [7.15, 0.42, 13.10]],  # freq=1.0
+                    [[4.76, 0.66, 10.79], [4.83, 1.13, 7.86]],  # freq=2.0
+                    [[4.87, 1.17, 9.60], [3.72, 1.47, 5.71]],  # freq=3.0
                 ],
             ),
-            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 1.0]),
+            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [3.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[236.1, 37.4, 749.3], [1232.2, 115.9, 1933.7]],
+                [[915.6, 380.9, 1647.8], [683.3, 305.7, 1041.2]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.00016, 0.00003, 0.00051], [0.00168, 0.00016, 0.00263]],
+                [[0.000416, 0.000173, 0.000749], [0.000930, 0.000416, 0.00141]],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.0028, 0.0004, 0.0090], [0.0148, 0.0014, 0.0233]],
+                [[0.01113, 0.00463, 0.02003], [0.00830, 0.00371, 0.01266]],
             ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.87, 0.14, 2.75], [4.28, 0.40, 6.72]],
+                [[3.364, 1.399, 6.054], [2.373, 1.062, 3.616]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.87, 0.14, 2.75], [4.28, 0.41, 6.72]],
+                [[3.365, 1.401, 6.051], [2.373, 1.062, 3.620]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.36, 0.03, 1.50], [0.72, 0.13, 1.27]],
+                [[1.685, 1.187, 2.851], [0.566, 0.288, 0.714]],
             ),
         },
         attrs={
@@ -2337,34 +2340,31 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         data_vars={
             constants.CPIK: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [  # rf_ch_0.           # rf_ch_1
-                    [[6.12, 0.31, 22.07], [5.49, 0.38, 15.22]],  # freq=1.0
-                    [[2.91, 0.31, 6.81], [3.05, 0.38, 7.92]],  # freq=2.0
-                    [[3.06, 0.35, 7.92], [3.19, 0.50, 8.16]],  # freq=3.0
+                [  # rf_ch_0.             # rf_ch_1
+                    [[1.166, 0.417, 1.959], [1.041, 0.266, 1.819]],  # freq=1.0
+                    [[1.984, 0.790, 3.214], [1.650, 0.493, 2.811]],  # freq=2.0
+                    [[2.741, 1.150, 4.361], [2.218, 0.724, 3.716]],  # freq=3.0
                 ],
             ),
-            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [2.0, 2.0]),
+            constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[143.4, 22.9, 489.58], [116.68, 26.1, 315.95]],
+                [[99.699, 41.435, 157.754], [145.965, 51.569, 243.965]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000098, 0.000016, 0.000334],
-                    [0.000079, 0.000018, 0.000215],
+                    [1.360e-04, 5.655e-05, 2.153e-04],
+                    [1.986e-04, 7.019e-05, 3.320e-04],
                 ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [2.27618456, 0.36342679, 7.77129681],
-                    [1.85218358, 0.41425719, 5.01525257],
-                ],
+                [[1.43945, 0.59824, 2.27765], [2.10744, 0.74456, 3.52236]],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[5.05, 0.56, 11.93], [5.01, 0.92, 11.05]],
+                [[4.123, 1.725, 6.568], [3.378, 1.179, 5.582]],
             ),
         },
         attrs={
