@@ -38,6 +38,8 @@ __all__ = [
     "MCMCOOMError",
     "Meridian",
     "NotFittedModelError",
+    "save_mmm",
+    "load_mmm",
 ]
 
 
@@ -1341,6 +1343,10 @@ class Meridian:
 def save_mmm(mmm: Meridian, file_path: str):
   """Save the model object to a `pickle` file path.
 
+  WARNING: There is no guarantee for future compaibility of the binary file
+  output of this function. It is recommended to use `load_mmm()` with the same
+  version of the library that was used to save the model.
+
   Args:
     mmm: Model object to save.
     file_path: File path to save a pickled model object.
@@ -1354,6 +1360,10 @@ def save_mmm(mmm: Meridian, file_path: str):
 
 def load_mmm(file_path: str) -> Meridian:
   """Load the model object from a `pickle` file path.
+
+  WARNING: There is no guarantee for backward compatibility of the binary file
+  input of this function. It is recommended to use `load_mmm()` with the same
+  version of the library that was used to save the model's pickleed file.
 
   Args:
     file_path: File path to load a pickled model object from.
