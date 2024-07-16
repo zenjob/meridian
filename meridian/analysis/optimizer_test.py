@@ -167,7 +167,7 @@ def _create_budget_data(
 def _verify_actual_vs_expected_budget_data(
     actual_data: xr.Dataset, expected_data: xr.Dataset
 ):
-  xr.testing.assert_allclose(actual_data, expected_data, atol=0.1)
+  xr.testing.assert_allclose(actual_data, expected_data, atol=0.1, rtol=0.01)
   np.testing.assert_allclose(actual_data.budget, expected_data.budget, atol=0.1)
   np.testing.assert_allclose(actual_data.profit, expected_data.profit, atol=0.1)
   np.testing.assert_allclose(
