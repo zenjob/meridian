@@ -332,6 +332,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           fixed_budget=True, target_roi=1.2
       )
 
+  def test_fixed_budget_target_mroi_raises_exception(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        '`target_mroi` is only used for flexible budget scenarios.',
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=True, target_mroi=1.2
+      )
+
   def test_fixed_budget_negative_budget_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
@@ -348,6 +357,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     ):
       self.budget_optimizer_media_and_rf.optimize(
           fixed_budget=False, budget=10000
+      )
+
+  def test_flexible_budget_without_targets_raises_exception(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Must specify either `target_roi` or `target_mroi`',
+    ):
+      self.budget_optimizer_media_and_rf.optimize(fixed_budget=False)
+
+  def test_flexible_budget_with_multiple_targets_raises_exception(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Must specify only one of `target_roi` or `target_mroi`',
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=False,
+          target_roi=1.2,
+          target_mroi=1.2,
       )
 
   def test_pct_of_spend_incorrect_length_raises_exception(self):

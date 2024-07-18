@@ -107,7 +107,6 @@ def _exceeds_optimization_constraints(
     bool indicating whether optimal spend and incremental impact have been
       found, given the optimization constraints.
   """
-  target_mroi = target_mroi or 1.0
   if fixed_budget:
     return np.sum(spend) > budget
   elif target_roi is not None:
@@ -308,7 +307,7 @@ class BudgetOptimizer:
       raise model.NotFittedModelError(
           'Running budget optimization scenarios requires fitting the model.'
       )
-    self._validate_budget(fixed_budget, budget, target_roi)
+    self._validate_budget(fixed_budget, budget, target_roi, target_mroi)
     self._use_optimal_frequency = use_optimal_frequency
     selected_time_dims = self._get_selected_time_dims(selected_times)
     hist_spend = self._get_hist_spend(selected_time_dims)
@@ -863,19 +862,37 @@ class BudgetOptimizer:
     return sorted_df
 
   def _validate_budget(
-      self, fixed_budget: bool, budget: float | None, target_roi: float | None
+      self,
+      fixed_budget: bool,
+      budget: float | None,
+      target_roi: float | None,
+      target_mroi: float | None,
   ):
-    """Validates the budget scenario requirements."""
+    """Validates the budget optimization arguments."""
     if fixed_budget:
-      if target_roi:
+      if target_roi is not None:
         raise ValueError(
             '`target_roi` is only used for flexible budget scenarios.'
         )
-      if budget and budget <= 0:
+      if target_mroi is not None:
+        raise ValueError(
+            '`target_mroi` is only used for flexible budget scenarios.'
+        )
+      if budget is not None and budget <= 0:
         raise ValueError('`budget` must be greater than zero.')
     else:
-      if budget:
+      if budget is not None:
         raise ValueError('`budget` is only used for fixed budget scenarios.')
+      if target_roi is None and target_mroi is None:
+        raise ValueError(
+            'Must specify either `target_roi` or `target_mroi` for flexible'
+            ' budget optimization.'
+        )
+      if target_roi is not None and target_mroi is not None:
+        raise ValueError(
+            'Must specify only one of `target_roi` or `target_mroi` for'
+            'flexible budget optimization.'
+        )
 
   def _get_selected_time_dims(
       self, selected_times: tuple[str, str] | None
@@ -1186,16 +1203,14 @@ class BudgetOptimizer:
         (same constraint for all media) indicating the lower bound of
         media-level spend. The lower bound of media-level spend is `(1 -
         spend_constraint_lower) * budget * allocation)`. The value must be
-        between 0-1. Defaults to 0.3 for fixed budget and 1 for flexible.
+        between 0-1.
       spend_constraint_upper: Numeric list of size `n_total_channels` or float
         (same constraint for all media) indicating the upper bound of
         media-level spend. The upper bound of media-level spend is `(1 +
-        spend_constraint_upper) * budget * allocation)`. Defaults to 0.3 for
-        fixed budget and 1 for flexible.
+        spend_constraint_upper) * budget * allocation)`.
       round_factor: Integer number of digits to round optimization bounds.
       fixed_budget: Boolean indicating whether it's a fixed budget optimization
-        or flexible budget optimization. Defaults to True. If False, must
-        specify either `target_roi` or `target_mroi`.
+        or flexible budget optimization.
 
     Returns:
       lower_bound: np.ndarray of size `n_total_channels` containing the lower
