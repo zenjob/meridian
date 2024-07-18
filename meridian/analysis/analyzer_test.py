@@ -854,6 +854,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     predictive_accuracy_dataset = (
         self.analyzer_media_and_rf.predictive_accuracy()
     )
+
     self.assertListEqual(
         list(predictive_accuracy_dataset[constants.METRIC].values),
         [constants.R_SQUARED, constants.MAPE, constants.WMAPE],
@@ -1005,6 +1006,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="default",
+          aggregate_geos=False,
+          aggregate_times=False,
           holdout_id=None,
           split_by_holdout_id=False,
           expected_shape=(
@@ -1012,9 +1015,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
               _N_TIMES,
               3,  # [mean, ci_lo, ci_hi]
           ),
+          expected_actual_shape=(_N_GEOS, _N_TIMES),
       ),
       dict(
           testcase_name="split_by_holdout_id_true_wo_holdout_id",
+          aggregate_geos=False,
+          aggregate_times=False,
           holdout_id=None,
           split_by_holdout_id=True,
           expected_shape=(
@@ -1022,9 +1028,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
               _N_TIMES,
               3,  # [mean, ci_lo, ci_hi]
           ),
+          expected_actual_shape=(_N_GEOS, _N_TIMES),
       ),
       dict(
           testcase_name="split_by_holdout_id_true_w_holdout_id",
+          aggregate_geos=False,
+          aggregate_times=False,
           holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
           split_by_holdout_id=True,
           expected_shape=(
@@ -1033,9 +1042,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
               3,  # [mean, ci_lo, ci_hi]
               3,  # [train, test, all]
           ),
+          expected_actual_shape=(_N_GEOS, _N_TIMES),
       ),
       dict(
           testcase_name="split_by_holdout_id_false_w_holdout_id",
+          aggregate_geos=False,
+          aggregate_times=False,
           holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
           split_by_holdout_id=False,
           expected_shape=(
@@ -1043,13 +1055,88 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
               _N_TIMES,
               3,  # [mean, ci_lo, ci_hi]
           ),
+          expected_actual_shape=(_N_GEOS, _N_TIMES),
+      ),
+      dict(
+          testcase_name="aggregate_geos_wo_split",
+          aggregate_geos=True,
+          aggregate_times=False,
+          holdout_id=None,
+          split_by_holdout_id=False,
+          expected_shape=(
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+          ),
+          expected_actual_shape=(_N_TIMES,),
+      ),
+      dict(
+          testcase_name="aggregate_geos_w_split",
+          aggregate_geos=True,
+          aggregate_times=False,
+          holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
+          split_by_holdout_id=True,
+          expected_shape=(
+              _N_TIMES,
+              3,  # [mean, ci_lo, ci_hi]
+              3,  # [train, test, all]
+          ),
+          expected_actual_shape=(_N_TIMES,),
+      ),
+      dict(
+          testcase_name="aggregate_times_wo_split",
+          aggregate_geos=False,
+          aggregate_times=True,
+          holdout_id=None,
+          split_by_holdout_id=False,
+          expected_shape=(
+              _N_GEOS,
+              3,  # [mean, ci_lo, ci_hi]
+          ),
+          expected_actual_shape=(_N_GEOS,),
+      ),
+      dict(
+          testcase_name="aggregate_times_w_split",
+          aggregate_geos=False,
+          aggregate_times=True,
+          holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
+          split_by_holdout_id=True,
+          expected_shape=(
+              _N_GEOS,
+              3,  # [mean, ci_lo, ci_hi]
+              3,  # [train, test, all]
+          ),
+          expected_actual_shape=(_N_GEOS,),
+      ),
+      dict(
+          testcase_name="aggregate_geos_and_times_wo_split",
+          aggregate_geos=True,
+          aggregate_times=True,
+          holdout_id=None,
+          split_by_holdout_id=False,
+          expected_shape=(3,),  # [mean, ci_lo, ci_hi]
+          expected_actual_shape=(),
+      ),
+      dict(
+          testcase_name="aggregate_geos_and_times_w_split",
+          aggregate_geos=True,
+          aggregate_times=True,
+          holdout_id=np.random.choice([True, False], size=(_N_GEOS, _N_TIMES)),
+          split_by_holdout_id=True,
+          expected_shape=(
+              3,  # [mean, ci_lo, ci_hi]
+              3,  # [train, test, all]
+          ),
+          expected_actual_shape=(),
       ),
   )
   def test_expected_vs_actual_correct_data(
       self,
+      aggregate_geos: bool,
+      aggregate_times: bool,
       holdout_id: np.ndarray | None,
       split_by_holdout_id: bool,
       expected_shape: tuple[int, ...],
+      expected_actual_shape: tuple[int, ...],
   ):
     model_spec = spec.ModelSpec(holdout_id=holdout_id)
     meridian = model.Meridian(
@@ -1058,15 +1145,36 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     meridian_analyzer = analyzer.Analyzer(meridian)
 
     ds = meridian_analyzer.expected_vs_actual_data(
-        split_by_holdout_id=split_by_holdout_id
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        split_by_holdout_id=split_by_holdout_id,
     )
 
-    self.assertListEqual(
-        list(ds.geo.values), list(self.input_data_media_and_rf.geo.values)
+    expected_actual_values = (
+        meridian.kpi
+        if self.input_data_media_and_rf.revenue_per_kpi is None
+        else meridian.kpi * self.input_data_media_and_rf.revenue_per_kpi
+    )  # shape (n_geos, n_times)
+
+    axis_to_sum = tuple(
+        ([0] if aggregate_geos else []) + ([1] if aggregate_times else [])
     )
-    self.assertListEqual(
-        list(ds.time.values), list(self.input_data_media_and_rf.time.values)
-    )
+    expected_actual_values = np.sum(expected_actual_values, axis=axis_to_sum)
+
+    if aggregate_geos:
+      self.assertNotIn(constants.GEO, ds.coords)
+    else:
+      self.assertListEqual(
+          list(ds.geo.values), list(self.input_data_media_and_rf.geo.values)
+      )
+
+    if aggregate_times:
+      self.assertNotIn(constants.TIME, ds.coords)
+    else:
+      self.assertListEqual(
+          list(ds.time.values), list(self.input_data_media_and_rf.time.values)
+      )
+
     self.assertListEqual(
         list(ds.metric.values),
         [constants.MEAN, constants.CI_LO, constants.CI_HI],
@@ -1074,7 +1182,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertEqual(ds.expected.shape, expected_shape)
     self.assertEqual(ds.baseline.shape, expected_shape)
-    self.assertEqual(ds.actual.shape, (_N_GEOS, _N_TIMES))
+    self.assertEqual(ds.actual.shape, expected_actual_shape)
     self.assertEqual(ds.confidence_level, 0.9)
 
     np.testing.assert_array_less(
@@ -1097,8 +1205,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
     # Test the math for a sample of the actual impact metrics.
     self.assertAllClose(
-        list(ds.actual.values[0, :5]),
-        [178.26823, 121.92347, 164.19545, 27.069845, 176.33078],
+        ds.actual.values,
+        expected_actual_values,
         atol=1e-5,
     )
 

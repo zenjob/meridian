@@ -40,11 +40,12 @@ def get_mean_and_ci(
     confidence_level: float,
     axis: tuple[int, ...] = (0, 1),
 ) -> np.ndarray:
-  """Computes mean and confidence intervals for the given data.
+  """Calculates mean and confidence intervals for the given data.
 
   Args:
     data: Data for the metric.
-    confidence_level: The threshold for computing the confidence intervals.
+    confidence_level: Confidence level for computing credible intervals,
+      represented as a value between zero and one.
     axis: Axis or axes along which the mean and quantiles are computed.
 
   Returns:
@@ -143,7 +144,7 @@ def _scale_tensors_by_multiplier(
   return scaled_tensors
 
 
-def _mean_and_ci(
+def _mean_and_ci_by_prior_and_posterior(
     prior: tf.Tensor,
     posterior: tf.Tensor,
     metric_name: str,
@@ -151,7 +152,7 @@ def _mean_and_ci(
     xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
     confidence_level: float,
 ) -> xr.Dataset:
-  """Computes mean and confidence intervals for the given metric.
+  """Calculates mean and CI of prior/posterior data for a metric.
 
   Args:
     prior: A tensor with the prior data for the metric.
@@ -159,7 +160,8 @@ def _mean_and_ci(
     metric_name: The name of the input metric for the compuations.
     xr_dims: A list of dimensions for the output dataset.
     xr_coords: A dictionary with the coordinates for the output dataset.
-    confidence_level: The threshold for computing the confidence intervals.
+    confidence_level: Confidence level for computing credible intervals,
+      represented as a value between zero and one.
 
   Returns:
     An xarray Dataset containing mean and confidence intervals for prior and
@@ -291,7 +293,8 @@ class Analyzer:
       l_range: The range of time across which the adstock effect is computed.
       xr_dims: A list of dimensions for the output dataset.
       xr_coords: A dictionary with the coordinates for the output dataset.
-      confidence_level: The threshold for computing the confidence intervals.
+      confidence_level: Confidence level for computing credible intervals,
+        represented as a value between zero and one.
 
     Returns:
       Pandas DataFrame containing the channel, time_units, distribution, ci_hi,
@@ -324,7 +327,7 @@ class Analyzer:
     decayed_effect_posterior_transpose = tf.transpose(
         decayed_effect_posterior, perm=[1, 2, 0, 3]
     )
-    adstock_dataset = _mean_and_ci(
+    adstock_dataset = _mean_and_ci_by_prior_and_posterior(
         decayed_effect_prior_transpose,
         decayed_effect_posterior_transpose,
         constants.EFFECT,
@@ -1529,32 +1532,63 @@ class Analyzer:
       numerator = cpik_spend
     return tf.math.divide_no_nan(numerator, incremental_kpi)
 
-  def _calculate_mean_and_ci_by_dataset(
+  def _mean_and_ci_by_eval_set(
       self,
-      tensor: tf.Tensor,
+      draws: tf.Tensor,
       confidence_level: float,
       split_by_holdout: bool,
+      aggregate_geos: bool,
+      aggregate_times: bool,
   ) -> np.ndarray:
-    """Calculates the mean and ci and splits the tensor by holdout_id if needed."""
-    if not split_by_holdout:
-      return get_mean_and_ci(tensor, confidence_level=confidence_level)
+    """Calculates the mean and CI of `draws`, split by `holdout_id` if needed.
 
-    train = get_mean_and_ci(
-        np.where(self._meridian.model_spec.holdout_id, np.nan, tensor),
-        confidence_level=confidence_level,
+    Args:
+      draws: A tensor of a set of draws with dimensions `(n_chains, n_draws,
+        n_geos, n_times)`.
+      confidence_level: Confidence level for computing credible intervals,
+        represented as a value between zero and one.
+      split_by_holdout: Boolean. If `True` and `holdout_id` exists, the data is
+        split into `'Train'`, `'Test'`, and `'All Data'` subsections.
+      aggregate_geos: If `True`, the draws tensor is summed over all regions.
+      aggregate_times: If `True`, the draws tensor is summed over all times.
+
+    Returns:
+      The mean and CI of the draws with dimensions that could be
+       * `(n_geos, n_times, n_metrics, n_evaluation_sets)` if
+       `split_by_holdout=True`, and no aggregations.
+       * `(n_geos, n_times, n_metrics)` if `split_by_holdout=False`, and no
+       aggregations.
+       * `(n_metrics, n_evaluation_sets)` if `split_by_holdout=True`, and
+        `aggregate_geos=True` or `aggregate_times=True`.
+       * `(n_metrics)` if `split_by_holdout=False`, and `aggregate_geos=True` or
+        `aggregate_times=True`.
+    """
+
+    if not split_by_holdout:
+      draws = self.filter_and_aggregate_geos_and_times(
+          draws, aggregate_geos=aggregate_geos, aggregate_times=aggregate_times
+      )
+      return get_mean_and_ci(draws, confidence_level=confidence_level)
+
+    train_draws = np.where(self._meridian.model_spec.holdout_id, np.nan, draws)
+    test_draws = np.where(self._meridian.model_spec.holdout_id, draws, np.nan)
+    draws_by_evaluation_set = np.stack(
+        [train_draws, test_draws, draws], axis=0
+    )  # shape (n_evaluation_sets(=3), n_chains, n_draws, n_geos, n_times)
+    draws_by_evaluation_set = self.filter_and_aggregate_geos_and_times(
+        draws_by_evaluation_set,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+    )  # shape (n_evaluation_sets(=3), n_chains, n_draws, ...)
+
+    # The shape of the output from `get_mean_and_ci` is, for example,
+    # (n_evaluation_sets(=3), n_geos, n_times, n_metrics(=3)) if no
+    # aggregations. To get the shape of (n_geos, n_times, n_metrics,
+    # n_evaluation_sets), we need to transpose the output.
+    mean_and_ci = get_mean_and_ci(
+        draws_by_evaluation_set, confidence_level=confidence_level, axis=(1, 2)
     )
-    test = get_mean_and_ci(
-        np.where(self._meridian.model_spec.holdout_id, tensor, np.nan),
-        confidence_level=confidence_level,
-    )
-    return np.stack(
-        [
-            train,
-            test,
-            get_mean_and_ci(tensor, confidence_level=confidence_level),
-        ],
-        axis=-1,
-    )
+    return mean_and_ci.transpose(list(range(1, mean_and_ci.ndim)) + [0])
 
   def _can_split_by_holdout_id(self, split_by_holdout_id: bool) -> bool:
     """Returns whether the data can be split by holdout_id."""
@@ -1568,11 +1602,19 @@ class Analyzer:
     )
 
   def expected_vs_actual_data(
-      self, split_by_holdout_id: bool = False, confidence_level: float = 0.9
+      self,
+      aggregate_geos: bool = False,
+      aggregate_times: bool = False,
+      split_by_holdout_id: bool = False,
+      confidence_level: float = 0.9,
   ) -> xr.Dataset:
     """Calculates the data for the expected versus actual impact over time.
 
     Args:
+      aggregate_geos: Boolean. If `True`, the expected, baseline, and actual are
+        summed over all of the regions.
+      aggregate_times: Boolean. If `True`, the expected, baseline, and actual
+        are summed over all of the time periods.
       split_by_holdout_id: Boolean. If `True` and `holdout_id` exists, the data
         is split into `'Train'`, `'Test'`, and `'All Data'` subsections.
       confidence_level: Confidence level for expected impact credible intervals,
@@ -1587,8 +1629,13 @@ class Analyzer:
     expected_impact = self.expected_impact(
         aggregate_geos=False, aggregate_times=False, use_kpi=use_kpi
     )
-    expected = self._calculate_mean_and_ci_by_dataset(
-        expected_impact, confidence_level, can_split_by_holdout
+
+    expected = self._mean_and_ci_by_eval_set(
+        expected_impact,
+        confidence_level,
+        can_split_by_holdout,
+        aggregate_geos,
+        aggregate_times,
     )
 
     baseline_expected_impact = self.expected_impact(
@@ -1605,43 +1652,53 @@ class Analyzer:
         aggregate_times=False,
         use_kpi=use_kpi,
     )
-    baseline = self._calculate_mean_and_ci_by_dataset(
-        baseline_expected_impact, confidence_level, can_split_by_holdout
+    baseline = self._mean_and_ci_by_eval_set(
+        baseline_expected_impact,
+        confidence_level,
+        can_split_by_holdout,
+        aggregate_geos,
+        aggregate_times,
     )
-    actual = mmm.kpi if use_kpi else mmm.kpi * mmm.revenue_per_kpi
+    actual = np.asarray(
+        self.filter_and_aggregate_geos_and_times(
+            mmm.kpi if use_kpi else mmm.kpi * mmm.revenue_per_kpi,
+            aggregate_geos=aggregate_geos,
+            aggregate_times=aggregate_times,
+        )
+    )
 
+    # Set up the coordinates.
     coords = {
-        constants.GEO: ([constants.GEO], mmm.input_data.geo.data),
-        constants.TIME: ([constants.TIME], mmm.input_data.time.data),
         constants.METRIC: (
             [constants.METRIC],
             [constants.MEAN, constants.CI_LO, constants.CI_HI],
         ),
     }
-    expected_and_baseline_dims = (
-        constants.GEO,
-        constants.TIME,
-        constants.METRIC,
-    )
+
+    if not aggregate_geos:
+      coords[constants.GEO] = ([constants.GEO], mmm.input_data.geo.data)
+    if not aggregate_times:
+      coords[constants.TIME] = ([constants.TIME], mmm.input_data.time.data)
     if can_split_by_holdout:
       coords[constants.EVALUATION_SET_VAR] = (
           [constants.EVALUATION_SET_VAR],
           list(constants.EVALUATION_SET),
       )
-      expected_and_baseline_dims = expected_and_baseline_dims + (
-          constants.EVALUATION_SET_VAR,
-      )
+
+    # Set up the dimensions.
+    actual_dims = ((constants.GEO,) if not aggregate_geos else ()) + (
+        (constants.TIME,) if not aggregate_times else ()
+    )
+    expected_and_baseline_dims = (
+        actual_dims
+        + (constants.METRIC,)
+        + ((constants.EVALUATION_SET_VAR,) if can_split_by_holdout else ())
+    )
 
     data_vars = {
-        constants.EXPECTED: (
-            expected_and_baseline_dims,
-            expected,
-        ),
-        constants.BASELINE: (
-            expected_and_baseline_dims,
-            baseline,
-        ),
-        constants.ACTUAL: ((constants.GEO, constants.TIME), actual),
+        constants.EXPECTED: (expected_and_baseline_dims, expected),
+        constants.BASELINE: (expected_and_baseline_dims, baseline),
+        constants.ACTUAL: (actual_dims, actual),
     }
     attrs = {constants.CONFIDENCE_LEVEL: confidence_level}
 
@@ -1847,7 +1904,7 @@ class Analyzer:
         xr_dims=xr_dims,
         xr_coords=xr_coords,
     )
-    incremental_impact = _mean_and_ci(
+    incremental_impact = _mean_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior,
         posterior=incremental_impact_posterior,
         metric_name=constants.INCREMENTAL_IMPACT,
@@ -2144,7 +2201,7 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
-    """Calculate `R-Squared`, `MAPE`, and `wMAPE` goodness of fit metrics.
+    """Calculates `R-Squared`, `MAPE`, and `wMAPE` goodness of fit metrics.
 
     `R-Squared`, `MAPE` (mean absolute percentage error), and `wMAPE` (weighted
     absolute percentage error) are calculated on the revenue scale
@@ -2749,7 +2806,7 @@ class Analyzer:
         self._meridian.inference_data.posterior[slope].values,
     ).forward(expanded_linspace)[:, :, 0, :, :]
 
-    hill_dataset = _mean_and_ci(
+    hill_dataset = _mean_and_ci_by_prior_and_posterior(
         hill_vals_prior,
         hill_vals_posterior,
         constants.HILL_SATURATION_LEVEL,
@@ -2963,7 +3020,7 @@ class Analyzer:
       spend_with_total: tf.Tensor,
   ) -> xr.Dataset:
     # TODO(b/304834270): Support calibration_period_bool.
-    return _mean_and_ci(
+    return _mean_and_ci_by_prior_and_posterior(
         prior=incremental_revenue_prior / spend_with_total,
         posterior=incremental_revenue_posterior / spend_with_total,
         metric_name=constants.ROI,
@@ -3029,7 +3086,7 @@ class Analyzer:
     mroi_posterior_concat = tf.concat(
         [mroi_posterior, mroi_posterior_total[..., None]], axis=-1
     )
-    return _mean_and_ci(
+    return _mean_and_ci_by_prior_and_posterior(
         prior=mroi_prior_concat,
         posterior=mroi_posterior_concat,
         metric_name=constants.MROI,
@@ -3084,7 +3141,7 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float,
   ) -> xr.Dataset:
-    return _mean_and_ci(
+    return _mean_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior / impressions_with_total,
         posterior=incremental_impact_posterior / impressions_with_total,
         metric_name=constants.EFFECTIVENESS,
@@ -3102,7 +3159,7 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float,
   ) -> xr.Dataset:
-    return _mean_and_ci(
+    return _mean_and_ci_by_prior_and_posterior(
         prior=spend_with_total / incremental_kpi_prior,
         posterior=spend_with_total / incremental_kpi_posterior,
         metric_name=constants.CPIK,
@@ -3126,7 +3183,7 @@ class Analyzer:
     mean_expected_impact_posterior = tf.reduce_mean(
         expected_impact_posterior, (0, 1)
     )
-    return _mean_and_ci(
+    return _mean_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior
         / mean_expected_impact_prior[..., None]
         * 100,
