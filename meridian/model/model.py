@@ -765,16 +765,16 @@ class Meridian:
           tau_g_excl_baseline=tau_g_excl_baseline,
           baseline_geo_idx=baseline_geo_idx,
       )
-      tau_t = yield tfp.distributions.Deterministic(
+      mu_t = yield tfp.distributions.Deterministic(
           tf.einsum(
               "k,kt->t",
               knot_values,
               tf.convert_to_tensor(knot_info.weights),
           ),
-          name=constants.TAU_T,
+          name=constants.MU_T,
       )
 
-      tau_gt = tau_g[:, tf.newaxis] + tau_t
+      tau_gt = tau_g[:, tf.newaxis] + mu_t
       combined_media_transformed = tf.zeros(
           shape=(n_geos, n_times, 0), dtype=tf.float32
       )
@@ -1107,13 +1107,13 @@ class Meridian:
             baseline_geo_idx=self.baseline_geo_idx,
         ).sample(),
     }
-    base_vars[constants.TAU_T] = tfp.distributions.Deterministic(
+    base_vars[constants.MU_T] = tfp.distributions.Deterministic(
         tf.einsum(
             "...k,kt->...t",
             base_vars[constants.KNOT_VALUES],
             tf.convert_to_tensor(self.knot_info.weights),
         ),
-        name=constants.TAU_T,
+        name=constants.MU_T,
     ).sample()
 
     gamma_gc_dev = tfp.distributions.Sample(
