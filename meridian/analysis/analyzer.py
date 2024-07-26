@@ -647,6 +647,9 @@ class Analyzer:
         or `sample_prior()` (for `use_posterior=False`) has not been called
         prior to calling this method.
     """
+    # TODO(b/354233323): Add a check to throw an exception if
+    # inverse_transfom_impact=False and use_kpi=False.
+
     self._check_revenue_data_exists(use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
@@ -1638,16 +1641,7 @@ class Analyzer:
         aggregate_times,
     )
 
-    baseline_expected_impact = self.expected_impact(
-        new_media=tf.zeros_like(mmm.media_tensors.media)
-        if mmm.media_tensors.media is not None
-        else None,
-        new_reach=tf.zeros_like(mmm.rf_tensors.reach)
-        if mmm.rf_tensors.reach is not None
-        else None,
-        new_frequency=tf.zeros_like(mmm.rf_tensors.frequency)
-        if mmm.rf_tensors.frequency is not None
-        else None,
+    baseline_expected_impact = self._calculate_baseline_expected_impact(
         aggregate_geos=False,
         aggregate_times=False,
         use_kpi=use_kpi,
@@ -1703,6 +1697,45 @@ class Analyzer:
     attrs = {constants.CONFIDENCE_LEVEL: confidence_level}
 
     return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
+
+  def _calculate_baseline_expected_impact(
+      self,
+      **expected_impact_kwargs,
+  ) -> tf.Tensor:
+    """Calculates either the posterior or prior expected impact of baseline.
+
+    This is a wrapper for expected_impact() that automatically sets the
+    following argument values:
+      1) `new_media` is set to all zeros
+      2) `new_reach` is set to all zeros
+      3) `new_controls` are set to historical values
+
+    All other arguments of `expected_impact` can be passed to this method.
+
+    Args:
+      **expected_impact_kwargs: kwargs to pass to `expected_impact`, which could
+        contain use_posterior, selected_geos, selected_times, aggregate_geos,
+        aggregate_times, inverse_transform_impact, use_kpi, batch_size.
+
+    Returns:
+      Tensor of expected impact of baseline with dimensions `(n_chains,
+      n_draws, n_geos, n_times)`. The `n_geos` and `n_times` dimensions is
+      dropped if `aggregate_geos=True` or `aggregate_time=True`, respectively.
+    """
+    expected_impact_kwargs["new_media"] = (
+        tf.zeros_like(self._meridian.media_tensors.media)
+        if self._meridian.media_tensors.media is not None
+        else None
+    )
+    # Frequency is not needed because the reach is zero.
+    expected_impact_kwargs["new_reach"] = (
+        tf.zeros_like(self._meridian.rf_tensors.reach)
+        if self._meridian.rf_tensors.reach is not None
+        else None
+    )
+    expected_impact_kwargs["new_controls"] = self._meridian.controls
+
+    return self.expected_impact(**expected_impact_kwargs)
 
   def _compute_incremental_impact_aggregate(
       self, use_posterior: bool, use_kpi: bool | None = None, **roi_kwargs
