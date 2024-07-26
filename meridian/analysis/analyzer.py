@@ -74,7 +74,7 @@ def _calc_weighted_mape(expected, actual):
 
 
 def _warn_if_geo_arg_in_kwargs(**kwargs):
-  """Raise warning if a geo-level argument is used with national model."""
+  """Raises warning if a geo-level argument is used with national model."""
   for kwarg, value in kwargs.items():
     if (
         kwarg in constants.NATIONAL_ANALYZER_PARAMETERS_DEFAULTS
@@ -93,7 +93,7 @@ def _check_shape_matches(
     t2: tf.Tensor | None = None,
     t2_name: str = "",
 ):
-  """Raise an error if dimensions of 2 tensors don't match."""
+  """Raises an error if dimensions of 2 tensors don't match."""
   if t1 is not None and t2 is not None and t1.shape != t2.shape:
     raise ValueError(f"{t1_name}.shape must match {t2_name}.shape.")
 
@@ -262,14 +262,14 @@ class Analyzer:
         + tf.einsum("...gtc,...gc->...gt", controls_scaled, gamma_gc)
     )
 
-  def _check_revenue_data_exists(self, use_kpi: bool = False) -> None:
-    """Raise an error if `use_kpi` is False but revenue data does not exist."""
+  def _check_revenue_data_exists(self, use_kpi: bool = False):
+    """Raises an error if `use_kpi` is False but revenue data does not exist."""
     if not use_kpi and self._meridian.revenue_per_kpi is None:
       raise ValueError(
           "`use_kpi` must be True when `revenue_per_kpi` is not defined."
       )
 
-  def _validate_roi_functionality(self) -> None:
+  def _validate_roi_functionality(self):
     """Validates whether ROI metrics can be computed."""
     if self._meridian.revenue_per_kpi is None:
       raise ValueError(
@@ -628,10 +628,10 @@ class Analyzer:
         `use_kpi`), as it was passed to `InputData`. If False, returns the
         impact after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
-      use_kpi: Boolean. If `True`, the expected KPI is calculated. If `False`,
-        the expected revenue `(kpi * revenue_per_kpi)` is calculated. Only used
-        if `inverse_transform_impact=True`. `use_kpi` must be `True` when
-        `revenue_per_kpi` is not defined.
+      use_kpi: Boolean. If `use_kpi = True`, the expected KPI is calculated;
+        otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
+        It is required that `use_kpi = True` if `revenue_per_kpi` is not defined
+        or if `inverse_transform_impact = False`.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -647,10 +647,8 @@ class Analyzer:
         or `sample_prior()` (for `use_posterior=False`) has not been called
         prior to calling this method.
     """
-    # TODO(b/354233323): Add a check to throw an exception if
-    # inverse_transfom_impact=False and use_kpi=False.
-
     self._check_revenue_data_exists(use_kpi)
+    self._check_kpi_transformation(inverse_transform_impact, use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,
@@ -728,6 +726,29 @@ class Analyzer:
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
     )
+
+  def _check_kpi_transformation(
+      self, inverse_transform_impact: bool, use_kpi: bool
+  ):
+    """Validates `use_kpi` functionality based on `inverse_transform_impact`.
+
+    When both `inverse_transform_impact` and `use_kpi` are `False`, it indicates
+    that the user wants to calculate "transformed revenue", which is not
+    well-defined.
+
+    Args:
+      inverse_transform_impact: Boolean. Indicates whether to inverse the
+        transformation done by `KpiTransformer`.
+      use_kpi: Boolean. Indicates whether to calculate the expected KPI or
+        expected revenue.
+
+    Raises:
+      ValueError: If both `inverse_transform_impact` and `use_kpi` are `False`.
+    """
+    if not inverse_transform_impact and not use_kpi:
+      raise ValueError(
+          "use_kpi=False is only supported when inverse_transform_impact=True."
+      )
 
   def _get_modeled_incremental_kpi(
       self,
@@ -988,10 +1009,10 @@ class Analyzer:
         `use_kpi`), as it was passed to `InputData`. If False, returns the
         impact after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
-      use_kpi: Boolean. If `True`, the incremental KPI is calculated. If
-        `False`, incremental revenue (`KPI * revenue_per_kpi`) is calculated.
-        Only used if `inverse_transform_impact=True`. `use_kpi` must be `True`
-        when `revenue_per_kpi` is not defined.
+      use_kpi: Boolean. If `use_kpi = True`, the expected KPI is calculated;
+        otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
+        It is required that `use_kpi = True` if `revenue_per_kpi` is not defined
+        or if `inverse_transform_impact = False`.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -1011,6 +1032,7 @@ class Analyzer:
         as media.
     """
     self._check_revenue_data_exists(use_kpi)
+    self._check_kpi_transformation(inverse_transform_impact, use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,

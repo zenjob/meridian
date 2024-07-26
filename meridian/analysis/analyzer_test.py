@@ -178,6 +178,15 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           new_frequency=self.meridian_media_and_rf.population,
       )
 
+  def test_expected_impact_wrong_kpi_transformation(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "use_kpi=False is only supported when inverse_transform_impact=True.",
+    ):
+      self.analyzer_media_and_rf.expected_impact(
+          inverse_transform_impact=False, use_kpi=False
+      )
+
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
@@ -238,6 +247,15 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.analyzer_media_and_rf.incremental_impact(
           new_frequency=self.meridian_media_and_rf.population,
+      )
+
+  def test_incremental_impact_wrong_kpi_transformation(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "use_kpi=False is only supported when inverse_transform_impact=True.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          inverse_transform_impact=False, use_kpi=False
       )
 
   @parameterized.product(
