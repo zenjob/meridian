@@ -71,12 +71,12 @@ started quickly with using Meridian:
 | [Meridian basics][2]        | Learn about Meridian features, methodologies, and the model math. |
 | [Getting started colab][3]  | Install and quickly learn how to use Meridian with this colab tutorial using sample data. |
 | [User guide][4]             | A detailed walk-through of how to use Meridian and generating visualizations using your own data. |
-| [Pre-modeling][5].          | Prepare and analyze your data before modeling. |
-| [Modeling considerations][5]| Advanced modeling guidance for model refinement and edge cases. |
-| [Post-modeling][6]          | Post-modeling guidance for model fit, visualizations, optimizations, refreshing the model, and debugging. |
-| [Migrate from LMMM][7]      | Learn about the differences between Meridian and LightweightMMM as you consider migrating. |
-| [API Reference][8]          | API reference documentation for the Meridian package. |
-| [Reference list][9]         | White papers and other referenced material.    |
+| [Pre-modeling][5]           | Prepare and analyze your data before modeling. |
+| [Modeling][6]               | Modeling guidance for model refinement and edge cases. |
+| [Post-modeling][7]          | Post-modeling guidance for model fit, visualizations, optimizations, refreshing the model, and debugging. |
+| [Migrate from LMMM][8]      | Learn about the differences between Meridian and LightweightMMM as you consider migrating. |
+| [API Reference][9]          | API reference documentation for the Meridian package. |
+| [Reference list][10]        | White papers and other referenced material.    |
 
 [1]: https://developers.google.com/meridian
 [2]: https://developers.google.com/meridian/docs/basics/about-the-project
