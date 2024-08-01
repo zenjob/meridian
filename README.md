@@ -91,7 +91,7 @@ started quickly with using Meridian:
 
 ## Support
 
-**Questions about methodology**: Please see the [Modeling](https://developers.google.com/meridian/docs/basics/about-the-project) tab and [Advanced considerations](https://developers.google.com/meridian/docs/advanced-modeling/control-variables) section in the technical documentation.
+**Questions about methodology**: Please see the [Modeling](https://developers.google.com/meridian/docs/basics/about-the-project) tab in the technical documentation.
 
 **Issues installing or using Meridian**: Feel free to post questions in the
 [Discussions](https://github.com/google/meridian/discussions) or [Issues](https://github.com/google/meridian/issues) tabs of the Meridian GitHub repository. The Meridian team responds to
