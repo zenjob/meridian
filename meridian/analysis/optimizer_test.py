@@ -1845,6 +1845,35 @@ class OptimizerPlotsTest(absltest.TestCase):
         },
     )
 
+  def test_get_response_curves(self):
+    ds = self.optimization_results.get_response_curves()
+    self.assertEqual(
+        list(ds.to_dataframe().reset_index().columns),
+        [
+            c.SPEND_MULTIPLIER,
+            c.CHANNEL,
+            c.METRIC,
+            c.SPEND,
+            c.INCREMENTAL_IMPACT,
+        ],
+    )
+
+    _, mock_kwargs = self.meridian.expand_selected_time_dims.call_args
+    self.assertEqual(
+        mock_kwargs,
+        {
+            'start_date': self.optimization_results.optimized_data.start_date,
+            'end_date': self.optimization_results.optimized_data.end_date,
+        },
+    )
+
+    self.mock_response_curves.assert_called_once()
+    _, mock_kwargs = self.mock_response_curves.call_args
+    # Check that the spend multiplier max is 2.
+    multiplier = np.arange(0, 2, 0.01)
+    np.testing.assert_array_equal(mock_kwargs['spend_multipliers'], multiplier)
+    self.assertEqual(mock_kwargs['by_reach'], True)
+
   def test_plot_response_curves_correct_data(self):
     plot = self.optimization_results.plot_response_curves()
     df = plot.data

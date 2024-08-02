@@ -405,7 +405,7 @@ class OptimizationResults:
 
     Args:
       n_top_channels: Optional number of top channels by spend to include. By
-        default, all geos are included.
+        default, all channels are included.
 
     Returns:
       An Altair plot showing the response curves with optimization details.
@@ -415,7 +415,7 @@ class OptimizationResults:
       title = summary_text.INC_REVENUE_LABEL
     else:
       title = summary_text.INC_KPI_LABEL
-    df = self._get_response_curves_data(n_top_channels=n_top_channels)
+    df = self._get_plottable_response_curves_df(n_top_channels=n_top_channels)
     base = (
         alt.Chart(df)
         .transform_calculate(
@@ -500,15 +500,62 @@ class OptimizationResults:
         .reset_index()[c.CHANNEL][:n_channels]
     )
 
-  def _get_response_curves_data(
-      self, n_top_channels: int | None
-  ) -> pd.DataFrame:
-    """Calculates the response curve data, specific to the optimization."""
+  def get_response_curves(self) -> xr.Dataset:
+    """Calculates response curves, per budget optimization scenario.
+
+    This method is a wrapper for `Analyzer.response_curves()`, that sets the
+    following arguments to be consistent with the budget optimization scenario
+    specified in `BudgetOptimizer.optimize()` call that returned this result.
+    In particular:
+
+    1. `spend_multiplier` matches the discrete optimization grid, considering
+       the grid step size and any channel-level constraint bounds.
+    2. `selected_times`, `by_reach`, and `use_optimal_frequency` match the
+       values set in `BudgetOptimizer.optimize()`.
+
+    Returns:
+      A dataset returned by `Analyzer.response_curves()`, per budget
+      optimization scenario specified in `BudgetOptimizer.optimize()` call that
+      returned this result.
+    """
     channels = self.optimized_data.channel.values
     selected_times = self.meridian.expand_selected_time_dims(
         start_date=self.optimized_data.start_date,
         end_date=self.optimized_data.end_date,
     )
+    _, ubounds = self.spend_bounds
+    upper_bound = (
+        ubounds.repeat(len(channels)) * self.spend_ratio
+        if len(ubounds) == 1
+        else ubounds * self.spend_ratio
+    )
+
+    # Get the upper limit for plotting the response curves. Default to 2 or the
+    # max upper spend constraint + padding.
+    upper_limit = max(max(upper_bound) + c.SPEND_CONSTRAINT_PADDING, 2)
+    spend_multiplier = np.arange(0, upper_limit, c.RESPONSE_CURVE_STEP_SIZE)
+    # WARN: If `selected_times` is not None (i.e. a subset time range), this
+    # response curve computation might take a significant amount of time.
+    return self.analyzer.response_curves(
+        spend_multipliers=spend_multiplier,
+        selected_times=selected_times,
+        by_reach=True,
+        use_optimal_frequency=self.use_optimal_frequency,
+    )
+
+  def _get_plottable_response_curves_df(
+      self, n_top_channels: int | None = None
+  ) -> pd.DataFrame:
+    """Calculates the response curve data frame, for plotting.
+
+    Args:
+      n_top_channels: Optional number of top channels by spend to include. If
+        None, include all channels.
+
+    Returns:
+      A dataframe containing the response curve data suitable for plotting.
+    """
+    channels = self.optimized_data.channel.values
     lbounds, ubounds = self.spend_bounds
     lower_bound = (
         lbounds.repeat(len(channels)) * self.spend_ratio
@@ -526,18 +573,7 @@ class OptimizationResults:
         c.UPPER_BOUND: upper_bound,
     })
 
-    # Get the upper limit for plotting the response curves. Default to 2 or the
-    # max upper spend constraint + padding.
-    upper_limit = max(max(upper_bound) + c.SPEND_CONSTRAINT_PADDING, 2)
-    spend_multiplier = np.arange(0, upper_limit, c.RESPONSE_CURVE_STEP_SIZE)
-    # WARN: If `selected_times` is not None (i.e. a subset time range), this
-    # response curve computation might take a significant amount of time.
-    response_curves_ds = self.analyzer.response_curves(
-        spend_multipliers=spend_multiplier,
-        selected_times=selected_times,
-        by_reach=True,
-        use_optimal_frequency=self.use_optimal_frequency,
-    )
+    response_curves_ds = self.get_response_curves()
     response_curves_df = (
         response_curves_ds.to_dataframe()
         .reset_index()
