@@ -15,6 +15,7 @@
 """Meridian module for the geo-level Bayesian hierarchical media mix model."""
 
 from collections.abc import Mapping, Sequence
+import datetime as dt
 import functools
 import os
 import warnings
@@ -123,6 +124,8 @@ class Meridian:
       or not (multiple geos).
     knot_info: A `KnotInfo` derived from input data and model spec.
     kpi: A tensor constructed from `input_data.kpi`.
+    kpi_time_values: A list of `datetime` objects corresponding to the time
+      dimension values in the KPI data array.
     revenue_per_kpi: A tensor constructed from `input_data.revenue_per_kpi`. If
       `input_data.revenue_per_kpi` is None, then this is also None.
     controls: A tensor constructed from `input_data.controls`.
@@ -191,6 +194,20 @@ class Meridian:
   @functools.cached_property
   def kpi(self) -> tf.Tensor:
     return tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
+
+  @functools.cached_property
+  def kpi_time_values(self) -> list[dt.datetime]:
+    """The KPI data array's `time` coordinates as `datetime` objects."""
+    time_dims = [
+        dt.datetime.strptime(value, constants.DATE_FORMAT)
+        for value in self.input_data.time.values
+    ]
+    # Assume that the time dimension values in the input data were sorted.
+    if not all(
+        time_dims[i] <= time_dims[i + 1] for i in range(len(time_dims) - 1)
+    ):
+      raise ValueError("The input data's `time` coordinates are not sorted.")
+    return time_dims
 
   @functools.cached_property
   def revenue_per_kpi(self) -> tf.Tensor | None:
@@ -347,33 +364,70 @@ class Meridian:
     )
 
   def expand_selected_time_dims(
-      self, selected_times: tuple[str, str] | None
-  ) -> Sequence[str] | None:
-    """Validates and returns the time dimensions based on the selected times.
+      self,
+      start_date: dt.datetime | str | None = None,
+      end_date: dt.datetime | str | None = None,
+  ) -> list[str] | None:
+    """Validates and returns time dimension values based on the selected times.
+
+    If both `start_date` and `end_date` are None, returns None.
 
     Args:
-      selected_times: Tuple of the start and end times. If None, all time
-        dimensions are returned.
+      start_date: Start date of the selected time period. If None, implies the
+        earliest time dimension value in the input data.
+      end_date: End date of the selected time period. If None, implies the
+        latest time dimension value in the input data.
 
     Returns:
-      DataArray of the time dimensions.
+      A list of time dimension values (as Meridian-formatted strings) in the
+      input data within the selected time period, or do nothing and pass through
+      None if both arguments are Nones, or if `start_date` and `end_date`
+      correspond to the entire time range in the input data.
+
+    Raises:
+      ValueError if start_date or end_date is not in the input data time dims.
     """
-    all_times = self.input_data.time.sortby(constants.TIME)
-    all_times_list = all_times.values.tolist()
-    all_times_range = (min(all_times_list), max(all_times_list))
-    if not selected_times or selected_times == all_times_range:
+    if start_date is None and end_date is None:
       return None
 
-    if any(selected_time not in all_times for selected_time in selected_times):
+    if start_date is None:
+      start_date = min(self.kpi_time_values)
+    else:
+      if isinstance(start_date, str):
+        start_date = dt.datetime.strptime(start_date, constants.DATE_FORMAT)
+      if start_date not in self.kpi_time_values:
+        raise ValueError(
+            f"start_date ({start_date.strftime(constants.DATE_FORMAT)}) must be"
+            " in the time coordinates!"
+        )
+
+    if end_date is None:
+      end_date = max(self.kpi_time_values)
+    else:
+      if isinstance(end_date, str):
+        end_date = dt.datetime.strptime(end_date, constants.DATE_FORMAT)
+      if end_date not in self.kpi_time_values:
+        raise ValueError(
+            f"end_date ({end_date.strftime(constants.DATE_FORMAT)}) must be"
+            " in the time coordinates!"
+        )
+
+    if start_date > end_date:
       raise ValueError(
-          "`selected_times` should match the time dimensions from input_data."
+          f"start_date ({start_date.strftime(constants.DATE_FORMAT)}) must be"
+          " less than or equal to end_date"
+          f" ({end_date.strftime(constants.DATE_FORMAT)})!"
       )
 
-    start_index = np.where(all_times == selected_times[0])[0]
-    end_index = np.where(all_times == selected_times[1])[0]
-    start = selected_times[0] if start_index < end_index else selected_times[1]
-    end = selected_times[1] if start_index < end_index else selected_times[0]
-    return all_times.sel(time=slice(start, end)).values.tolist()
+    if start_date == min(self.kpi_time_values) and end_date == max(
+        self.kpi_time_values
+    ):
+      return None
+
+    selected_times = [
+        date for date in self.kpi_time_values if start_date <= date <= end_date
+    ]
+    return [time.strftime(constants.DATE_FORMAT) for time in selected_times]
 
   def _validate_data_dependent_model_spec(self):
     """Validates that the data dependent model specs have correct shapes."""

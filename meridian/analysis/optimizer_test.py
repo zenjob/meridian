@@ -279,6 +279,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         input_data=self.input_data_media_only
     )
     self.meridian_rf_only = model.Meridian(input_data=self.input_data_rf_only)
+
     self.budget_optimizer_media_and_rf = optimizer.BudgetOptimizer(
         self.meridian_media_and_rf
     )
@@ -312,15 +313,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         'Running budget optimization scenarios requires fitting the model.',
     ):
       budget_optimizer.optimize()
-
-  def test_incorrect_selected_times_raises_exception(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        '`selected_times` should match the time dimensions from input_data.',
-    ):
-      self.budget_optimizer_media_and_rf.optimize(
-          selected_times=('2020-01-01', '2021-01-01')
-      )
 
   def test_fixed_budget_target_roi_raises_exception(self):
     with self.assertRaisesRegex(
@@ -465,7 +457,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     expected_times = self.input_data_media_and_rf.time.values.tolist()
     optimization_results = self.budget_optimizer_media_and_rf.optimize(
-        selected_times=(expected_times[0], expected_times[-1])
+        selected_times=None
     )
 
     self.assertEqual(
@@ -501,32 +493,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     _, mock_kwargs = mock_incremental_impact.call_args
     self.assertEqual(mock_kwargs['selected_times'], selected_time_dims)
-
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_selected_times_reversed_order(
-      self,
-      mock_incremental_impact,
-  ):
-    mock_incremental_impact.return_value = tf.ones((
-        _N_CHAINS,
-        _N_DRAWS,
-        _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
-    ))
-    selected_time_dims = [
-        '2021-05-17',
-        '2021-05-24',
-        '2021-05-31',
-        '2021-06-07',
-        '2021-06-14',
-    ]
-    selected_time = ('2021-06-14', '2021-05-17')
-    self.budget_optimizer_media_and_rf.optimize(selected_times=selected_time)
-    self.assertEqual(
-        selected_time_dims,
-        self.budget_optimizer_media_and_rf._meridian.expand_selected_time_dims(
-            selected_times=selected_time
-        ),
-    )
 
   def test_default_hist_spend_with_time_geo_dims(self):
     expected_spend = np.round(
@@ -1444,9 +1410,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     step_size = 200
 
     selected_times = (
-        self.budget_optimizer_media_and_rf._meridian.expand_selected_time_dims(
-            selected_times=None
-        )
+        self.budget_optimizer_media_and_rf._meridian.expand_selected_time_dims()
     )
     (spend_grid, incremental_impact_grid) = (
         self.budget_optimizer_media_and_rf._create_grids(
@@ -1959,14 +1923,16 @@ class OptimizerPlotsTest(absltest.TestCase):
       self.optimization_results.plot_response_curves(5)
 
   def test_plot_response_curves_correct_selected_times(self):
-    expected_times = (
-        self.optimization_results.optimized_data.start_date,
-        self.optimization_results.optimized_data.end_date,
-    )
     self.optimization_results.plot_response_curves()
     self.mock_response_curves.assert_called_once()
-    mock_args, _ = self.meridian.expand_selected_time_dims.call_args
-    self.assertEqual(mock_args[0], expected_times)
+    _, mock_kwargs = self.meridian.expand_selected_time_dims.call_args
+    self.assertEqual(
+        mock_kwargs,
+        {
+            'start_date': self.optimization_results.optimized_data.start_date,
+            'end_date': self.optimization_results.optimized_data.end_date,
+        },
+    )
 
   def test_plot_response_curves_n_top_channels(self):
     plot = self.optimization_results.plot_response_curves(2)

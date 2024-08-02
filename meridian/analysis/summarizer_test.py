@@ -34,10 +34,10 @@ import xarray as xr
 _EARLIEST_DATE = dt.datetime(2022, 1, 1)
 _NUM_WEEKS = 80
 
-_TIME_COORDS = tuple(
+_TIME_COORDS = [
     _EARLIEST_DATE + dt.timedelta(weeks=i) for i in range(_NUM_WEEKS)
-)
-_TIME_COORDS_STRINGS = tuple(t.strftime(c.DATE_FORMAT) for t in _TIME_COORDS)
+]
+_TIME_COORDS_STRINGS = [t.strftime(c.DATE_FORMAT) for t in _TIME_COORDS]
 
 _LATEST_DATE = _TIME_COORDS[-1]
 
@@ -168,8 +168,12 @@ class SummarizerTest(parameterized.TestCase):
             c.TIME: list(_TIME_COORDS_STRINGS),
         },
     )
-    self.mock_meridian_revenue.input_data.time = response[c.TIME]
-    self.mock_meridian_kpi.input_data.time = response[c.TIME]
+    for mock_meridian in (self.mock_meridian_revenue, self.mock_meridian_kpi):
+      mock_meridian.input_data.time = response[c.TIME]
+      mock_meridian.kpi_time_values = _TIME_COORDS
+      mock_meridian.expand_selected_time_dims.return_value = (
+          _TIME_COORDS_STRINGS
+      )
 
   def _get_output_model_results_summary_html_dom(
       self,
@@ -433,10 +437,30 @@ class SummarizerTest(parameterized.TestCase):
     with mock.patch.object(model_fit, 'plot_model_fit') as plot:
       plot().to_json.return_value = f'["{mock_spec}"]'
 
+      self.summarizer_revenue._meridian.expand_selected_time_dims.return_value = [
+          '2022-06-04',
+          '2022-06-11',
+          '2022-06-18',
+          '2022-06-25',
+          '2022-07-02',
+          '2022-07-09',
+          '2022-07-16',
+          '2022-07-23',
+          '2022-07-30',
+          '2022-08-06',
+          '2022-08-13',
+          '2022-08-20',
+          '2022-08-27',
+      ]
+
       summary_html_dom = self._get_output_model_results_summary_html_dom(
           self.summarizer_revenue,
           start_date=dt.datetime(2022, 6, 4),
           end_date=dt.datetime(2022, 8, 27),
+      )
+
+      self.mock_meridian_revenue.expand_selected_time_dims.assert_called_once_with(
+          start_date=dt.datetime(2022, 6, 4), end_date=dt.datetime(2022, 8, 27)
       )
 
       plot.assert_called_with(
@@ -605,6 +629,22 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_media_summary_with_custom_date_range(self):
+    self.summarizer_revenue._meridian.expand_selected_time_dims.return_value = [
+        '2022-06-04',
+        '2022-06-11',
+        '2022-06-18',
+        '2022-06-25',
+        '2022-07-02',
+        '2022-07-09',
+        '2022-07-16',
+        '2022-07-23',
+        '2022-07-30',
+        '2022-08-06',
+        '2022-08-13',
+        '2022-08-20',
+        '2022-08-27',
+    ]
+
     _ = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
         start_date=dt.datetime(2022, 6, 4),
@@ -637,6 +677,18 @@ class SummarizerTest(parameterized.TestCase):
     with mock.patch.object(media_effects, 'plot_response_curves') as plot:
       plot().to_json.return_value = f'["{mock_spec_1}"]'
 
+      self.summarizer_revenue._meridian.expand_selected_time_dims.return_value = [
+          '2022-06-04',
+          '2022-06-11',
+          '2022-06-18',
+          '2022-06-25',
+          '2022-07-02',
+          '2022-07-09',
+          '2022-07-16',
+          '2022-07-23',
+          '2022-07-30',
+      ]
+
       _ = self._get_output_model_results_summary_html_dom(
           self.summarizer_revenue,
           start_date=dt.datetime(2022, 6, 4),
@@ -663,6 +715,18 @@ class SummarizerTest(parameterized.TestCase):
       plot().to_json.assert_called_once()
 
   def test_reach_frequency_with_custom_date_range(self):
+    self.summarizer_revenue._meridian.expand_selected_time_dims.return_value = [
+        '2022-06-04',
+        '2022-06-11',
+        '2022-06-18',
+        '2022-06-25',
+        '2022-07-02',
+        '2022-07-09',
+        '2022-07-16',
+        '2022-07-23',
+        '2022-07-30',
+    ]
+
     _ = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
         start_date=dt.datetime(2022, 6, 4),

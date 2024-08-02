@@ -76,14 +76,6 @@ class Summarizer:
   def _model_diagnostics(self):
     return visualizer.ModelDiagnostics(self._meridian)
 
-  @functools.cached_property
-  def _kpi_time_values(self) -> Sequence[dt.datetime]:
-    """The KPI data array's `time` coordinates as `datetime` objects."""
-    return [
-        dt.datetime.strptime(value, c.DATE_FORMAT)
-        for value in self._meridian.input_data.time.values
-    ]
-
   def output_model_results_summary(
       self,
       filename: str,
@@ -122,15 +114,15 @@ class Summarizer:
       end_date: dt.datetime | None = None,
   ) -> str:
     """Generate HTML results summary output (as sanitized content str)."""
-    start_date = start_date or min(self._kpi_time_values)
-    end_date = end_date or max(self._kpi_time_values)
+    start_date = start_date or min(self._meridian.kpi_time_values)
+    end_date = end_date or max(self._meridian.kpi_time_values)
 
-    if start_date not in self._kpi_time_values:
+    if start_date not in self._meridian.kpi_time_values:
       raise ValueError(
           f'start_date ({start_date.strftime(c.DATE_FORMAT)}) must be'
           ' in the time coordinates!'
       )
-    if end_date not in self._kpi_time_values:
+    if end_date not in self._meridian.kpi_time_values:
       raise ValueError(
           f'end_date ({end_date.strftime(c.DATE_FORMAT)}) must be'
           ' in the time coordinates!'
@@ -141,6 +133,10 @@ class Summarizer:
           f' end_date ({end_date.strftime(c.DATE_FORMAT)})!'
       )
 
+    selected_times = self._meridian.expand_selected_time_dims(
+        start_date, end_date
+    )
+
     template_env = formatter.create_template_env()
     template_env.globals[c.START_DATE] = start_date.strftime(
         c.SUMMARY_DATE_FORMAT
@@ -150,30 +146,17 @@ class Summarizer:
     html_template = template_env.get_template('summary.html.jinja')
     cards_htmls = self._create_cards_htmls(
         template_env,
-        selected_times=self._get_selected_times(start_date, end_date),
+        selected_times=selected_times,
     )
 
     return html_template.render(
         title=summary_text.MODEL_RESULTS_TITLE, cards=cards_htmls
     )
 
-  def _get_selected_times(
-      self,
-      start_date: dt.datetime | None = None,
-      end_date: dt.datetime | None = None,
-  ) -> Sequence[str] | None:
-    """Returns the selected times in the given time range."""
-    if start_date is None and end_date is None:
-      return None
-    selected_times = [
-        date for date in self._kpi_time_values if start_date <= date <= end_date
-    ]
-    return [time.strftime(c.DATE_FORMAT) for time in selected_times]
-
   def _create_cards_htmls(
       self,
       template_env: jinja2.Environment,
-      selected_times: Sequence[str],
+      selected_times: Sequence[str] | None,
   ) -> Sequence[str]:
     """Creates the HTML snippets for cards in the summary page."""
     media_summary = visualizer.MediaSummary(
@@ -428,7 +411,7 @@ class Summarizer:
   def _create_response_curves_card_html(
       self,
       template_env: jinja2.Environment,
-      selected_times: Sequence[str],
+      selected_times: Sequence[str] | None,
       media_summary: visualizer.MediaSummary,
       media_effects: visualizer.MediaEffects,
       reach_frequency: visualizer.ReachAndFrequency | None,
@@ -444,7 +427,9 @@ class Summarizer:
             ),
             chart_json=media_effects.plot_response_curves(
                 confidence_level=0.9,
-                selected_times=frozenset(selected_times),
+                selected_times=(
+                    frozenset(selected_times) if selected_times else None
+                ),
                 plot_separately=False,
                 include_ci=False,
                 num_channels_displayed=7,

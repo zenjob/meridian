@@ -506,7 +506,8 @@ class OptimizationResults:
     """Calculates the response curve data, specific to the optimization."""
     channels = self.optimized_data.channel.values
     selected_times = self.meridian.expand_selected_time_dims(
-        (self.optimized_data.start_date, self.optimized_data.end_date)
+        start_date=self.optimized_data.start_date,
+        end_date=self.optimized_data.end_date,
     )
     lbounds, ubounds = self.spend_bounds
     lower_bound = (
@@ -529,6 +530,8 @@ class OptimizationResults:
     # max upper spend constraint + padding.
     upper_limit = max(max(upper_bound) + c.SPEND_CONSTRAINT_PADDING, 2)
     spend_multiplier = np.arange(0, upper_limit, c.RESPONSE_CURVE_STEP_SIZE)
+    # WARN: If `selected_times` is not None (i.e. a subset time range), this
+    # response curve computation might take a significant amount of time.
     response_curves_ds = self.analyzer.response_curves(
         spend_multipliers=spend_multiplier,
         selected_times=selected_times,
@@ -902,9 +905,14 @@ class BudgetOptimizer:
           'Running budget optimization scenarios requires fitting the model.'
       )
     self._validate_budget(fixed_budget, budget, target_roi, target_mroi)
-    selected_time_dims = self._meridian.expand_selected_time_dims(
-        selected_times
-    )
+    if selected_times is not None:
+      start_date, end_date = selected_times
+      selected_time_dims = self._meridian.expand_selected_time_dims(
+          start_date=start_date,
+          end_date=end_date,
+      )
+    else:
+      selected_time_dims = None
     hist_spend = self._get_hist_spend(selected_time_dims)
     budget = budget or np.sum(hist_spend)
     pct_of_spend = self._validate_pct_of_spend(hist_spend, pct_of_spend)
