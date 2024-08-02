@@ -777,6 +777,15 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           tf.convert_to_tensor(input_data.media, dtype=tf.float32),
           meridian.media_tensors.media,
       )
+      self.assertAllEqual(
+          meridian.all_channel_names,
+          list(input_data.media_channel.data)
+          + (
+              list(input_data.rf_channel.data)
+              if input_data.rf_channel is not None
+              else []
+          ),
+      )
     if input_data.media_spend is not None:
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.media_spend, dtype=tf.float32),
@@ -786,6 +795,15 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           tf.convert_to_tensor(input_data.reach, dtype=tf.float32),
           meridian.rf_tensors.reach,
+      )
+      self.assertAllEqual(
+          meridian.all_channel_names,
+          (
+              list(input_data.media_channel.data)
+              if input_data.media_channel is not None
+              else []
+          )
+          + list(input_data.rf_channel.data),
       )
     if input_data.frequency is not None:
       self.assertAllEqual(

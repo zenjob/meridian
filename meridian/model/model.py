@@ -117,6 +117,8 @@ class Meridian:
     n_geos: Number of geos in the data.
     n_media_channels: Number of media channels in the data.
     n_rf_channels: Number of reach and frequency (RF) channels in the data.
+    all_channel_names: Names of the all media channels (including R&F, if any)
+      in the data, in coordinate order.
     n_controls: Number of control variables in the data.
     n_times: Number of time periods in the KPI or spend data.
     n_media_times: Number of time periods in the media data.
@@ -246,6 +248,23 @@ class Meridian:
     if self.input_data.rf_channel is None:
       return 0
     return len(self.input_data.rf_channel)
+
+  @property
+  def all_channel_names(self) -> list[str] | None:
+    """Returns all media (and RF) channel names in the data."""
+    media_channel_names = (
+        list(self.input_data.media_channel.data)
+        if self.input_data.media_channel is not None
+        else None
+    )
+    rf_channel_names = (
+        list(self.input_data.rf_channel.data)
+        if self.input_data.rf_channel is not None
+        else None
+    )
+    if media_channel_names is None and rf_channel_names is None:
+      return None
+    return (media_channel_names or []) + (rf_channel_names or [])
 
   @property
   def n_controls(self) -> int:
