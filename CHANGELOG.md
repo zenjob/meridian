@@ -25,6 +25,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 [Unreleased]: https://github.com/google/meridian/compare/v0.4.0...HEAD
 
+* Include `pct_of_contribution` data to `OptimizationResults` datasets.
+
 ## [0.4.0] - 2024-07-19
 
 * Refactor `BudgetOptimizer.optimize()` API: it now returns an

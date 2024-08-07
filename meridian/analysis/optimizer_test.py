@@ -73,6 +73,14 @@ _NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [580.1, 580.1, 580.1],
     [242.4, 242.4, 242.4],
 ])
+_NONOPTIMIZED_EXPECTED_IMPACT = np.array([16150.22])
+_NONOPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
+    [2.07829976, 2.07829976, 2.07829976],
+    [3.28856182, 3.28856182, 3.28856182],
+    [4.9019146, 4.9019146, 4.9019146],
+    [3.59190154, 3.59190154, 3.59190154],
+    [1.50090837, 1.50090837, 1.50090837],
+])
 # Actual historical spend. The name "nonoptimized" refers to an attribute name
 # of the Optimizer class.
 _NONOPTIMIZED_SPEND = np.array([294.0, 279.0, 256.0, 272.0, 288.0])
@@ -85,6 +93,14 @@ _OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [427.4, 427.4, 427.4],
     [1178.6, 1178.6, 1178.6],
     [889.0, 889.0, 889.0],
+])
+_OPTIMIZED_EXPECTED_IMPACT = np.array([20385.18])
+_OPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
+    [2.59355092, 2.59355092, 2.59355092],
+    [3.18074226, 3.18074226, 3.18074226],
+    [2.09662104, 2.09662104, 2.09662104],
+    [5.7816515, 5.7816515, 5.7816515],
+    [4.36101151, 4.36101151, 4.36101151],
 ])
 # Correct optimal spend allocation for fixed budget scenario, where the model
 # contains both R&F and non-R&F channels.
@@ -119,6 +135,7 @@ _N_DRAWS = 1
 def _create_budget_data(
     spend: np.ndarray,
     inc_impact: np.ndarray,
+    pct_contrib: np.ndarray,
     mroi: np.ndarray | None = None,
     channels: np.ndarray | None = None,
     attrs: Mapping[str, Any] | None = None,
@@ -133,6 +150,7 @@ def _create_budget_data(
       c.SPEND: ([c.CHANNEL], spend),
       c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
       c.INCREMENTAL_IMPACT: ([c.CHANNEL, c.METRIC], inc_impact),
+      c.PCT_OF_CONTRIBUTION: ([c.CHANNEL, c.METRIC], pct_contrib),
   }
   attributes = {
       c.START_DATE: '2020-01-05',
@@ -140,6 +158,7 @@ def _create_budget_data(
       c.BUDGET: sum(spend),
       c.PROFIT: sum(inc_impact[:, 0]) - sum(spend),
       c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact[:, 0]),
+      c.CONFIDENCE_LEVEL: 0.9,
   }
   if use_kpi:
     data_vars[c.CPIK] = (
@@ -191,22 +210,42 @@ def _verify_actual_vs_expected_budget_data(
 _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([200, 100, 300]),
     inc_impact=np.array([[280, 280, 280], [150, 150, 150], [330, 330, 330]]),
+    pct_contrib=np.array([
+        [1.48002565, 0.36243074, 2.66551235],
+        [1.90578914, 0.75641038, 3.12185835],
+        [0.52090943, 0.24711426, 0.81274763],
+    ]),
     mroi=np.array([[1.2, 1.2, 1.2], [1.3, 1.3, 1.3], [1.4, 1.4, 1.4]]),
 )
 _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([220, 140, 240]),
     inc_impact=np.array([[350, 349, 351], [210, 209, 211], [270, 269, 271]]),
+    pct_contrib=np.array([
+        [0.94532406, 0.23230099, 1.70155593],
+        [1.64540553, 0.65481003, 2.69352735],
+        [0.3454003, 0.16847587, 0.5343038],
+    ]),
     mroi=np.array([[1.4, 1.4, 1.4], [1.5, 1.5, 1.5], [1.6, 1.6, 1.6]]),
     attrs={c.FIXED_BUDGET: True},
 )
 _SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([200, 100, 300]),
     inc_impact=np.array([[280, 279, 281], [150, 149, 151], [330, 329, 331]]),
+    pct_contrib=np.array([
+        [1.48002565, 0.36243074, 2.66551235],
+        [1.90578914, 0.75641038, 3.12185835],
+        [0.52090943, 0.24711426, 0.81274763],
+    ]),
     use_kpi=True,
 )
 _SAMPLE_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([220, 140, 240]),
     inc_impact=np.array([[350, 349, 351], [210, 209, 211], [270, 269, 271]]),
+    pct_contrib=np.array([
+        [0.94532406, 0.23230099, 1.70155593],
+        [1.64540553, 0.65481003, 2.69352735],
+        [0.3454003, 0.16847587, 0.5343038],
+    ]),
     use_kpi=True,
     attrs={c.FIXED_BUDGET: True},
 )
@@ -686,16 +725,21 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.optimization_grid
     self.assertEqual(actual_data, expected_data)
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_media_and_rf(
-      self, mock_incremental_impact
+      self, mock_incremental_impact, mock_expected_impact
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND,
         inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
     )
@@ -704,18 +748,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.nonoptimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_media_only(
       self,
       mock_incremental_impact,
+      mock_expected_impact,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[:_N_MEDIA_CHANNELS],
         inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
     )
@@ -724,17 +774,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.nonoptimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_rf_only(
-      self, mock_incremental_impact
+      self,
+      mock_incremental_impact,
+      mock_expected_impact,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[-_N_RF_CHANNELS:],
         inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-_N_RF_CHANNELS:],
         channels=self.input_data_rf_only.get_all_channels(),
     )
@@ -743,16 +800,21 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.nonoptimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_defaults_media_and_rf(
-      self, mock_incremental_impact
+      self, mock_incremental_impact, mock_expected_impact
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_SPEND,
         inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
@@ -766,17 +828,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimization_results.nonoptimized_data.budget,
     )
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_defaults_media_only(
-      self, mock_incremental_impact
+      self,
+      mock_incremental_impact,
+      mock_expected_impact,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_MEDIA_ONLY_SPEND,
         inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
@@ -791,15 +860,22 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimization_results.nonoptimized_data.budget,
     )
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_optimized_data_with_defaults_rf_only(self, mock_incremental_impact):
+  def test_optimized_data_with_defaults_rf_only(
+      self, mock_incremental_impact, mock_expected_impact
+  ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_RF_ONLY_SPEND,
         inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-self.meridian_rf_only.n_rf_channels :],
         channels=self.input_data_rf_only.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
@@ -814,14 +890,21 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimization_results.nonoptimized_data.budget,
     )
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_optimized_data_with_target_mroi(self, mock_incremental_impact):
+  def test_optimized_data_with_target_mroi(
+      self, mock_incremental_impact, mock_expected_impact
+  ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
     )
     expected_data = _create_budget_data(
         spend=_TARGET_MROI_SPEND,
         inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: False, c.TARGET_MROI: 1},
@@ -834,14 +917,21 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.optimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_optimized_data_with_target_roi(self, mock_incremental_impact):
+  def test_optimized_data_with_target_roi(
+      self, mock_incremental_impact, mock_expected_impact
+  ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    )
+    mock_expected_impact.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
     )
     expected_data = _create_budget_data(
         spend=_TARGET_ROI_SPEND,
         inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: False, c.TARGET_ROI: 1},
@@ -864,9 +954,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [1619.135, 567.352, 2663.730],
               [2493.011, 645.398, 4406.364],
           ]),
-          expected_spend=np.array(
-              [206.0, 276.0, 179.0, 354.0, 374.0], dtype=np.float32
-          ),
+          expected_pct_contrib=np.array([
+              [0.9453246, 0.23230108, 1.70155686],
+              [1.64540637, 0.65481049, 2.69352857],
+              [0.34540039, 0.16847593, 0.53430403],
+              [6.48353672, 2.27185907, 10.66642904],
+              [9.98281288, 2.58438168, 17.64449263],
+          ]),
+          expected_spend=np.array([206.0, 276.0, 179.0, 354.0, 374.0]),
           expected_mroi=np.array([
               [1.019, 0.247, 1.837],
               [1.192, 0.327, 2.103],
@@ -885,9 +980,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [371.527, 154.408, 587.871],
               [595.45, 210.373, 995.229],
           ]),
-          expected_spend=np.array(
-              [206.0, 307.0, 179.0, 323.0, 374.0], dtype=np.float32
-          ),
+          expected_pct_contrib=np.array([
+              [1.07973897, 0.26533164, 1.9434989],
+              [2.04023886, 0.79114736, 3.36128448],
+              [0.39451241, 0.19243129, 0.61027599],
+              [1.704512, 0.70840268, 2.69706589],
+              [2.72340727, 0.96218107, 4.5518719],
+          ]),
+          expected_spend=np.array([206.0, 307.0, 179.0, 323.0, 374.0]),
           expected_mroi=np.array([
               [1.019, 0.247, 1.837],
               [1.147, 0.299, 2.040],
@@ -901,6 +1001,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   def test_optimized_data_use_optimal_frequency(
       self,
       expected_incremental_impact,
+      expected_pct_contrib,
       expected_spend,
       expected_mroi,
       use_optimal_frequency,
@@ -908,6 +1009,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=expected_spend,
         inc_impact=expected_incremental_impact,
+        pct_contrib=expected_pct_contrib,
         mroi=expected_mroi,
         channels=self.input_data_media_and_rf.get_all_channels(),
         attrs={c.FIXED_BUDGET: True},
@@ -2843,6 +2945,30 @@ class OptimizerKPITest(parameterized.TestCase):
     )
     self.budget_optimizer_media_and_rf_kpi.optimize()
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
+        new_media=mock.ANY,
+        new_reach=mock.ANY,
+        new_frequency=mock.ANY,
+        selected_times=None,
+        use_kpi=True,
+        batch_size=c.DEFAULT_BATCH_SIZE,
+    )
+
+  def test_expected_impact_called_correct_optimize(self):
+    mock_expected_impact = self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf_kpi._analyzer,
+            'expected_impact',
+            autospec=True,
+            return_value=tf.ones((
+                _N_CHAINS,
+                _N_DRAWS,
+            )),
+        )
+    )
+    self.budget_optimizer_media_and_rf_kpi.optimize()
+    mock_expected_impact.assert_called_with(
+        use_posterior=True,
         new_media=mock.ANY,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -2871,7 +2997,13 @@ class OptimizerKPITest(parameterized.TestCase):
     )
     self.assertEqual(
         list(budget_dataset.data_vars),
-        [c.SPEND, c.PCT_OF_SPEND, c.INCREMENTAL_IMPACT, c.CPIK],
+        [
+            c.SPEND,
+            c.PCT_OF_SPEND,
+            c.INCREMENTAL_IMPACT,
+            c.PCT_OF_CONTRIBUTION,
+            c.CPIK,
+        ],
     )
     self.assertIn(c.TOTAL_CPIK, list(budget_dataset.attrs.keys()))
     self.assertNotIn(c.TOTAL_ROI, list(budget_dataset.attrs.keys()))

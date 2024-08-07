@@ -3239,12 +3239,16 @@ class Analyzer:
         expected_impact_posterior, (0, 1)
     )
     return _mean_and_ci_by_prior_and_posterior(
-        prior=incremental_impact_prior
-        / mean_expected_impact_prior[..., None]
-        * 100,
-        posterior=incremental_impact_posterior
-        / mean_expected_impact_posterior[..., None]
-        * 100,
+        prior=(
+            incremental_impact_prior
+            / mean_expected_impact_prior[..., None]
+            * 100
+        ),
+        posterior=(
+            incremental_impact_posterior
+            / mean_expected_impact_posterior[..., None]
+            * 100
+        ),
         metric_name=constants.PCT_OF_CONTRIBUTION,
         xr_dims=xr_dims,
         xr_coords=xr_coords,

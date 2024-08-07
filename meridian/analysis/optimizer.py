@@ -932,9 +932,8 @@ class BudgetOptimizer:
         larger `batch_size` values.
 
     Returns:
-      An `OptimizationResults` object containing some of the intermediate values
-      used to derive the optimized budget allocation and the optimized budget
-      allocation datasets.
+      An `OptimizationResults` object containing optimized budget allocation
+      datasets, along with some of the intermediate values used to derive them.
     """
     if not hasattr(self._meridian.inference_data, c.POSTERIOR):
       raise model.NotFittedModelError(
@@ -949,6 +948,7 @@ class BudgetOptimizer:
       )
     else:
       selected_time_dims = None
+
     hist_spend = self._get_hist_spend(selected_time_dims)
     budget = budget or np.sum(hist_spend)
     pct_of_spend = self._validate_pct_of_spend(hist_spend, pct_of_spend)
@@ -966,6 +966,7 @@ class BudgetOptimizer:
       )
     else:
       optimal_frequency = None
+
     (optimization_lower_bound, optimization_upper_bound, spend_bounds) = (
         self._get_optimization_bounds(
             spend=rounded_spend,
@@ -1300,7 +1301,13 @@ class BudgetOptimizer:
         )
     )
     use_kpi = self._meridian.revenue_per_kpi is None
+    budget = np.sum(spend)
+    all_times = self._meridian.input_data.time.values.tolist()
+
+    # incremental_impact here is a tensor with the shape
+    # (n_chains, n_draws, n_channels)
     incremental_impact = self._analyzer.incremental_impact(
+        use_posterior=True,
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
@@ -1308,14 +1315,32 @@ class BudgetOptimizer:
         use_kpi=use_kpi,
         batch_size=batch_size,
     )
+    # incremental_impact_with_mean_and_ci here is an ndarray with the shape
+    # (n_channels, n_metrics) where n_metrics = 3 for (mean, ci_lo, and ci_hi)
     incremental_impact_with_mean_and_ci = analyzer.get_mean_and_ci(
         data=incremental_impact,
         confidence_level=confidence_level,
     )
-    budget = np.sum(spend)
     # Total of `mean` column.
     total_incremental_impact = np.sum(incremental_impact_with_mean_and_ci[:, 0])
-    all_times = self._meridian.input_data.time.values.tolist()
+
+    # expected_impact here is a tensor with the shape (n_chains, n_draws)
+    expected_impact = self._analyzer.expected_impact(
+        use_posterior=True,
+        new_media=new_media,
+        new_reach=new_reach,
+        new_frequency=new_frequency,
+        selected_times=selected_times,
+        use_kpi=use_kpi,
+        batch_size=batch_size,
+    )
+    mean_expected_impact = tf.reduce_mean(expected_impact, (0, 1))  # a scalar
+
+    pct_contrib = incremental_impact / mean_expected_impact[..., None] * 100
+    pct_contrib_with_mean_and_ci = analyzer.get_mean_and_ci(
+        data=pct_contrib,
+        confidence_level=confidence_level,
+    )
 
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
@@ -1324,6 +1349,10 @@ class BudgetOptimizer:
             [c.CHANNEL, c.METRIC],
             incremental_impact_with_mean_and_ci,
         ),
+        c.PCT_OF_CONTRIBUTION: (
+            [c.CHANNEL, c.METRIC],
+            pct_contrib_with_mean_and_ci,
+        ),
     }
     attributes = {
         c.START_DATE: min(selected_times) if selected_times else all_times[0],
@@ -1331,6 +1360,7 @@ class BudgetOptimizer:
         c.BUDGET: budget,
         c.PROFIT: total_incremental_impact - budget,
         c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
+        c.CONFIDENCE_LEVEL: confidence_level,
     }
     if use_kpi:
       cpik = analyzer.get_mean_and_ci(
