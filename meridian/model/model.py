@@ -252,19 +252,12 @@ class Meridian:
   @property
   def all_channel_names(self) -> list[str] | None:
     """Returns all media (and RF) channel names in the data."""
-    media_channel_names = (
-        list(self.input_data.media_channel.data)
-        if self.input_data.media_channel is not None
-        else None
-    )
-    rf_channel_names = (
-        list(self.input_data.rf_channel.data)
-        if self.input_data.rf_channel is not None
-        else None
-    )
-    if media_channel_names is None and rf_channel_names is None:
+    if (
+        self.input_data.media_channel is None
+        and self.input_data.rf_channel is None
+    ):
       return None
-    return (media_channel_names or []) + (rf_channel_names or [])
+    return list(self.input_data.get_all_channels())
 
   @property
   def n_controls(self) -> int:
