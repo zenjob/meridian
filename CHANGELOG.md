@@ -25,7 +25,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 [Unreleased]: https://github.com/google/meridian/compare/v0.4.0...HEAD
 
-* Include `pct_of_contribution` data to `OptimizationResults` datasets.
+* Include `pct_of_contribution` and `effectiveness` data to
+  `OptimizationResults` datasets.
 * Add `Analyzer.get_aggregated_impressions()` method.
 
 ## [0.4.0] - 2024-07-19

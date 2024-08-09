@@ -1342,6 +1342,19 @@ class BudgetOptimizer:
         confidence_level=confidence_level,
     )
 
+    aggregated_impressions = self._analyzer.get_aggregated_impressions(
+        selected_times=selected_times,
+        selected_geos=None,
+        aggregate_times=True,
+        aggregate_geos=True,
+        optimal_frequency=optimal_frequency,
+    )
+    effectiveness = incremental_impact / aggregated_impressions
+    effectiveness_with_mean_and_ci = analyzer.get_mean_and_ci(
+        data=effectiveness,
+        confidence_level=confidence_level,
+    )
+
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
         c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
@@ -1352,6 +1365,10 @@ class BudgetOptimizer:
         c.PCT_OF_CONTRIBUTION: (
             [c.CHANNEL, c.METRIC],
             pct_contrib_with_mean_and_ci,
+        ),
+        c.EFFECTIVENESS: (
+            [c.CHANNEL, c.METRIC],
+            effectiveness_with_mean_and_ci,
         ),
     }
     attributes = {
