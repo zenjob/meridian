@@ -1452,6 +1452,42 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(modified_tensor.shape, expected_shape)
 
   @parameterized.product(
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      optimal_frequency=[None, [1.0, 3.0]],
+  )
+  def test_get_aggregated_impressions_returns_correct_shape(
+      self,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      optimal_frequency: Sequence[float] | None,
+  ):
+    impressions = (
+        self.analyzer_media_only.get_aggregated_impressions(
+            selected_geos=selected_geos,
+            selected_times=selected_times,
+            aggregate_geos=aggregate_geos,
+            aggregate_times=aggregate_times,
+            optimal_frequency=optimal_frequency,
+        )
+    )
+    expected_shape = ()
+    if not aggregate_geos:
+      expected_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+    expected_shape += (_N_MEDIA_CHANNELS,)
+    self.assertEqual(impressions.shape, expected_shape)
+
+  @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
       aggregate_times=[False, True],

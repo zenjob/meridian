@@ -1869,27 +1869,8 @@ class Analyzer:
         axis=-1,
     )
 
-    impressions_list = []
-
-    if self._meridian.n_media_channels > 0:
-      impressions_list.append(
-          self._meridian.media_tensors.media[:, -self._meridian.n_times :, :]
-      )
-
-    if self._meridian.n_rf_channels > 0:
-      if optimal_frequency is None:
-        new_frequency = self._meridian.rf_tensors.frequency
-      else:
-        new_frequency = (
-            tf.ones_like(self._meridian.rf_tensors.frequency)
-            * optimal_frequency
-        )
-      impressions_list.append(
-          self._meridian.rf_tensors.reach[:, -self._meridian.n_times :, :]
-          * new_frequency[:, -self._meridian.n_times :, :]
-      )
-    aggregated_impressions = self.filter_and_aggregate_geos_and_times(
-        tensor=tf.concat(impressions_list, axis=-1), **dim_kwargs
+    aggregated_impressions = self.get_aggregated_impressions(
+        optimal_frequency=optimal_frequency, **dim_kwargs
     )
     impressions_with_total = tf.concat(
         [
@@ -2049,6 +2030,62 @@ class Analyzer:
         mroi,
         cpik,
     ])
+
+  def get_aggregated_impressions(
+      self,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+      aggregate_geos: bool = True,
+      aggregate_times: bool = True,
+      optimal_frequency: Sequence[float] | None = None,
+  ) -> tf.Tensor:
+    """Computes aggregated impressions values in the data across all channels.
+
+    Args:
+      selected_geos: Optional list containing a subset of geos to include. By
+        default, all geos are included.
+      selected_times: Optional list containing a subset of times to include. By
+        default, all time periods are included.
+      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
+        of the regions.
+      aggregate_times: Boolean. If `True`, the expected impact is summed over
+        all of the time periods.
+      optimal_frequency: An optional list with dimension `n_rf_channels`,
+        containing the optimal frequency per channel, that maximizes posterior
+        mean roi. Default value is `None`, and historical frequency is used for
+        the metrics calculation.
+
+    Returns:
+      A tensor with the shape `(n_selected_geos, n_selected_times, n_channels)`
+      (or `(n_channels,)` if geos and times are aggregated) with aggregate
+      impression values per channel.
+    """
+    impressions_list = []
+    if self._meridian.n_media_channels > 0:
+      impressions_list.append(
+          self._meridian.media_tensors.media[:, -self._meridian.n_times :, :]
+      )
+
+    if self._meridian.n_rf_channels > 0:
+      if optimal_frequency is None:
+        new_frequency = self._meridian.rf_tensors.frequency
+      else:
+        new_frequency = (
+            tf.ones_like(self._meridian.rf_tensors.frequency)
+            * optimal_frequency
+        )
+      impressions_list.append(
+          self._meridian.rf_tensors.reach[:, -self._meridian.n_times :, :]
+          * new_frequency[:, -self._meridian.n_times :, :]
+      )
+
+    return self.filter_and_aggregate_geos_and_times(
+        tensor=tf.concat(impressions_list, axis=-1),
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+    )
 
   def optimal_freq(
       self,
