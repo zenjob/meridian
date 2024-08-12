@@ -530,6 +530,7 @@ class Meridian:
     if (
         self.input_data.revenue_per_kpi is None
         and self.input_data.kpi_type == constants.NON_REVENUE
+        and self.model_spec.use_roi_prior
         and roi_m_properties_equal
         and roi_rf_properties_equal
     ):

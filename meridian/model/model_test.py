@@ -500,6 +500,22 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           model_spec=spec.ModelSpec(),
       )
 
+  def test_custom_priors_not_passed_in_ok_without_use_roi_prior(self):
+    meridian = model.Meridian(
+        input_data=self.input_data_non_revenue_no_revenue_per_kpi,
+        model_spec=spec.ModelSpec(use_roi_prior=False),
+    )
+    # Compare input data.
+    self.assertEqual(
+        meridian.input_data, self.input_data_non_revenue_no_revenue_per_kpi
+    )
+
+    # Create sample model spec for comparison
+    sample_spec = spec.ModelSpec(use_roi_prior=False)
+
+    # Compare model spec.
+    self.assertEqual(repr(meridian.model_spec), repr(sample_spec))
+
   def test_get_knot_info_fails(self):
     error_msg = "Knots must be all non-negative."
     with mock.patch.object(
