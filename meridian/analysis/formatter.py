@@ -195,7 +195,7 @@ def create_card_html(
     chart_specs: Sequence[ChartSpec | TableSpec] | None = None,
     stats_specs: Sequence[StatsSpec] | None = None,
 ) -> str:
-  """Creates a card's HTML snippet that includes given card and charts specs."""
+  """Creates a card's HTML snippet that includes given card and chart specs."""
   insights_html = template_env.get_template('insights.html.jinja').render(
       text_html=insights
   )

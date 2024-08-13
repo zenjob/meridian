@@ -599,10 +599,10 @@ class Analyzer:
     also pass other media values as long as the dimensions match, and similarly
     for controls. In principle, the expected impact could be calculated with
     other time dimensions (for example, future predictions), but this is not
-    allowed with this method because of the additional complexites this
+    allowed with this method because of the additional complexities this
     introduces:
 
-    1.  Corresponding price (revenue per kpi) data would also be needed.
+    1.  Corresponding price (revenue per KPI) data would also be needed.
     2.  If the model contains weekly effect parameters, then some method is
         needed to estimate or predict these effects for time periods outside of
         the training data window.
@@ -969,11 +969,10 @@ class Analyzer:
     and control values that the Meridian object was initialized with.
 
     The calculation in this method depends on two key assumptions made in the
-    current Meridian implementation, that could potentially be dropped in the
-    future:
+    Meridian implementation:
 
-    1.  additivity of media effects (no interactions).
-    2.  additive changes on the model KPI scale correspond to additive
+    1.  Additivity of media effects (no interactions).
+    2.  Additive changes on the model KPI scale correspond to additive
         changes on the original KPI scale. In other words, the intercept and
         control effects do not influence the media effects. This assumption
         currently holds because the impact transformation only involves
@@ -981,11 +980,11 @@ class Analyzer:
 
     In principle, the incremental impact can be calculated
     with other time dimensions (such as future predictions), but this is not
-    allowed with this method because of the additional complexites
+    allowed with this method because of the additional complexities
     this introduces:
 
-    1.  corresponding price (revenue per KPI) data is also needed
-    2.  if the model contains weekly effect parameters, then some method is
+    1.  Corresponding price (revenue per KPI) data is also needed.
+    2.  If the model contains weekly effect parameters, then some method is
         needed to estimate or predict these effects for time periods outside of
         the training data window.
 
@@ -2097,7 +2096,7 @@ class Analyzer:
   ) -> xr.Dataset:
     """Calculates the optimal frequency that maximizes posterior mean ROI/CPIK.
 
-    In the case that `revenue_per_kpi` is not known and ROI is not available,
+    When `revenue_per_kpi` is not known and ROI is not available,
     the optimal frequency is calculated using cost per incremental KPI instead.
 
     For this optimization, historical spend is used and fixed, and frequency is
@@ -2122,27 +2121,27 @@ class Analyzer:
 
     Returns:
       An xarray Dataset which contains:
-        - Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `ci_hi`,
+      * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `ci_hi`,
         `ci_lo`).
-        - Data variables:
-          - `optimal_frequency` is the frequency that optimizes the posterior
+      * Data variables:
+        * `optimal_frequency`: The frequency that optimizes the posterior
             mean of ROI or CPIK.
-          - `roi` is the ROI for each frequency value in `freq_grid` when
+        * `roi`: The ROI for each frequency value in `freq_grid` when
             `revenue_per_kpi` is available.
-          - `cpik` is the CPIK for each frequency value in `freq_grid` when
+        * `cpik`: The CPIK for each frequency value in `freq_grid` when
             `revenue_per_kpi` is not available.
-          - `optimized_incremental_impact` is the incremental impact based on
+        * `optimized_incremental_impact`: The incremental impact based on
             the optimal frequency.
-          - `optimized_pct_of_contribution` is the contribution percentage based
+        * `optimized_pct_of_contribution`: The contribution percentage based
             on the optimal frequency.
-          - `optimized_effectiveness` is the effectiveness based on the optimal
+        * `optimized_effectiveness`: The effectiveness based on the optimal
             frequency.
-          - `optimized_roi` is the ROI based on the optimal frequency.
-          - `optimized_mroi_by_reach` is the marginal ROI with a small change in
+        * `optimized_roi`: The ROI based on the optimal frequency.
+        * `optimized_mroi_by_reach`: The marginal ROI with a small change in
             reach and fixed frequency at the optimal frequency.
-          - `optimized_mroi_by_frequency` is the marginal ROI with a small
+        * `optimized_mroi_by_frequency`: The marginal ROI with a small
             change around the optimal frequency and fixed reach.
-          - `optimized_cpik` is the CPIK based on the optimal frequency.
+        * `optimized_cpik`: The CPIK based on the optimal frequency.
 
     Raises:
       NotFittedModelError: If `sample_posterior()` (for `use_posterior=True`)
@@ -2299,7 +2298,7 @@ class Analyzer:
     absolute percentage error) are calculated on the revenue scale
     (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or the KPI
     scale when `revenue_per_kpi = None`. This is the same scale as what is used
-    in the ROI numerator (i.e., incremental revenue).
+    in the ROI numerator (incremental revenue).
 
     Prediction errors in `wMAPE` are weighted by the actual revenue
     (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or weighted
@@ -2568,7 +2567,7 @@ class Analyzer:
       use_optimal_frequency: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
-    """Method to generate a response curves XArray Dataset.
+    """Method to generate a response curves xarray.Dataset.
 
     Response curves are calculated at the national-level, assuming the
     historical flighting pattern across geos and time periods for each media
@@ -2600,7 +2599,7 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-        An xarray Dataset containing the data needed to visualize response
+        An `xarray.Dataset` containing the data needed to visualize response
         curves.
     """
     use_kpi = self._meridian.input_data.revenue_per_kpi is None

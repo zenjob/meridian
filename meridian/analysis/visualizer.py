@@ -271,14 +271,14 @@ class ModelDiagnostics:
 
     There is a single R-hat value for each model parameter. The box plot
     summarizes the distribution of R-hat values across indices. For example, the
-    box corresponding to beta_gm summarizes the distribution of R-hat values
-    across both the geo index g and the channel index m.
+    box corresponding to `beta_gm` summarizes the distribution of R-hat values
+    across both the geo index `g` and the channel index `m`.
 
-    The r-hat is not defined for any parameters that have deterministic priors,
+    The R-hat is not defined for any parameters that have deterministic priors,
     so these parameters are not shown on the boxplot.
 
     Returns:
-      An Altair plot showing the r-hat boxplot per parameter.
+      An Altair plot showing the R-hat boxplot per parameter.
 
     Raises:
       NotFittedModelError: The model hasn't been fitted.
@@ -637,10 +637,10 @@ class ReachAndFrequency:
     """Dataset holding the calculated optimal reach and frequency metrics.
 
     The dataset contains the following:
-    Coordinates:
-      frequency, rf_channel, metric (mean, ci_hi, ci_lo)
-    Data variables:
-      roi or cpik, optimal_frequency
+
+    * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `ci_hi`,
+      `ci_lo`)
+    * Data variables: `roi` or `cpik`, `optimal_frequency`
     """
     return self._optimal_frequency_data
 

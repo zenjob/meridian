@@ -105,7 +105,7 @@ def build_media_tensors(
 
 @dataclasses.dataclass(frozen=True)
 class RfTensors:
-  """Container for Reach & Frequency (RF) media values tensors.
+  """Container for Reach and Frequency (RF) media values tensors.
 
   Attributes:
     reach: A tensor constructed from `InputData.reach`.

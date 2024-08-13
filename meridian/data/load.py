@@ -537,15 +537,15 @@ class DataFrameDataLoader(InputDataLoader):
   The `DataFrame` must include (1) or (2), but doesn't need to include both.
   Also, each media channel must appear in (1) or (2), but not both.
 
-  Note: Time column values must be formatted in _yyyy-mm-dd_ date format.
+  Note the following:
 
-  Note: In a national model, `geo` and `population` are optional. If the
-  `population` is provided, it is reset to a default value of `1.0`.
-
-  Note: If `media` data is provided, then `media_to_channel` and
-  `media_spend_to_channel` are required. If `reach` and `frequency` data is
-  provided, then `reach_to_channel` and `frequency_to_channel` and
-  `rf_spend_to_channel` are required.
+  *   Time column values must be formatted in _yyyy-mm-dd_ date format.
+  *   In a national model, `geo` and `population` are optional. If the
+      `population` is provided, it is reset to a default value of `1.0`.
+  *   If `media` data is provided, then `media_to_channel` and
+      `media_spend_to_channel` are required. If `reach` and `frequency` data is
+      provided, then `reach_to_channel` and `frequency_to_channel` and
+      `rf_spend_to_channel` are required.
 
   Example:
 

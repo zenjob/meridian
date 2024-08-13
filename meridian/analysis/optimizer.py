@@ -920,9 +920,9 @@ class BudgetOptimizer:
         used for flexible budget scenarios. The budget is constrained to when
         the marginal ROI of the total spend hits `target_mroi`.
       gtol: Float indicating the acceptable relative error for the budget used
-        in the grid setup. The budget will be rounded by 10*n, where `n` is the
-        smallest integer such that (budget - rounded_budget) is less than or
-        equal to (budget * gtol). `gtol` must be less than 1.
+        in the grid setup. The budget will be rounded by `10*n`, where `n` is
+        the smallest integer such that `(budget - rounded_budget)` is less than
+        or equal to `(budget * gtol)`. `gtol` must be less than 1.
       use_optimal_frequency: If `True`, uses `optimal_frequency` calculated by
         trained Meridian model for optimization. If `False`, uses historical
         frequency.

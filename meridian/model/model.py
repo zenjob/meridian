@@ -397,7 +397,8 @@ class Meridian:
       correspond to the entire time range in the input data.
 
     Raises:
-      ValueError if start_date or end_date is not in the input data time dims.
+      ValueError if `start_date` or `end_date` is not in the input data time
+      dimensions.
     """
     if start_date is None and end_date is None:
       return None
@@ -800,8 +801,8 @@ class Meridian:
 
     This is useful for creating a `tf.function` computation graph with this
     Meridian object as part of a captured closure. Within the computation graph,
-    internal state mutations are problematic, so we want to freeze the object's
-    states before the computation graph is created.
+    internal state mutations are problematic, and so this method freezes the
+    object's states before the computation graph is created.
     """
     cls = self.__class__
     # "Freeze" all @cached_property attributes by simply accessing them (with
@@ -1272,7 +1273,7 @@ class Meridian:
   ):
     """Runs Markov Chain Monte Carlo (MCMC) sampling of posterior distributions.
 
-    For more details about the arguments, see [`windowed_adaptive_nuts`]
+    For more information about the arguments, see [`windowed_adaptive_nuts`]
     (https://www.tensorflow.org/probability/api_docs/python/tfp/experimental/mcmc/windowed_adaptive_nuts).
 
     Args:
@@ -1439,8 +1440,8 @@ class Meridian:
 def save_mmm(mmm: Meridian, file_path: str):
   """Save the model object to a `pickle` file path.
 
-  WARNING: There is no guarantee for future compaibility of the binary file
-  output of this function. It is recommended to use `load_mmm()` with the same
+  WARNING: There is no guarantee for future compatibility of the binary file
+  output of this function. We recommend using `load_mmm()` with the same
   version of the library that was used to save the model.
 
   Args:
@@ -1458,8 +1459,8 @@ def load_mmm(file_path: str) -> Meridian:
   """Load the model object from a `pickle` file path.
 
   WARNING: There is no guarantee for backward compatibility of the binary file
-  input of this function. It is recommended to use `load_mmm()` with the same
-  version of the library that was used to save the model's pickleed file.
+  input of this function. We recommend using `load_mmm()` with the same
+  version of the library that was used to save the model's pickled file.
 
   Args:
     file_path: File path to load a pickled model object from.

@@ -173,7 +173,7 @@ class AdstockTransformer(AdstockHillTransformer):
     """Computes the Adstock transformation of a given `media` tensor.
 
     For geo `g`, time period `t`, and media channel `m`, Adstock is calculated
-    as $adstock_{g,t,m} = sum_{i=0}^max_lag media_{g,t-i,m} alpha^i$.
+    as `adstock_{g,t,m} = sum_{i=0}^max_lag media_{g,t-i,m} alpha^i`.
 
     Note: The Hill function can be applied before or after Adstock. If Hill is
     applied first, then the Adstock media input can contain batch dimensions

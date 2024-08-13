@@ -34,7 +34,7 @@ def _find_neighboring_knots_indices(
 ) -> Sequence[Sequence[int] | None]:
   """Return indices of neighboring knot locations.
 
-  Return indices in `knot_locations` that correspond to the neighboring knot
+  Returns indices in `knot_locations` that correspond to the neighboring knot
   locations for each time period. If a time point is at or before the first
   knot, the first knot is the only neighboring knot. If a time point is after
   the last knot, the last knot is the only neighboring knot.
@@ -126,12 +126,12 @@ def _get_equally_spaced_knot_locations(n_times, n_knots):
 
 @dataclasses.dataclass(frozen=True)
 class KnotInfo:
-  """A newtype that contains the number of knots, knot locations, and weights.
+  """Contains the number of knots, knot locations, and weights.
 
   Attributes:
-    n_knots: the number of knots
-    knot_locations: the location of knots
-    weights: the weights used to multiply with the knot values to get time-
+    n_knots: The number of knots
+    knot_locations: The location of knots
+    weights: The weights used to multiply with the knot values to get time-
       varying coefficients.
   """
 
@@ -145,7 +145,7 @@ def get_knot_info(
     knots: int | Collection[int] | None,
     is_national: bool = False,
 ) -> KnotInfo:
-  """Return number of knots, knot locations, and weights.
+  """Returns the number of knots, knot locations, and weights.
 
   Args:
     n_times: The number of time periods in the data.
