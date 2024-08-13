@@ -23,6 +23,7 @@ The unit tests generally follow this procedure:
 """
 
 from collections.abc import Mapping
+import math
 import os
 import tempfile
 from typing import Any
@@ -711,7 +712,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     np.testing.assert_allclose(new_rf_spend, expected_rf_spend)
 
   @mock.patch.object(optimizer.BudgetOptimizer, '_create_grids', autospec=True)
-  def test_optimization_grid(self, mock_incremental_impact):
+  @mock.patch.object(optimizer, '_get_round_factor', autospec=True)
+  def test_optimization_grid(self, mock_get_round_factor, mock_create_grids):
     expected_spend_grid = np.array(
         [
             [500.0, 600.0, 700.0, 800.0, 900.0],
@@ -732,10 +734,13 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1.0, 1.0, 1.0, np.nan, np.nan],
         ],
     )
-    mock_incremental_impact.return_value = [
+    mock_create_grids.return_value = [
         expected_spend_grid,
         expected_incremental_impact_grid,
     ]
+    # This should correspond to a computed (spend) step size of 100.
+    mock_get_round_factor.return_value = -int(math.log10(20)) - 1
+
     expected_data = xr.Dataset(
         data_vars={
             c.SPEND_GRID: (
@@ -763,6 +768,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     actual_data = optimization_results.optimization_grid
     self.assertEqual(actual_data, expected_data)
+    self.assertEqual(actual_data.attrs[c.SPEND_STEP_SIZE], 100.0)
 
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True

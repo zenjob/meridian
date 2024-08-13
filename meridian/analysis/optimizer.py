@@ -180,6 +180,7 @@ class OptimizationResults:
 
       - Coordinates:  `grid_spend_index`, `channel`
       - Data variables: `spend_grid`, `incremental_impact_grid`
+      - Attributes: `spend_step_size`
     """
     return self._optimization_grid
 
@@ -1029,6 +1030,7 @@ class BudgetOptimizer:
 
     optimization_grid = self._create_optimization_grid(
         spend_grid=spend_grid,
+        spend_step_size=step_size,
         incremental_impact_grid=incremental_impact_grid,
     )
 
@@ -1047,6 +1049,7 @@ class BudgetOptimizer:
   def _create_optimization_grid(
       self,
       spend_grid: np.ndarray,
+      spend_step_size: float,
       incremental_impact_grid: np.ndarray,
   ) -> xr.Dataset:
     """Creates the optimization grid dataset.
@@ -1056,13 +1059,15 @@ class BudgetOptimizer:
         the maximum number of spend points among all channels, and the number of
         columns is equal to the number of total channels, containing spend by
         channel.
+      spend_step_size: The step size of the spend grid.
       incremental_impact_grid: Discrete two-dimensional grid with the size same
         as the `spend_grid` containing incremental impact by channel.
 
     Returns:
       The optimization grid dataset. The dataset contains the following:
         - Coordinates:  `grid_spend_index`, `channel`
-        - Data variables: `spend_grid`, `incremental_impact_grid`.
+        - Data variables: `spend_grid`, `incremental_impact_grid`
+        - Attributes: `spend_step_size`
     """
     data_vars = {
         c.SPEND_GRID: ([c.GRID_SPEND_INDEX, c.CHANNEL], spend_grid),
@@ -1084,6 +1089,7 @@ class BudgetOptimizer:
                 self._meridian.input_data.get_all_channels(),
             ),
         },
+        attrs={c.SPEND_STEP_SIZE: spend_step_size},
     )
 
   def _validate_budget(

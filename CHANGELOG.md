@@ -28,6 +28,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Include `pct_of_contribution` and `effectiveness` data to
   `OptimizationResults` datasets.
 * Add `Analyzer.get_aggregated_impressions()` method.
+* Add `spend_step_size` to `OptimizationResults.optimization_grid`.
 
 ## [0.4.0] - 2024-07-19
 

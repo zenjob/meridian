@@ -402,6 +402,7 @@ SPEND_LEVEL = 'spend_level'
 LOWER_BOUND = 'lower_bound'
 UPPER_BOUND = 'upper_bound'
 SPEND_GRID = 'spend_grid'
+SPEND_STEP_SIZE = 'spend_step_size'
 INCREMENTAL_IMPACT_GRID = 'incremental_impact_grid'
 GRID_SPEND_INDEX = 'grid_spend_index'
 
