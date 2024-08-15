@@ -69,8 +69,10 @@ class OptimizationResults:
     meridian: The fitted Meridian model that was used to create this budget
       allocation.
     analyzer: The analyzer bound to the model above.
-    use_optimal_frequency: Whether to use optimal frequency for the
-      non-optimized budget metrics.
+    use_posterior: Whether the posterior distribution was used to optimize the
+      budget. If `False`, the prior distribution was used.
+    use_optimal_frequency: Whether optimal frequency was used to optimize the
+      budget.
     spend_ratio: The spend ratio used to scale the non-optimized budget metrics
       to the optimized budget metrics.
     spend_bounds: The spend bounds used to scale the non-optimized budget
@@ -88,6 +90,7 @@ class OptimizationResults:
   analyzer: analyzer.Analyzer
 
   # The intermediate values used to derive the optimized budget allocation.
+  use_posterior: bool
   use_optimal_frequency: bool
   spend_ratio: np.ndarray  # spend / historical spend
   spend_bounds: tuple[np.ndarray, np.ndarray]
@@ -539,6 +542,7 @@ class OptimizationResults:
     # response curve computation might take a significant amount of time.
     return self.analyzer.response_curves(
         spend_multipliers=spend_multiplier,
+        use_posterior=self.use_posterior,
         selected_times=selected_times,
         by_reach=True,
         use_optimal_frequency=self.use_optimal_frequency,
@@ -871,6 +875,7 @@ class BudgetOptimizer:
 
   def optimize(
       self,
+      use_posterior: bool = True,
       selected_times: tuple[str, str] | None = None,
       fixed_budget: bool = True,
       budget: float | None = None,
@@ -887,6 +892,9 @@ class BudgetOptimizer:
     """Finds the optimal budget allocation that maximizes impact.
 
     Args:
+      use_posterior: Boolean. If `True`, then the budget is optimized based on
+        the posterior distribution of the model. Otherwise, the prior
+        distribution is used.
       selected_times: Tuple containing the start and end time dimensions for the
         duration to run the optimization on. Time dimensions should align with
         the Meridian time dimensions. By default, all times periods are used.
@@ -936,7 +944,8 @@ class BudgetOptimizer:
       An `OptimizationResults` object containing optimized budget allocation
       datasets, along with some of the intermediate values used to derive them.
     """
-    if not hasattr(self._meridian.inference_data, c.POSTERIOR):
+    dist_type = c.POSTERIOR if use_posterior else c.PRIOR
+    if dist_type not in self._meridian.inference_data.groups():
       raise model.NotFittedModelError(
           'Running budget optimization scenarios requires fitting the model.'
       )
@@ -961,7 +970,7 @@ class BudgetOptimizer:
     if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
       optimal_frequency = tf.convert_to_tensor(
           self._analyzer.optimal_freq(
-              selected_times=selected_time_dims
+              use_posterior=use_posterior, selected_times=selected_time_dims
           ).optimal_frequency,
           dtype=tf.float32,
       )
@@ -983,6 +992,7 @@ class BudgetOptimizer:
         spend_bound_upper=optimization_upper_bound,
         step_size=step_size,
         selected_times=selected_time_dims,
+        use_posterior=use_posterior,
         optimal_frequency=optimal_frequency,
         batch_size=batch_size,
     )
@@ -1004,6 +1014,7 @@ class BudgetOptimizer:
       constraints[c.TARGET_MROI] = target_mroi
 
     nonoptimized_data = self._create_budget_dataset(
+        use_posterior=use_posterior,
         hist_spend=hist_spend,
         spend=rounded_spend,
         selected_times=selected_time_dims,
@@ -1011,6 +1022,7 @@ class BudgetOptimizer:
         batch_size=batch_size,
     )
     nonoptimized_data_with_optimal_freq = self._create_budget_dataset(
+        use_posterior=use_posterior,
         hist_spend=hist_spend,
         spend=rounded_spend,
         selected_times=selected_time_dims,
@@ -1019,6 +1031,7 @@ class BudgetOptimizer:
         batch_size=batch_size,
     )
     optimized_data = self._create_budget_dataset(
+        use_posterior=use_posterior,
         hist_spend=hist_spend,
         spend=optimal_spend,
         selected_times=selected_time_dims,
@@ -1037,6 +1050,7 @@ class BudgetOptimizer:
     return OptimizationResults(
         meridian=self._meridian,
         analyzer=self._analyzer,
+        use_posterior=use_posterior,
         use_optimal_frequency=use_optimal_frequency,
         spend_ratio=spend_ratio,
         spend_bounds=spend_bounds,
@@ -1292,6 +1306,7 @@ class BudgetOptimizer:
       self,
       hist_spend: np.ndarray,
       spend: np.ndarray,
+      use_posterior: bool = True,
       selected_times: Sequence[str] | None = None,
       optimal_frequency: Sequence[float] | None = None,
       attrs: Mapping[str, Any] | None = None,
@@ -1313,7 +1328,7 @@ class BudgetOptimizer:
     # incremental_impact here is a tensor with the shape
     # (n_chains, n_draws, n_channels)
     incremental_impact = self._analyzer.incremental_impact(
-        use_posterior=True,
+        use_posterior=use_posterior,
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
@@ -1332,7 +1347,7 @@ class BudgetOptimizer:
 
     # expected_impact here is a tensor with the shape (n_chains, n_draws)
     expected_impact = self._analyzer.expected_impact(
-        use_posterior=True,
+        use_posterior=use_posterior,
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
@@ -1403,6 +1418,7 @@ class BudgetOptimizer:
       )
       marginal_roi = analyzer.get_mean_and_ci(
           data=self._analyzer.marginal_roi(
+              use_posterior=use_posterior,
               new_media=new_media,
               new_reach=new_reach,
               new_frequency=new_frequency,
@@ -1488,6 +1504,7 @@ class BudgetOptimizer:
       incremental_impact_grid: np.ndarray,
       multipliers_grid: tf.Tensor,
       selected_times: Sequence[str],
+      use_posterior: bool = True,
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ):
@@ -1502,6 +1519,9 @@ class BudgetOptimizer:
       multipliers_grid: A grid derived from spend.
       selected_times: Sequence of strings representing the time dimensions in
         `meridian.input_data.time` to use for optimization.
+      use_posterior: Boolean. If `True`, then the incremental impact is derived
+        from the posterior distribution of the model. Otherwise, the prior
+        distribution is used.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
         Value is `None` if the model does not contain reach and frequency data,
@@ -1546,6 +1566,7 @@ class BudgetOptimizer:
     use_kpi = self._meridian.revenue_per_kpi is None
     incremental_impact_grid[i, :] = np.mean(
         self._analyzer.incremental_impact(
+            use_posterior=use_posterior,
             new_media=new_media,
             new_reach=new_reach,
             new_frequency=new_frequency,
@@ -1564,6 +1585,7 @@ class BudgetOptimizer:
       spend_bound_upper: np.ndarray,
       step_size: int,
       selected_times: Sequence[str],
+      use_posterior: bool = True,
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> tuple[np.ndarray, np.ndarray]:
@@ -1579,6 +1601,9 @@ class BudgetOptimizer:
         in the spend grid. All media channels have the same step size.
       selected_times: Sequence of strings representing the time dimensions in
         `meridian.input_data.time` to use for optimization.
+      use_posterior: Boolean. If `True`, then the incremental impact is derived
+        from the posterior distribution of the model. Otherwise, the prior
+        distribution is used.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
         Value is `None` if the model does not contain reach and frequency data,
@@ -1622,6 +1647,7 @@ class BudgetOptimizer:
           incremental_impact_grid,
           multipliers_grid,
           selected_times,
+          use_posterior,
           optimal_frequency,
           batch_size=batch_size,
       )

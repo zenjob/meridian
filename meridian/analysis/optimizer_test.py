@@ -17,7 +17,7 @@
 The unit tests generally follow this procedure:
 1) Load InferenceData MCMC results from disk.
 2) Run an optimization scenario based on the InferenceData.
-3) Compare optimizaton results against the values in the constants below. These
+3) Compare optimization results against the values in the constants below. These
   values are obtained from a previous optimization run that is assumed to be
   correct.
 """
@@ -383,7 +383,10 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         )
     )
 
-  def test_not_fitted_meridian_model_raises_exception(self):
+  @parameterized.parameters([True, False])
+  def test_not_fitted_meridian_model_raises_exception(
+      self, use_posterior: bool
+  ):
     not_fitted_mmm = mock.create_autospec(model.Meridian, instance=True)
     not_fitted_mmm.inference_data = az.InferenceData()
     budget_optimizer = optimizer.BudgetOptimizer(not_fitted_mmm)
@@ -391,7 +394,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         model.NotFittedModelError,
         'Running budget optimization scenarios requires fitting the model.',
     ):
-      budget_optimizer.optimize()
+      budget_optimizer.optimize(use_posterior=use_posterior)
 
   def test_fixed_budget_target_roi_raises_exception(self):
     with self.assertRaisesRegex(
@@ -1156,7 +1159,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
 
     actual_data = optimization_results.optimized_data
-    print(f'efffectiveness: {actual_data.effectiveness}')
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
   def test_get_round_factor_gtol_raise_error(self):
@@ -1243,6 +1245,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=mock.ANY,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -1311,6 +1314,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=mock.ANY,
         new_reach=None,
         new_frequency=None,
@@ -1377,6 +1381,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=None,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -1452,6 +1457,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         * optimal_frequency
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=mock.ANY,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -1520,6 +1526,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         ],
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=mock.ANY,
         new_reach=None,
         new_frequency=None,
@@ -1588,6 +1595,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         * optimal_frequency
     )
     mock_incremental_impact.assert_called_with(
+        use_posterior=True,
         new_media=None,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -1805,6 +1813,7 @@ class OptimizerPlotsTest(absltest.TestCase):
             np.array([1.3]),
         ),
         spend_ratio=np.array([1.0, 1.0, 1.0]),
+        use_posterior=True,
         use_optimal_frequency=False,
     )
 
@@ -2162,6 +2171,7 @@ class OptimizerPlotsTest(absltest.TestCase):
     optimization_results = optimizer.OptimizationResults(
         meridian=original.meridian,
         analyzer=original.analyzer,
+        use_posterior=original.use_posterior,
         use_optimal_frequency=original.use_optimal_frequency,
         spend_ratio=original.spend_ratio,
         spend_bounds=(
@@ -2212,6 +2222,7 @@ class OptimizerPlotsTest(absltest.TestCase):
     optimization_results = optimizer.OptimizationResults(
         meridian=original.meridian,
         analyzer=original.analyzer,
+        use_posterior=original.use_posterior,
         use_optimal_frequency=original.use_optimal_frequency,
         spend_ratio=np.array([1.0, 1.0, 1.0]),
         spend_bounds=(
@@ -2390,6 +2401,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.optimization_results = optimizer.OptimizationResults(
         meridian=self.budget_optimizer._meridian,
         analyzer=self.budget_optimizer._analyzer,
+        use_posterior=True,
         use_optimal_frequency=True,
         spend_ratio=np.array([1.0, 1.0, 1.0]),
         spend_bounds=(np.array([0.7]), np.array([1.3])),
@@ -2402,6 +2414,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.optimization_results_kpi_output = optimizer.OptimizationResults(
         meridian=self.budget_optimizer_kpi_output._meridian,
         analyzer=self.budget_optimizer_kpi_output._analyzer,
+        use_posterior=True,
         use_optimal_frequency=True,
         spend_ratio=np.array([1.0, 1.0, 1.0]),
         spend_bounds=(np.array([0.7]), np.array([1.3])),
@@ -2547,6 +2560,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     optimization_results = optimizer.OptimizationResults(
         meridian=original.meridian,
         analyzer=original.analyzer,
+        use_posterior=original.use_posterior,
         use_optimal_frequency=original.use_optimal_frequency,
         spend_ratio=original.spend_ratio,
         spend_bounds=(np.array([0.7, 0.6, 0.7, 0.6, 0.7]), np.array([1.3])),
@@ -2579,6 +2593,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     optimization_results = optimizer.OptimizationResults(
         meridian=original.meridian,
         analyzer=original.analyzer,
+        use_posterior=original.use_posterior,
         use_optimal_frequency=original.use_optimal_frequency,
         spend_ratio=original.spend_ratio,
         spend_bounds=(np.array([0.7]), np.array([1.3, 1.4, 1.3, 1.4, 1.3])),
@@ -3067,7 +3082,10 @@ class OptimizerKPITest(parameterized.TestCase):
         )
     )
 
-  def test_incremental_impact_called_correct_optimize(self):
+  @parameterized.parameters([True, False])
+  def test_incremental_impact_called_correct_optimize(
+      self, use_posterior: bool
+  ):
     mock_incremental_impact = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf_kpi._analyzer,
@@ -3080,9 +3098,9 @@ class OptimizerKPITest(parameterized.TestCase):
             )),
         )
     )
-    self.budget_optimizer_media_and_rf_kpi.optimize()
+    self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
     mock_incremental_impact.assert_called_with(
-        use_posterior=True,
+        use_posterior=use_posterior,
         new_media=mock.ANY,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
@@ -3091,7 +3109,8 @@ class OptimizerKPITest(parameterized.TestCase):
         batch_size=c.DEFAULT_BATCH_SIZE,
     )
 
-  def test_expected_impact_called_correct_optimize(self):
+  @parameterized.parameters([True, False])
+  def test_expected_impact_called_correct_optimize(self, use_posterior: bool):
     mock_expected_impact = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf_kpi._analyzer,
@@ -3103,9 +3122,9 @@ class OptimizerKPITest(parameterized.TestCase):
             )),
         )
     )
-    self.budget_optimizer_media_and_rf_kpi.optimize()
+    self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
     mock_expected_impact.assert_called_with(
-        use_posterior=True,
+        use_posterior=use_posterior,
         new_media=mock.ANY,
         new_reach=mock.ANY,
         new_frequency=mock.ANY,
