@@ -1376,9 +1376,10 @@ class BudgetOptimizer:
         confidence_level=confidence_level,
     )
 
+    total_spend = np.sum(spend) if np.sum(spend) > 0 else 1
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
-        c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
+        c.PCT_OF_SPEND: ([c.CHANNEL], spend / total_spend),
         c.INCREMENTAL_IMPACT: (
             [c.CHANNEL, c.METRIC],
             incremental_impact_with_mean_and_ci,
