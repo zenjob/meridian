@@ -77,7 +77,7 @@ _NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [580.1, 580.1, 580.1],
     [242.4, 242.4, 242.4],
 ])
-_NONOPTIMIZED_EXPECTED_IMPACT = np.array([16150.22])
+_NONOPTIMIZED_EXPECTED_OUTCOME = np.array([16150.22])
 _NONOPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
     [2.07829976, 2.07829976, 2.07829976],
     [3.28856182, 3.28856182, 3.28856182],
@@ -105,7 +105,7 @@ _OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
     [1178.6, 1178.6, 1178.6],
     [889.0, 889.0, 889.0],
 ])
-_OPTIMIZED_EXPECTED_IMPACT = np.array([20385.18])
+_OPTIMIZED_EXPECTED_OUTCOME = np.array([20385.18])
 _OPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
     [2.59355092, 2.59355092, 2.59355092],
     [3.18074226, 3.18074226, 3.18074226],
@@ -776,19 +776,19 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_media_and_rf(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -810,20 +810,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_media_only(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[:_N_MEDIA_CHANNELS]]], tf.float32
@@ -844,20 +844,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_nonoptimized_data_with_defaults_rf_only(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[-_N_RF_CHANNELS:]]], tf.float32
@@ -878,19 +878,19 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_defaults_media_and_rf(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -916,20 +916,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_defaults_media_only(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[:_N_MEDIA_CHANNELS]]], tf.float32
@@ -956,20 +956,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_defaults_rf_only(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[-_N_RF_CHANNELS:]]], tf.float32
@@ -996,19 +996,19 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_target_mroi(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -1033,19 +1033,19 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
   def test_optimized_data_with_target_roi(
       self,
       mock_incremental_impact,
-      mock_expected_impact,
+      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_impact.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
     )
-    mock_expected_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_IMPACT]], tf.float32
+    mock_expected_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -3110,11 +3110,11 @@ class OptimizerKPITest(parameterized.TestCase):
     )
 
   @parameterized.parameters([True, False])
-  def test_expected_impact_called_correct_optimize(self, use_posterior: bool):
-    mock_expected_impact = self.enter_context(
+  def test_expected_outcome_called_correct_optimize(self, use_posterior: bool):
+    mock_expected_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf_kpi._analyzer,
-            'expected_impact',
+            'expected_outcome',
             autospec=True,
             return_value=tf.ones((
                 _N_CHAINS,
@@ -3123,7 +3123,7 @@ class OptimizerKPITest(parameterized.TestCase):
         )
     )
     self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
-    mock_expected_impact.assert_called_with(
+    mock_expected_outcome.assert_called_with(
         use_posterior=use_posterior,
         new_media=mock.ANY,
         new_reach=mock.ANY,

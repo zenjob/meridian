@@ -569,7 +569,7 @@ class ModelFit:
         any media execution.
 
     Returns:
-      A dataframe filtered based on the specifications.
+      A data frame filtered based on the specifications.
     """
     times = selected_times or self.model_fit_data.time
     geos = selected_geos or self.model_fit_data.geo

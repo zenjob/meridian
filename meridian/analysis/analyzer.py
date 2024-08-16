@@ -59,17 +59,17 @@ def get_mean_and_ci(
 
 
 def _calc_rsquared(expected, actual):
-  """Calculates r-squared between actual and expected impact."""
+  """Calculates r-squared between actual and expected outcome."""
   return 1 - np.nanmean((expected - actual) ** 2) / np.nanvar(actual)
 
 
 def _calc_mape(expected, actual):
-  """Calculates MAPE between actual and expected impact."""
+  """Calculates MAPE between actual and expected outcome."""
   return np.nanmean(np.abs((actual - expected) / actual))
 
 
 def _calc_weighted_mape(expected, actual):
-  """Calculates wMAPE between actual and expected impact (weighted by actual)."""
+  """Calculates wMAPE between actual and expected outcome (weighted by actual)."""
   return np.nansum(np.abs(actual - expected)) / np.nansum(actual)
 
 
@@ -572,7 +572,7 @@ class Analyzer:
     )
     return tf.einsum(f"{tensor_dims}->...{output_dims}", tensor)
 
-  def expected_impact(
+  def expected_outcome(
       self,
       use_posterior: bool = True,
       new_media: tf.Tensor | None = None,
@@ -583,21 +583,21 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
-      inverse_transform_impact: bool = True,
+      inverse_transform_outcome: bool = True,
       use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
-    """Calculates either the expected impact posterior or prior.
+    """Calculates either prior or posterior expected outcome.
 
     This calculates `E(Impact|Media, Controls)` for each posterior (or prior)
-    parameter draw, where `Impact` refers to either `revenue` if
+    parameter draw, where `Impact` ("outcome") refers to either `revenue` if
     `use_kpi=False`, or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not
     defined, `use_kpi` cannot be `False`.
 
-    By default, this calculates expected impact conditional on the media and
+    By default, this calculates expected outcome conditional on the media and
     control values that the Meridian object was initialized with. The user can
     also pass other media values as long as the dimensions match, and similarly
-    for controls. In principle, the expected impact could be calculated with
+    for controls. In principle, the expected outcome could be calculated with
     other time dimensions (for example, future predictions), but this is not
     allowed with this method because of the additional complexities this
     introduces:
@@ -608,7 +608,7 @@ class Analyzer:
         the training data window.
 
     Args:
-      use_posterior: Boolean. If `True`, then the expected impact posterior
+      use_posterior: Boolean. If `True`, then the expected outcome posterior
         distribution is calculated. Otherwise, the prior distribution is
         calculated.
       new_media: Optional tensor with dimensions matching media.
@@ -619,26 +619,26 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
         By default, all time periods are included.
-      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
-        regions.
-      aggregate_times: Boolean. If `True`, the expected impact is summed over
+      aggregate_geos: Boolean. If `True`, the expected outcome is summed over
+        all regions.
+      aggregate_times: Boolean. If `True`, the expected outcome is summed over
         all time periods.
-      inverse_transform_impact: Boolean. If `True`, returns the expected impact
-        in the original KPI or revenue (depending on what is passed to
+      inverse_transform_outcome: Boolean. If `True`, returns the expected
+        outcome in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
-        impact after transformation by `KpiTransformer`, reflecting how its
+        outcome after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
       use_kpi: Boolean. If `use_kpi = True`, the expected KPI is calculated;
         otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
         It is required that `use_kpi = True` if `revenue_per_kpi` is not defined
-        or if `inverse_transform_impact = False`.
+        or if `inverse_transform_outcome = False`.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
         generally be faster with larger `batch_size` values.
 
     Returns:
-      Tensor of expected impact (either KPI or revenue, depending on the
+      Tensor of expected outcome (either KPI or revenue, depending on the
       `use_kpi` argument) with dimensions `(n_chains, n_draws, n_geos,
       n_times)`. The `n_geos` and `n_times` dimensions is dropped if
       `aggregate_geos=True` or `aggregate_time=True`, respectively.
@@ -648,7 +648,7 @@ class Analyzer:
         prior to calling this method.
     """
     self._check_revenue_data_exists(use_kpi)
-    self._check_kpi_transformation(inverse_transform_impact, use_kpi)
+    self._check_kpi_transformation(inverse_transform_outcome, use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,
@@ -658,7 +658,7 @@ class Analyzer:
     if dist_type not in self._meridian.inference_data.groups():
       raise model.NotFittedModelError(
           f"sample_{dist_type}() must be called prior to calling"
-          " `expected_impact()`."
+          " `expected_outcome()`."
       )
     _check_shape_matches(
         new_controls, "new_controls", self._meridian.controls, "controls"
@@ -691,7 +691,7 @@ class Analyzer:
     )
     n_draws = params.draw.size
     n_chains = params.chain.size
-    impact_means = tf.zeros(
+    outcome_means = tf.zeros(
         (n_chains, 0, self._meridian.n_geos, self._meridian.n_times)
     )
     batch_starting_indices = np.arange(n_draws, step=batch_size)
@@ -700,27 +700,27 @@ class Analyzer:
         constants.TAU_G,
         constants.GAMMA_GC,
     ] + self._get_adstock_hill_param_names()
-    impact_means_temps = []
+    outcome_means_temps = []
     for start_index in batch_starting_indices:
       stop_index = np.min([n_draws, start_index + batch_size])
       batch_dists = {
           k: tf.convert_to_tensor(params[k][:, start_index:stop_index, ...])
           for k in param_list
       }
-      impact_means_temps.append(
+      outcome_means_temps.append(
           self._get_kpi_means(
               **tensor_kwargs,
               **batch_dists,
           )
       )
-    impact_means = tf.concat([impact_means, *impact_means_temps], axis=1)
-    if inverse_transform_impact:
-      impact_means = self._meridian.kpi_transformer.inverse(impact_means)
+    outcome_means = tf.concat([outcome_means, *outcome_means_temps], axis=1)
+    if inverse_transform_outcome:
+      outcome_means = self._meridian.kpi_transformer.inverse(outcome_means)
       if not use_kpi:
-        impact_means *= self._meridian.revenue_per_kpi
+        outcome_means *= self._meridian.revenue_per_kpi
 
     return self.filter_and_aggregate_geos_and_times(
-        impact_means,
+        outcome_means,
         selected_geos=selected_geos,
         selected_times=selected_times,
         aggregate_geos=aggregate_geos,
@@ -728,26 +728,27 @@ class Analyzer:
     )
 
   def _check_kpi_transformation(
-      self, inverse_transform_impact: bool, use_kpi: bool
+      self, inverse_transform_outcome: bool, use_kpi: bool
   ):
-    """Validates `use_kpi` functionality based on `inverse_transform_impact`.
+    """Validates `use_kpi` functionality based on `inverse_transform_outcome`.
 
-    When both `inverse_transform_impact` and `use_kpi` are `False`, it indicates
+    When both `inverse_transform_outcome` and `use_kpi` are `False`, it
+    indicates
     that the user wants to calculate "transformed revenue", which is not
     well-defined.
 
     Args:
-      inverse_transform_impact: Boolean. Indicates whether to inverse the
+      inverse_transform_outcome: Boolean. Indicates whether to inverse the
         transformation done by `KpiTransformer`.
       use_kpi: Boolean. Indicates whether to calculate the expected KPI or
         expected revenue.
 
     Raises:
-      ValueError: If both `inverse_transform_impact` and `use_kpi` are `False`.
+      ValueError: If both `inverse_transform_outcome` and `use_kpi` are `False`.
     """
-    if not inverse_transform_impact and not use_kpi:
+    if not inverse_transform_outcome and not use_kpi:
       raise ValueError(
-          "use_kpi=False is only supported when inverse_transform_impact=True."
+          "use_kpi=False is only supported when inverse_transform_outcome=True."
       )
 
   def _get_modeled_incremental_kpi(
@@ -821,11 +822,11 @@ class Analyzer:
     words, the intercept and control effects do not influence the media effects.
 
     Args:
-      modeled_incremental_impact: Tensor of incremenal impact modeled from
+      modeled_incremental_impact: Tensor of incremental impact modeled from
         parameter distributions.
       use_kpi: Boolean. If True, the incremental KPI is calculated. If False,
         incremental revenue `(KPI * revenue_per_kpi)` is calculated. Only used
-        if `inverse_transform_impact=True`. `use_kpi` must be True when
+        if `inverse_transform_outcome=True`. `use_kpi` must be True when
         `revenue_per_kpi` is not defined.
 
     Returns:
@@ -954,7 +955,7 @@ class Analyzer:
       use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
-    """Calculates either the incremental impact posterior or prior.
+    """Calculates either the posterior or prior incremental impact.
 
     This calculates the incremental impact for each posterior or prior parameter
     draw. Incremental impact is defined as `E(Impact|Media, Controls)` minus
@@ -1632,7 +1633,7 @@ class Analyzer:
       split_by_holdout_id: bool = False,
       confidence_level: float = 0.9,
   ) -> xr.Dataset:
-    """Calculates the data for the expected versus actual impact over time.
+    """Calculates the data for the expected versus actual outcome over time.
 
     Args:
       aggregate_geos: Boolean. If `True`, the expected, baseline, and actual are
@@ -1641,34 +1642,34 @@ class Analyzer:
         are summed over all of the time periods.
       split_by_holdout_id: Boolean. If `True` and `holdout_id` exists, the data
         is split into `'Train'`, `'Test'`, and `'All Data'` subsections.
-      confidence_level: Confidence level for expected impact credible intervals,
-        represented as a value between zero and one. Default: `0.9`.
+      confidence_level: Confidence level for expected outcome credible
+        intervals, represented as a value between zero and one. Default: `0.9`.
 
     Returns:
-      A dataset with the expected, baseline, and actual impact metrics.
+      A dataset with the expected, baseline, and actual outcome metrics.
     """
     mmm = self._meridian
     use_kpi = self._meridian.input_data.revenue_per_kpi is None
     can_split_by_holdout = self._can_split_by_holdout_id(split_by_holdout_id)
-    expected_impact = self.expected_impact(
+    expected_outcome = self.expected_outcome(
         aggregate_geos=False, aggregate_times=False, use_kpi=use_kpi
     )
 
     expected = self._mean_and_ci_by_eval_set(
-        expected_impact,
+        expected_outcome,
         confidence_level,
         can_split_by_holdout,
         aggregate_geos,
         aggregate_times,
     )
 
-    baseline_expected_impact = self._calculate_baseline_expected_impact(
+    baseline_expected_outcome = self._calculate_baseline_expected_outcome(
         aggregate_geos=False,
         aggregate_times=False,
         use_kpi=use_kpi,
     )
     baseline = self._mean_and_ci_by_eval_set(
-        baseline_expected_impact,
+        baseline_expected_outcome,
         confidence_level,
         can_split_by_holdout,
         aggregate_geos,
@@ -1719,51 +1720,52 @@ class Analyzer:
 
     return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
-  def _calculate_baseline_expected_impact(
+  def _calculate_baseline_expected_outcome(
       self,
-      **expected_impact_kwargs,
+      **expected_outcome_kwargs,
   ) -> tf.Tensor:
-    """Calculates either the posterior or prior expected impact of baseline.
+    """Calculates either the posterior or prior expected outcome of baseline.
 
-    This is a wrapper for expected_impact() that automatically sets the
+    This is a wrapper for expected_outcome() that automatically sets the
     following argument values:
       1) `new_media` is set to all zeros
       2) `new_reach` is set to all zeros
       3) `new_controls` are set to historical values
 
-    All other arguments of `expected_impact` can be passed to this method.
+    All other arguments of `expected_outcome` can be passed to this method.
 
     Args:
-      **expected_impact_kwargs: kwargs to pass to `expected_impact`, which could
-        contain use_posterior, selected_geos, selected_times, aggregate_geos,
-        aggregate_times, inverse_transform_impact, use_kpi, batch_size.
+      **expected_outcome_kwargs: kwargs to pass to `expected_outcome`, which
+        could contain use_posterior, selected_geos, selected_times,
+        aggregate_geos, aggregate_times, inverse_transform_impact, use_kpi,
+        batch_size.
 
     Returns:
-      Tensor of expected impact of baseline with dimensions `(n_chains,
+      Tensor of expected outcome of baseline with dimensions `(n_chains,
       n_draws, n_geos, n_times)`. The `n_geos` and `n_times` dimensions is
       dropped if `aggregate_geos=True` or `aggregate_time=True`, respectively.
     """
-    expected_impact_kwargs["new_media"] = (
+    expected_outcome_kwargs["new_media"] = (
         tf.zeros_like(self._meridian.media_tensors.media)
         if self._meridian.media_tensors.media is not None
         else None
     )
     # Frequency is not needed because the reach is zero.
-    expected_impact_kwargs["new_reach"] = (
+    expected_outcome_kwargs["new_reach"] = (
         tf.zeros_like(self._meridian.rf_tensors.reach)
         if self._meridian.rf_tensors.reach is not None
         else None
     )
-    expected_impact_kwargs["new_controls"] = self._meridian.controls
+    expected_outcome_kwargs["new_controls"] = self._meridian.controls
 
-    return self.expected_impact(**expected_impact_kwargs)
+    return self.expected_outcome(**expected_outcome_kwargs)
 
   def _compute_incremental_impact_aggregate(
       self, use_posterior: bool, use_kpi: bool | None = None, **roi_kwargs
   ):
-    """Aggregates the incremental impact for MediaSummary metrics."""
+    """Aggregates incremental impacts for MediaSummary metrics."""
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
-    expected_impact = self.expected_impact(
+    expected_outcome = self.expected_outcome(
         use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
     )
     incremental_impact_m = self.incremental_impact(
@@ -1784,7 +1786,7 @@ class Analyzer:
         if self._meridian.rf_tensors.frequency is not None
         else None
     )
-    incremental_impact_total = expected_impact - self.expected_impact(
+    incremental_impact_total = expected_outcome - self.expected_outcome(
         use_posterior=use_posterior,
         new_media=new_media,
         new_reach=new_reach,
@@ -1826,9 +1828,9 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
-      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
-        of the regions.
-      aggregate_times: Boolean. If `True`, the expected impact is summed over
+      aggregate_geos: Boolean. If `True`, the expected outcome is summed over
+        all of the regions.
+      aggregate_times: Boolean. If `True`, the expected outcome is summed over
         all of the time periods.
       optimal_frequency: An optional list with dimension `n_rf_channels`,
         containing the optimal frequency per channel, that maximizes posterior
@@ -1885,10 +1887,10 @@ class Analyzer:
     incremental_impact_posterior = self._compute_incremental_impact_aggregate(
         use_posterior=True, **roi_kwargs
     )
-    expected_impact_prior = self.expected_impact(
+    expected_outcome_prior = self.expected_outcome(
         use_posterior=False, use_kpi=use_kpi, **roi_kwargs
     )
-    expected_impact_posterior = self.expected_impact(
+    expected_outcome_posterior = self.expected_outcome(
         use_posterior=True, use_kpi=use_kpi, **roi_kwargs
     )
 
@@ -1950,8 +1952,8 @@ class Analyzer:
     pct_of_contribution = self._compute_pct_of_contribution(
         incremental_impact_prior=incremental_impact_prior,
         incremental_impact_posterior=incremental_impact_posterior,
-        expected_impact_prior=expected_impact_prior,
-        expected_impact_posterior=expected_impact_posterior,
+        expected_outcome_prior=expected_outcome_prior,
+        expected_outcome_posterior=expected_outcome_posterior,
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
@@ -1992,8 +1994,8 @@ class Analyzer:
       mroi = self._compute_marginal_roi_aggregate(
           marginal_roi_by_reach=marginal_roi_by_reach,
           marginal_roi_incremental_increase=marginal_roi_incremental_increase,
-          expected_revenue_prior=expected_impact_prior,
-          expected_revenue_posterior=expected_impact_posterior,
+          expected_revenue_prior=expected_outcome_prior,
+          expected_revenue_posterior=expected_outcome_posterior,
           xr_dims=xr_dims_with_ci_and_distribution,
           xr_coords=xr_coords_with_ci_and_distribution,
           confidence_level=confidence_level,
@@ -2045,9 +2047,9 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
-      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
-        of the regions.
-      aggregate_times: Boolean. If `True`, the expected impact is summed over
+      aggregate_geos: Boolean. If `True`, the expected outcome is summed over
+        all of the regions.
+      aggregate_times: Boolean. If `True`, the expected outcome is summed over
         all of the time periods.
       optimal_frequency: An optional list with dimension `n_rf_channels`,
         containing the optimal frequency per channel, that maximizes posterior
@@ -2308,7 +2310,7 @@ class Analyzer:
 
     `R-Squared`, `MAPE` and `wMAPE` are calculated both at the model-level (one
     observation per geo and time period) and at the national-level (aggregating
-    KPI or revenue impact across geos so there is one observation per time
+    KPI or revenue outcome across geos so there is one observation per time
     period).
 
     `R-Squared`, `MAPE`, and `wMAPE` are calculated for the full sample. If the
@@ -2365,7 +2367,7 @@ class Analyzer:
         **dims_kwargs,
     ).numpy()
     expected = np.mean(
-        self.expected_impact(
+        self.expected_outcome(
             batch_size=batch_size, use_kpi=use_kpi, **dims_kwargs
         ),
         (0, 1),
@@ -2440,9 +2442,9 @@ class Analyzer:
       actual_eval_set: An array with filtered and/or aggregated geo and time
         dimensions for the `meridian.kpi * meridian.revenue_per_kpi` calculation
         for either the `'Train'`, `'Test'`, or `'All Data'` evaluation sets.
-      expected_eval_set: An array of expected impact with dimensions `(n_chains,
-        n_draws, n_geos, n_times)` for either the `'Train'`, `'Test'`, or `'All
-        Data'` evaluation sets.
+      expected_eval_set: An array of expected outcome with dimensions
+        `(n_chains, n_draws, n_geos, n_times)` for either the `'Train'`,
+        `'Test'`, or `'All Data'` evaluation sets.
 
     Returns:
       A list containing the `geo` or `national` level data for the `R_Squared`,
@@ -2649,7 +2651,7 @@ class Analyzer:
           multiplier=multiplier,
           by_reach=by_reach,
       )
-      incimpact_temp = self.incremental_impact(
+      inc_impact_temp = self.incremental_impact(
           use_posterior=use_posterior,
           inverse_transform_impact=True,
           batch_size=batch_size,
@@ -2658,7 +2660,7 @@ class Analyzer:
           **dim_kwargs,
       )
       incremental_impact[i, :] = get_mean_and_ci(
-          incimpact_temp, confidence_level
+          inc_impact_temp, confidence_level
       )
 
     if self._meridian.n_media_channels > 0 and self._meridian.n_rf_channels > 0:
@@ -3154,7 +3156,7 @@ class Analyzer:
     )
 
     mroi_prior_total = (
-        self.expected_impact(
+        self.expected_outcome(
             use_posterior=False,
             use_kpi=False,
             **incremented_tensors,
@@ -3163,7 +3165,7 @@ class Analyzer:
         - expected_revenue_prior
     ) / (marginal_roi_incremental_increase * spend_with_total[..., -1])
     mroi_posterior_total = (
-        self.expected_impact(
+        self.expected_outcome(
             use_posterior=True,
             use_kpi=False,
             **incremented_tensors,
@@ -3263,26 +3265,26 @@ class Analyzer:
       self,
       incremental_impact_prior: tf.Tensor,
       incremental_impact_posterior: tf.Tensor,
-      expected_impact_prior: tf.Tensor,
-      expected_impact_posterior: tf.Tensor,
+      expected_outcome_prior: tf.Tensor,
+      expected_outcome_posterior: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float,
   ) -> xr.Dataset:
-    """Computes the parts of `MediaSummary` related to mean expected impact."""
-    mean_expected_impact_prior = tf.reduce_mean(expected_impact_prior, (0, 1))
-    mean_expected_impact_posterior = tf.reduce_mean(
-        expected_impact_posterior, (0, 1)
+    """Computes the parts of `MediaSummary` related to mean expected outcome."""
+    mean_expected_outcome_prior = tf.reduce_mean(expected_outcome_prior, (0, 1))
+    mean_expected_outcome_posterior = tf.reduce_mean(
+        expected_outcome_posterior, (0, 1)
     )
     return _mean_and_ci_by_prior_and_posterior(
         prior=(
             incremental_impact_prior
-            / mean_expected_impact_prior[..., None]
+            / mean_expected_outcome_prior[..., None]
             * 100
         ),
         posterior=(
             incremental_impact_posterior
-            / mean_expected_impact_posterior[..., None]
+            / mean_expected_outcome_posterior[..., None]
             * 100
         ),
         metric_name=constants.PCT_OF_CONTRIBUTION,

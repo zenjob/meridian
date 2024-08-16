@@ -1345,8 +1345,8 @@ class BudgetOptimizer:
     # Total of `mean` column.
     total_incremental_impact = np.sum(incremental_impact_with_mean_and_ci[:, 0])
 
-    # expected_impact here is a tensor with the shape (n_chains, n_draws)
-    expected_impact = self._analyzer.expected_impact(
+    # expected_outcome here is a tensor with the shape (n_chains, n_draws)
+    expected_outcome = self._analyzer.expected_outcome(
         use_posterior=use_posterior,
         new_media=new_media,
         new_reach=new_reach,
@@ -1355,9 +1355,9 @@ class BudgetOptimizer:
         use_kpi=use_kpi,
         batch_size=batch_size,
     )
-    mean_expected_impact = tf.reduce_mean(expected_impact, (0, 1))  # a scalar
+    mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
 
-    pct_contrib = incremental_impact / mean_expected_impact[..., None] * 100
+    pct_contrib = incremental_impact / mean_expected_outcome[..., None] * 100
     pct_contrib_with_mean_and_ci = analyzer.get_mean_and_ci(
         data=pct_contrib,
         confidence_level=confidence_level,

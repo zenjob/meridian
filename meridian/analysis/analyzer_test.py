@@ -142,49 +142,49 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         atol=0.1,
     )
 
-  def test_expected_impact_wrong_controls_raises_exception(self):
+  def test_expected_outcome_wrong_controls_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_controls.shape must match controls.shape",
     ):
-      self.analyzer_media_and_rf.expected_impact(
+      self.analyzer_media_and_rf.expected_outcome(
           new_controls=self.meridian_media_and_rf.population,
       )
 
-  def test_expected_impact_wrong_media_raises_exception(self):
+  def test_expected_outcome_wrong_media_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_media.shape must match media.shape",
     ):
-      self.analyzer_media_and_rf.expected_impact(
+      self.analyzer_media_and_rf.expected_outcome(
           new_media=self.meridian_media_and_rf.population,
       )
 
-  def test_expected_impact_wrong_reach_raises_exception(self):
+  def test_expected_outcome_wrong_reach_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_reach.shape must match reach.shape",
     ):
-      self.analyzer_media_and_rf.expected_impact(
+      self.analyzer_media_and_rf.expected_outcome(
           new_reach=self.meridian_media_and_rf.population,
       )
 
-  def test_expected_impact_wrong_frequency_raises_exception(self):
+  def test_expected_outcome_wrong_frequency_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_frequency.shape must match frequency.shape",
     ):
-      self.analyzer_media_and_rf.expected_impact(
+      self.analyzer_media_and_rf.expected_outcome(
           new_frequency=self.meridian_media_and_rf.population,
       )
 
-  def test_expected_impact_wrong_kpi_transformation(self):
+  def test_expected_outcome_wrong_kpi_transformation(self):
     with self.assertRaisesRegex(
         ValueError,
-        "use_kpi=False is only supported when inverse_transform_impact=True.",
+        "use_kpi=False is only supported when inverse_transform_outcome=True.",
     ):
-      self.analyzer_media_and_rf.expected_impact(
-          inverse_transform_impact=False, use_kpi=False
+      self.analyzer_media_and_rf.expected_outcome(
+          inverse_transform_outcome=False, use_kpi=False
       )
 
   @parameterized.product(
@@ -194,7 +194,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include=[None, ["geo_1", "geo_3"]],
       times_to_include=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
-  def test_expected_impact_media_and_rf_returns_correct_shape(
+  def test_expected_outcome_media_and_rf_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -202,7 +202,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_media_and_rf.expected_impact(
+    outcome = self.analyzer_media_and_rf.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -220,7 +220,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           if times_to_include is not None
           else (_N_TIMES,)
       )
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   def test_incremental_impact_wrong_media_raises_exception(self):
     with self.assertRaisesRegex(
@@ -252,7 +252,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   def test_incremental_impact_wrong_kpi_transformation(self):
     with self.assertRaisesRegex(
         ValueError,
-        "use_kpi=False is only supported when inverse_transform_impact=True.",
+        "use_kpi=False is only supported when inverse_transform_outcome=True.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
           inverse_transform_impact=False, use_kpi=False
@@ -297,18 +297,18 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_impact=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_PRIOR,
+          expected_outcome=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_impact=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_POSTERIOR,
       ),
   )
   def test_incremental_impact_media_and_rf(
       self,
       use_posterior: bool,
-      expected_impact: np.ndarray,
+      expected_outcome: np.ndarray,
   ):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
@@ -318,7 +318,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertAllClose(
         impact,
-        tf.convert_to_tensor(expected_impact),
+        tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -1466,14 +1466,12 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       aggregate_times: bool,
       optimal_frequency: Sequence[float] | None,
   ):
-    impressions = (
-        self.analyzer_media_only.get_aggregated_impressions(
-            selected_geos=selected_geos,
-            selected_times=selected_times,
-            aggregate_geos=aggregate_geos,
-            aggregate_times=aggregate_times,
-            optimal_frequency=optimal_frequency,
-        )
+    impressions = self.analyzer_media_only.get_aggregated_impressions(
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        optimal_frequency=optimal_frequency,
     )
     expected_shape = ()
     if not aggregate_geos:
@@ -1494,7 +1492,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include=[None, ["geo_1", "geo_3"]],
       times_to_include=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
-  def test_expected_impact_media_only_returns_correct_shape(
+  def test_expected_outcome_media_only_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -1502,7 +1500,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_media_only.expected_impact(
+    impact = self.analyzer_media_only.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -1561,25 +1559,25 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_impact=test_utils.INC_IMPACT_MEDIA_ONLY_USE_PRIOR,
+          expected_outcome=test_utils.INC_IMPACT_MEDIA_ONLY_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_impact=test_utils.INC_IMPACT_MEDIA_ONLY_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_IMPACT_MEDIA_ONLY_USE_POSTERIOR,
       ),
   )
   def test_incremental_impact_media_only(
       self,
       use_posterior: bool,
-      expected_impact: tuple[float, ...],
+      expected_outcome: tuple[float, ...],
   ):
     impact = self.analyzer_media_only.incremental_impact(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
         impact,
-        tf.convert_to_tensor(expected_impact),
+        tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -1859,7 +1857,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include=[None, ["geo_1", "geo_3"]],
       times_to_include=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
-  def test_expected_impact_rf_only_returns_correct_shape(
+  def test_expected_outcome_rf_only_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -1867,7 +1865,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_rf_only.expected_impact(
+    impact = self.analyzer_rf_only.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -1926,25 +1924,25 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_impact=test_utils.INC_IMPACT_RF_ONLY_USE_PRIOR,
+          expected_outcome=test_utils.INC_IMPACT_RF_ONLY_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_impact=test_utils.INC_IMPACT_RF_ONLY_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_IMPACT_RF_ONLY_USE_POSTERIOR,
       ),
   )
   def test_incremental_impact_rf_only(
       self,
       use_posterior: bool,
-      expected_impact: tuple[float, ...],
+      expected_outcome: tuple[float, ...],
   ):
     impact = self.analyzer_rf_only.incremental_impact(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
         impact,
-        tf.convert_to_tensor(expected_impact),
+        tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -2375,11 +2373,11 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
 
-  def test_use_kpi_expected_vs_actual_data_expected_impact_correct_usage(self):
-    mock_expected_impact = self.enter_context(
+  def test_use_kpi_expected_vs_actual_data_expected_outcome_correct_usage(self):
+    mock_expected_outcome = self.enter_context(
         mock.patch.object(
             self.analyzer_kpi,
-            "expected_impact",
+            "expected_outcome",
             return_value=tf.ones((
                 _N_CHAINS,
                 _N_DRAWS,
@@ -2389,7 +2387,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     self.analyzer_kpi.expected_vs_actual_data()
-    _, mock_kwargs = mock_expected_impact.call_args
+    _, mock_kwargs = mock_expected_outcome.call_args
     self.assertEqual(mock_kwargs["use_kpi"], True)
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_vs_actual(self):
@@ -2463,12 +2461,12 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     _, mock_kwargs = mock_incremental_impact.call_args
     self.assertEqual(mock_kwargs["use_kpi"], True)
 
-  def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_impact(self):
+  def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_outcome(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
         "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
     ):
-      self.analyzer_kpi.expected_impact()
+      self.analyzer_kpi.expected_outcome()
 
   def test_optimal_frequency_uses_cpik_if_no_revenue_per_kpi(self):
     with mock.patch.object(

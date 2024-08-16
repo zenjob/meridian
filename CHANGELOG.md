@@ -23,12 +23,16 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/google/meridian/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/google/meridian/compare/v0.5.0...HEAD
+
+## [0.5.0] - 2024-08-15
 
 * Include `pct_of_contribution` and `effectiveness` data to
   `OptimizationResults` datasets.
 * Add `Analyzer.get_aggregated_impressions()` method.
 * Add `spend_step_size` to `OptimizationResults.optimization_grid`.
+* Add `use_posterior` argument to the budget optimizer.
+* Rename `expected_impact` to `expected_outcome`.
 
 ## [0.4.0] - 2024-07-19
 
@@ -48,3 +52,4 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.2.0]: https://github.com/google/meridian/releases/tag/v0.2.0
 [0.3.0]: https://github.com/google/meridian/releases/tag/v0.3.0
 [0.4.0]: https://github.com/google/meridian/releases/tag/v0.4.0
+[0.4.0]: https://github.com/google/meridian/releases/tag/v0.5.0
