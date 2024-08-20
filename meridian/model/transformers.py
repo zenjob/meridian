@@ -104,11 +104,15 @@ class ControlsTransformer:
           population[:, None],
           tf.ones_like(population)[:, None],
       )
+      population_scaled_controls = (
+          controls / self._population_scaling_factors[:, None, :]
+      )
+      self._means = tf.reduce_mean(population_scaled_controls, axis=(0, 1))
+      self._stdevs = tf.math.reduce_std(population_scaled_controls, axis=(0, 1))
     else:
       self._population_scaling_factors = None
-
-    self._means = tf.reduce_mean(controls, axis=(0, 1))
-    self._stdevs = tf.math.reduce_std(controls, axis=(0, 1))
+      self._means = tf.reduce_mean(controls, axis=(0, 1))
+      self._stdevs = tf.math.reduce_std(controls, axis=(0, 1))
 
   @tf.function(jit_compile=True)
   def forward(self, controls: tf.Tensor) -> tf.Tensor:

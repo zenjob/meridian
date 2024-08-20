@@ -168,15 +168,17 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_output_population_scaled(self):
-    pop_mean = tf.reduce_mean(self._population)
-    pop_std = tf.math.reduce_std(self._population)
-    expected_output = tf.Variable(self._controls4)
-    expected_output[:, :, 1].assign(1)
-    expected_output[:, :, 3].assign(1)
-    expected_output[:, :, 4].assign(1)
-    tf.debugging.assert_near(
-        self._controls_transformed * pop_std + pop_mean, expected_output
-    )
+    for c in [1, 3, 4]:
+      population_scaled_control = (
+          self._controls4[..., c] / self._population[:, None]
+      )
+      means = tf.reduce_mean(population_scaled_control, axis=(0, 1))
+      stdevs = tf.math.reduce_std(population_scaled_control, axis=(0, 1))
+      tf.debugging.assert_near(
+          self._population[:, None]
+          * (self._controls_transformed[:, :, c] * stdevs + means),
+          self._controls4[:, :, c],
+      )
 
 
 class KpiTransformerTest(absltest.TestCase):
