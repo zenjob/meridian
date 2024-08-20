@@ -357,6 +357,7 @@ OPTIMIZED_CPIK = 'optimized_cpik'
 ROI_SCALED = 'roi_scaled'
 IMPACT = 'impact'
 INCREMENTAL_IMPACT = 'incremental_impact'
+BASELINE_IMPACT = 'baseline_impact'
 OPTIMIZED_INCREMENTAL_IMPACT = 'optimized_incremental_impact'
 EFFECTIVENESS = 'effectiveness'
 OPTIMIZED_EFFECTIVENESS = 'optimized_effectiveness'
@@ -370,7 +371,6 @@ PROFIT = 'profit'
 TOTAL_INCREMENTAL_IMPACT = 'total_incremental_impact'
 TOTAL_ROI = 'total_roi'
 TOTAL_CPIK = 'total_cpik'
-
 
 # R-hat summary metrics.
 PARAM = 'param'

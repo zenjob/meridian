@@ -699,6 +699,29 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
     )
 
+  def test_baseline_summary_returns_correct_values(self):
+    baseline_summary = self.analyzer_media_and_rf.baseline_summary_metrics(
+        confidence_level=0.9,
+        aggregate_geos=True,
+        aggregate_times=True,
+        selected_geos=None,
+        selected_times=None,
+    )
+    self.assertIsNotNone(baseline_summary.baseline_impact)
+    self.assertIsNotNone(baseline_summary.pct_of_contribution)
+    self.assertAllClose(
+        baseline_summary.baseline_impact,
+        test_utils.SAMPLE_BASELINE_EXPECTED_IMPACT,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+    self.assertAllClose(
+        baseline_summary.pct_of_contribution,
+        test_utils.SAMPLE_BASELINE_PCT_OF_CONTRIBUTION,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+
   @parameterized.product(
       aggregate_geos=[False, True],
       aggregate_times=[False, True],
@@ -751,6 +774,46 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+
+  @parameterized.product(
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_baseline_summary_returns_correct_shapes(
+      self,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+  ):
+    analyzer_ = self.analyzer_media_and_rf
+
+    media_summary = analyzer_.baseline_summary_metrics(
+        confidence_level=0.8,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+    )
+    expected_geo_and_time_shape = ()
+    if not aggregate_geos:
+      expected_geo_and_time_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_geo_and_time_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+
+    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    expected_shape = expected_geo_and_time_shape + (
+        3,
+        2,
+    )
+    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
   def test_optimal_frequency_data_media_and_rf_correct(self):
     actual = self.analyzer_media_and_rf.optimal_freq(
@@ -1813,6 +1876,46 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
 
+  @parameterized.product(
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_baseline_summary_returns_correct_shapes(
+      self,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+  ):
+    analyzer_ = self.analyzer_media_only
+
+    media_summary = analyzer_.baseline_summary_metrics(
+        confidence_level=0.8,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+    )
+    expected_geo_and_time_shape = ()
+    if not aggregate_geos:
+      expected_geo_and_time_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_geo_and_time_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+
+    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    expected_shape = expected_geo_and_time_shape + (
+        3,
+        2,
+    )
+    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
+
 
 class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -2330,6 +2433,46 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+
+  @parameterized.product(
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_baseline_summary_returns_correct_shapes(
+      self,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+  ):
+    analyzer_ = self.analyzer_rf_only
+
+    media_summary = analyzer_.baseline_summary_metrics(
+        confidence_level=0.8,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+    )
+    expected_geo_and_time_shape = ()
+    if not aggregate_geos:
+      expected_geo_and_time_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_geo_and_time_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+
+    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    expected_shape = expected_geo_and_time_shape + (
+        3,
+        2,
+    )
+    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
 
 class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):

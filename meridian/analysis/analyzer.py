@@ -647,6 +647,7 @@ class Analyzer:
         or `sample_prior()` (for `use_posterior=False`) has not been called
         prior to calling this method.
     """
+
     self._check_revenue_data_exists(use_kpi)
     self._check_kpi_transformation(inverse_transform_outcome, use_kpi)
     if self._meridian.is_national:
@@ -2088,6 +2089,131 @@ class Analyzer:
         aggregate_times=aggregate_times,
     )
 
+  def baseline_summary_metrics(
+      self,
+      confidence_level: float,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+      aggregate_geos: bool = True,
+      aggregate_times: bool = True,
+      batch_size: int = constants.DEFAULT_BATCH_SIZE,
+  ) -> xr.Dataset:
+    """Returns baseline summary metrics.
+
+    Args:
+      confidence_level: Confidence level for media summary metrics credible
+        intervals, represented as a value between zero and one.
+      selected_geos: Optional list containing a subset of geos to include. By
+        default, all geos are included.
+      selected_times: Optional list containing a subset of times to include. By
+        default, all time periods are included.
+      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
+        of the regions.
+      aggregate_times: Boolean. If `True`, the expected impact is summed over
+        all of the time periods.
+      batch_size: Integer representing the maximum draws per chain in each
+        batch. The calculation is run in batches to avoid memory exhaustion. If
+        a memory error occurs, try reducing `batch_size`. The calculation will
+        generally be faster with larger `batch_size` values.
+
+    Returns:
+      An `xr.Dataset` with coordinates: `metric` (`mean`, `ci_low`,`ci_high`),
+      `distribution` (prior, posterior) and contains the following data
+      variables: `baseline_impact`, `pct_of_contribution`.
+    """
+    # TODO(b/358586608): Change "pct_of_contribution" to a more accurate term.
+
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
+    dim_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+        "aggregate_geos": aggregate_geos,
+        "aggregate_times": aggregate_times,
+    }
+    impact_kwargs = {"batch_size": batch_size, **dim_kwargs}
+
+    xr_dims = (
+        ((constants.GEO,) if not aggregate_geos else ())
+        + ((constants.TIME,) if not aggregate_times else ())
+        + (constants.CHANNEL,)
+    )
+    xr_coords = {
+        constants.CHANNEL: ([constants.CHANNEL], [constants.BASELINE]),
+    }
+    if not aggregate_geos:
+      geo_dims = (
+          self._meridian.input_data.geo.data
+          if selected_geos is None
+          else selected_geos
+      )
+      xr_coords[constants.GEO] = ([constants.GEO], geo_dims)
+    if not aggregate_times:
+      time_dims = (
+          self._meridian.input_data.time.data
+          if selected_times is None
+          else selected_times
+      )
+      xr_coords[constants.TIME] = ([constants.TIME], time_dims)
+    xr_dims_with_ci_and_distribution = xr_dims + (
+        constants.METRIC,
+        constants.DISTRIBUTION,
+    )
+    xr_coords_with_ci_and_distribution = {
+        constants.METRIC: (
+            [constants.METRIC],
+            [constants.MEAN, constants.CI_LO, constants.CI_HI],
+        ),
+        constants.DISTRIBUTION: (
+            [constants.DISTRIBUTION],
+            [constants.PRIOR, constants.POSTERIOR],
+        ),
+        **xr_coords,
+    }
+
+    expected_outcome_prior = self.expected_outcome(
+        use_posterior=False, use_kpi=use_kpi, **impact_kwargs
+    )
+    expected_outcome_posterior = self.expected_outcome(
+        use_posterior=True, use_kpi=use_kpi, **impact_kwargs
+    )
+
+    baseline_expected_outcome_prior = tf.expand_dims(
+        self._calculate_baseline_expected_outcome(
+            use_posterior=False, use_kpi=use_kpi, **impact_kwargs
+        ),
+        axis=-1,
+    )
+    baseline_expected_outcome_posterior = tf.expand_dims(
+        self._calculate_baseline_expected_outcome(
+            use_posterior=True, use_kpi=use_kpi, **impact_kwargs
+        ),
+        axis=-1,
+    )
+
+    baseline_impact = _mean_and_ci_by_prior_and_posterior(
+        prior=baseline_expected_outcome_prior,
+        posterior=baseline_expected_outcome_posterior,
+        metric_name=constants.BASELINE_IMPACT,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+    ).sel(channel=constants.BASELINE)
+
+    baseline_pct_of_contribution = self._compute_pct_of_contribution(
+        incremental_impact_prior=baseline_expected_outcome_prior,
+        incremental_impact_posterior=baseline_expected_outcome_posterior,
+        expected_outcome_prior=expected_outcome_prior,
+        expected_outcome_posterior=expected_outcome_posterior,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+    ).sel(channel=constants.BASELINE)
+
+    return xr.merge([
+        baseline_impact,
+        baseline_pct_of_contribution,
+    ])
+
   def optimal_freq(
       self,
       freq_grid: Sequence[float] | None = None,
@@ -3276,6 +3402,7 @@ class Analyzer:
     mean_expected_outcome_posterior = tf.reduce_mean(
         expected_outcome_posterior, (0, 1)
     )
+
     return _mean_and_ci_by_prior_and_posterior(
         prior=(
             incremental_impact_prior

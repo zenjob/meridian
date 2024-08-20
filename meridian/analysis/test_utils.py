@@ -491,6 +491,11 @@ SAMPLE_INCREMENTAL_IMPACT = np.array([
         [5827.7158, 2270.1303],
     ],
 ])
+SAMPLE_BASELINE_EXPECTED_IMPACT = np.array([
+    [11180.9931, 20127.6386],
+    [-24876.6487, 13877.7523],
+    [55426.2115, 26502.3695],
+])
 SAMPLE_PCT_OF_CONTRIBUTION = np.array([
     [
         [3.1991, 1.4799],
@@ -522,6 +527,11 @@ SAMPLE_PCT_OF_CONTRIBUTION = np.array([
         [6.8486, 4.3753],
         [41.4859, 10.4442],
     ],
+])
+SAMPLE_BASELINE_PCT_OF_CONTRIBUTION = np.array([
+    [79.5945, 92.6015],
+    [-177.0902, 63.8475],
+    [394.5644, 121.9298],
 ])
 ADSTOCK_DECAY_CI_HI = np.array([1.0, 1.0, 0.8295, 0.9728, 0.6880])
 ADSTOCK_DECAY_CI_LO = np.array([1.0, 1.0, 0.8128, 0.6194, 0.6607])
