@@ -515,17 +515,41 @@ class Meridian:
     default_roi_m = default_model_spec.prior.roi_m
     default_roi_rf = default_model_spec.prior.roi_rf
 
+    def _check_tfd_params_equal(dict1, dict2):
+      """Compares two dicts for equality, assuming they have identical keys.
+
+      Assumes '==' works for all values except numpy arrays, which are compared
+      using numpy.array_equal.
+
+      Args:
+        dict1: The first dict to compare.
+        dict2: The second dict to compare.
+
+      Returns:
+        True if the dicts are equal, False otherwise.
+      """
+      for key, value1 in dict1.items():
+        value2 = dict2[key]
+        if isinstance(value1, np.ndarray) or isinstance(value2, np.ndarray):
+          if not np.array_equal(value1, value2):
+            return False
+        elif value1 != value2:
+          return False
+      return True
+
     # Check `roi_m` properties match default `roi_m` properties (that the
     # distributions (e.g. Normal, LogNormal) and parameters (loc and scale) are
     # equal).
-    roi_m_properties_equal = (
-        isinstance(self.model_spec.prior.roi_m, type(default_roi_m))
-        and self.model_spec.prior.roi_m.parameters == default_roi_m.parameters
+    roi_m_properties_equal = isinstance(
+        self.model_spec.prior.roi_m, type(default_roi_m)
+    ) and _check_tfd_params_equal(
+        self.model_spec.prior.roi_m.parameters, default_roi_m.parameters
     )
     # Check `roi_rf` properties match default `roi_rf` properties.
-    roi_rf_properties_equal = (
-        isinstance(self.model_spec.prior.roi_rf, type(default_roi_rf))
-        and self.model_spec.prior.roi_rf.parameters == default_roi_rf.parameters
+    roi_rf_properties_equal = isinstance(
+        self.model_spec.prior.roi_rf, type(default_roi_rf)
+    ) and _check_tfd_params_equal(
+        self.model_spec.prior.roi_rf.parameters, default_roi_rf.parameters
     )
 
     if (

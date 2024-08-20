@@ -516,6 +516,25 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     # Compare model spec.
     self.assertEqual(repr(meridian.model_spec), repr(sample_spec))
 
+  def test_custom_priors_okay_with_array_params(self):
+    my_prior = prior_distribution.PriorDistribution(
+        roi_m=tfp.distributions.LogNormal(np.array([1, 1]), np.array([1, 1]))
+    )
+    meridian = model.Meridian(
+        input_data=self.input_data_non_revenue_no_revenue_per_kpi,
+        model_spec=spec.ModelSpec(prior=my_prior),
+    )
+    # Compare input data.
+    self.assertEqual(
+        meridian.input_data, self.input_data_non_revenue_no_revenue_per_kpi
+    )
+
+    # Create sample model spec for comparison
+    sample_spec = spec.ModelSpec(prior=my_prior)
+
+    # Compare model spec.
+    self.assertEqual(repr(meridian.model_spec), repr(sample_spec))
+
   def test_get_knot_info_fails(self):
     error_msg = "Knots must be all non-negative."
     with mock.patch.object(
