@@ -110,7 +110,8 @@ class ModelSpec:
       even those in the holdout sample.
     control_population_scaling_id: An optional boolean tensor of dimension
       `(n_controls,)` indicating the control variables for which the control
-      value will be scaled by population.
+      value will be scaled by population. If `None`, no control variables are
+      scaled by population. Default: `None`.
   """
 
   prior: prior_distribution.PriorDistribution = dataclasses.field(
