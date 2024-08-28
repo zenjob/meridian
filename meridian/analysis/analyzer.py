@@ -17,6 +17,7 @@
 from collections.abc import Mapping, Sequence
 import dataclasses
 import itertools
+from typing import Any
 import warnings
 
 from meridian import constants
@@ -28,7 +29,6 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_probability as tfp
 import xarray as xr
-
 
 __all__ = [
     "Analyzer",
@@ -2375,6 +2375,215 @@ class Analyzer:
         baseline_pct_of_contribution,
     ])
 
+  # TODO(b/358071101): This method can be replaced once generalized
+  # `media_summary_metric` is done.
+  def _counterfactual_metric_dataset(
+      self,
+      use_posterior: bool = True,
+      new_media: tf.Tensor | None = None,
+      new_media_spend: tf.Tensor | None = None,
+      new_reach: tf.Tensor | None = None,
+      new_frequency: tf.Tensor | None = None,
+      new_rf_spend: tf.Tensor | None = None,
+      marginal_roi_by_reach: bool = True,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+      use_kpi: bool = False,
+      attrs: Mapping[str, Any] | None = None,
+      confidence_level: float = 0.9,
+      batch_size: int = constants.DEFAULT_BATCH_SIZE,
+  ) -> xr.Dataset:
+    """Calculates the counterfactual metric dataset.
+
+    Args:
+      use_posterior: Boolean. If `True`, posterior counterfactual metrics are
+        generated. If `False`, prior counterfactual metrics are generated.
+      new_media: Optional tensor with dimensions matching media. When specified,
+        it contains the counterfactual media value. If `None`, the original
+        media value is used.
+      new_media_spend: Optional tensor with dimensions matching media_spend.
+        When specified, it contains the counterfactual media spend value. If
+        `None`, the original media spend value is used.
+      new_reach: Optional tensor with dimensions matching reach. When specified,
+        it contains the counterfactual reach value. If `None`, the original
+        reach value is used.
+      new_frequency: Optional tensor with dimensions matching frequency. When
+        specified, it contains the counterfactual frequency value. If `None`,
+        the original frequency value is used.
+      new_rf_spend: Optional tensor with dimensions matching rf_spend. When
+        specified, it contains the counterfactual rf_spend value. If `None`,
+        the original rf_spend value is used.
+      marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
+        return on the next dollar spent. If this argument is `True`, the
+        assumption is that the next dollar spent only impacts reach, holding
+        frequency constant. If this argument is `False`, the assumption is that
+        the next dollar spent only impacts frequency, holding reach constant.
+      selected_geos: Optional list contains a subset of geos to include. By
+        default, all geos are included.
+      selected_times: Optional list contains a subset of times to include. By
+        default, all time periods are included.
+      use_kpi: Boolean. If `True`, the counterfactual metrics are calculated
+        using KPI. If `False`, the counterfactual metrics are calculated using
+        revenue.
+      attrs: Optional dictionary of attributes to add to the dataset.
+      confidence_level: Confidence level for prior and posterior credible
+        intervals, represented as a value between zero and one.
+      batch_size: Maximum draws per chain in each batch. The calculation is run
+        in batches to avoid memory exhaustion. If a memory error occurs, try
+        reducing `batch_size`. The calculation will generally be faster with
+        larger `batch_size` values.
+
+    Returns:
+      An xarray Dataset which contains:
+      * Coordinates: `channel`, `metric` (`mean`, `ci_hi`, `ci_lo`).
+      * Data variables:
+        * `spend`: The spend for each channel.
+        * `pct_of_spend`: The percentage of spend for each channel.
+        * `incremental_impact`: The incremental impact for each channel.
+        * `pct_of_contribution`: The contribution percentage for each channel.
+        * `effectiveness`: The effectiveness for each channel.
+        * `cpik`: The CPIK for each channel when `revenue_per_kpi` is not
+            available.
+        * `roi`: The ROI for each channel when `revenue_per_kpi` is available.
+        * `mroi`: The marginal ROI for each channel when `revenue_per_kpi` is
+            available.
+    """
+    dim_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+        "aggregate_geos": True,
+        "aggregate_times": True,
+    }
+    metric_tensor_kwargs = {
+        "use_posterior": use_posterior,
+        "use_kpi": use_kpi,
+        "batch_size": batch_size,
+    }
+
+    new_data_tensor = self._get_performance_tensors(
+        new_media,
+        new_media_spend,
+        new_reach,
+        new_frequency,
+        new_rf_spend,
+        **dim_kwargs,
+    )
+
+    new_data_kwargs = {
+        "new_media": new_data_tensor.media,
+        "new_reach": new_data_tensor.reach,
+        "new_frequency": new_data_tensor.frequency,
+    }
+
+    new_spend_kwargs = {
+        "new_media_spend": new_data_tensor.media_spend,
+        "new_rf_spend": new_data_tensor.rf_spend,
+    }
+
+    # incremental_impact here is a tensor with the shape
+    # (n_chains, n_draws, n_channels)
+    incremental_impact = self.incremental_impact(
+        **dim_kwargs,
+        **metric_tensor_kwargs,
+        **new_data_kwargs,
+    )
+    # incremental_impact_with_mean_and_ci here is an ndarray with the shape
+    # (n_channels, n_metrics) where n_metrics = 3 for (mean, ci_lo, and ci_hi)
+    incremental_impact_with_mean_and_ci = get_mean_and_ci(
+        data=incremental_impact,
+        confidence_level=confidence_level,
+    )
+
+    # expected_outcome here is a tensor with the shape (n_chains, n_draws)
+    mean_expected_outcome = tf.reduce_mean(
+        self.expected_outcome(
+            **dim_kwargs,
+            **metric_tensor_kwargs,
+            **new_data_kwargs,
+        ),
+        (0, 1),
+    )
+
+    pct_contrib_with_mean_and_ci = get_mean_and_ci(
+        data=incremental_impact / mean_expected_outcome[..., None] * 100,
+        confidence_level=confidence_level,
+    )
+
+    effectiveness_with_mean_and_ci = get_mean_and_ci(
+        data=incremental_impact
+        / self.get_aggregated_impressions(
+            **dim_kwargs,
+            optimal_frequency=new_data_tensor.frequency,
+        ),
+        confidence_level=confidence_level,
+    )
+
+    spend = new_data_tensor.total_spend()
+    if spend is not None and spend.ndim == 3:
+      spend = self.filter_and_aggregate_geos_and_times(spend, **dim_kwargs)
+
+    budget = np.sum(spend) if np.sum(spend) > 0 else 1
+    data_vars = {
+        constants.SPEND: ([constants.CHANNEL], spend),
+        constants.PCT_OF_SPEND: ([constants.CHANNEL], spend / budget),
+        constants.INCREMENTAL_IMPACT: (
+            [constants.CHANNEL, constants.METRIC],
+            incremental_impact_with_mean_and_ci,
+        ),
+        constants.PCT_OF_CONTRIBUTION: (
+            [constants.CHANNEL, constants.METRIC],
+            pct_contrib_with_mean_and_ci,
+        ),
+        constants.EFFECTIVENESS: (
+            [constants.CHANNEL, constants.METRIC],
+            effectiveness_with_mean_and_ci,
+        ),
+    }
+
+    if use_kpi:
+      cpik = get_mean_and_ci(
+          data=tf.math.divide_no_nan(spend, incremental_impact),
+          confidence_level=confidence_level,
+      )
+      data_vars[constants.CPIK] = ([constants.CHANNEL, constants.METRIC], cpik)
+    else:
+      roi = get_mean_and_ci(
+          data=tf.math.divide_no_nan(incremental_impact, spend),
+          confidence_level=confidence_level,
+      )
+      mroi_tensor_kwargs = {
+          "use_posterior": use_posterior,
+          "batch_size": batch_size,
+      }
+
+      mroi = get_mean_and_ci(
+          data=self.marginal_roi(
+              by_reach=marginal_roi_by_reach,
+              **dim_kwargs,
+              **mroi_tensor_kwargs,
+              **new_data_kwargs,
+              **new_spend_kwargs,
+          ),
+          confidence_level=confidence_level,
+      )
+      data_vars[constants.ROI] = ([constants.CHANNEL, constants.METRIC], roi)
+      data_vars[constants.MROI] = ([constants.CHANNEL, constants.METRIC], mroi)
+
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords={
+            constants.CHANNEL: (
+                [constants.CHANNEL],
+                self._meridian.input_data.get_all_channels(),
+            ),
+            constants.METRIC: (
+                [constants.METRIC],
+                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+            ),
+        },
+        attrs=attrs,
+    )
+
   def optimal_freq(
       self,
       freq_grid: Sequence[float] | None = None,
@@ -2447,18 +2656,21 @@ class Analyzer:
       raise model.NotFittedModelError(
           f"sample_{dist_type}() must be called prior to calling this method."
       )
+
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
         "aggregate_geos": True,
         "aggregate_times": True,
     }
-    use_roi = self._meridian.input_data.revenue_per_kpi is not None
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
 
     max_freq = np.max(np.array(self._meridian.rf_tensors.frequency))
     if freq_grid is None:
       freq_grid = np.arange(1, max_freq, 0.1)
-    metric = np.zeros(
+
+    # Create a frequency grid
+    metric_grid = np.zeros(
         (len(freq_grid), self._meridian.n_rf_channels, 3)
     )  #  Last argument is 3 for the mean, lower and upper confidence intervals.
 
@@ -2469,58 +2681,71 @@ class Analyzer:
           * self._meridian.rf_tensors.reach
           / new_frequency
       )
-      if use_roi:
-        metric_temp = self.roi(
+
+      if use_kpi:
+        metric_grid_temp = self.cpik(
             new_reach=new_reach,
             new_frequency=new_frequency,
             use_posterior=use_posterior,
             **dim_kwargs,
         )[..., -self._meridian.n_rf_channels :]
       else:
-        metric_temp = self.cpik(
+        metric_grid_temp = self.roi(
             new_reach=new_reach,
             new_frequency=new_frequency,
             use_posterior=use_posterior,
             **dim_kwargs,
         )[..., -self._meridian.n_rf_channels :]
-      metric[i, :] = get_mean_and_ci(metric_temp, confidence_level)
+
+      metric_grid[i, :] = get_mean_and_ci(metric_grid_temp, confidence_level)
 
     optimal_freq_idx = (
-        np.nanargmax(metric[:, :, 0], axis=0)
-        if use_roi
-        else np.nanargmin(metric[:, :, 0], axis=0)
+        np.nanargmin(metric_grid[:, :, 0], axis=0)
+        if use_kpi
+        else np.nanargmax(metric_grid[:, :, 0], axis=0)
     )
     rf_channel_values = (
         self._meridian.input_data.rf_channel.values
         if self._meridian.input_data.rf_channel is not None
         else []
     )
-    metric_name = constants.ROI if use_roi else constants.CPIK
+    metric_name = constants.CPIK if use_kpi else constants.ROI
+
     optimal_frequency = [freq_grid[i] for i in optimal_freq_idx]
-    optimized_media_summary_mroi_by_reach = self.media_summary_metrics(
+    optimal_frequency_tensor = tf.convert_to_tensor(
+        tf.ones_like(self._meridian.rf_tensors.frequency) * optimal_frequency,
+        tf.float32,
+    )
+    optimal_reach = (
+        self._meridian.rf_tensors.frequency
+        * self._meridian.rf_tensors.reach
+        / optimal_frequency_tensor
+    )
+
+    # Compute the optimized metrics based on the optimal frequency.
+    optimized_metrics_mroi_by_reach = self._counterfactual_metric_dataset(
+        use_posterior=use_posterior,
+        new_reach=optimal_reach,
+        new_frequency=optimal_frequency_tensor,
         marginal_roi_by_reach=True,
-        confidence_level=confidence_level,
         selected_geos=selected_geos,
         selected_times=selected_times,
-        optimal_frequency=optimal_frequency,
-    ).sel({
-        constants.CHANNEL: rf_channel_values,
-        constants.DISTRIBUTION: dist_type,
-    })
-    optimized_media_summary_mroi_by_frequency = self.media_summary_metrics(
+        use_kpi=use_kpi,
+    ).sel({constants.CHANNEL: rf_channel_values})
+    optimized_metrics_mroi_by_frequency = self._counterfactual_metric_dataset(
+        use_posterior=use_posterior,
+        new_reach=optimal_reach,
+        new_frequency=optimal_frequency_tensor,
         marginal_roi_by_reach=False,
-        confidence_level=confidence_level,
         selected_geos=selected_geos,
         selected_times=selected_times,
-        optimal_frequency=optimal_frequency,
-    ).sel({
-        constants.CHANNEL: rf_channel_values,
-        constants.DISTRIBUTION: dist_type,
-    })
+        use_kpi=use_kpi,
+    ).sel({constants.CHANNEL: rf_channel_values})
+
     data_vars = {
         metric_name: (
             [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-            metric,
+            metric_grid,
         ),
         constants.OPTIMAL_FREQUENCY: (
             [constants.RF_CHANNEL],
@@ -2528,35 +2753,35 @@ class Analyzer:
         ),
         constants.OPTIMIZED_INCREMENTAL_IMPACT: (
             [constants.RF_CHANNEL, constants.METRIC],
-            optimized_media_summary_mroi_by_reach.incremental_impact.data,
+            optimized_metrics_mroi_by_reach.incremental_impact.data,
         ),
         constants.OPTIMIZED_EFFECTIVENESS: (
             [constants.RF_CHANNEL, constants.METRIC],
-            optimized_media_summary_mroi_by_reach.effectiveness.data,
+            optimized_metrics_mroi_by_reach.effectiveness.data,
         ),
         constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
             [constants.RF_CHANNEL, constants.METRIC],
-            optimized_media_summary_mroi_by_reach.pct_of_contribution.data,
+            optimized_metrics_mroi_by_reach.pct_of_contribution.data,
         ),
     }
 
-    if use_roi:
+    if use_kpi:
+      data_vars[constants.OPTIMIZED_CPIK] = (
+          (constants.RF_CHANNEL, constants.METRIC),
+          optimized_metrics_mroi_by_reach.cpik.data,
+      )
+    else:
       data_vars[constants.OPTIMIZED_ROI] = (
           (constants.RF_CHANNEL, constants.METRIC),
-          optimized_media_summary_mroi_by_reach.roi.data,
+          optimized_metrics_mroi_by_reach.roi.data,
       )
       data_vars[constants.OPTIMIZED_MROI_BY_REACH] = (
           (constants.RF_CHANNEL, constants.METRIC),
-          optimized_media_summary_mroi_by_reach.mroi.data,
+          optimized_metrics_mroi_by_reach.mroi.data,
       )
       data_vars[constants.OPTIMIZED_MROI_BY_FREQUENCY] = (
           (constants.RF_CHANNEL, constants.METRIC),
-          optimized_media_summary_mroi_by_frequency.mroi.data,
-      )
-    else:
-      data_vars[constants.OPTIMIZED_CPIK] = (
-          (constants.RF_CHANNEL, constants.METRIC),
-          optimized_media_summary_mroi_by_reach.cpik.data,
+          optimized_metrics_mroi_by_frequency.mroi.data,
       )
 
     return xr.Dataset(

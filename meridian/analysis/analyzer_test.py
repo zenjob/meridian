@@ -934,38 +934,38 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
                 [  # rf_ch_0.           # rf_ch_1
-                    [[4.57, 1.60, 7.52], [6.60, 1.69, 11.70]],  # freq=1.0
-                    [[2.47, 0.97, 3.97], [3.66, 1.09, 6.32]],  # freq=2.0
-                    [[1.72, 0.71, 2.73], [2.53, 0.82, 4.30]],  # freq=3.0
+                    [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],  # freq=1.0
+                    [[2.48, 0.98, 3.97], [3.66, 1.1, 6.32]],  # freq=2.0
+                    [[1.73, 0.72, 2.73], [2.54, 0.83, 4.3]],  # freq=3.0
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[313.0, 130.1, 495.3], [454.7, 159.1, 761.4]],
+                [[1244.8, 436.19, 2047.89], [1902.85, 487.06, 3368.2]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000427, 0.000177, 0.000676],
-                    [0.000618, 0.000216, 0.001036],
+                    [0.001699, 0.000595, 0.002795],
+                    [0.00259, 0.000663, 0.004585],
                 ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.44, 0.59, 2.27], [2.09, 0.73, 3.50]],
+                [[5.16181, 1.80875, 8.49197], [7.89052, 2.01976, 13.96686]],
             ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.150, 0.478, 1.819], [1.579, 0.552, 2.644]],
+                [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.150, 0.478, 1.819], [1.579, 0.552, 2.645]],
+                [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.118, 0.095, 0.139], [0.152, 0.141, 0.164]],
+                [[0.54, 0.45, 0.62], [1.31, 0.69, 1.96]],
             ),
         },
         attrs={
@@ -975,12 +975,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     xr.testing.assert_allclose(actual, expected, atol=0.1)
-    xr.testing.assert_allclose(actual.frequency, expected.frequency, atol=0.1)
-    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel, atol=0.1)
-    xr.testing.assert_allclose(actual.metric, expected.metric, atol=0.1)
+    xr.testing.assert_allclose(actual.frequency, expected.frequency)
+    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel)
+    xr.testing.assert_allclose(actual.metric, expected.metric)
     xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
     xr.testing.assert_allclose(
-        actual.optimal_frequency, expected.optimal_frequency, atol=0.1
+        actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
         actual.optimized_incremental_impact,
@@ -1012,7 +1012,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         expected.optimized_mroi_by_frequency,
         atol=0.01,
     )
-    self.assertEqual(actual.confidence_level, 0.9)
+    self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_r_hat_summary_media_and_rf_correct(self):
@@ -2421,27 +2421,30 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [3.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[915.6, 380.9, 1647.8], [683.3, 305.7, 1041.2]],
+                [[1326.76, 320.44, 2614.4], [2060.22, 122.18, 3772.43]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.000416, 0.000173, 0.000749], [0.000930, 0.000416, 0.00141]],
+                [
+                    [0.000604, 0.000146, 0.001189],
+                    [0.002804, 0.000166, 0.005135],
+                ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.01113, 0.00463, 0.02003], [0.00830, 0.00371, 0.01266]],
+                [[0.01613, 0.0039, 0.03179], [0.02505, 0.00149, 0.04587]],
             ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[3.364, 1.399, 6.054], [2.373, 1.062, 3.616]],
+                [[4.87, 1.18, 9.61], [7.16, 0.42, 13.10]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[3.365, 1.401, 6.051], [2.373, 1.062, 3.620]],
+                [[4.87, 1.18, 9.59], [7.16, 0.42, 13.12]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.685, 1.187, 2.851], [0.566, 0.288, 0.714]],
+                [[4.21, 2.58, 8.68], [3.11, 1.14, 3.95]],
             ),
         },
         attrs={
@@ -2451,12 +2454,12 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     xr.testing.assert_allclose(actual, expected, atol=0.1)
-    xr.testing.assert_allclose(actual.frequency, expected.frequency, atol=0.1)
-    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel, atol=0.1)
-    xr.testing.assert_allclose(actual.metric, expected.metric, atol=0.1)
-    xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.1)
+    xr.testing.assert_allclose(actual.frequency, expected.frequency)
+    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel)
+    xr.testing.assert_allclose(actual.metric, expected.metric)
+    xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.01)
     xr.testing.assert_allclose(
-        actual.optimal_frequency, expected.optimal_frequency, atol=0.1
+        actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
         actual.optimized_incremental_impact,
@@ -2488,7 +2491,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         expected.optimized_mroi_by_frequency,
         atol=0.01,
     )
-    self.assertEqual(actual.confidence_level, 0.9)
+    self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_optimal_frequency_freq_grid(self):
@@ -2825,22 +2828,22 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[99.699, 41.435, 157.754], [145.965, 51.569, 243.965]],
+                [[396.44, 138.92, 652.21], [611.12, 158.21, 1080.15]],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [1.360e-04, 5.655e-05, 2.153e-04],
-                    [1.986e-04, 7.019e-05, 3.320e-04],
+                    [0.000541, 0.00019, 0.00089],
+                    [0.000832, 0.000215, 0.00147],
                 ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.43945, 0.59824, 2.27765], [2.10744, 0.74456, 3.52236]],
+                [[5.1566, 1.8069, 8.48342], [7.94896, 2.05785, 14.04969]],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[4.123, 1.725, 6.568], [3.378, 1.179, 5.582]],
+                [[1.166, 0.417, 1.959], [1.042, 0.267, 1.82]],
             ),
         },
         attrs={
@@ -2850,12 +2853,12 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     xr.testing.assert_allclose(actual, expected, atol=0.1)
-    xr.testing.assert_allclose(actual.frequency, expected.frequency, atol=0.1)
-    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel, atol=0.1)
-    xr.testing.assert_allclose(actual.metric, expected.metric, atol=0.1)
-    xr.testing.assert_allclose(actual.cpik, expected.cpik, atol=0.1)
+    xr.testing.assert_allclose(actual.frequency, expected.frequency)
+    xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel)
+    xr.testing.assert_allclose(actual.metric, expected.metric)
+    xr.testing.assert_allclose(actual.cpik, expected.cpik, atol=0.01)
     xr.testing.assert_allclose(
-        actual.optimal_frequency, expected.optimal_frequency, atol=0.1
+        actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
         actual.optimized_incremental_impact,
@@ -2865,7 +2868,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(
         actual.optimized_effectiveness,
         expected.optimized_effectiveness,
-        atol=0.00001,
+        atol=0.000001,
     )
     xr.testing.assert_allclose(
         actual.optimized_pct_of_contribution,
@@ -2877,7 +2880,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         expected.optimized_cpik,
         atol=0.01,
     )
-    self.assertEqual(actual.confidence_level, 0.9)
+    self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
 
   def test_optimal_frequency_min_cpik_at_opt_freq(self):
