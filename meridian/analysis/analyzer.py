@@ -1592,9 +1592,9 @@ class Analyzer:
 
     Returns:
       Tensor of ROI values with dimensions `(n_chains, n_draws, n_geos, n_times,
-      n_media_channels, n_rf_channels)`. The `n_geos` and `n_times`
-      dimensions are dropped if `aggregate_geos=True` or
-      `aggregate_times=True`, respectively.
+      (n_media_channels + n_rf_channels))`. The `n_geos` and `n_times`
+      dimensions are dropped if `aggregate_geos=True` or `aggregate_times=True`,
+      respectively.
     """
     self._validate_roi_functionality()
     dim_kwargs = {
@@ -1678,7 +1678,7 @@ class Analyzer:
 
     Returns:
       Tensor of CPIK values with dimensions `(n_chains, n_draws, n_geos,
-      n_times, n_media_channels, n_rf_channels)`. The `n_geos` and `n_times`
+      n_times, (n_media_channels + n_rf_channels))`. The `n_geos` and `n_times`
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
