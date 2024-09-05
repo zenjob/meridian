@@ -1015,6 +1015,17 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
 
+  def test_r_hat_media_and_rf_correct(self):
+    r_hat = self.analyzer_media_and_rf.get_r_hat()
+    self.assertSetEqual(
+        set(r_hat.keys()),
+        set(
+            constants.COMMON_PARAMETER_NAMES
+            + constants.MEDIA_PARAMETER_NAMES
+            + constants.RF_PARAMETER_NAMES
+        ),
+    )
+
   def test_r_hat_summary_media_and_rf_correct(self):
     r_hat_summary = self.analyzer_media_and_rf.r_hat_summary()
     self.assertEqual(r_hat_summary.shape, (20, 7))
@@ -1954,6 +1965,13 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.analyzer_media_only.optimal_freq()
 
+  def test_r_hat_media_only_correct(self):
+    r_hat = self.analyzer_media_only.get_r_hat()
+    self.assertSetEqual(
+        set(r_hat.keys()),
+        set(constants.COMMON_PARAMETER_NAMES + constants.MEDIA_PARAMETER_NAMES),
+    )
+
   def test_r_hat_summary_media_only_correct(self):
     r_hat_summary = self.analyzer_media_only.r_hat_summary()
     self.assertEqual(r_hat_summary.shape, (13, 7))
@@ -2535,6 +2553,13 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           roi[i, :, 2], np.quantile(roi_temp, (1 + 0.9) / 2, (0, 1))
       )
+
+  def test_r_hat_rf_only_correct(self):
+    r_hat = self.analyzer_rf_only.get_r_hat()
+    self.assertSetEqual(
+        set(r_hat.keys()),
+        set(constants.COMMON_PARAMETER_NAMES + constants.RF_PARAMETER_NAMES),
+    )
 
   def test_r_hat_summary_rf_only_correct(self):
     r_hat_summary = self.analyzer_rf_only.r_hat_summary()

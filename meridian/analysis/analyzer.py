@@ -2968,7 +2968,7 @@ class Analyzer:
     wmape = _calc_weighted_mape(expected_eval_set, actual_eval_set)
     return [rsquared, mape, wmape]
 
-  def _get_r_hat(self) -> Mapping[str, tf.Tensor]:
+  def get_r_hat(self) -> Mapping[str, tf.Tensor]:
     """Computes the R-hat values for each parameter in the model.
 
     Returns:
@@ -3038,7 +3038,7 @@ class Analyzer:
       ValueError: If the number of dimensions of the R-hat array for a parameter
         is not `1` or `2`.
     """
-    r_hat = self._get_r_hat()
+    r_hat = self.get_r_hat()
 
     r_hat_summary = []
     for param in r_hat:
