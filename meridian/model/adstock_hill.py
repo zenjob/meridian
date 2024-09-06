@@ -88,8 +88,8 @@ def _adstock(
   if n_media_times < required_n_media_times:
     pad_shape = (
         media.shape[:-2]
-        + (required_n_media_times - n_media_times)
-        + media.shape[-1]
+        + (required_n_media_times - n_media_times,)
+        + (media.shape[-1],)
     )
     media = tf.concat([tf.zeros(pad_shape), media], axis=-2)
 
