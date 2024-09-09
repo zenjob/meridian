@@ -604,7 +604,7 @@ class Meridian:
     # be padded to account for lagged effects.
     data_n_time = scaled_data.shape[1]
     col_idx_bad = col_idx_unique[np.where(counts == data_n_time)[0]]
-    dims_bad = [data_dims[i] for i in col_idx_bad]
+    dims_bad = [str(data_dims[i]) for i in col_idx_bad]
 
     if col_idx_bad.shape[0] and self.knot_info.n_knots == self.n_times:
       raise ValueError(
