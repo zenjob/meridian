@@ -1097,6 +1097,8 @@ class Analyzer:
       new_reach: tf.Tensor | None = None,
       new_frequency: tf.Tensor | None = None,
       new_revenue_per_kpi: tf.Tensor | None = None,
+      scaling_factor0: float = 0.0,
+      scaling_factor1: float = 1.0,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | Sequence[bool] | None = None,
       media_selected_times: Sequence[str] | Sequence[bool] | None = None,
@@ -1109,14 +1111,19 @@ class Analyzer:
     """Calculates either the posterior or prior incremental impact.
 
     This calculates the media impact of each media channel for each posterior or
-    prior parameter draw. Incremental impact is defined as
-    `E(Outcome|Media, Controls)` minus `E(Outcome|Media_0, Controls)`, where
-    `Media_0` means that media execution for a given channel is set to zero for
-    the set of time periods specified by `media_selected_times` and all other
-    media are set to the values that the Meridian object was initialized with.
-    "Outcome" refers to either `revenue` if `use_kpi=False`, or `kpi` if
-    `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi` cannot be
-    False.
+    prior parameter draw. Incremental impact is defined as:
+
+    `E(Outcome|Media_1, Controls)` minus `E(Outcome|Media_0, Controls)`
+
+    Here, `Media_1` means that media execution for a given channel is multiplied
+    by `scaling_factor1` (1.0 by default) for the set of time periods sepecified
+    by `media_selected_times`. Similarly, `Media_0` means that media execution
+    is multiplied by `scaling_factor0` (0.0 by default) for these time periods.
+
+    For channels with reach and frequency data, the frequency is held fixed
+    while the reach is scaled. "Outcome" refers to either `revenue` if
+    `use_kpi=False`, or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not
+    defined, `use_kpi` cannot be False.
 
     By default, "Media" represents the media values that the Meridian object was
     initialized with, but this can be overridden by the `new_media`,
@@ -1155,6 +1162,13 @@ class Analyzer:
       new_revenue_per_kpi: Optional tensor with the geo dimension matching
         revenue_per_kpi. Required if any other `new_XXX` data is provided with a
         different number of time periods than in `InputData`.
+      scaling_factor0: Float. The factor by which to scale the counterfactual
+        scenario "Media_0" during the time periods specified in
+        `media_selected_times`. Must be non-negative and less than
+        `scaling_factor1`.
+      scaling_factor1: Float. The factor by which to scale "Media_1" during the
+        selected time periods specified in `media_selected_times`. Must be
+        non-negative and greater than `scaling_factor0`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing either a subset of dates to
@@ -1173,9 +1187,12 @@ class Analyzer:
         selects from `InputData.time`. The incremental impact corresponds to
         incremental KPI generated during the `selected_times` arg by media
         executed during the `media_selected_times` arg. For each channel, the
-        incremental impact is defined as the difference between media at
-        historical execution levels, or as provided in `new_media`, versus zero
-        execution. By default, all time periods are included.
+        incremental impact is defined as the difference between expected KPI
+        when media execution is scaled by `scaling_factor1` and
+        `scaling_factor0` during these specified time periods. By default, the
+        difference is between media at historical execution levels, or as
+        provided in `new_media`, versus zero execution. Defaults to include all
+        time periods.
       aggregate_geos: Boolean. If `True`, then incremental impact is summed over
         all regions.
       aggregate_times: Boolean. If `True`, then incremental impact is summed
@@ -1222,6 +1239,17 @@ class Analyzer:
           f"sample_{dist_type}() must be called prior to calling this method."
       )
 
+    # Validate scaling factor arguments.
+    if scaling_factor1 < 0:
+      raise ValueError("scaling_factor1 must be non-negative.")
+    if scaling_factor0 < 0:
+      raise ValueError("scaling_factor0 must be non-negative.")
+    if scaling_factor1 <= scaling_factor0:
+      raise ValueError(
+          "scaling_factor1 must be greater than scaling_factor0. Got"
+          f" {scaling_factor1=} and {scaling_factor0=}."
+      )
+
     # Ascertain new_n_media_times based on the input data.
     new_media_params = [new_media, new_reach, new_frequency]
     new_data = next((d for d in new_media_params if d is not None), None)
@@ -1233,8 +1261,12 @@ class Analyzer:
     elif new_revenue_per_kpi is not None:
       # (geo, time)
       _check_n_dims(new_revenue_per_kpi, "new_revenue_per_kpi", 2)
-      new_n_media_times = new_revenue_per_kpi.shape[-1]
-      use_flexible_time = new_n_media_times != mmm.n_times
+      if new_revenue_per_kpi.shape[-1] != mmm.n_times:
+        use_flexible_time = True
+        new_n_media_times = new_revenue_per_kpi.shape[-1]
+      else:
+        use_flexible_time = False
+        new_n_media_times = mmm.n_media_times
     else:
       new_n_media_times = mmm.n_media_times
       use_flexible_time = False
@@ -1289,10 +1321,9 @@ class Analyzer:
       new_media = mmm.media_tensors.media
     if new_reach is None:
       new_reach = mmm.rf_tensors.reach
-
-    # Set counterfactual media and reach tensors if media_selected_times is
-    # provided.
-    if media_selected_times is not None:
+    if media_selected_times is None:
+      media_selected_times = [True] * new_n_media_times
+    else:
       _validate_selected_times(
           selected_times=media_selected_times,
           input_times=mmm.input_data.media_time,
@@ -1304,11 +1335,25 @@ class Analyzer:
         media_selected_times = [
             x in media_selected_times for x in mmm.input_data.media_time
         ]
-      new_media0 = new_media * (1 - np.array(media_selected_times))[:, None]
-      new_reach0 = new_reach * (1 - np.array(media_selected_times))[:, None]
-      tensor_kwargs0 = self._get_adstock_hill_tensors(
-          new_media0, new_reach0, new_frequency
-      )
+
+    # Set counterfactual media and reach tensors based on the scaling factors
+    # and the media selected times.
+    counterfactual0 = (
+        1 + (scaling_factor0 - 1) * np.array(media_selected_times)
+    )[:, None]
+    counterfactual1 = (
+        1 + (scaling_factor1 - 1) * np.array(media_selected_times)
+    )[:, None]
+    new_media0 = None if new_media is None else new_media * counterfactual0
+    new_reach0 = None if new_reach is None else new_reach * counterfactual0
+    new_media1 = None if new_media is None else new_media * counterfactual1
+    new_reach1 = None if new_reach is None else new_reach * counterfactual1
+    tensor_kwargs0 = self._get_adstock_hill_tensors(
+        new_media0, new_reach0, new_frequency
+    )
+    tensor_kwargs1 = self._get_adstock_hill_tensors(
+        new_media1, new_reach1, new_frequency
+    )
 
     # Calculate incremental impact in batches.
     params = (
@@ -1316,13 +1361,21 @@ class Analyzer:
         if use_posterior
         else self._meridian.inference_data.prior
     )
-    tensor_kwargs = self._get_adstock_hill_tensors(
-        new_media, new_reach, new_frequency
-    )
     n_draws = params.draw.size
     batch_starting_indices = np.arange(n_draws, step=batch_size)
     param_list = self._get_adstock_hill_param_names()
     incremental_impact_temps = [None] * len(batch_starting_indices)
+    dim_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+        "aggregate_geos": aggregate_geos,
+        "aggregate_times": aggregate_times,
+    }
+    incremental_revenue_kwargs = {
+        "inverse_transform_impact": inverse_transform_impact,
+        "use_kpi": use_kpi,
+        "revenue_per_kpi": new_revenue_per_kpi,
+    }
     for i, start_index in enumerate(batch_starting_indices):
       stop_index = np.min([n_draws, start_index + batch_size])
       batch_dists = {
@@ -1330,28 +1383,18 @@ class Analyzer:
           for k in param_list
       }
       incremental_impact_temps[i] = self._incremental_impact_impl(
-          **tensor_kwargs,
+          **tensor_kwargs1,
           **batch_dists,
-          selected_geos=selected_geos,
-          selected_times=selected_times,
-          aggregate_geos=aggregate_geos,
-          aggregate_times=aggregate_times,
-          inverse_transform_impact=inverse_transform_impact,
-          use_kpi=use_kpi,
-          revenue_per_kpi=new_revenue_per_kpi,
+          **dim_kwargs,
+          **incremental_revenue_kwargs,
       )
       # Calculate incremental impact under counterfactual scenario "Media_0".
-      if media_selected_times is not None and not all(media_selected_times):
+      if scaling_factor0 != 0 or not all(media_selected_times):
         incremental_impact_temps[i] -= self._incremental_impact_impl(
             **tensor_kwargs0,
             **batch_dists,
-            selected_geos=selected_geos,
-            selected_times=selected_times,
-            aggregate_geos=aggregate_geos,
-            aggregate_times=aggregate_times,
-            inverse_transform_impact=inverse_transform_impact,
-            use_kpi=use_kpi,
-            revenue_per_kpi=new_revenue_per_kpi,
+            **dim_kwargs,
+            **incremental_revenue_kwargs,
         )
     return tf.concat(incremental_impact_temps, axis=1)
 

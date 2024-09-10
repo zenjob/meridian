@@ -277,6 +277,29 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       kwargs.pop(missing_param)
       self.analyzer_media_and_rf.incremental_impact(**kwargs)
 
+  def test_incremental_impact_negative_scaling_factor0(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "scaling_factor0 must be non-negative.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(scaling_factor0=-0.01)
+
+  def test_incremental_impact_negative_scaling_factor1(self):
+    with self.assertRaisesRegex(
+        ValueError, "scaling_factor1 must be non-negative."
+    ):
+      self.analyzer_media_and_rf.incremental_impact(scaling_factor1=-0.01)
+
+  def test_incremental_impact_scaling_factor1_less_than_scaling_factor0(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "scaling_factor1 must be greater than scaling_factor0. Got"
+        " scaling_factor1=1.0 and scaling_factor0=1.1.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          scaling_factor0=1.1, scaling_factor1=1.0
+      )
+
   def test_incremental_impact_flexible_times_selected_times_wrong_type(self):
     with self.assertRaisesRegex(
         ValueError,
