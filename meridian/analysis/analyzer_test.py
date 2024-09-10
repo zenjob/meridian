@@ -277,6 +277,72 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       kwargs.pop(missing_param)
       self.analyzer_media_and_rf.incremental_impact(**kwargs)
 
+  def test_incremental_impact_flexible_times_selected_times_wrong_type(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
+        "provided with a different number of time periods than in "
+        "`InputData`, then `selected_times` and `media_selected_times` "
+        "must be a list of booleans with length equal to the number of "
+        "time periods in the new data.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          new_media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+          new_reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+          new_frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+          new_revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
+      )
+
+  def test_incremental_impact_flexible_times_media_selected_times_wrong_type(
+      self,
+  ):
+    with self.assertRaisesRegex(
+        ValueError,
+        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
+        "provided with a different number of time periods than in "
+        "`InputData`, then `selected_times` and `media_selected_times` "
+        "must be a list of booleans with length equal to the number of "
+        "time periods in the new data.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          new_media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+          new_reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+          new_frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+          new_revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          media_selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
+      )
+
+  def test_incremental_impact_media_selected_times_wrong_length(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "Boolean `media_selected_times` must have the same number of elements "
+        "as there are time period coordinates in the media tensors.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          media_selected_times=[False] * (_N_MEDIA_TIMES - 10) + [True],
+      )
+
+  def test_incremental_impact_media_selected_times_wrong_time_dim_names(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`media_selected_times` must match the time dimension names from "
+        "meridian.InputData.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          media_selected_times=["random_time"],
+      )
+
+  def test_incremental_impact_incorrect_media_selected_times_type(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`media_selected_times` must be a list of strings or a list of"
+        " booleans.",
+    ):
+      self.analyzer_media_and_rf.incremental_impact(
+          media_selected_times=["random_time", False, True],
+      )
+
   def test_incremental_impact_new_params_diff_time_dims_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
@@ -323,6 +389,45 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         impact.shape, (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + _N_RF_CHANNELS)
     )
+
+  def test_incremental_impact_media_selected_times_all_false_returns_zero(self):
+    no_media_times = self.analyzer_media_and_rf.incremental_impact(
+        media_selected_times=[False] * _N_MEDIA_TIMES
+    )
+    self.assertAllEqual(no_media_times, tf.zeros_like(no_media_times))
+
+  def test_incremental_impact_no_overlap_between_media_and_selected_times(self):
+    # If for any time period where media_selected_times is True, selected_times
+    # is False for this time period and the following `max_lag` time periods,
+    # then the incremental impact should be zero.
+    max_lag = self.meridian_media_and_rf.model_spec.max_lag
+    media_selected_times = [
+        self.meridian_media_and_rf.input_data.media_time.values[0]
+    ]
+    selected_times = [False] * (max_lag + 1) + [True] * (_N_TIMES - max_lag - 1)
+    impact = self.analyzer_media_and_rf.incremental_impact(
+        selected_times=selected_times,
+        media_selected_times=media_selected_times,
+    )
+    self.assertAllEqual(impact, tf.zeros_like(impact))
+
+  def test_incremental_impact_media_and_selected_times_overlap_non_zero(self):
+    # Incremental impact should be non-zero when there is at least one time
+    # period of overlap between media_selected_times and selected_times. In this
+    # case, media_selected_times is True for week 1 and selected_times is True
+    # for week `max_lag+1` and the following weeks.
+    max_lag = self.meridian_media_and_rf.model_spec.max_lag
+    excess_times = _N_MEDIA_TIMES - _N_TIMES
+    media_selected_times = [True] + [False] * (_N_MEDIA_TIMES - 1)
+    selected_times = [False] * (max_lag - excess_times) + [True] * (
+        _N_TIMES - max_lag + excess_times
+    )
+    impact = self.analyzer_media_and_rf.incremental_impact(
+        selected_times=selected_times,
+        media_selected_times=media_selected_times,
+    )
+    mean_inc_impact = tf.reduce_mean(impact, axis=(0, 1))
+    self.assertNotAllEqual(mean_inc_impact, tf.zeros_like(mean_inc_impact))
 
   @parameterized.product(
       use_posterior=[False, True],
