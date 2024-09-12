@@ -20,6 +20,7 @@ random data (using seed=0), using same settings as the test Colab notebook.
 """
 
 from collections.abc import Mapping, Sequence
+import math
 from xml import etree as et
 
 from meridian import constants as c
@@ -414,9 +415,10 @@ SAMPLE_MROI = np.array([
         [1.0355, 0.1641],
     ],
     [
-        [0.9120, 0.5455],
-        [0.3138, 0.1945],
-        [1.5988, 0.8988],
+        # mROI metric don't make sense for "All Channels".
+        [math.nan, math.nan],
+        [math.nan, math.nan],
+        [math.nan, math.nan],
     ],
 ])
 SAMPLE_CPIK = np.array([
@@ -478,9 +480,10 @@ SAMPLE_EFFECTIVENESS = np.array([
         [2.5280e-04, 2.1773e-04],
     ],
     [
-        [4.2322e-04, 2.3743e-04],
-        [1.4204e-04, 1.4041e-04],
-        [8.6045e-04, 3.3518e-04],
+        # Effectiveness metric don't make sense for "All Channels".
+        [math.nan, math.nan],
+        [math.nan, math.nan],
+        [math.nan, math.nan],
     ],
 ])
 SAMPLE_SPEND = np.array([293.807, 278.854, 255.744, 272.165, 287.876, 1388.448])

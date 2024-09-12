@@ -2122,6 +2122,9 @@ class Analyzer:
   ) -> xr.Dataset:
     """Returns media summary metrics.
 
+    Note that `mroi` and `effectiveness` metrics are not defined (`math.nan`)
+    for the aggregate `"All Channels"` channel dimension.
+
     Args:
       confidence_level: Confidence level for media summary metrics credible
         intervals, represented as a value between zero and one.
@@ -2274,7 +2277,12 @@ class Analyzer:
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
-    )
+        # Drop effectiveness metric values in the Dataset's data_vars for the
+        # aggregated "All Channels" channel dimension value. The "Effectiveness"
+        # metric has no meaningful interpretation in this case because the media
+        # execution metric is generally not consistent across channels.
+    ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
+
     if use_kpi:
       roi = xr.Dataset()
       mroi = xr.Dataset()
@@ -2310,7 +2318,14 @@ class Analyzer:
           confidence_level=confidence_level,
           spend_with_total=spend_with_total,
           **roi_kwargs,
-      )
+          # Drop mROI metric values in the Dataset's data_vars for the
+          # aggregated "All Channels" channel dimension value. "Marginal ROI"
+          # calculation must arbitrarily assume how the "next dollar" of spend
+          # is allocated across "All Channels" in this case, which may cause
+          # confusion in Meridian model and does not have much practical
+          # usefulness, anyway.
+      ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
+
     if not aggregate_times:
       # Impact metrics should not be normalized by weekly media metrics, which
       # do not have a clear interpretation due to lagged effects. Therefore,
@@ -2558,8 +2573,8 @@ class Analyzer:
         specified, it contains the counterfactual frequency value. If `None`,
         the original frequency value is used.
       new_rf_spend: Optional tensor with dimensions matching rf_spend. When
-        specified, it contains the counterfactual rf_spend value. If `None`,
-        the original rf_spend value is used.
+        specified, it contains the counterfactual rf_spend value. If `None`, the
+        original rf_spend value is used.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding

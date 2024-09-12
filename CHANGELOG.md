@@ -24,6 +24,11 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 
 * Make `get_r_hat` public.
+* Add `media_selected_times` parameter to `Analyzer.incremental_impact()`
+  method.
+  This allows, among other things, to project impact for future media values.
+* For `"All Channels"` media summary metrics: `effectiveness` and `mroi` data
+  variables are now masked out (`math.nan`).
 
 ## [0.6.0] - 2024-08-20
 
