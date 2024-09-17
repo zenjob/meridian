@@ -271,8 +271,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
         "provided with a different number of time periods than in "
-        "`InputData`, then all of them must be provided with the same "
-        "number of time periods.",
+        "`InputData`, then all new parameters originally in `InputData` must "
+        "be provided with the same number of time periods.",
     ):
       kwargs.pop(missing_param)
       self.analyzer_media_and_rf.incremental_impact(**kwargs)
@@ -1895,6 +1895,27 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       )
     self.assertEqual(impact.shape, expected_shape)
 
+  @parameterized.named_parameters(
+      ("missing_media", "new_media"),
+      ("missing_revenue_per_kpi", "new_revenue_per_kpi"),
+  )
+  def test_incremental_impact_media_only_missing_new_param_raises_exception(
+      self, missing_param: str
+  ):
+    kwargs = {
+        "new_media": tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+        "new_revenue_per_kpi": tf.ones((_N_GEOS, 10)),
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
+        "provided with a different number of time periods than in "
+        "`InputData`, then all new parameters originally in `InputData` must "
+        "be provided with the same number of time periods.",
+    ):
+      kwargs.pop(missing_param)
+      self.analyzer_media_only.incremental_impact(**kwargs)
+
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
@@ -1953,6 +1974,23 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(
         impact,
         tf.convert_to_tensor(expected_outcome),
+        rtol=1e-3,
+        atol=1e-3,
+    )
+
+  # The purpose of this test is to prevent accidental logic change.
+  def test_incremental_impact_media_only_new_params(self):
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_only
+    )
+    impact = self.analyzer_media_only.incremental_impact(
+        new_media=self.meridian_media_only.media_tensors.media[..., -10:, :],
+        new_revenue_per_kpi=self.meridian_media_only.revenue_per_kpi[..., -10:],
+    )
+    print(impact.numpy())
+    self.assertAllClose(
+        impact,
+        tf.convert_to_tensor(test_utils.INC_IMPACT_MEDIA_ONLY_NEW_PARAMS),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -2307,6 +2345,29 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       )
     self.assertEqual(impact.shape, expected_shape)
 
+  @parameterized.named_parameters(
+      ("missing_reach", "new_reach"),
+      ("missing_frequency", "new_frequency"),
+      ("missing_revenue_per_kpi", "new_revenue_per_kpi"),
+  )
+  def test_incremental_impact_rf_only_missing_new_param_raises_exception(
+      self, missing_param: str
+  ):
+    kwargs = {
+        "new_reach": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "new_frequency": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "new_revenue_per_kpi": tf.ones((_N_GEOS, 10)),
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
+        "provided with a different number of time periods than in "
+        "`InputData`, then all new parameters originally in `InputData` must "
+        "be provided with the same number of time periods.",
+    ):
+      kwargs.pop(missing_param)
+      self.analyzer_rf_only.incremental_impact(**kwargs)
+
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
@@ -2365,6 +2426,24 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(
         impact,
         tf.convert_to_tensor(expected_outcome),
+        rtol=1e-3,
+        atol=1e-3,
+    )
+
+  # The purpose of this test is to prevent accidental logic change.
+  def test_incremental_impact_rf_only_new_params(self):
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=self.inference_data_rf_only
+    )
+    impact = self.analyzer_rf_only.incremental_impact(
+        new_reach=self.meridian_rf_only.rf_tensors.reach[..., -10:, :],
+        new_frequency=self.meridian_rf_only.rf_tensors.frequency[..., -10:, :],
+        new_revenue_per_kpi=self.meridian_rf_only.revenue_per_kpi[..., -10:],
+    )
+    print(impact.numpy())
+    self.assertAllClose(
+        impact,
+        tf.convert_to_tensor(test_utils.INC_IMPACT_RF_ONLY_NEW_PARAMS),
         rtol=1e-3,
         atol=1e-3,
     )

@@ -1272,14 +1272,21 @@ class Analyzer:
       use_flexible_time = False
 
     # Validate the new parameters.
-    new_params = new_media_params + ([] if use_kpi else [new_revenue_per_kpi])
+    required_new_params = []
+    if mmm.media_tensors.media is not None:
+      required_new_params.append(new_media)
+    if mmm.rf_tensors.reach is not None:
+      required_new_params.append(new_reach)
+      required_new_params.append(new_frequency)
+    if not use_kpi:
+      required_new_params.append(new_revenue_per_kpi)
     if use_flexible_time:
-      if any(param is None for param in new_params):
+      if any(param is None for param in required_new_params):
         raise ValueError(
             "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
             "provided with a different number of time periods than in "
-            "`InputData`, then all of them must be provided with the same "
-            "number of time periods."
+            "`InputData`, then all new parameters originally in `InputData` "
+            "must be provided with the same number of time periods."
         )
       if (selected_times and not _is_bool_list(selected_times)) or (
           media_selected_times and not _is_bool_list(media_selected_times)
