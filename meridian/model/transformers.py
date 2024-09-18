@@ -48,11 +48,16 @@ class MediaTransformer:
     population_scaled_media = tf.math.divide_no_nan(
         media, population[:, tf.newaxis, tf.newaxis]
     )
+    # Replace zeros with NaNs
+    population_scaled_media_nan = tf.where(
+        population_scaled_media == 0, np.nan, population_scaled_media
+    )
     # Tensor of medians of the positive portion of `media`. Used as a component
     # for scaling.
-    self._population_scaled_median_m = np.nanmedian(
-        tf.where(population_scaled_media == 0, np.nan, population_scaled_media),
-        [0, 1],
+    self._population_scaled_median_m = tf.numpy_function(
+        func=lambda x: np.nanmedian(x, axis=[0, 1]),
+        inp=[population_scaled_media_nan],
+        Tout=tf.float32,
     )
     # Tensor of dimensions (`n_geos` x 1) of weights for scaling `metric`.
     self._scale_factors_gm = tf.einsum(

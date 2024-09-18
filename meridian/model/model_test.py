@@ -960,19 +960,19 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="wrong_controls",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_CONTROLS,
           data_name="controls",
-          dims_bad=["control_0", "control_1"],
+          dims_bad=np.array([b"control_0", b"control_1"]),
       ),
       dict(
           testcase_name="wrong_media",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_MEDIA,
           data_name="media",
-          dims_bad=["media_channel_1", "media_channel_2"],
+          dims_bad=np.array([b"media_channel_1", b"media_channel_2"]),
       ),
       dict(
           testcase_name="wrong_rf",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_REACH,
           data_name="reach",
-          dims_bad=["rf_channel_0", "rf_channel_1"],
+          dims_bad=np.array([b"rf_channel_0", b"rf_channel_1"]),
       ),
   )
   def test_init_without_geo_variation_fails(

@@ -598,13 +598,16 @@ class Meridian:
   ):
     """Raise an error if `n_knots == n_time` and data lacks geo variation."""
 
-    _, col_idx_full = np.where(np.std(scaled_data, axis=0) < epsilon)
-    col_idx_unique, counts = np.unique(col_idx_full, return_counts=True)
+    col_idx_full = tf.where(tf.math.reduce_std(scaled_data, axis=0) < epsilon)[
+        :, 1
+    ]
+    col_idx_unique, _, counts = tf.unique_with_counts(col_idx_full)
     # We use the shape of scaled_data (instead of `n_time`) because the data may
     # be padded to account for lagged effects.
     data_n_time = scaled_data.shape[1]
-    col_idx_bad = col_idx_unique[np.where(counts == data_n_time)[0]]
-    dims_bad = [str(data_dims[i]) for i in col_idx_bad]
+    mask = tf.equal(counts, data_n_time)
+    col_idx_bad = tf.boolean_mask(col_idx_unique, mask)
+    dims_bad = tf.gather(data_dims, col_idx_bad)
 
     if col_idx_bad.shape[0] and self.knot_info.n_knots == self.n_times:
       raise ValueError(

@@ -3611,14 +3611,17 @@ class Analyzer:
           self._meridian.media_tensors.media, self._meridian.population
       )
       population_scaled_median_m = media_transformers.population_scaled_median_m
-      x_range_full_shape = (
-          linspace * population_scaled_median_m[:, np.newaxis].T
+      x_range_full_shape = linspace * tf.transpose(
+          population_scaled_median_m[:, np.newaxis]
       )
     else:
       x_range_full_shape = linspace
 
     # Flatten this into a list.
-    x_range_list = x_range_full_shape.flatten("F").tolist()
+    x_range_list = (
+        tf.reshape(tf.transpose(x_range_full_shape), [-1]).numpy().tolist()
+    )
+
     # Doubles each value in the list to account for alternating prior
     # and posterior.
     x_range_doubled = list(
