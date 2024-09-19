@@ -197,19 +197,14 @@ class Meridian:
   def kpi(self) -> tf.Tensor:
     return tf.convert_to_tensor(self.input_data.kpi, dtype=tf.float32)
 
+  # TODO(b/366491907): Change return type to `list[dt.date]`.
   @functools.cached_property
   def kpi_time_values(self) -> list[dt.datetime]:
     """The KPI data array's `time` coordinates as `datetime` objects."""
-    time_dims = [
-        dt.datetime.strptime(value, constants.DATE_FORMAT)
-        for value in self.input_data.time.values
+    return [
+        dt.to_pydatetime()
+        for dt in self.input_data.time_coordinates.datetime_index
     ]
-    # Assume that the time dimension values in the input data were sorted.
-    if not all(
-        time_dims[i] <= time_dims[i + 1] for i in range(len(time_dims) - 1)
-    ):
-      raise ValueError("The input data's `time` coordinates are not sorted.")
-    return time_dims
 
   @functools.cached_property
   def revenue_per_kpi(self) -> tf.Tensor | None:
