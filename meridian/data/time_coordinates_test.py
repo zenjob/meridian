@@ -182,7 +182,7 @@ class TimeCoordinatesTest(parameterized.TestCase):
   ):
     with self.assertRaisesRegex(
         ValueError,
-        "`selected_interval` should be a subset of `all_dates`.",
+        r"end_date \(2024-02-26\) must be in the time coordinates!",
     ):
       self.coordinates.get_selected_dates(
           selected_interval=("2024-01-01", "2024-02-26"),
@@ -216,6 +216,100 @@ class TimeCoordinatesTest(parameterized.TestCase):
         for date in expected_dates
     ]
     self.assertEqual(dates, expected_dates)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="start_and_end",
+          start_date=dt.datetime(2024, 1, 8).date(),
+          end_date=dt.datetime(2024, 2, 5),
+          expected_time_dims=[
+              dt.datetime(2024, 1, 8).date(),
+              dt.datetime(2024, 1, 15).date(),
+              dt.datetime(2024, 1, 22).date(),
+              dt.datetime(2024, 1, 29).date(),
+              dt.datetime(2024, 2, 5).date(),
+          ],
+      ),
+      dict(
+          testcase_name="start_only",
+          start_date=dt.datetime(2024, 1, 8).date(),
+          end_date=None,
+          expected_time_dims=[
+              dt.datetime(2024, 1, 8).date(),
+              dt.datetime(2024, 1, 15).date(),
+              dt.datetime(2024, 1, 22).date(),
+              dt.datetime(2024, 1, 29).date(),
+              dt.datetime(2024, 2, 5).date(),
+              dt.datetime(2024, 2, 12).date(),
+              dt.datetime(2024, 2, 19).date(),
+          ],
+      ),
+      dict(
+          testcase_name="end_only",
+          start_date=None,
+          end_date=dt.datetime(2024, 2, 5).date(),
+          expected_time_dims=[
+              dt.datetime(2024, 1, 1).date(),
+              dt.datetime(2024, 1, 8).date(),
+              dt.datetime(2024, 1, 15).date(),
+              dt.datetime(2024, 1, 22).date(),
+              dt.datetime(2024, 1, 29).date(),
+              dt.datetime(2024, 2, 5).date(),
+          ],
+      ),
+      dict(
+          testcase_name="none",
+          start_date=None,
+          end_date=None,
+          expected_time_dims=None,
+      ),
+      dict(
+          testcase_name="start_and_end_are_entire_range",
+          start_date=dt.datetime(2024, 1, 1),
+          end_date=dt.datetime(2024, 2, 19),
+          expected_time_dims=None,
+      ),
+  )
+  def test_expand_selected_time_dims(
+      self, start_date, end_date, expected_time_dims
+  ):
+    self.assertEqual(
+        self.coordinates.expand_selected_time_dims(start_date, end_date),
+        expected_time_dims,
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="start_not_in_data",
+          start_date=dt.datetime(2023, 12, 15).date(),
+          end_date=dt.datetime(2024, 1, 8).date(),
+          expected_error_message=(
+              r"start_date \(2023-12-15\) must be in the time coordinates!"
+          ),
+      ),
+      dict(
+          testcase_name="end_not_in_data",
+          start_date=dt.datetime(2024, 1, 1),
+          end_date=dt.datetime(2024, 3, 11),
+          expected_error_message=(
+              r"end_date \(2024-03-11\) must be in the time coordinates!"
+          ),
+      ),
+      dict(
+          testcase_name="start_after_end",
+          start_date="2024-01-29",
+          end_date="2024-01-01",
+          expected_error_message=(
+              r"start_date \(2024-01-29\) must be less than or equal to"
+              r" end_date \(2024-01-01\)!"
+          ),
+      ),
+  )
+  def test_expand_selected_time_dims_fails(
+      self, start_date, end_date, expected_error_message
+  ):
+    with self.assertRaisesRegex(ValueError, expected_error_message):
+      self.coordinates.expand_selected_time_dims(start_date, end_date)
 
 
 if __name__ == "__main__":

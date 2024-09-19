@@ -37,7 +37,6 @@ __all__ = [
 # A type alias for a polymorphic "date" type.
 Date: TypeAlias = str | datetime.datetime | datetime.date | np.datetime64
 
-
 # A type alias for a polymorphic "date interval" type. In all variants it is
 # always a tuple of (start_date, end_date).
 DateInterval: TypeAlias = tuple[Date, Date]
@@ -187,23 +186,72 @@ class TimeCoordinates:
       given start and end dates, as Python's builtin `datetime.date` objects.
 
     Raises:
-      ValueError: If `all_dates` are not strictly ascending.
       ValueError: If `selected_interval` is not a subset of `all_dates`.
     """
     if selected_interval is None:
       return self.all_dates
 
     selected_dates = normalize_date_interval(selected_interval)
-    if selected_dates[0] >= selected_dates[1]:
+    expanded = self.expand_selected_time_dims(
+        selected_dates[0], selected_dates[1]
+    )
+    if expanded is None:
+      return self.all_dates
+    return expanded
+
+  def expand_selected_time_dims(
+      self,
+      start_date: Date | None = None,
+      end_date: Date | None = None,
+  ) -> list[datetime.date] | None:
+    """Validates and returns time dimension values based on the selected times.
+
+    If both `start_date` and `end_date` are None, returns None.
+
+    Args:
+      start_date: Start date of the selected time period. If None, implies the
+        earliest time dimension value in the input data.
+      end_date: End date of the selected time period. If None, implies the
+        latest time dimension value in the input data.
+
+    Returns:
+      A list of time dimension values (as `datetime.date` objects) in the input
+      data within the selected time period, or do nothing and pass through None
+      if both arguments are Nones, or if `start_date` and `end_date` correspond
+      to the entire time range in the input data.
+
+    Raises:
+      ValueError if `start_date` or `end_date` is not in the input data's time
+      dimension coordinates.
+    """
+    if start_date is None and end_date is None:
+      return None
+
+    if start_date is None:
+      start_date = min(self.all_dates)
+    else:
+      start_date = normalize_date(start_date)
+      if start_date not in self.all_dates:
+        raise ValueError(
+            f"start_date ({start_date}) must be in the time coordinates!"
+        )
+
+    if end_date is None:
+      end_date = max(self.all_dates)
+    else:
+      end_date = normalize_date(end_date)
+      if end_date not in self.all_dates:
+        raise ValueError(
+            f"end_date ({end_date}) must be in the time coordinates!"
+        )
+
+    if start_date > end_date:
       raise ValueError(
-          "`selected_interval` must be a valid (start, end) date interval."
+          f"start_date ({start_date}) must be less than or equal to end_date"
+          f" ({end_date})!"
       )
 
-    if any(sd not in self.all_dates for sd in selected_dates):
-      raise ValueError("`selected_interval` should be a subset of `all_dates`.")
+    if start_date == min(self.all_dates) and end_date == max(self.all_dates):
+      return None
 
-    start, end = selected_dates
-    start_index = self.all_dates.index(start)
-    end_index = self.all_dates.index(end) + 1
-
-    return _to_dates_list(self.datetime_index[start_index:end_index])
+    return [date for date in self.all_dates if start_date <= date <= end_date]

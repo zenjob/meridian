@@ -895,9 +895,10 @@ class BudgetOptimizer:
       use_posterior: Boolean. If `True`, then the budget is optimized based on
         the posterior distribution of the model. Otherwise, the prior
         distribution is used.
-      selected_times: Tuple containing the start and end time dimensions for the
-        duration to run the optimization on. Time dimensions should align with
-        the Meridian time dimensions. By default, all times periods are used.
+      selected_times: Tuple containing the start and end time dimension
+        coordinates for the duration to run the optimization on. Selected time
+        values should align with the Meridian time dimension coordinates in the
+        underlying model. By default, all times periods are used.
       fixed_budget: Boolean indicating whether it's a fixed budget optimization
         or flexible budget optimization. Defaults to `True`. If `False`, must
         specify either `target_roi` or `target_mroi`.

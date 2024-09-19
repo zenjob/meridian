@@ -598,9 +598,9 @@ class Analyzer:
         default, all geos are included. The selected geos should match those in
         `InputData.geo`.
       selected_times: Optional list of times to include. This can either be a
-        string list containing a subset of time dims from `InputData.time` or a
-        boolean list with length equal to the time dimension of the tensor. By
-        default, all time periods are included.
+        string list containing a subset of time dimension coordinates from
+        `InputData.time` or a boolean list with length equal to the time
+        dimension of the tensor. By default, all time periods are included.
       aggregate_geos: Boolean. If `True`, the tensor is summed over all geos.
       aggregate_times: Boolean. If `True`, the tensor is summed over all time
         periods.
@@ -743,7 +743,8 @@ class Analyzer:
       selected_geos: Optional list of containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
-        By default, all time periods are included.
+        The values accepted here must match time dimension coordinates from
+        `InputData.time`. By default, all time periods are included.
       aggregate_geos: Boolean. If `True`, the expected outcome is summed over
         all regions.
       aggregate_times: Boolean. If `True`, the expected outcome is summed over
