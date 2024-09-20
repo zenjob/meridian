@@ -926,50 +926,8 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     # Validate sigma.
     self.assertEqual(meridian.prior_broadcast.sigma.batch_shape, (1,))
 
-  def test_media_attributes_not_set(self):
-    meridian = model.Meridian(input_data=self.input_data_with_rf_only)
-    self.assertEqual(meridian.n_media_channels, 0)
-    self.assertIsNone(meridian.media_tensors.media_transformer)
-    self.assertIsNone(meridian.media_tensors.media_scaled)
-    self.assertIsNone(meridian.media_tensors.media_counterfactual)
-    self.assertIsNone(meridian.media_tensors.media_counterfactual_scaled)
-    self.assertIsNone(meridian.media_tensors.media_spend_counterfactual)
-
-  def test_rf_attributes_not_set(self):
-    meridian = model.Meridian(input_data=self.input_data_with_media_only)
-    self.assertEqual(meridian.n_rf_channels, 0)
-    self.assertIsNone(meridian.rf_tensors.reach_transformer)
-    self.assertIsNone(meridian.rf_tensors.reach_scaled)
-    self.assertIsNone(meridian.rf_tensors.reach_counterfactual)
-    self.assertIsNone(meridian.rf_tensors.reach_counterfactual_scaled)
-    self.assertIsNone(meridian.rf_tensors.rf_spend_counterfactual)
-
   def test_scaled_data_shape(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)
-    if (
-        self.input_data_with_media_and_rf.media is not None
-        and meridian.media_tensors.media_scaled is not None
-    ):
-      self.assertAllEqual(
-          meridian.media_tensors.media_scaled.shape,
-          self.input_data_with_media_and_rf.media.shape,
-          msg=(
-              "Shape of `_media_scaled` does not match the shape of `media`"
-              " from the input data."
-          ),
-      )
-    if (
-        self.input_data_with_media_and_rf.reach is not None
-        and meridian.rf_tensors.reach_scaled is not None
-    ):
-      self.assertAllEqual(
-          meridian.rf_tensors.reach_scaled.shape,
-          self.input_data_with_media_and_rf.reach.shape,
-          msg=(
-              "Shape of `_reach_scaled` does not match the shape of `reach`"
-              " from the input data."
-          ),
-      )
     self.assertAllEqual(
         meridian.controls_scaled.shape,
         self.input_data_with_media_and_rf.controls.shape,
@@ -1021,30 +979,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     # With the default tolerance of eps * 10 the test fails due to rounding
     # errors.
     atol = np.finfo(np.float32).eps * 100
-    if (
-        meridian.media_tensors.media_scaled is not None
-        and meridian.media_tensors.media_transformer is not None
-        and self.input_data_with_media_and_rf.media is not None
-    ):
-      self.assertAllClose(
-          meridian.media_tensors.media_transformer.inverse(
-              meridian.media_tensors.media_scaled
-          ),
-          self.input_data_with_media_and_rf.media,
-          atol=atol,
-      )
-    if (
-        meridian.rf_tensors.reach_scaled is not None
-        and meridian.rf_tensors.reach_transformer is not None
-        and self.input_data_with_media_and_rf.reach is not None
-    ):
-      self.assertAllClose(
-          meridian.rf_tensors.reach_transformer.inverse(
-              meridian.rf_tensors.reach_scaled
-          ),
-          self.input_data_with_media_and_rf.reach,
-          atol=atol,
-      )
     self.assertAllClose(
         meridian.controls_transformer.inverse(meridian.controls_scaled),
         self.input_data_with_media_and_rf.controls,
@@ -1055,145 +989,6 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         self.input_data_with_media_and_rf.kpi,
         atol=atol,
     )
-
-  def test_counterfactual_data_no_roi_calibration(self):
-    meridian = model.Meridian(
-        input_data=self.input_data_with_media_and_rf,
-        model_spec=spec.ModelSpec(
-            roi_calibration_period=None, rf_roi_calibration_period=None
-        ),
-    )
-
-    self.assertAllEqual(
-        meridian.media_tensors.media_counterfactual,
-        tf.zeros_like(self.input_data_with_media_and_rf.media),
-    )
-    self.assertAllEqual(
-        meridian.media_tensors.media_counterfactual_scaled,
-        tf.zeros_like(meridian.media_tensors.media_scaled),
-    )
-    self.assertAllEqual(
-        meridian.media_tensors.media_spend_counterfactual,
-        tf.zeros_like(self.input_data_with_media_and_rf.media_spend),
-    )
-    if meridian.rf_tensors.reach_scaled is not None:
-      self.assertAllEqual(
-          meridian.rf_tensors.reach_counterfactual,
-          tf.zeros_like(self.input_data_with_media_and_rf.reach),
-      )
-      self.assertAllEqual(
-          meridian.rf_tensors.reach_counterfactual_scaled,
-          tf.zeros_like(meridian.rf_tensors.reach_scaled),
-      )
-      self.assertAllEqual(
-          meridian.rf_tensors.rf_spend_counterfactual,
-          tf.zeros_like(self.input_data_with_media_and_rf.rf_spend),
-      )
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name="national",
-          input_data_type="national",
-      ),
-      dict(
-          testcase_name="geo-level",
-          input_data_type="geo-level",
-      ),
-  )
-  def test_counterfactual_data_with_roi_calibration(self, input_data_type: str):
-    roi_calibration_shape = (self._N_MEDIA_TIMES, self._N_MEDIA_CHANNELS)
-    roi_calibration_period = np.random.choice(
-        a=[False, True], size=roi_calibration_shape
-    )
-    input_data = (
-        self.national_input_data_media_and_rf
-        if input_data_type == "national"
-        else self.input_data_with_media_and_rf
-    )
-    meridian = model.Meridian(
-        input_data=input_data,
-        model_spec=spec.ModelSpec(
-            roi_calibration_period=roi_calibration_period
-        ),
-    )
-
-    self.assertAllClose(
-        meridian.media_tensors.media_counterfactual,
-        tf.where(
-            roi_calibration_period,
-            0,
-            meridian.media_tensors.media,
-        ),
-    )
-    self.assertAllClose(
-        meridian.media_tensors.media_counterfactual_scaled,
-        tf.where(
-            roi_calibration_period, 0, meridian.media_tensors.media_scaled
-        ),
-    )
-
-    self.assertAllClose(
-        meridian.media_tensors.media_spend_counterfactual,
-        tf.where(
-            roi_calibration_period[..., -meridian.n_times :, :],
-            0,
-            meridian.media_tensors.media_spend,
-        ),
-    )
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name="national",
-          input_data_type="national",
-      ),
-      dict(
-          testcase_name="geo-level",
-          input_data_type="geo-level",
-      ),
-  )
-  def test_counterfactual_data_with_rf_roi_calibration(
-      self, input_data_type: str
-  ):
-    rf_roi_calibration_shape = (self._N_MEDIA_TIMES, self._N_RF_CHANNELS)
-    rf_roi_calibration_period = np.random.choice(
-        a=[False, True], size=rf_roi_calibration_shape
-    )
-    input_data = (
-        self.national_input_data_media_and_rf
-        if input_data_type == "national"
-        else self.input_data_with_media_and_rf
-    )
-    meridian = model.Meridian(
-        input_data=input_data,
-        model_spec=spec.ModelSpec(
-            rf_roi_calibration_period=rf_roi_calibration_period
-        ),
-    )
-
-    if meridian.input_data.reach is not None:
-      self.assertAllClose(
-          meridian.rf_tensors.reach_counterfactual,
-          tf.where(
-              rf_roi_calibration_period,
-              0,
-              meridian.rf_tensors.reach,
-          ),
-      )
-      self.assertAllClose(
-          meridian.rf_tensors.reach_counterfactual_scaled,
-          tf.where(
-              rf_roi_calibration_period, 0, meridian.rf_tensors.reach_scaled
-          ),
-      )
-
-      self.assertAllClose(
-          meridian.rf_tensors.rf_spend_counterfactual,
-          tf.where(
-              rf_roi_calibration_period[..., -meridian.n_times :, :],
-              0,
-              meridian.rf_tensors.rf_spend,
-          ),
-      )
 
   @parameterized.named_parameters(
       dict(testcase_name="int", baseline_geo=4, expected_idx=4),

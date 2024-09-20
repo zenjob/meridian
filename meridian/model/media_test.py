@@ -14,52 +14,76 @@
 
 """Unit tests for media.py."""
 
+from unittest import mock
 from absl.testing import absltest
-from meridian.data import test_utils
+from absl.testing import parameterized
 from meridian.model import media
 from meridian.model import spec
+from meridian.model import transformers
+import numpy as np
 import tensorflow as tf
 
-
-# Data dimensions for sample input.
-_N_GEOS = 5
-_N_TIMES = 200
-_N_MEDIA_TIMES = 203
-_N_CONTROLS = 2
-_N_MEDIA_CHANNELS = 3
-_N_RF_CHANNELS = 2
-
-_INPUT_DATA_WITH_MEDIA_ONLY = (
-    test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-        n_geos=_N_GEOS,
-        n_times=_N_TIMES,
-        n_media_times=_N_MEDIA_TIMES,
-        n_controls=_N_CONTROLS,
-        n_media_channels=_N_MEDIA_CHANNELS,
-        seed=0,
-    )
+# Dimensions: (n_geos=2, n_media_times=4, n_channels=3)
+_MEDIA = np.array([
+    [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
+    [[11, 12, 13], [14, 15, 16], [17, 18, 19], [110, 111, 112]],
+])
+# Dimensions: (n_geos=2, n_times=3, n_channels=3)
+_SPEND = np.array([
+    [[10, 20, 30], [40, 50, 60], [70, 80, 90]],
+    [[110, 120, 130], [140, 150, 160], [170, 180, 190]],
+])
+# Dimensions: (n_media_times=4, n_channels=3)
+_ROI_CALIBRATION_PERIOD = np.array([
+    [True, True, True],
+    [True, True, False],
+    [True, False, False],
+    [False, False, False],
+])
+_MEDIA_COUNTERFACTUAL = np.array([
+    [[0, 0, 0], [0, 0, 6], [0, 8, 9], [10, 11, 12]],
+    [[0, 0, 0], [0, 0, 16], [0, 18, 19], [110, 111, 112]],
+])
+_SPEND_COUNTERFACTUAL = np.array([
+    [[0, 0, 30], [0, 50, 60], [70, 80, 90]],
+    [[0, 0, 130], [0, 150, 160], [170, 180, 190]],
+])
+_INPUT_DATA_WITH_MEDIA_ONLY = mock.MagicMock(
+    reach=None,
+    frequency=None,
+    rf_spend=None,
+    time=["2021-01-01", "2021-01-08", "2021-01-15"],
+    media=_MEDIA,
+    media_spend=_SPEND,
+    population=np.array([1, 2]),
+)
+_INPUT_DATA_WITH_RF_ONLY = mock.MagicMock(
+    media=None,
+    media_spend=None,
+    time=["2021-01-01", "2021-01-08", "2021-01-15"],
+    reach=_MEDIA,
+    frequency=_MEDIA,
+    rf_spend=_SPEND,
+    population=np.array([1, 2]),
 )
 
-_INPUT_DATA_WITH_RF_ONLY = (
-    test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-        n_geos=_N_GEOS,
-        n_times=_N_TIMES,
-        n_media_times=_N_MEDIA_TIMES,
-        n_controls=_N_CONTROLS,
-        n_rf_channels=_N_RF_CHANNELS,
-        seed=0,
+
+class MediaTensorsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    # Return unchanged media values.
+    self.enter_context(
+        mock.patch.object(
+            transformers.MediaTransformer,
+            "forward",
+            return_value=_INPUT_DATA_WITH_MEDIA_ONLY.media,
+        )
     )
-)
-
-
-class MediaTensorsTest(tf.test.TestCase):
 
   def test_no_media_values(self):
-    model_spec = spec.ModelSpec(
-        roi_calibration_period=None, rf_roi_calibration_period=None
-    )
     media_tensors = media.build_media_tensors(
-        _INPUT_DATA_WITH_RF_ONLY, model_spec
+        _INPUT_DATA_WITH_RF_ONLY, spec.ModelSpec()
     )
 
     self.assertIsNone(media_tensors.media)
@@ -70,53 +94,67 @@ class MediaTensorsTest(tf.test.TestCase):
     self.assertIsNone(media_tensors.media_counterfactual_scaled)
     self.assertIsNone(media_tensors.media_spend_counterfactual)
 
-  def test_media_tensors(self):
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="no_calibration_period",
+          roi_calibration_period=None,
+          expected_counterfactual=tf.zeros_like(_MEDIA_COUNTERFACTUAL),
+          expected_spend_counterfactual=tf.zeros_like(_SPEND_COUNTERFACTUAL),
+      ),
+      dict(
+          testcase_name="with_calibration_period",
+          roi_calibration_period=_ROI_CALIBRATION_PERIOD,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL,
+      ),
+  )
+  def test_media_tensors(
+      self,
+      roi_calibration_period: np.ndarray | None,
+      expected_counterfactual: tf.Tensor,
+      expected_spend_counterfactual: tf.Tensor,
+  ):
     media_tensors = media.build_media_tensors(
         _INPUT_DATA_WITH_MEDIA_ONLY,
-        spec.ModelSpec(),
+        spec.ModelSpec(roi_calibration_period=roi_calibration_period),
     )
 
-    self.assertAllEqual(
-        media_tensors.media,
-        tf.convert_to_tensor(
-            _INPUT_DATA_WITH_MEDIA_ONLY.media, dtype=tf.float32
-        ),
+    self.assertAllClose(media_tensors.media, _INPUT_DATA_WITH_MEDIA_ONLY.media)
+    self.assertAllClose(
+        media_tensors.media_spend, _INPUT_DATA_WITH_MEDIA_ONLY.media_spend
     )
-    self.assertAllEqual(
-        media_tensors.media_spend,
-        tf.convert_to_tensor(
-            _INPUT_DATA_WITH_MEDIA_ONLY.media_spend, dtype=tf.float32
-        ),
+    self.assertIsNotNone(media_tensors.media_transformer)
+    self.assertAllClose(
+        media_tensors.media_scaled, _INPUT_DATA_WITH_MEDIA_ONLY.media
     )
-
-  def _get_tensor_shape(self, tensor: tf.Tensor | None) -> tf.TensorShape:
-    if tensor is None:
-      raise ValueError("Unexpected None tensor")
-    return tensor.shape
-
-  def test_scaled_data_shape(self):
-    media_tensors = media.build_media_tensors(
-        _INPUT_DATA_WITH_MEDIA_ONLY,
-        spec.ModelSpec(),
+    self.assertAllClose(
+        media_tensors.media_counterfactual, expected_counterfactual
     )
-
-    self.assertAllEqual(
-        self._get_tensor_shape(media_tensors.media_scaled),
-        self._get_tensor_shape(_INPUT_DATA_WITH_MEDIA_ONLY.media),
-        msg=(
-            "Shape of `_media_scaled` does not match the shape of `media`"
-            " from the input data."
-        ),
+    self.assertAllClose(
+        media_tensors.media_counterfactual_scaled, expected_counterfactual
+    )
+    self.assertAllClose(
+        media_tensors.media_spend_counterfactual, expected_spend_counterfactual
     )
 
 
-class RfTensorsTest(tf.test.TestCase):
+class RfTensorsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    # Return unchanged reach values.
+    self.enter_context(
+        mock.patch.object(
+            transformers.MediaTransformer,
+            "forward",
+            return_value=_INPUT_DATA_WITH_RF_ONLY.reach,
+        )
+    )
 
   def test_no_rf_values(self):
-    model_spec = spec.ModelSpec(
-        roi_calibration_period=None, rf_roi_calibration_period=None
+    rf_tensors = media.build_rf_tensors(
+        _INPUT_DATA_WITH_MEDIA_ONLY, spec.ModelSpec()
     )
-    rf_tensors = media.build_rf_tensors(_INPUT_DATA_WITH_MEDIA_ONLY, model_spec)
 
     self.assertIsNone(rf_tensors.reach)
     self.assertIsNone(rf_tensors.frequency)
@@ -127,47 +165,46 @@ class RfTensorsTest(tf.test.TestCase):
     self.assertIsNone(rf_tensors.reach_counterfactual_scaled)
     self.assertIsNone(rf_tensors.rf_spend_counterfactual)
 
-  def test_rf_tensors(self):
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="no_calibration_period",
+          rf_roi_calibration_period=None,
+          expected_counterfactual=tf.zeros_like(_MEDIA_COUNTERFACTUAL),
+          expected_spend_counterfactual=tf.zeros_like(_SPEND_COUNTERFACTUAL),
+      ),
+      dict(
+          testcase_name="with_calibration_period",
+          rf_roi_calibration_period=_ROI_CALIBRATION_PERIOD,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL,
+      ),
+  )
+  def test_rf_tensors(
+      self,
+      rf_roi_calibration_period: np.ndarray | None,
+      expected_counterfactual: tf.Tensor,
+      expected_spend_counterfactual: tf.Tensor,
+  ):
     rf_tensors = media.build_rf_tensors(
         _INPUT_DATA_WITH_RF_ONLY,
-        spec.ModelSpec(),
+        spec.ModelSpec(rf_roi_calibration_period=rf_roi_calibration_period),
     )
 
-    self.assertAllEqual(
-        rf_tensors.reach,
-        tf.convert_to_tensor(_INPUT_DATA_WITH_RF_ONLY.reach, dtype=tf.float32),
+    self.assertAllClose(rf_tensors.reach, _INPUT_DATA_WITH_RF_ONLY.reach)
+    self.assertAllClose(
+        rf_tensors.frequency, _INPUT_DATA_WITH_RF_ONLY.frequency
     )
-    self.assertAllEqual(
-        rf_tensors.frequency,
-        tf.convert_to_tensor(
-            _INPUT_DATA_WITH_RF_ONLY.frequency, dtype=tf.float32
-        ),
+    self.assertAllClose(rf_tensors.rf_spend, _INPUT_DATA_WITH_RF_ONLY.rf_spend)
+    self.assertIsNotNone(rf_tensors.reach_transformer)
+    self.assertAllClose(rf_tensors.reach_scaled, _INPUT_DATA_WITH_RF_ONLY.reach)
+    self.assertAllClose(
+        rf_tensors.reach_counterfactual, expected_counterfactual
     )
-    self.assertAllEqual(
-        rf_tensors.rf_spend,
-        tf.convert_to_tensor(
-            _INPUT_DATA_WITH_RF_ONLY.rf_spend, dtype=tf.float32
-        ),
+    self.assertAllClose(
+        rf_tensors.reach_counterfactual_scaled, expected_counterfactual
     )
-
-  def _get_tensor_shape(self, tensor: tf.Tensor | None) -> tf.TensorShape:
-    if tensor is None:
-      raise ValueError("Unexpected None tensor")
-    return tensor.shape
-
-  def test_scaled_data_shape(self):
-    rf_tensors = media.build_rf_tensors(
-        _INPUT_DATA_WITH_RF_ONLY,
-        spec.ModelSpec(),
-    )
-
-    self.assertAllEqual(
-        self._get_tensor_shape(rf_tensors.reach_scaled),
-        self._get_tensor_shape(_INPUT_DATA_WITH_RF_ONLY.reach),
-        msg=(
-            "Shape of `_reach_scaled` does not match the shape of `reach`"
-            " from the input data."
-        ),
+    self.assertAllClose(
+        rf_tensors.rf_spend_counterfactual, expected_spend_counterfactual
     )
 
 
