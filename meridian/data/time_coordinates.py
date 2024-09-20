@@ -14,10 +14,12 @@
 
 """Deals with coordinate values in the time dimensions of input data."""
 
+from collections.abc import Sequence
 import dataclasses
 import datetime
 import functools
 from typing import TypeAlias
+import warnings
 
 from meridian import constants
 import numpy as np
@@ -43,7 +45,9 @@ DateInterval: TypeAlias = tuple[Date, Date]
 
 # Time coordinates are string labels in an xarray data array in `InputData`, but
 # they can also be parsed into numpy/pandas `DatetimeIndex` internally here.
-_TimeCoordinateValues: TypeAlias = pd.DatetimeIndex | xr.DataArray
+_TimeCoordinateValues: TypeAlias = (
+    pd.DatetimeIndex | xr.DataArray | Sequence[Date]
+)
 
 
 def _to_pandas_datetime_index(times: _TimeCoordinateValues) -> pd.DatetimeIndex:
@@ -53,7 +57,7 @@ def _to_pandas_datetime_index(times: _TimeCoordinateValues) -> pd.DatetimeIndex:
 
 
 def normalize_date(date: Date) -> datetime.date:
-  """Normalizes the given date into a `datetime.date`."""
+  """Normalizes the given date value into a `datetime.date`."""
   if isinstance(date, str):
     return datetime.datetime.strptime(date, constants.DATE_FORMAT).date()
   elif isinstance(date, datetime.datetime):
@@ -142,7 +146,9 @@ class TimeCoordinates:
 
   def __post_init__(self):
     if not self.datetime_index.is_monotonic_increasing:
-      raise ValueError("`all_dates` must be strictly monotonic increasing.")
+      raise ValueError(
+          "Time coordinates must be strictly monotonically increasing."
+      )
 
   @property
   def all_dates(self) -> list[datetime.date]:
@@ -163,6 +169,14 @@ class TimeCoordinates:
     """
     # Calculate the difference between consecutive dates, in days.
     diff = self.datetime_index.to_series().diff().dt.days.dropna()
+
+    if diff.nunique() == 0:
+      # This edge case happens when there is only one date in the index.
+      # This is unlikely to happen in practice, but we handle it just in case.
+      warnings.warn(
+          "The time coordinates only have one date. Returning an interval of 0."
+      )
+      return 0
 
     # Check for regularity.
     if diff.nunique() != 1:

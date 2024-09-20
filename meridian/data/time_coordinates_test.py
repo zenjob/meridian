@@ -94,7 +94,7 @@ class TimeCoordinatesTest(parameterized.TestCase):
   ):
     with self.assertRaisesRegex(
         ValueError,
-        "`all_dates` must be strictly monotonic increasing.",
+        "Time coordinates must be strictly monotonically increasing.",
     ):
       time_coordinates.TimeCoordinates.from_dates(all_dates)
 

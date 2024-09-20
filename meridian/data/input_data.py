@@ -176,8 +176,8 @@ class InputData:
     self._validate_scenarios()
     self._validate_names()
     self._validate_dimensions()
-    self._validate_times()
     self._validate_time_formats()
+    self._validate_times()
 
   @property
   def geo(self) -> xr.DataArray:
@@ -186,17 +186,17 @@ class InputData:
 
   @property
   def time(self) -> xr.DataArray:
-    """Returns the time dimension."""
+    """Returns the time dimension coordinates."""
     return self.kpi[constants.TIME]
 
   @functools.cached_property
   def time_coordinates(self) -> tc.TimeCoordinates:
-    """Returns the time dimension coordinates."""
+    """Returns the (KPI) time dimension in a `TimeCoordinates` wrapper."""
     return tc.TimeCoordinates.from_dates(self.time)
 
   @property
   def media_time(self) -> xr.DataArray:
-    """Returns the media time dimension."""
+    """Returns the media time dimension coordinates."""
     if self.media is not None:
       return self.media[constants.MEDIA_TIME]
     else:
@@ -204,7 +204,7 @@ class InputData:
 
   @functools.cached_property
   def media_time_coordinates(self) -> tc.TimeCoordinates:
-    """Returns the media time dimension coordinates."""
+    """Returns the media time dimension in a `TimeCoordinates` wrapper."""
     return tc.TimeCoordinates.from_dates(self.media_time)
 
   @property
@@ -380,18 +380,29 @@ class InputData:
     _check_dim_match(constants.CONTROL_VARIABLE, [self.controls])
 
   def _validate_times(self):
+    """Validates time coordinate values."""
     self._validate_time(self.media)
     self._validate_time(self.reach)
     self._validate_time(self.frequency)
 
+    # Time coordinates must be evenly spaced.
+    try:
+      _ = self.time_coordinates.interval_days
+    except ValueError as exc:
+      raise ValueError("Time coordinates must be evenly spaced.") from exc
+    try:
+      _ = self.media_time_coordinates.interval_days
+    except ValueError as exc:
+      raise ValueError("Media time coordinates must be evenly spaced.") from exc
+
   def _validate_time(self, array: xr.DataArray | None):
-    """Validates the `time` dimension of the selected DataArray.
+    """Validates the `time` dimension of the given `DataArray`.
 
     The `time` dimension of the selected array cannot be smaller than the
     `time` dimension of the `kpi` array."
 
     Args:
-      array: An optional DataArray to validate.
+      array: The `DataArray` containing time coordinates to validate.
     """
     if array is None:
       return

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from meridian import constants
@@ -742,6 +744,60 @@ class InputDataTest(parameterized.TestCase):
           revenue_per_kpi=self.revenue_per_kpi,
           population=self.population,
           media=media_short,
+          media_spend=self.media_spend,
+      )
+
+  def test_time_interval_irregular(self):
+    kpi = self.not_lagged_kpi.copy()
+    # In the `kpi` data array copy, tweak one of the `time` coordinate value so
+    # that it is not regularly spaced with other coordinate values.
+    old_time_coords = kpi[constants.TIME].values
+    new_time_coords = old_time_coords.copy()
+    new_time_coords[-1] = (
+        datetime.datetime.strptime(old_time_coords[-1], constants.DATE_FORMAT)
+        + datetime.timedelta(days=2)
+    ).strftime(constants.DATE_FORMAT)
+    kpi = kpi.assign_coords({constants.TIME: new_time_coords})
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Time coordinates must be evenly spaced.",
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
+  def test_media_time_interval_irregular(self):
+    media = self.not_lagged_media.copy()
+    # In the `media` data array copy, tweak one of the `media_time` coordinate
+    # value so that it is not regularly spaced with other coordinate values.
+    old_media_time_coords = media[constants.MEDIA_TIME].values
+    new_media_time_coords = old_media_time_coords.copy()
+    new_media_time_coords[-1] = (
+        datetime.datetime.strptime(
+            old_media_time_coords[-1], constants.DATE_FORMAT
+        )
+        + datetime.timedelta(days=2)
+    ).strftime(constants.DATE_FORMAT)
+    media = media.assign_coords({constants.MEDIA_TIME: new_media_time_coords})
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Media time coordinates must be evenly spaced.",
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=media,
           media_spend=self.media_spend,
       )
 
