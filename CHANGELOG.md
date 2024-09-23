@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.7.0] - 2024-09-20
+
 * Make `get_r_hat` public.
 * Add `media_selected_times` parameter to `Analyzer.incremental_impact()`
   method.
@@ -70,4 +72,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.4.0]: https://github.com/google/meridian/releases/tag/v0.4.0
 [0.5.0]: https://github.com/google/meridian/releases/tag/v0.5.0
 [0.6.0]: https://github.com/google/meridian/releases/tag/v0.6.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.6.0...HEAD
+[0.7.0]: https://github.com/google/meridian/releases/tag/v0.7.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.7.0...HEAD
