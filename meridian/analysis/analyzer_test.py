@@ -871,15 +871,22 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         selected_geos=None,
         selected_times=None,
     )
-    self.assertIsNotNone(media_summary.impressions)
-    self.assertIsNotNone(media_summary.spend)
-    self.assertIsNotNone(media_summary.pct_of_spend)
-    self.assertIsNotNone(media_summary.cpm)
-    self.assertIsNotNone(media_summary.incremental_impact)
-    self.assertIsNotNone(media_summary.pct_of_contribution)
-    self.assertIsNotNone(media_summary.roi)
-    self.assertIsNotNone(media_summary.effectiveness)
-    self.assertIsNotNone(media_summary.mroi)
+    self.assertEqual(
+        list(media_summary.data_vars.keys()),
+        [
+            constants.IMPRESSIONS,
+            constants.PCT_OF_IMPRESSIONS,
+            constants.SPEND,
+            constants.PCT_OF_SPEND,
+            constants.CPM,
+            constants.INCREMENTAL_IMPACT,
+            constants.PCT_OF_CONTRIBUTION,
+            constants.ROI,
+            constants.EFFECTIVENESS,
+            constants.MROI,
+            constants.CPIK,
+        ],
+    )
     self.assertAllClose(
         media_summary.impressions, test_utils.SAMPLE_IMPRESSIONS
     )
@@ -922,6 +929,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertAllClose(
         media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
+    )
+    self.assertAllClose(
+        media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
     )
 
   def test_baseline_summary_returns_correct_values(self):
@@ -999,6 +1009,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+    self.assertEqual(media_summary.cpik.shape, expected_shape)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -2107,6 +2118,14 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     expected_shape += (_N_MEDIA_CHANNELS,)
     self.assertEqual(roi.shape, expected_shape)
 
+  def test_roi_media_only_spend_1d_returns_correct_value(self):
+    total_spend = self.analyzer_media_only.filter_and_aggregate_geos_and_times(
+        self.meridian_media_only.media_tensors.media_spend
+    )
+    roi = self.analyzer_media_only.roi(new_media_spend=total_spend)
+    expected_roi = self.analyzer_media_only.incremental_impact() / total_spend
+    self.assertAllClose(roi, expected_roi)
+
   def test_roi_media_only_default_returns_correct_value(self):
     roi = self.analyzer_media_only.roi()
     total_spend = self.analyzer_media_only.filter_and_aggregate_geos_and_times(
@@ -2232,6 +2251,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+    self.assertEqual(media_summary.cpik.shape, expected_shape)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -2608,13 +2628,14 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(w, 1)
       self.assertTrue(issubclass(w[0].category, UserWarning))
       self.assertIn(
-          "ROI, mROI, and Effectiveness are not reported because they do not"
-          " have a clear interpretation by time period.",
+          "ROI, mROI, Effectiveness, and CPIK are not reported because they do "
+          "not have a clear interpretation by time period.",
           str(w[0].message),
       )
       self.assertTrue((media_summary.roi.isnull()).all())
       self.assertTrue((media_summary.mroi.isnull()).all())
       self.assertTrue((media_summary.effectiveness.isnull()).all())
+      self.assertTrue((media_summary.cpik.isnull()).all())
 
   def test_optimal_frequency_data_rf_only_correct(self):
     actual = self.analyzer_rf_only.optimal_freq(
@@ -2841,6 +2862,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
     self.assertEqual(media_summary.mroi.shape, expected_shape)
+    self.assertEqual(media_summary.cpik.shape, expected_shape)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -2959,6 +2981,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         aggregate_times=True,
         selected_geos=None,
         selected_times=None,
+        use_kpi=True,
     )
     self.assertEqual(
         list(media_summary.data_vars.keys()),
@@ -2970,31 +2993,45 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.CPM,
             constants.INCREMENTAL_IMPACT,
             constants.PCT_OF_CONTRIBUTION,
+            constants.ROI,
             constants.EFFECTIVENESS,
+            constants.MROI,
             constants.CPIK,
         ],
     )
+    # Check the metrics that differ when `use_kpi=True`.
     self.assertAllClose(
-        media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
+        media_summary.incremental_impact,
+        test_utils.SAMPLE_INC_IMPACT_KPI,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+    self.assertAllClose(
+        media_summary.roi, test_utils.SAMPLE_ROI_KPI, atol=1e-3, rtol=1e-3
+    )
+    self.assertAllClose(
+        media_summary.effectiveness,
+        test_utils.SAMPLE_EFFECTIVENESS_KPI,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertAllClose(
+        media_summary.mroi, test_utils.SAMPLE_MROI_KPI, atol=1e-3, rtol=1e-3
     )
 
-  def test_media_summary_metrics_no_time_period_warning(self):
-    with warnings.catch_warnings(record=True) as w:
-      self.analyzer_kpi.media_summary_metrics(
-          confidence_level=0.8,
-          marginal_roi_by_reach=False,
-          aggregate_geos=True,
-          aggregate_times=False,
-          selected_geos=None,
-          selected_times=None,
-      )
-      self.assertLen(w, 1)
-      self.assertTrue(issubclass(w[0].category, UserWarning))
-      self.assertIn(
-          "Effectiveness and CPIK are not reported because they do not have a"
-          " clear interpretation by time period.",
-          str(w[0].message),
-      )
+  def test_marginal_roi_no_revenue_data_use_kpi_false(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
+    ):
+      self.analyzer_kpi.marginal_roi(use_kpi=False)
+
+  def test_roi_no_revenue_data_use_kpi_false(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
+    ):
+      self.analyzer_kpi.roi(use_kpi=False)
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_response_curves(self):
     mock_incremental_impact = self.enter_context(

@@ -1364,6 +1364,7 @@ class MediaSummary:
         confidence_level=confidence_level,
         selected_times=selected_times,
         marginal_roi_by_reach=marginal_roi_by_reach,
+        use_kpi=self._meridian.input_data.revenue_per_kpi is None,
     )
 
   @property

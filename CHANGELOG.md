@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Expand media summary metrics to return ROI, mROI, and CPIK in all scenarios
+  with the addition of the use_kpi argument.
+
 ## [0.7.0] - 2024-09-20
 
 * Make `get_r_hat` public.

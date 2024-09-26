@@ -347,14 +347,6 @@ class Analyzer:
           "`use_kpi` must be True when `revenue_per_kpi` is not defined."
       )
 
-  def _validate_roi_functionality(self):
-    """Validates whether ROI metrics can be computed."""
-    if self._meridian.revenue_per_kpi is None:
-      raise ValueError(
-          "ROI-related metrics can't be computed when `revenue_per_kpi` is not"
-          " defined."
-      )
-
   def _get_adstock_dataframe(
       self,
       channel_type: str,
@@ -1117,7 +1109,7 @@ class Analyzer:
     `E(Outcome|Media_1, Controls)` minus `E(Outcome|Media_0, Controls)`
 
     Here, `Media_1` means that media execution for a given channel is multiplied
-    by `scaling_factor1` (1.0 by default) for the set of time periods sepecified
+    by `scaling_factor1` (1.0 by default) for the set of time periods specified
     by `media_selected_times`. Similarly, `Media_0` means that media execution
     is multiplied by `scaling_factor0` (0.0 by default) for these time periods.
 
@@ -1600,14 +1592,17 @@ class Analyzer:
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
       by_reach: bool = True,
+      use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor | None:
     """Calculates the marginal ROI prior or posterior distribution.
 
-    The marginal ROI (mROI) numerator is the change in expected revenue (`kpi *
-    revenue_per_kpi`) when one channel's spend is increased by a small fraction.
-    The mROI denominator is the corresponding small fraction of the
-    channel's total spend.
+    The marginal ROI (mROI) numerator is the change in expected outcome (`kpi`
+    or `kpi * revenue_per_kpi`) when one channel's spend is increased by a small
+    fraction. The mROI denominator is the corresponding small fraction of the
+    channel's total spend. When `revenue_per_kpi` is unavailable,
+    `change_in_outcome / spend` is equivalent to `change_in_revenue / spend`
+    under the assumption that `revenue_per_kpi=1`.
 
     Args:
       incremental_increase: Small fraction by which each channel's spend is
@@ -1616,6 +1611,121 @@ class Analyzer:
         `True`.
       use_posterior: If `True` then the posterior distribution is calculated.
         Otherwise, the prior distribution is calculated.
+      new_media: Optional. Media data with the same shape as
+        `meridian.input_data.media`. Used to compute mROI for alternative media
+        data. Default uses `meridian.input_data.media`.
+      new_media_spend: Optional. Media spend data with the same shape as
+        `meridian.input_data.spend`. Used to compute mROI for alternative
+        `media_spend` data. Default uses `meridian.input_data.media_spend`.
+      new_reach: Optional. Reach data with the same shape as
+        `meridian.input_data.reach`. Used to compute mROI for alternative reach
+        data. Default uses `meridian.input_data.reach`.
+      new_frequency: Optional. Frequency data with the same shape as
+        `meridian.input_data.frequency`. Used to compute mROI for alternative
+        frequency data. Default uses `meridian.input_data.frequency`.
+      new_rf_spend: Optional. RF Spend data with the same shape as
+        `meridian.input_data.rf_spend`. Used to compute mROI for alternative
+        `rf_spend` data. Default uses `meridian.input_data.rf_spend`.
+      selected_geos: Optional. Contains a subset of geos to include. By default,
+        all geos are included.
+      selected_times: Optional. Contains a subset of times to include. By
+        default, all time periods are included.
+      aggregate_geos: If `True`, the expected revenue is summed over all of the
+        regions.
+      aggregate_times: If `True`, the expected revenue is summed over all of
+        time periods.
+      by_reach: Used for a channel with reach and frequency. If `True`, returns
+        the mROI by reach for a given fixed frequency. If `False`, returns the
+        mROI by frequency for a given fixed reach.
+      use_kpi: If `True`, then revenue is used to calculate the mROI numerator.
+        Otherwise, uses KPI to calculate the mROI numerator.
+      batch_size: Maximum draws per chain in each batch. The calculation is run
+        in batches to avoid memory exhaustion. If a memory error occurs, try
+        reducing `batch_size`. The calculation will generally be faster with
+        larger `batch_size` values.
+
+    Returns:
+      Tensor of mROI values with dimensions `(n_chains, n_draws, n_geos,
+      n_times, (n_media_channels + n_rf_channels))`. The `n_geos` and `n_times`
+      dimensions are dropped if `aggregate_geos=True` or
+      `aggregate_times=True`, respectively.
+    """
+    self._check_revenue_data_exists(use_kpi)
+    dim_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+        "aggregate_geos": aggregate_geos,
+        "aggregate_times": aggregate_times,
+    }
+    incremental_revenue_kwargs = {
+        "inverse_transform_impact": True,
+        "use_posterior": use_posterior,
+        "use_kpi": use_kpi,
+        "batch_size": batch_size,
+    }
+    performance_tensors = self._get_performance_tensors(
+        new_media,
+        new_media_spend,
+        new_reach,
+        new_frequency,
+        new_rf_spend,
+        **dim_kwargs,
+    )
+    incremental_revenue = self.incremental_impact(
+        new_media=performance_tensors.media,
+        new_reach=performance_tensors.reach,
+        new_frequency=performance_tensors.frequency,
+        **incremental_revenue_kwargs,
+        **dim_kwargs,
+    )
+    incremented_tensors = _scale_tensors_by_multiplier(
+        performance_tensors.media,
+        performance_tensors.reach,
+        performance_tensors.frequency,
+        incremental_increase + 1,
+        by_reach,
+    )
+    incremental_revenue_kwargs.update(incremented_tensors)
+    incremental_impact_with_multiplier = self.incremental_impact(
+        **dim_kwargs, **incremental_revenue_kwargs
+    )
+    numerator = incremental_impact_with_multiplier - incremental_revenue
+    spend_inc = performance_tensors.total_spend() * incremental_increase
+    if spend_inc is not None and spend_inc.ndim == 3:
+      denominator = self.filter_and_aggregate_geos_and_times(
+          spend_inc, **dim_kwargs
+      )
+    else:
+      denominator = spend_inc
+    return tf.math.divide_no_nan(numerator, denominator)
+
+  def roi(
+      self,
+      use_posterior: bool = True,
+      new_media: tf.Tensor | None = None,
+      new_media_spend: tf.Tensor | None = None,
+      new_reach: tf.Tensor | None = None,
+      new_frequency: tf.Tensor | None = None,
+      new_rf_spend: tf.Tensor | None = None,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+      aggregate_geos: bool = True,
+      aggregate_times: bool = True,
+      use_kpi: bool = False,
+      batch_size: int = constants.DEFAULT_BATCH_SIZE,
+  ) -> tf.Tensor:
+    """Calculates ROI prior or posterior distribution for each media channel.
+
+    The ROI numerator is the change in expected outcome (`kpi` or `kpi *
+    revenue_per_kpi`) when one channel's spend is set to zero, leaving all other
+    channels' spend unchanged. The ROI denominator is the total spend of the
+    channel. When `revenue_per_kpi` is unavailable, `change_in_outcome / spend`
+    is equivalent to `change_in_revenue / spend` under the assumption that
+    `revenue_per_kpi=1`.
+
+    Args:
+      use_posterior: Boolean. If `True`, then the posterior distribution is
+        calculated. Otherwise, the prior distribution is calculated.
       new_media: Optional. Media data with the same shape as
         `meridian.input_data.media`. Used to compute ROI for alternative media
         data. Default uses `meridian.input_data.media`.
@@ -1631,107 +1741,6 @@ class Analyzer:
       new_rf_spend: Optional. RF Spend data with the same shape as
         `meridian.input_data.rf_spend`. Used to compute ROI for alternative
         `rf_spend` data. Default uses `meridian.input_data.rf_spend`.
-      selected_geos: Optional. Contains a subset of geos to include. By default,
-        all geos are included.
-      selected_times: Optional. Contains a subset of times to include. By
-        default, all time periods are included.
-      aggregate_geos: If `True`, the expected revenue is summed over all of the
-        regions.
-      aggregate_times: If `True`, the expected revenue is summed over all of
-        time periods.
-      by_reach: Used for a channel with reach and frequency. If `True`, returns
-        the mROI by reach for a given fixed frequency. If `False`, returns the
-        mROI by frequency for a given fixed reach.
-      batch_size: Maximum draws per chain in each batch. The calculation is run
-        in batches to avoid memory exhaustion. If a memory error occurs, try
-        reducing `batch_size`. The calculation will generally be faster with
-        larger `batch_size` values.
-
-    Returns:
-      Tensor of mROI values with dimensions `(n_chains, n_draws, n_geos,
-      n_times, (n_media_channels + n_rf_channels))`. The `n_geos` and `n_times`
-      dimensions are dropped if `aggregate_geos=True` or
-      `aggregate_times=True`, respectively.
-    """
-    self._validate_roi_functionality()
-    dim_kwargs = {
-        "selected_geos": selected_geos,
-        "selected_times": selected_times,
-        "aggregate_geos": aggregate_geos,
-        "aggregate_times": aggregate_times,
-    }
-    incremental_revenue_kwargs = {
-        "inverse_transform_impact": True,
-        "use_kpi": False,
-        "use_posterior": use_posterior,
-        "batch_size": batch_size,
-    }
-    roi_tensors = self._get_performance_tensors(
-        new_media,
-        new_media_spend,
-        new_reach,
-        new_frequency,
-        new_rf_spend,
-        **dim_kwargs,
-    )
-    incremental_revenue = self.incremental_impact(
-        new_media=roi_tensors.media,
-        new_reach=roi_tensors.reach,
-        new_frequency=roi_tensors.frequency,
-        **incremental_revenue_kwargs,
-        **dim_kwargs,
-    )
-    incremented_tensors = _scale_tensors_by_multiplier(
-        roi_tensors.media,
-        roi_tensors.reach,
-        roi_tensors.frequency,
-        incremental_increase + 1,
-        by_reach,
-    )
-    incremental_revenue_kwargs.update(incremented_tensors)
-    incremental_impact_with_multiplier = self.incremental_impact(
-        **dim_kwargs, **incremental_revenue_kwargs
-    )
-    numerator = incremental_impact_with_multiplier - incremental_revenue
-    roi_spend = roi_tensors.total_spend() * incremental_increase
-    if roi_spend is not None and roi_spend.ndim == 3:
-      denominator = self.filter_and_aggregate_geos_and_times(
-          roi_spend, **dim_kwargs
-      )
-    else:
-      denominator = roi_spend
-    return tf.math.divide_no_nan(numerator, denominator)
-
-  def roi(
-      self,
-      use_posterior: bool = True,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
-      selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
-      aggregate_geos: bool = True,
-      aggregate_times: bool = True,
-      batch_size: int = constants.DEFAULT_BATCH_SIZE,
-  ) -> tf.Tensor:
-    """Calculates ROI prior or posterior distribution for each media channel.
-
-    The ROI numerator is the change in expected revenue (`kpi *
-    revenue_per_kpi`) when one channel's spend is set to zero, leaving all other
-    channels' spend unchanged. The ROI denominator is the total spend of the
-    channel.
-
-    Args:
-      use_posterior: Boolean. If `True` then the posterior distribution is
-        calculated. Otherwise, the prior distribution is calculated.
-      new_media: Optional tensor with media. Used to compute ROI.
-      new_media_spend: Optional tensor with `media_spend` to be used to compute
-        ROI.
-      new_reach: Optional tensor with reach. Used to compute ROI.
-      new_frequency: Optional tensor with frequency. Used to compute ROI.
-      new_rf_spend: Optional tensor with rf_spend to be used to compute ROI.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -1740,6 +1749,8 @@ class Analyzer:
         all of the regions.
       aggregate_times: Boolean. If `True`, the expected revenue is summed over
         all of the time periods.
+      use_kpi: If `True`, then revenue is used to calculate the ROI numerator.
+        Otherwise, uses KPI to calculate the ROI numerator.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -1751,7 +1762,7 @@ class Analyzer:
       dimensions are dropped if `aggregate_geos=True` or `aggregate_times=True`,
       respectively.
     """
-    self._validate_roi_functionality()
+    self._check_revenue_data_exists(use_kpi)
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -1760,11 +1771,11 @@ class Analyzer:
     }
     incremental_impact_kwargs = {
         "inverse_transform_impact": True,
-        "use_kpi": False,
         "use_posterior": use_posterior,
+        "use_kpi": use_kpi,
         "batch_size": batch_size,
     }
-    roi_tensors = self._get_performance_tensors(
+    performance_tensors = self._get_performance_tensors(
         new_media,
         new_media_spend,
         new_reach,
@@ -1773,20 +1784,20 @@ class Analyzer:
         **dim_kwargs,
     )
     incremental_revenue = self.incremental_impact(
-        new_media=roi_tensors.media,
-        new_reach=roi_tensors.reach,
-        new_frequency=roi_tensors.frequency,
+        new_media=performance_tensors.media,
+        new_reach=performance_tensors.reach,
+        new_frequency=performance_tensors.frequency,
         **incremental_impact_kwargs,
         **dim_kwargs,
     )
 
-    roi_spend = roi_tensors.total_spend()
-    if roi_spend is not None and roi_spend.ndim == 3:
+    spend = performance_tensors.total_spend()
+    if spend is not None and spend.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
-          roi_spend, **dim_kwargs
+          spend, **dim_kwargs
       )
     else:
-      denominator = roi_spend
+      denominator = spend
     return tf.math.divide_no_nan(incremental_revenue, denominator)
 
   def cpik(
@@ -2126,6 +2137,7 @@ class Analyzer:
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
       optimal_frequency: Sequence[float] | None = None,
+      use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Returns media summary metrics.
@@ -2156,6 +2168,8 @@ class Analyzer:
         containing the optimal frequency per channel, that maximizes posterior
         mean roi. Default value is `None`, and historical frequency is used for
         the metrics calculation.
+      use_kpi: Boolean. If `True`, the media summary metrics are calculated
+        using KPI. If `False`, the metrics are calculated using revenue.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -2166,9 +2180,8 @@ class Analyzer:
       `ci_low`), `distribution` (prior, posterior) and contains the following
       data variables: `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
-      `effectiveness`, `mroi`.
+      `effectiveness`, `mroi`, `cpik`.
     """
-    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -2202,10 +2215,10 @@ class Analyzer:
     )
 
     incremental_impact_prior = self._compute_incremental_impact_aggregate(
-        use_posterior=False, **roi_kwargs
+        use_posterior=False, use_kpi=use_kpi, **roi_kwargs
     )
     incremental_impact_posterior = self._compute_incremental_impact_aggregate(
-        use_posterior=True, **roi_kwargs
+        use_posterior=True, use_kpi=use_kpi, **roi_kwargs
     )
     expected_outcome_prior = self.expected_outcome(
         use_posterior=False, use_kpi=use_kpi, **roi_kwargs
@@ -2291,68 +2304,57 @@ class Analyzer:
         # execution metric is generally not consistent across channels.
     ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
 
-    if use_kpi:
-      roi = xr.Dataset()
-      mroi = xr.Dataset()
-      cpik = self._compute_cpik_aggregate(
-          incremental_kpi_prior=self._compute_incremental_impact_aggregate(
-              use_posterior=False, use_kpi=True, **roi_kwargs
-          ),
-          incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
-              use_posterior=True, use_kpi=True, **roi_kwargs
-          ),
-          spend_with_total=spend_with_total,
-          xr_dims=xr_dims_with_ci_and_distribution,
-          xr_coords=xr_coords_with_ci_and_distribution,
-          confidence_level=confidence_level,
-      )
-    else:
-      cpik = xr.Dataset()
-      roi = self._compute_roi_aggregate(
-          incremental_revenue_prior=incremental_impact_prior,
-          incremental_revenue_posterior=incremental_impact_posterior,
-          xr_dims=xr_dims_with_ci_and_distribution,
-          xr_coords=xr_coords_with_ci_and_distribution,
-          confidence_level=confidence_level,
-          spend_with_total=spend_with_total,
-      )
-      mroi = self._compute_marginal_roi_aggregate(
-          marginal_roi_by_reach=marginal_roi_by_reach,
-          marginal_roi_incremental_increase=marginal_roi_incremental_increase,
-          expected_revenue_prior=expected_outcome_prior,
-          expected_revenue_posterior=expected_outcome_posterior,
-          xr_dims=xr_dims_with_ci_and_distribution,
-          xr_coords=xr_coords_with_ci_and_distribution,
-          confidence_level=confidence_level,
-          spend_with_total=spend_with_total,
-          **roi_kwargs,
-          # Drop mROI metric values in the Dataset's data_vars for the
-          # aggregated "All Channels" channel dimension value. "Marginal ROI"
-          # calculation must arbitrarily assume how the "next dollar" of spend
-          # is allocated across "All Channels" in this case, which may cause
-          # confusion in Meridian model and does not have much practical
-          # usefulness, anyway.
-      ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
+    roi = self._compute_roi_aggregate(
+        incremental_revenue_prior=incremental_impact_prior,
+        incremental_revenue_posterior=incremental_impact_posterior,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+        spend_with_total=spend_with_total,
+    )
+    mroi = self._compute_marginal_roi_aggregate(
+        marginal_roi_by_reach=marginal_roi_by_reach,
+        marginal_roi_incremental_increase=marginal_roi_incremental_increase,
+        expected_revenue_prior=expected_outcome_prior,
+        expected_revenue_posterior=expected_outcome_posterior,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+        spend_with_total=spend_with_total,
+        use_kpi=use_kpi,
+        **roi_kwargs,
+        # Drop mROI metric values in the Dataset's data_vars for the
+        # aggregated "All Channels" channel dimension value. "Marginal ROI"
+        # calculation must arbitrarily assume how the "next dollar" of spend
+        # is allocated across "All Channels" in this case, which may cause
+        # confusion in Meridian model and does not have much practical
+        # usefulness, anyway.
+    ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
+    cpik = self._compute_cpik_aggregate(
+        incremental_kpi_prior=self._compute_incremental_impact_aggregate(
+            use_posterior=False, use_kpi=True, **roi_kwargs
+        ),
+        incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
+            use_posterior=True, use_kpi=True, **roi_kwargs
+        ),
+        spend_with_total=spend_with_total,
+        xr_dims=xr_dims_with_ci_and_distribution,
+        xr_coords=xr_coords_with_ci_and_distribution,
+        confidence_level=confidence_level,
+    )
 
     if not aggregate_times:
       # Impact metrics should not be normalized by weekly media metrics, which
-      # do not have a clear interpretation due to lagged effects. Therefore,
-      # the NA values are returned for certain metrics if
-      # aggregate_times=False.
-      if use_kpi:
-        warning = (
-            "Effectiveness and CPIK are not reported because they do not have a"
-            " clear interpretation by time period."
-        )
-        cpik *= np.nan
-      else:
-        warning = (
-            "ROI, mROI, and Effectiveness are not reported because they do not"
-            " have a clear interpretation by time period."
-        )
-        roi *= np.nan
-        mroi *= np.nan
+      # do not have a clear interpretation due to lagged effects. Therefore, NaN
+      # values are returned for certain metrics if aggregate_times=False.
+      warning = (
+          "ROI, mROI, Effectiveness, and CPIK are not reported because they "
+          "do not have a clear interpretation by time period."
+      )
+      roi *= np.nan
+      mroi *= np.nan
       effectiveness *= np.nan
+      cpik *= np.nan
       warnings.warn(warning)
     return xr.merge([
         spend_data,
@@ -3817,19 +3819,21 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float,
       spend_with_total: tf.Tensor,
+      use_kpi: bool = False,
       **roi_kwargs,
   ) -> xr.Dataset:
-    self._validate_roi_functionality()
     mroi_prior = self.marginal_roi(
         use_posterior=False,
         by_reach=marginal_roi_by_reach,
         incremental_increase=marginal_roi_incremental_increase,
+        use_kpi=use_kpi,
         **roi_kwargs,
     )
     mroi_posterior = self.marginal_roi(
         use_posterior=True,
         by_reach=marginal_roi_by_reach,
         incremental_increase=marginal_roi_incremental_increase,
+        use_kpi=use_kpi,
         **roi_kwargs,
     )
     incremented_tensors = _scale_tensors_by_multiplier(
@@ -3843,7 +3847,7 @@ class Analyzer:
     mroi_prior_total = (
         self.expected_outcome(
             use_posterior=False,
-            use_kpi=False,
+            use_kpi=use_kpi,
             **incremented_tensors,
             **roi_kwargs,
         )
@@ -3852,7 +3856,7 @@ class Analyzer:
     mroi_posterior_total = (
         self.expected_outcome(
             use_posterior=True,
-            use_kpi=False,
+            use_kpi=use_kpi,
             **incremented_tensors,
             **roi_kwargs,
         )
