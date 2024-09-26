@@ -37,7 +37,7 @@ __all__ = [
 
 def get_mean_and_ci(
     data: np.ndarray | tf.Tensor,
-    confidence_level: float,
+    confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
     axis: tuple[int, ...] = (0, 1),
 ) -> np.ndarray:
   """Calculates mean and confidence intervals for the given data.
@@ -225,7 +225,7 @@ def _mean_and_ci_by_prior_and_posterior(
     metric_name: str,
     xr_dims: Sequence[str],
     xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-    confidence_level: float,
+    confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
 ) -> xr.Dataset:
   """Calculates mean and CI of prior/posterior data for a metric.
 
@@ -353,7 +353,7 @@ class Analyzer:
       l_range: np.ndarray,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float = 0.9,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> pd.DataFrame:
     """Computes decayed effect means and CIs for media or RF channels.
 
@@ -1888,22 +1888,22 @@ class Analyzer:
   def _mean_and_ci_by_eval_set(
       self,
       draws: tf.Tensor,
-      confidence_level: float,
       split_by_holdout: bool,
       aggregate_geos: bool,
       aggregate_times: bool,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> np.ndarray:
     """Calculates the mean and CI of `draws`, split by `holdout_id` if needed.
 
     Args:
       draws: A tensor of a set of draws with dimensions `(n_chains, n_draws,
         n_geos, n_times)`.
-      confidence_level: Confidence level for computing credible intervals,
-        represented as a value between zero and one.
       split_by_holdout: Boolean. If `True` and `holdout_id` exists, the data is
         split into `'Train'`, `'Test'`, and `'All Data'` subsections.
       aggregate_geos: If `True`, the draws tensor is summed over all regions.
       aggregate_times: If `True`, the draws tensor is summed over all times.
+      confidence_level: Confidence level for computing credible intervals,
+        represented as a value between zero and one.
 
     Returns:
       The mean and CI of the draws with dimensions that could be
@@ -1959,7 +1959,7 @@ class Analyzer:
       aggregate_geos: bool = False,
       aggregate_times: bool = False,
       split_by_holdout_id: bool = False,
-      confidence_level: float = 0.9,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     """Calculates the data for the expected versus actual outcome over time.
 
@@ -1985,10 +1985,10 @@ class Analyzer:
 
     expected = self._mean_and_ci_by_eval_set(
         expected_outcome,
-        confidence_level,
         can_split_by_holdout,
         aggregate_geos,
         aggregate_times,
+        confidence_level,
     )
 
     baseline_expected_outcome = self._calculate_baseline_expected_outcome(
@@ -1998,10 +1998,10 @@ class Analyzer:
     )
     baseline = self._mean_and_ci_by_eval_set(
         baseline_expected_outcome,
-        confidence_level,
         can_split_by_holdout,
         aggregate_geos,
         aggregate_times,
+        confidence_level,
     )
     actual = np.asarray(
         self.filter_and_aggregate_geos_and_times(
@@ -2129,7 +2129,6 @@ class Analyzer:
 
   def media_summary_metrics(
       self,
-      confidence_level: float,
       marginal_roi_by_reach: bool = True,
       marginal_roi_incremental_increase: float = 0.01,
       selected_geos: Sequence[str] | None = None,
@@ -2138,6 +2137,7 @@ class Analyzer:
       aggregate_times: bool = True,
       optimal_frequency: Sequence[float] | None = None,
       use_kpi: bool = False,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Returns media summary metrics.
@@ -2146,8 +2146,6 @@ class Analyzer:
     for the aggregate `"All Channels"` channel dimension.
 
     Args:
-      confidence_level: Confidence level for media summary metrics credible
-        intervals, represented as a value between zero and one.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding
@@ -2170,6 +2168,8 @@ class Analyzer:
         the metrics calculation.
       use_kpi: Boolean. If `True`, the media summary metrics are calculated
         using KPI. If `False`, the metrics are calculated using revenue.
+      confidence_level: Confidence level for media summary metrics credible
+        intervals, represented as a value between zero and one.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -2424,18 +2424,16 @@ class Analyzer:
 
   def baseline_summary_metrics(
       self,
-      confidence_level: float,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Returns baseline summary metrics.
 
     Args:
-      confidence_level: Confidence level for media summary metrics credible
-        intervals, represented as a value between zero and one.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2444,6 +2442,8 @@ class Analyzer:
         of the regions.
       aggregate_times: Boolean. If `True`, the expected impact is summed over
         all of the time periods.
+      confidence_level: Confidence level for media summary metrics credible
+        intervals, represented as a value between zero and one.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -2562,7 +2562,7 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       use_kpi: bool = False,
       attrs: Mapping[str, Any] | None = None,
-      confidence_level: float = 0.9,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Calculates the counterfactual metric dataset.
@@ -2759,10 +2759,10 @@ class Analyzer:
   def optimal_freq(
       self,
       freq_grid: Sequence[float] | None = None,
-      confidence_level: float = 0.9,
       use_posterior: bool = True,
       selected_geos: Sequence[str | int] | None = None,
       selected_times: Sequence[str | int] | None = None,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     """Calculates the optimal frequency that maximizes posterior mean ROI/CPIK.
 
@@ -2780,14 +2780,14 @@ class Analyzer:
         calculated for each frequency value in the list. By default, the list
         includes numbers from `1.0` to the maximum frequency in increments of
         `0.1`.
-      confidence_level: Confidence level for prior and posterior credible
-        intervals, represented as a value between zero and one.
       use_posterior: Boolean. If `True`, posterior optimal frequencies are
         generated. If `False`, prior optimal frequencies are generated.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
+      confidence_level: Confidence level for prior and posterior credible
+        intervals, represented as a value between zero and one.
 
     Returns:
       An xarray Dataset which contains:
@@ -3245,12 +3245,12 @@ class Analyzer:
   def response_curves(
       self,
       spend_multipliers: list[float] | None = None,
-      confidence_level: float = 0.9,
       use_posterior: bool = True,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       by_reach: bool = True,
       use_optimal_frequency: bool = False,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Method to generate a response curves xarray.Dataset.
@@ -3265,8 +3265,6 @@ class Analyzer:
       spend_multipliers: List of multipliers. Each channel's total spend is
         multiplied by these factors to obtain the values at which the curve is
         calculated for that channel.
-      confidence_level: Confidence level for prior and posterior credible
-        intervals, represented as a value between zero and one.
       use_posterior: Boolean. If `True`, posterior response curves are
         generated. If `False`, prior response curves are generated.
       selected_geos: Optional list containing a subset of geos to include. By
@@ -3279,6 +3277,8 @@ class Analyzer:
         frequency.
       use_optimal_frequency: If `True`, uses the optimal frequency to plot the
         response curves. Defaults to `False`.
+      confidence_level: Confidence level for prior and posterior credible
+        intervals, represented as a value between zero and one.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -3393,7 +3393,9 @@ class Analyzer:
     attrs = {constants.CONFIDENCE_LEVEL: confidence_level}
     return xr.Dataset(data_vars=xr_data_vars, coords=xr_coords, attrs=attrs)
 
-  def adstock_decay(self, confidence_level: float = 0.9) -> pd.DataFrame:
+  def adstock_decay(
+      self, confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL
+  ) -> pd.DataFrame:
     """Calculates adstock decay for media and reach and frequency channels.
 
     Args:
@@ -3491,7 +3493,9 @@ class Analyzer:
     return final_df
 
   def _get_hill_curves_dataframe(
-      self, channel_type: str, confidence_level: float = 0.9
+      self,
+      channel_type: str,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> pd.DataFrame:
     """Computes the point-wise mean and credible intervals for the Hill curves.
 
@@ -3732,7 +3736,9 @@ class Analyzer:
     })
 
   def hill_curves(
-      self, confidence_level: float = 0.9, n_bins: int = 25
+      self,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
+      n_bins: int = 25,
   ) -> pd.DataFrame:
     """Estimates Hill curve tables used for plotting each channel's curves.
 
@@ -3796,8 +3802,8 @@ class Analyzer:
       incremental_revenue_posterior: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float,
       spend_with_total: tf.Tensor,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     # TODO(b/304834270): Support calibration_period_bool.
     return _mean_and_ci_by_prior_and_posterior(
@@ -3817,9 +3823,9 @@ class Analyzer:
       expected_revenue_posterior: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float,
       spend_with_total: tf.Tensor,
       use_kpi: bool = False,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       **roi_kwargs,
   ) -> xr.Dataset:
     mroi_prior = self.marginal_roi(
@@ -3921,7 +3927,7 @@ class Analyzer:
       impressions_with_total: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     return _mean_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior / impressions_with_total,
@@ -3939,7 +3945,7 @@ class Analyzer:
       spend_with_total: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     return _mean_and_ci_by_prior_and_posterior(
         prior=spend_with_total / incremental_kpi_prior,
@@ -3958,7 +3964,7 @@ class Analyzer:
       expected_outcome_posterior: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
-      confidence_level: float,
+      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     """Computes the parts of `MediaSummary` related to mean expected outcome."""
     mean_expected_outcome_prior = tf.reduce_mean(expected_outcome_prior, (0, 1))

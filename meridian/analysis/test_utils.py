@@ -860,7 +860,7 @@ def generate_model_fit_data(
           c.TIME: time,
           c.METRIC: metric,
       },
-      attrs={c.CONFIDENCE_LEVEL: 0.9},
+      attrs={c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL},
   )
 
 
@@ -976,7 +976,7 @@ def generate_media_summary_metrics() -> xr.Dataset:
           c.METRIC: metric,
           c.DISTRIBUTION: distribution,
       },
-      attrs={c.CONFIDENCE_LEVEL: 0.9},
+      attrs={c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL},
   )
 
 
@@ -1019,7 +1019,7 @@ def generate_response_curve_data(
           c.METRIC: metric,
           c.SPEND_MULTIPLIER: spend_multiplier,
       },
-      attrs={c.CONFIDENCE_LEVEL: 0.9},
+      attrs={c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL},
   )
   return xarray
 

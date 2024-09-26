@@ -432,6 +432,8 @@ RESPONSE_CURVE_STEP_SIZE = 0.01
 FONT_ROBOTO = 'Roboto'
 FONT_GOOGLE_SANS_DISPLAY = 'Google Sans Display'
 
+# Default confidence level for the analysis.
+DEFAULT_CONFIDENCE_LEVEL = 0.9
 
 # Default number of max draws per chain in Analyzer.expected_outcome()
 DEFAULT_BATCH_SIZE = 100

@@ -135,7 +135,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_get_mean_and_ci(self):
     data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
-    result = analyzer.get_mean_and_ci(data, confidence_level=0.9)
+    result = analyzer.get_mean_and_ci(
+        data, confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
+    )
     np.testing.assert_allclose(
         result,
         np.array([[4.5, 1.3, 9.1], [4, 2, 6.7], [3.5, 1.3, 5.7]]),
@@ -864,7 +866,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_media_summary_returns_correct_values(self):
     media_summary = self.analyzer_media_and_rf.media_summary_metrics(
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
         aggregate_geos=True,
         aggregate_times=True,
@@ -936,7 +938,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_baseline_summary_returns_correct_values(self):
     baseline_summary = self.analyzer_media_and_rf.baseline_summary_metrics(
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         aggregate_geos=True,
         aggregate_times=True,
         selected_geos=None,
@@ -1054,7 +1056,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   def test_optimal_frequency_data_media_and_rf_correct(self):
     actual = self.analyzer_media_and_rf.optimal_freq(
         freq_grid=[1.0, 2.0, 3.0],
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         use_posterior=True,
     )
     expected = xr.Dataset(
@@ -1108,7 +1110,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             ),
         },
         attrs={
-            constants.CONFIDENCE_LEVEL: 0.9,
+            constants.CONFIDENCE_LEVEL: constants.DEFAULT_CONFIDENCE_LEVEL,
             "use_posterior": True,
         },
     )
@@ -1323,7 +1325,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     response_data_spend = response_curve_data.spend.values
 
     media_summary_spend = self.analyzer_media_and_rf.media_summary_metrics(
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
     ).spend[:-1]
     self.assertAllEqual(
@@ -1511,7 +1513,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(ds.expected.shape, expected_shape)
     self.assertEqual(ds.baseline.shape, expected_shape)
     self.assertEqual(ds.actual.shape, expected_actual_shape)
-    self.assertEqual(ds.confidence_level, 0.9)
+    self.assertEqual(ds.confidence_level, constants.DEFAULT_CONFIDENCE_LEVEL)
 
     np.testing.assert_array_less(
         ds.expected.sel(metric=constants.MEAN),
@@ -1557,7 +1559,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_adstock_decay_dataframe(self):
     adstock_decay_dataframe = self.analyzer_media_and_rf.adstock_decay(
-        confidence_level=0.9
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
     )
 
     self.assertEqual(
@@ -1584,7 +1586,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_adstock_decay_effect_values(self):
     adstock_decay_dataframe = self.analyzer_media_and_rf.adstock_decay(
-        confidence_level=0.9
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
     )
 
     first_channel = adstock_decay_dataframe[constants.CHANNEL].iloc[0]
@@ -1619,7 +1621,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_adstock_decay_math_correct(self):
     adstock_decay_dataframe = self.analyzer_media_and_rf.adstock_decay(
-        confidence_level=0.9
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
     )
 
     first_channel = adstock_decay_dataframe[constants.CHANNEL].iloc[0]
@@ -1647,7 +1649,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_adstock_decay_time_unit_integer_indication_correct(self):
     adstock_decay_dataframe = self.analyzer_media_and_rf.adstock_decay(
-        confidence_level=0.9
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
     )
     is_true_df = adstock_decay_dataframe[
         adstock_decay_dataframe[constants.IS_INT_TIME_UNIT]
@@ -2640,7 +2642,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
   def test_optimal_frequency_data_rf_only_correct(self):
     actual = self.analyzer_rf_only.optimal_freq(
         freq_grid=[1.0, 2.0, 3.0],
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         use_posterior=True,
     )
     expected = xr.Dataset(
@@ -2694,7 +2696,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             ),
         },
         attrs={
-            constants.CONFIDENCE_LEVEL: 0.9,
+            constants.CONFIDENCE_LEVEL: constants.DEFAULT_CONFIDENCE_LEVEL,
             "use_posterior": True,
         },
     )
@@ -2802,7 +2804,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     response_data_spend = response_curve_data.spend.values
 
     media_summary_spend = self.analyzer_rf_only.media_summary_metrics(
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
     ).spend[:-1]
     self.assertAllEqual(
@@ -2965,7 +2967,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_vs_actual(self):
     expected_vs_actual = self.analyzer_kpi.expected_vs_actual_data(
-        confidence_level=0.9
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
     )
     self.assertAllClose(
         list(expected_vs_actual.data_vars[constants.ACTUAL].values[:5]),
@@ -2975,7 +2977,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_media_summary_metrics(self):
     media_summary = self.analyzer_kpi.media_summary_metrics(
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
         aggregate_geos=True,
         aggregate_times=True,
@@ -3070,7 +3072,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
   def test_optimal_frequency_data_with_cpik_correct(self):
     actual = self.analyzer_kpi.optimal_freq(
         freq_grid=[1.0, 2.0, 3.0],
-        confidence_level=0.9,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         use_posterior=True,
     )
     expected = xr.Dataset(
@@ -3116,7 +3118,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             ),
         },
         attrs={
-            constants.CONFIDENCE_LEVEL: 0.9,
+            constants.CONFIDENCE_LEVEL: constants.DEFAULT_CONFIDENCE_LEVEL,
             "use_posterior": True,
         },
     )

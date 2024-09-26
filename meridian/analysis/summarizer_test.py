@@ -700,7 +700,7 @@ class SummarizerTest(parameterized.TestCase):
       )
       self.media_effects_class.assert_called_with(self.mock_meridian_revenue)
       plot.assert_called_with(
-          confidence_level=0.9,
+          confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
           selected_times=frozenset([
               '2022-06-04',
               '2022-06-11',
@@ -957,7 +957,7 @@ class SummarizerTest(parameterized.TestCase):
       )
 
       plot.assert_called_with(
-          confidence_level=0.9,
+          confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
           selected_times=frozenset(
               self.summarizer_revenue._meridian.input_data.time.values
           ),

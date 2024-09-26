@@ -886,7 +886,7 @@ class BudgetOptimizer:
       target_mroi: float | None = None,
       gtol: float = 0.0001,
       use_optimal_frequency: bool = True,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> OptimizationResults:
     """Finds the optimal budget allocation that maximizes impact.
@@ -1311,7 +1311,7 @@ class BudgetOptimizer:
       selected_times: Sequence[str] | None = None,
       optimal_frequency: Sequence[float] | None = None,
       attrs: Mapping[str, Any] | None = None,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
     """Creates the budget dataset."""

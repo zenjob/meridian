@@ -178,7 +178,7 @@ def _create_budget_data(
       c.BUDGET: sum(spend),
       c.PROFIT: sum(inc_impact[:, 0]) - sum(spend),
       c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact[:, 0]),
-      c.CONFIDENCE_LEVEL: 0.9,
+      c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL,
   }
   if use_kpi:
     data_vars[c.CPIK] = (

@@ -418,7 +418,7 @@ class Summarizer:
                 impact=impact
             ),
             chart_json=media_effects.plot_response_curves(
-                confidence_level=0.9,
+                confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
                 selected_times=(
                     frozenset(selected_times) if selected_times else None
                 ),

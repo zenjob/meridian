@@ -346,7 +346,11 @@ class ModelFit:
   time, and plots graphs to compare the values.
   """
 
-  def __init__(self, meridian: model.Meridian, confidence_level: float = 0.9):
+  def __init__(
+      self,
+      meridian: model.Meridian,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
+  ):
     """Initializes the dataset based on the model and confidence level.
 
     Args:
@@ -838,7 +842,7 @@ class MediaEffects:
   @functools.lru_cache(maxsize=128)
   def response_curves_data(
       self,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       selected_times: frozenset[str] | None = None,
       by_reach: bool = True,
   ) -> xr.Dataset:
@@ -873,7 +877,7 @@ class MediaEffects:
 
   @functools.lru_cache(maxsize=128)
   def adstock_decay_dataframe(
-      self, confidence_level: float = 0.9
+      self, confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL
   ) -> pd.DataFrame:
     """A DataFrame holding the calculated Adstock decay metrics.
 
@@ -891,7 +895,7 @@ class MediaEffects:
 
   @functools.lru_cache(maxsize=128)
   def hill_curves_dataframe(
-      self, confidence_level: float = 0.9
+      self, confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL
   ) -> pd.DataFrame:
     """A DataFrame holding the calculated Hill curve metrics.
 
@@ -910,7 +914,7 @@ class MediaEffects:
 
   def plot_response_curves(
       self,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       selected_times: frozenset[str] | None = None,
       by_reach: bool = True,
       plot_separately: bool = True,
@@ -1046,7 +1050,9 @@ class MediaEffects:
     ).configure_axis(**formatter.TEXT_CONFIG)
 
   def plot_adstock_decay(
-      self, confidence_level: float = 0.9, include_ci: bool = True
+      self,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
+      include_ci: bool = True,
   ):
     """Plots the Adstock decay for each channel.
 
@@ -1127,7 +1133,7 @@ class MediaEffects:
 
   def plot_hill_curves(
       self,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       include_prior: bool = True,
       include_ci: bool = True,
   ) -> alt.Chart | list[alt.Chart]:
@@ -1268,7 +1274,7 @@ class MediaEffects:
       self,
       num_channels: int | None = None,
       selected_times: frozenset[str] | None = None,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       by_reach: bool = True,
   ) -> pd.DataFrame:
     """Returns DataFrame with top channels by spend for the layered plot.
@@ -1337,7 +1343,7 @@ class MediaSummary:
   def __init__(
       self,
       meridian: model.Meridian,
-      confidence_level: float = 0.9,
+      confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       selected_times: Sequence[str] | None = None,
       marginal_roi_by_reach: bool = True,
   ):
@@ -1361,10 +1367,10 @@ class MediaSummary:
     self._selected_times = selected_times
     self._marginal_roi_by_reach = marginal_roi_by_reach
     self._media_summary_metrics = self._analyzer.media_summary_metrics(
-        confidence_level=confidence_level,
         selected_times=selected_times,
         marginal_roi_by_reach=marginal_roi_by_reach,
         use_kpi=self._meridian.input_data.revenue_per_kpi is None,
+        confidence_level=confidence_level,
     )
 
   @property
@@ -1472,9 +1478,9 @@ class MediaSummary:
     self._selected_times = selected_times
     self._marginal_roi_by_reach = marginal_roi_by_reach
     self._media_summary_metrics = self._analyzer.media_summary_metrics(
-        confidence_level=self._confidence_level,
         selected_times=selected_times,
         marginal_roi_by_reach=marginal_roi_by_reach,
+        confidence_level=self._confidence_level,
     )
 
   def plot_contribution_waterfall_chart(self) -> alt.Chart:
