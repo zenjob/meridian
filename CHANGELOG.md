@@ -25,6 +25,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 * Expand media summary metrics to return ROI, mROI, and CPIK in all scenarios
   with the addition of the use_kpi argument.
+* Fix an error in the data loader that occurs when the geo column is an integer.
 
 ## [0.7.0] - 2024-09-20
 

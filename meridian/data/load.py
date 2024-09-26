@@ -798,7 +798,7 @@ class DataFrameDataLoader(InputDataLoader):
     if any(df_grouped.count() != df_grouped.nunique()):
       raise ValueError("Duplicate entries found in the 'time' column.")
 
-    times_by_geo = df_grouped.apply(list)
+    times_by_geo = df_grouped.apply(list).reset_index(drop=True)
     if any(t != times_by_geo[0] for t in times_by_geo[1:]):
       raise ValueError(
           "Values in the 'time' column not consistent across different geos."

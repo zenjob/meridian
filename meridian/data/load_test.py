@@ -152,6 +152,15 @@ class InputDataLoaderTest(parameterized.TestCase):
     )
     sample_df_not_matching_times.loc[3, constants.TIME] = '2021-02-16'
 
+    sample_df_not_matching_times_with_int_geo = copy.deepcopy(
+        sample_df_not_matching_times
+    )
+    # Use DMA numbers as geos.
+    sample_df_not_matching_times_with_int_geo['geo'] = (
+        sample_df_not_matching_times['geo'].str.replace('geo_', '').astype(int)
+        + 500
+    )
+
     sample_lagged_df_with_media_and_rf = test_utils.random_dataframe(
         n_geos=self._N_GEOS,
         n_times=self._N_TIMES,
@@ -195,6 +204,9 @@ class InputDataLoaderTest(parameterized.TestCase):
     self._geo_time_test_parameters = {
         'duplicate_time': sample_df_duplicate_time,
         'not_matching_times': sample_df_not_matching_times,
+        'not_matching_times_with_int_geo': (
+            sample_df_not_matching_times_with_int_geo
+        ),
     }
     self.lagged_media_test_parameters = {
         'NA_in_media': sample_df_na_in_media,
@@ -1475,6 +1487,11 @@ class InputDataLoaderTest(parameterized.TestCase):
       (
           'not_matching_times',
           'not_matching_times',
+          "Values in the 'time' column not consistent across different geos.",
+      ),
+      (
+          'not_matching_times_with_int_geo',
+          'not_matching_times_with_int_geo',
           "Values in the 'time' column not consistent across different geos.",
       ),
   )
