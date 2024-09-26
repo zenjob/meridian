@@ -644,7 +644,7 @@ class ReachAndFrequency:
 
     * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `ci_hi`,
       `ci_lo`)
-    * Data variables: `roi` or `cpik`, `optimal_frequency`
+    * Data variables: `roi`, `optimal_frequency`
     """
     return self._optimal_frequency_data
 
@@ -668,11 +668,11 @@ class ReachAndFrequency:
     """Transforms the RF metrics for the optimal frequency plot.
 
     Args:
-      selected_channels: Optional list of channels to include. If None, all rf
+      selected_channels: Optional list of channels to include. If None, all RF
         channels are included.
 
     Returns:
-      A DataFrame containing the weekly average frequency, mean ROI or CPIK, and
+      A DataFrame containing the weekly average frequency, mean ROI, and
       singularly valued optimal frequency per given channel.
     """
     selected_channels = (
@@ -680,32 +680,26 @@ class ReachAndFrequency:
         if selected_channels
         else self.optimal_frequency_data.rf_channel.values
     )
-    use_roi = self._meridian.input_data.revenue_per_kpi is not None
-    metric_name = c.ROI if use_roi else c.CPIK
 
     performance_by_frequency_df = (
-        self.optimal_frequency_data[[metric_name]]
+        self.optimal_frequency_data[[c.ROI]]
         .sel(rf_channel=selected_channels)
         .to_dataframe()
         .reset_index()
         .pivot(
             index=[c.RF_CHANNEL, c.FREQUENCY],
             columns=c.METRIC,
-            values=metric_name,
+            values=c.ROI,
         )
         .reset_index()
+        .rename(columns={c.MEAN: c.ROI})
     )
-    performance_by_frequency_df.rename(
-        columns={c.MEAN: metric_name}, inplace=True
-    )
-
     optimal_freq_df = (
         self.optimal_frequency_data[[c.OPTIMAL_FREQUENCY]]
         .sel(rf_channel=selected_channels)
         .to_dataframe()
         .reset_index()
     )
-
     return performance_by_frequency_df.merge(optimal_freq_df, on=c.RF_CHANNEL)
 
   def plot_optimal_frequency(
@@ -728,40 +722,33 @@ class ReachAndFrequency:
       raise ValueError(
           'Channels specified are not in the list of all RF channels.'
       )
-    use_roi = self._meridian.input_data.revenue_per_kpi is not None
-    metric_name = c.ROI if use_roi else c.CPIK
-    metric_label = (
-        summary_text.ROI_LABEL if use_roi else summary_text.CPIK_LABEL
-    )
-    metric_legend = (
-        summary_text.EXPECTED_ROI_LABEL
-        if use_roi
-        else summary_text.EXPECTED_CPIK_LABEL
-    )
 
     optimal_frequency_df = self._transform_optimal_frequency_metrics(
         selected_channels
     )
     color_scale = alt.Scale(
-        domain=[summary_text.OPTIMAL_FREQ_LABEL, metric_legend],
+        domain=[
+            summary_text.OPTIMAL_FREQ_LABEL,
+            summary_text.EXPECTED_ROI_LABEL,
+        ],
         range=[c.BLUE_600, c.RED_600],
     )
 
     base = alt.Chart().transform_calculate(
         optimal_freq=f"'{summary_text.OPTIMAL_FREQ_LABEL}'",
-        expected_metric=f"'{metric_legend}'",
+        expected_roi=f"'{summary_text.EXPECTED_ROI_LABEL}'",
     )
 
     line = base.mark_line(strokeWidth=4).encode(
         x=alt.X(c.FREQUENCY, title='Weekly Average Frequency'),
         y=alt.Y(
-            metric_name,
-            title=metric_label,
+            c.ROI,
+            title=summary_text.ROI_LABEL,
             axis=alt.Axis(
                 **formatter.Y_AXIS_TITLE_CONFIG,
             ),
         ),
-        color=alt.Color('expected_metric:N', scale=color_scale, title=''),
+        color=alt.Color('expected_roi:N', scale=color_scale, title=''),
     )
 
     vertical_optimal_freq = base.mark_rule(
@@ -807,7 +794,7 @@ class ReachAndFrequency:
         .properties(
             title=formatter.custom_title_params(
                 summary_text.OPTIMAL_FREQUENCY_CHART_TITLE.format(
-                    metric=metric_label
+                    metric=summary_text.ROI_LABEL
                 )
             )
         )

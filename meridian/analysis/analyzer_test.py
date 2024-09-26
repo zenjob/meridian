@@ -1085,13 +1085,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[1244.8, 436.19, 2047.89], [1902.85, 487.06, 3368.2]],
             ),
-            constants.OPTIMIZED_EFFECTIVENESS: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [0.001699, 0.000595, 0.002795],
-                    [0.00259, 0.000663, 0.004585],
-                ],
-            ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[5.16181, 1.80875, 8.49197], [7.89052, 2.01976, 13.96686]],
@@ -1100,6 +1093,13 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
             ),
+            constants.OPTIMIZED_EFFECTIVENESS: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [0.001699, 0.000595, 0.002795],
+                    [0.00259, 0.000663, 0.004585],
+                ],
+            ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
@@ -1107,6 +1107,10 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[0.54, 0.45, 0.62], [1.31, 0.69, 1.96]],
+            ),
+            constants.OPTIMIZED_CPIK: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[0.371, 0.132, 0.623], [0.337, 0.085, 0.591]],
             ),
         },
         attrs={
@@ -1151,6 +1155,11 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(
         actual.optimized_mroi_by_frequency,
         expected.optimized_mroi_by_frequency,
+        atol=0.01,
+    )
+    xr.testing.assert_allclose(
+        actual.optimized_cpik,
+        expected.optimized_cpik,
         atol=0.01,
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
@@ -2671,13 +2680,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[1326.76, 320.44, 2614.4], [2060.22, 122.18, 3772.43]],
             ),
-            constants.OPTIMIZED_EFFECTIVENESS: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [0.000604, 0.000146, 0.001189],
-                    [0.002804, 0.000166, 0.005135],
-                ],
-            ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[0.01613, 0.0039, 0.03179], [0.02505, 0.00149, 0.04587]],
@@ -2686,6 +2688,13 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.87, 1.18, 9.61], [7.16, 0.42, 13.10]],
             ),
+            constants.OPTIMIZED_EFFECTIVENESS: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [0.000604, 0.000146, 0.001189],
+                    [0.002804, 0.000166, 0.005135],
+                ],
+            ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.87, 1.18, 9.59], [7.16, 0.42, 13.12]],
@@ -2693,6 +2702,10 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.21, 2.58, 8.68], [3.11, 1.14, 3.95]],
+            ),
+            constants.OPTIMIZED_CPIK: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[0.476, 0.104, 0.849], [0.698, 0.076, 2.403]],
             ),
         },
         attrs={
@@ -2738,6 +2751,11 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimized_mroi_by_frequency,
         expected.optimized_mroi_by_frequency,
         atol=0.01,
+    )
+    xr.testing.assert_allclose(
+        actual.optimized_cpik,
+        expected.optimized_cpik,
+        atol=0.001,
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
@@ -3058,18 +3076,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.analyzer_kpi.expected_outcome()
 
-  def test_optimal_frequency_uses_cpik_if_no_revenue_per_kpi(self):
-    with mock.patch.object(
-        self.analyzer_kpi, "cpik", autospec=True
-    ) as mock_cpik:
-      mock_cpik.return_value = tf.ones(
-          [_N_DRAWS, _N_DRAWS, _N_MEDIA_CHANNELS + _N_RF_CHANNELS]
-      )
-      ds = self.analyzer_kpi.optimal_freq()
-      mock_cpik.assert_called()
-      self.assertIn(constants.CPIK, list(ds.data_vars.keys()))
-
-  def test_optimal_frequency_data_with_cpik_correct(self):
+  def test_optimal_frequency_data_no_revenue_per_kpi_correct(self):
     actual = self.analyzer_kpi.optimal_freq(
         freq_grid=[1.0, 2.0, 3.0],
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
@@ -3088,18 +3095,38 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             ),
         },
         data_vars={
-            constants.CPIK: (
+            constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [  # rf_ch_0.             # rf_ch_1
-                    [[1.166, 0.417, 1.959], [1.041, 0.266, 1.819]],  # freq=1.0
-                    [[1.984, 0.790, 3.214], [1.650, 0.493, 2.811]],  # freq=2.0
-                    [[2.741, 1.150, 4.361], [2.218, 0.724, 3.716]],  # freq=3.0
+                [
+                    [
+                        [1.45663321, 0.51041068, 2.39638944],
+                        [2.12286782, 0.54957444, 3.75214096],
+                    ],
+                    [
+                        [0.78908628, 0.31107242, 1.26464759],
+                        [1.17641294, 0.35569778, 2.02744753],
+                    ],
+                    [
+                        [0.54987609, 0.22928859, 0.86951892],
+                        [0.8145231, 0.26908819, 1.38052572],
+                    ],
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[396.44, 138.92, 652.21], [611.12, 158.21, 1080.15]],
+            ),
+            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[5.1566, 1.8069, 8.48342], [7.94896, 2.05785, 14.04969]],
+            ),
+            constants.OPTIMIZED_ROI: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [1.45663321, 0.51041068, 2.39638944],
+                    [2.12286782, 0.54957444, 3.75214096],
+                ],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
@@ -3108,9 +3135,19 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
                     [0.000832, 0.000215, 0.00147],
                 ],
             ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
+            constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[5.1566, 1.8069, 8.48342], [7.94896, 2.05785, 14.04969]],
+                [
+                    [1.45663834, 0.51040578, 2.39639434],
+                    [2.12287164, 0.54957373, 3.75216453],
+                ],
+            ),
+            constants.OPTIMIZED_MROI_BY_FREQUENCY: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [0.17261705, 0.14313781, 0.19791752],
+                    [0.4224712, 0.22409489, 0.62984283],
+                ],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
@@ -3127,7 +3164,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(actual.frequency, expected.frequency)
     xr.testing.assert_allclose(actual.rf_channel, expected.rf_channel)
     xr.testing.assert_allclose(actual.metric, expected.metric)
-    xr.testing.assert_allclose(actual.cpik, expected.cpik, atol=0.01)
+    xr.testing.assert_allclose(actual.roi, expected.roi, atol=0.01)
     xr.testing.assert_allclose(
         actual.optimal_frequency, expected.optimal_frequency
     )
@@ -3147,25 +3184,27 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         atol=0.0001,
     )
     xr.testing.assert_allclose(
+        actual.optimized_roi,
+        expected.optimized_roi,
+        atol=0.01,
+    )
+    xr.testing.assert_allclose(
+        actual.optimized_mroi_by_reach,
+        expected.optimized_mroi_by_reach,
+        atol=0.01,
+    )
+    xr.testing.assert_allclose(
+        actual.optimized_mroi_by_frequency,
+        expected.optimized_mroi_by_frequency,
+        atol=0.01,
+    )
+    xr.testing.assert_allclose(
         actual.optimized_cpik,
         expected.optimized_cpik,
-        atol=0.01,
+        atol=0.001,
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
-
-  def test_optimal_frequency_min_cpik_at_opt_freq(self):
-    ds = self.analyzer_kpi.optimal_freq()
-    df = ds.to_dataframe()
-    cpik_at_opt_freq = list(
-        df.query(
-            'frequency == optimal_frequency & metric == "mean"'
-        ).cpik.values
-    )
-    min_mean_cpik = list(ds.cpik[:, :, 0].min(axis=0).values)
-    cpik_at_opt_freq.sort()
-    min_mean_cpik.sort()
-    self.assertListEqual(cpik_at_opt_freq, min_mean_cpik)
 
 
 class AnalyzerNotFittedTest(absltest.TestCase):

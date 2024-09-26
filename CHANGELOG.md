@@ -25,6 +25,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 * Expand media summary metrics to return ROI, mROI, and CPIK in all scenarios
   with the addition of the use_kpi argument.
+* Optimal frequency now calculates the frequency that maximizes the mean ROI in
+  all cases such that it is consistent when used in the budget optimization that
+  optimizes revenue.
 * Fix an error in the data loader that occurs when the geo column is an integer.
 
 ## [0.7.0] - 2024-09-20

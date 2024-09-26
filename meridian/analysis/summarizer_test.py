@@ -388,9 +388,7 @@ class SummarizerTest(parameterized.TestCase):
               ),
               (
                   summary_text.OPTIMAL_FREQUENCY_CHART_ID,
-                  summary_text.OPTIMAL_FREQ_CHART_DESCRIPTION_FORMAT.format(
-                      maximizes_performance='maximizes ROI'
-                  ),
+                  summary_text.OPTIMAL_FREQ_CHART_DESCRIPTION,
               ),
           ],
       ),

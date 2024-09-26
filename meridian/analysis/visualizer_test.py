@@ -869,49 +869,6 @@ class ReachAndFrequencyTest(parameterized.TestCase):
     self.assertTrue(roi > 0 for roi in df.roi)
     self.assertTrue(opt_freq > 0 for opt_freq in df.optimal_frequency)
 
-  def test_reach_and_frequency_plot_optimal_freq_cpik_labels(self):
-    with mock.patch.object(
-        analyzer.Analyzer,
-        "optimal_freq",
-        return_value=test_utils.generate_optimal_frequency_data(use_roi=False),
-    ):
-      data = mock.create_autospec(input_data.InputData, instance=True)
-      data.revenue_per_kpi = None
-      meridian = mock.create_autospec(
-          model.Meridian, instance=True, input_data=data
-      )
-      rf = visualizer.ReachAndFrequency(meridian)
-
-      plot = rf.plot_optimal_frequency()
-      layer = plot.spec.layer
-      curve_layer = layer[0]
-      curve_encoding = curve_layer.encoding
-
-      self.assertEqual(curve_encoding.y.shorthand, c.CPIK)
-      self.assertEqual(curve_encoding.y.title, summary_text.CPIK_LABEL)
-      self.assertEqual(
-          curve_encoding.color.scale.domain,
-          [summary_text.OPTIMAL_FREQ_LABEL, summary_text.EXPECTED_CPIK_LABEL],
-      )
-
-  def test_reach_and_frequency_plot_optimal_freq_cpik_labels_correct_data(self):
-    with mock.patch.object(
-        analyzer.Analyzer,
-        "optimal_freq",
-        return_value=test_utils.generate_optimal_frequency_data(use_roi=False),
-    ):
-      data = mock.create_autospec(input_data.InputData, instance=True)
-      data.revenue_per_kpi = None
-      meridian = mock.create_autospec(
-          model.Meridian, instance=True, input_data=data
-      )
-      rf = visualizer.ReachAndFrequency(meridian)
-
-      plot = rf.plot_optimal_frequency()
-      df = plot.data
-      self.assertIn(c.CPIK, df.columns)
-      self.assertNotIn(c.ROI, df.columns)
-
 
 class MediaEffectsTest(parameterized.TestCase):
 
