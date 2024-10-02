@@ -151,8 +151,8 @@ class SummarizerTest(parameterized.TestCase):
     media_summary.plot_cpik().to_json.return_value = '{}'
 
   def _stub_for_insights(self):
-    media_metrics = test_utils.generate_media_summary_metrics()
-    self.media_summary.media_summary_metrics = media_metrics
+    self.media_metrics = test_utils.generate_media_summary_metrics()
+    self.media_summary.media_summary_metrics = self.media_metrics
 
     frequency_data = test_utils.generate_optimal_frequency_data(
         channel_prefix='rf_ch', num_channels=2
@@ -801,6 +801,17 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_channel_contrib_card_insights(self):
+    self.media_metrics[c.INCREMENTAL_IMPACT].loc[{
+        c.CHANNEL: 'rf_ch_1',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEAN,
+    }] = 999999  # largest impact
+    self.media_metrics[c.INCREMENTAL_IMPACT].loc[{
+        c.CHANNEL: 'ch_0',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEAN,
+    }] = 888888  # 2nd largest impact
+
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
     )
@@ -813,7 +824,8 @@ class SummarizerTest(parameterized.TestCase):
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
-    self.assertIn('Ch_2 and Rf_Ch_1 drove the most', insights_text)
+
+    self.assertIn('Rf_Ch_1 and Ch_0 drove the most', insights_text)
 
   def test_roi_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
@@ -860,6 +872,17 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_roi_breakdown_card_insights(self):
+    high_roi = high_mroi = 999999
+    self.media_metrics[c.ROI].loc[{
+        c.CHANNEL: 'ch_0',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEAN,
+    }] = high_roi
+    self.media_metrics[c.MROI].loc[{
+        c.CHANNEL: 'ch_0',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEAN,
+    }] = high_mroi
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
     )
@@ -874,10 +897,14 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
-    self.assertIn('Ch_1 drove the highest ROI at 13.8', insights_text)
-    self.assertIn('Ch_1 had the highest effectiveness', insights_text)
+
     self.assertIn(
-        'Rf_Ch_1 had the highest marginal\nROI at 1.54', insights_text
+        f'Ch_0 drove the highest ROI at {high_roi:.1f}', insights_text
+    )
+    self.assertIn('Rf_Ch_0 had the highest effectiveness', insights_text)
+    self.assertIn(
+        f'Ch_0 had the highest marginal\nROI at {high_mroi:.2f}',
+        insights_text,
     )
 
   def test_cpik_breakdown_card_plotters_called(self):
@@ -901,6 +928,12 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_cpik_breakdown_card_insights(self):
+    low_cpik = 0.01
+    self.media_metrics[c.CPIK].loc[{
+        c.CHANNEL: 'ch_0',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEDIAN,
+    }] = low_cpik
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_kpi,
     )
@@ -915,8 +948,15 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertIsNotNone(insights_text)
     insights_text = insights_text.strip()
-    self.assertIn('Rf_Ch_1 drove the lowest CPIK at $0.22', insights_text)
-    self.assertIn('For every\nKPI unit, you spent $0.22.', insights_text)
+
+    self.assertIn(
+        f'Ch_0 drove the lowest CPIK at ${low_cpik:.2f}',
+        insights_text,
+    )
+    self.assertIn(
+        f'For every\nKPI unit, you spent ${low_cpik:.2f}',
+        insights_text,
+    )
 
   def test_cpik_channel_chart_text(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(

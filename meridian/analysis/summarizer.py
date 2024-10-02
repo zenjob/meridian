@@ -322,6 +322,22 @@ class Summarizer:
         .reset_index()
     )
 
+  def _get_sorted_posterior_median_metrics_df(
+      self,
+      media_summary: visualizer.MediaSummary,
+      metrics: Sequence[str],
+      ascending: bool = False,
+  ) -> pd.DataFrame:
+    return (
+        media_summary.media_summary_metrics[metrics]
+        .sel(distribution=c.POSTERIOR, metric=c.MEDIAN)
+        .drop_sel(channel=c.ALL_CHANNELS)
+        .to_dataframe()
+        .drop(columns=[c.METRIC, c.DISTRIBUTION])
+        .sort_values(by=metrics, ascending=ascending)
+        .reset_index()
+    )
+
   def _create_performance_breakdown_card_html(
       self,
       template_env: jinja2.Environment,
@@ -386,7 +402,7 @@ class Summarizer:
         chart_json=media_summary.plot_cpik().to_json(),
         description=summary_text.CPIK_CHANNEL_CHART_DESCRIPTION,
     )
-    df = self._get_sorted_posterior_mean_metrics_df(
+    df = self._get_sorted_posterior_median_metrics_df(
         media_summary, [c.CPIK], ascending=True
     )
     insights = summary_text.CPIK_BREAKDOWN_INSIGHTS_FORMAT.format(

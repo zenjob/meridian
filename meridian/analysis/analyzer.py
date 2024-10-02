@@ -35,6 +35,7 @@ __all__ = [
 ]
 
 
+# TODO(b/365142518): Deprecate this function in favor of get_mean_median_and_ci
 def get_mean_and_ci(
     data: np.ndarray | tf.Tensor,
     confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
@@ -56,6 +57,30 @@ def get_mean_and_ci(
   ci_hi = np.quantile(data, (1 + confidence_level) / 2, axis=axis)
 
   return np.stack([mean, ci_lo, ci_hi], axis=-1)
+
+
+def get_mean_median_and_ci(
+    data: np.ndarray | tf.Tensor,
+    confidence_level: float,
+    axis: tuple[int, ...] = (0, 1),
+) -> np.ndarray:
+  """Calculates mean, median, and confidence intervals for the given data.
+
+  Args:
+    data: Data for the metric.
+    confidence_level: Confidence level for computing credible intervals,
+      represented as a value between zero and one.
+    axis: Axis or axes along which the mean and quantiles are computed.
+
+  Returns:
+    A numpy array or tf.Tensor containing mean and confidence intervals.
+  """
+  mean = np.mean(data, axis=axis, keepdims=False)
+  median = np.median(data, axis=axis, keepdims=False)
+  ci_lo = np.quantile(data, (1 - confidence_level) / 2, axis=axis)
+  ci_hi = np.quantile(data, (1 + confidence_level) / 2, axis=axis)
+
+  return np.stack([mean, median, ci_lo, ci_hi], axis=-1)
 
 
 def _calc_rsquared(expected, actual):
@@ -221,6 +246,8 @@ def _scale_tensors_by_multiplier(
   return scaled_tensors
 
 
+# TODO(b/365142518): Deprecate this function in favor of
+# _mean_median_and_ci_by_prior_and_posterior
 def _mean_and_ci_by_prior_and_posterior(
     prior: tf.Tensor,
     posterior: tf.Tensor,
@@ -248,6 +275,40 @@ def _mean_and_ci_by_prior_and_posterior(
       [
           get_mean_and_ci(prior, confidence_level),
           get_mean_and_ci(posterior, confidence_level),
+      ],
+      axis=-1,
+  )
+  xr_data = {metric_name: (xr_dims, metrics)}
+  return xr.Dataset(data_vars=xr_data, coords=xr_coords)
+
+
+def _mean_median_and_ci_by_prior_and_posterior(
+    prior: tf.Tensor,
+    posterior: tf.Tensor,
+    metric_name: str,
+    xr_dims: Sequence[str],
+    xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
+    confidence_level: float,
+) -> xr.Dataset:
+  """Calculates mean, median, and CI of prior/posterior data for a metric.
+
+  Args:
+    prior: A tensor with the prior data for the metric.
+    posterior: A tensor with the posterior data for the metric.
+    metric_name: The name of the input metric for the computations.
+    xr_dims: A list of dimensions for the output dataset.
+    xr_coords: A dictionary with the coordinates for the output dataset.
+    confidence_level: Confidence level for computing credible intervals,
+      represented as a value between zero and one.
+
+  Returns:
+    An xarray Dataset containing mean and confidence intervals for prior and
+    posterior data for the metric.
+  """
+  metrics = np.stack(
+      [
+          get_mean_median_and_ci(prior, confidence_level),
+          get_mean_median_and_ci(posterior, confidence_level),
       ],
       axis=-1,
   )
@@ -2178,9 +2239,9 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `ci_high`,
-      `ci_low`), `distribution` (prior, posterior) and contains the following
-      data variables: `impressions`, `pct_of_impressions`, `spend`,
+      An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `median`,
+      `ci_low`, `ci_high`), `distribution` (prior, posterior) and contains the
+      following data variables: `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
       `effectiveness`, `mroi`, `cpik`.
     """
@@ -2262,7 +2323,12 @@ class Analyzer:
     xr_coords_with_ci_and_distribution = {
         constants.METRIC: (
             [constants.METRIC],
-            [constants.MEAN, constants.CI_LO, constants.CI_HI],
+            [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         ),
         constants.DISTRIBUTION: (
             [constants.DISTRIBUTION],
@@ -2276,7 +2342,7 @@ class Analyzer:
         xr_dims=xr_dims,
         xr_coords=xr_coords,
     )
-    incremental_impact = _mean_and_ci_by_prior_and_posterior(
+    incremental_impact = _mean_median_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior,
         posterior=incremental_impact_posterior,
         metric_name=constants.INCREMENTAL_IMPACT,
@@ -2452,9 +2518,9 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      An `xr.Dataset` with coordinates: `metric` (`mean`, `ci_low`,`ci_high`),
-      `distribution` (prior, posterior) and contains the following data
-      variables: `baseline_impact`, `pct_of_contribution`.
+      An `xr.Dataset` with coordinates: `metric` (`mean`, `median`,
+      `ci_low`,`ci_high`),`distribution` (prior, posterior) and contains the
+      following data variables: `baseline_impact`, `pct_of_contribution`.
     """
     # TODO(b/358586608): Change "pct_of_contribution" to a more accurate term.
 
@@ -2496,7 +2562,12 @@ class Analyzer:
     xr_coords_with_ci_and_distribution = {
         constants.METRIC: (
             [constants.METRIC],
-            [constants.MEAN, constants.CI_LO, constants.CI_HI],
+            [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         ),
         constants.DISTRIBUTION: (
             [constants.DISTRIBUTION],
@@ -2525,7 +2596,7 @@ class Analyzer:
         axis=-1,
     )
 
-    baseline_impact = _mean_and_ci_by_prior_and_posterior(
+    baseline_impact = _mean_median_and_ci_by_prior_and_posterior(
         prior=baseline_expected_outcome_prior,
         posterior=baseline_expected_outcome_posterior,
         metric_name=constants.BASELINE_IMPACT,
@@ -2609,7 +2680,7 @@ class Analyzer:
 
     Returns:
       An xarray Dataset which contains:
-      * Coordinates: `channel`, `metric` (`mean`, `ci_hi`, `ci_lo`).
+      * Coordinates: `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`).
       * Data variables:
         * `spend`: The spend for each channel.
         * `pct_of_spend`: The percentage of spend for each channel.
@@ -2671,19 +2742,19 @@ class Analyzer:
     )
 
     # Calculate the mean and confidence intervals for each metric.
-    incremental_impact = get_mean_and_ci(
+    incremental_impact = get_mean_median_and_ci(
         data=incremental_impact_tensor,
         confidence_level=confidence_level,
     )
-    pct_of_contribution = get_mean_and_ci(
+    pct_of_contribution = get_mean_median_and_ci(
         data=incremental_impact_tensor / mean_expected_outcome[..., None] * 100,
         confidence_level=confidence_level,
     )
-    roi = get_mean_and_ci(
+    roi = get_mean_median_and_ci(
         data=tf.math.divide_no_nan(incremental_impact_tensor, spend),
         confidence_level=confidence_level,
     )
-    mroi = get_mean_and_ci(
+    mroi = get_mean_median_and_ci(
         data=self.marginal_roi(
             by_reach=marginal_roi_by_reach,
             **dim_kwargs,
@@ -2693,7 +2764,7 @@ class Analyzer:
         ),
         confidence_level=confidence_level,
     )
-    effectiveness = get_mean_and_ci(
+    effectiveness = get_mean_median_and_ci(
         data=incremental_impact_tensor
         / self.get_aggregated_impressions(
             **dim_kwargs,
@@ -2701,7 +2772,7 @@ class Analyzer:
         ),
         confidence_level=confidence_level,
     )
-    cpik = get_mean_and_ci(
+    cpik = get_mean_median_and_ci(
         data=tf.math.divide_no_nan(spend, incremental_impact_tensor),
         confidence_level=confidence_level,
     )
@@ -2728,7 +2799,12 @@ class Analyzer:
             ),
             constants.METRIC: (
                 [constants.METRIC],
-                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+                [
+                    constants.MEAN,
+                    constants.MEDIAN,
+                    constants.CI_LO,
+                    constants.CI_HI,
+                ],
             ),
         },
         attrs=attrs,
@@ -2765,8 +2841,8 @@ class Analyzer:
 
     Returns:
       An xarray Dataset which contains:
-      * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `ci_hi`,
-        `ci_lo`).
+      * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `median`,
+      `ci_lo`, `ci_hi`).
       * Data variables:
         * `optimal_frequency`: The frequency that optimizes the posterior mean
             of ROI.
@@ -2805,9 +2881,10 @@ class Analyzer:
     if freq_grid is None:
       freq_grid = np.arange(1, max_freq, 0.1)
 
-    # Create a frequency grid for shape (len(freq_grid), n_rf_channels, 3) where
-    # the last argument is for the mean, lower and upper confidence intervals.
-    metric_grid = np.zeros((len(freq_grid), self._meridian.n_rf_channels, 3))
+    # Create a frequency grid for shape (len(freq_grid), n_rf_channels, 4) where
+    # the last argument is for the mean, median, lower and upper confidence
+    # intervals.
+    metric_grid = np.zeros((len(freq_grid), self._meridian.n_rf_channels, 4))
 
     for i, freq in enumerate(freq_grid):
       new_frequency = tf.ones_like(self._meridian.rf_tensors.frequency) * freq
@@ -2826,7 +2903,9 @@ class Analyzer:
           aggregate_times=True,
           use_kpi=use_kpi,
       )[..., -self._meridian.n_rf_channels :]
-      metric_grid[i, :] = get_mean_and_ci(metric_grid_temp, confidence_level)
+      metric_grid[i, :] = get_mean_median_and_ci(
+          metric_grid_temp, confidence_level
+      )
 
     optimal_freq_idx = np.nanargmax(metric_grid[:, :, 0], axis=0)
     rf_channel_values = (
@@ -2912,7 +2991,12 @@ class Analyzer:
             constants.RF_CHANNEL: ([constants.RF_CHANNEL], rf_channel_values),
             constants.METRIC: (
                 [constants.METRIC],
-                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+                [
+                    constants.MEAN,
+                    constants.MEDIAN,
+                    constants.CI_LO,
+                    constants.CI_HI,
+                ],
             ),
         },
         attrs={
@@ -3755,7 +3839,7 @@ class Analyzer:
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     # TODO(b/304834270): Support calibration_period_bool.
-    return _mean_and_ci_by_prior_and_posterior(
+    return _mean_median_and_ci_by_prior_and_posterior(
         prior=incremental_revenue_prior / spend_with_total,
         posterior=incremental_revenue_posterior / spend_with_total,
         metric_name=constants.ROI,
@@ -3823,7 +3907,7 @@ class Analyzer:
     mroi_posterior_concat = tf.concat(
         [mroi_posterior, mroi_posterior_total[..., None]], axis=-1
     )
-    return _mean_and_ci_by_prior_and_posterior(
+    return _mean_median_and_ci_by_prior_and_posterior(
         prior=mroi_prior_concat,
         posterior=mroi_posterior_concat,
         metric_name=constants.MROI,
@@ -3878,7 +3962,7 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
-    return _mean_and_ci_by_prior_and_posterior(
+    return _mean_median_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior / impressions_with_total,
         posterior=incremental_impact_posterior / impressions_with_total,
         metric_name=constants.EFFECTIVENESS,
@@ -3896,7 +3980,7 @@ class Analyzer:
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
-    return _mean_and_ci_by_prior_and_posterior(
+    return _mean_median_and_ci_by_prior_and_posterior(
         prior=spend_with_total / incremental_kpi_prior,
         posterior=spend_with_total / incremental_kpi_posterior,
         metric_name=constants.CPIK,
@@ -3921,7 +4005,7 @@ class Analyzer:
         expected_outcome_posterior, (0, 1)
     )
 
-    return _mean_and_ci_by_prior_and_posterior(
+    return _mean_median_and_ci_by_prior_and_posterior(
         prior=(
             incremental_impact_prior
             / mean_expected_outcome_prior[..., None]

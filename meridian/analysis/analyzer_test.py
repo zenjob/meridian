@@ -133,6 +133,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
 
+  # TODO(b/365142518): Deprecate this function in favor of
+  # get_mean_median_and_ci
   def test_get_mean_and_ci(self):
     data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
     result = analyzer.get_mean_and_ci(
@@ -141,6 +143,17 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     np.testing.assert_allclose(
         result,
         np.array([[4.5, 1.3, 9.1], [4, 2, 6.7], [3.5, 1.3, 5.7]]),
+        atol=0.1,
+    )
+
+  def test_get_mean_median_and_ci(self):
+    data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
+    result = analyzer.get_mean_median_and_ci(data, confidence_level=0.9)
+    np.testing.assert_allclose(
+        result,
+        np.array(
+            [[4.5, 3.5, 1.3, 9.1], [4.0, 3.5, 2.0, 6.7], [3.5, 3.5, 1.3, 5.7]]
+        ),
         atol=0.1,
     )
 
@@ -993,10 +1006,11 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # (ch_1, ch_2, ..., Total_media, [mean, ci_lo, ci_hi], [prior, posterior])
+    # (ch_1, ch_2, ..., Total_media, [mean, median, ci_lo, ci_hi],
+    # [prior, posterior])
     expected_channel_shape += (num_channels + 1,)
     expected_shape = expected_channel_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.impressions.shape, expected_channel_shape)
@@ -1045,9 +1059,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    # ([mean, median, ci_lo, ci_hi], [prior, posterior])
     expected_shape = expected_geo_and_time_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
@@ -1068,49 +1082,69 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             ),
             constants.METRIC: (
                 [constants.METRIC],
-                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+                [
+                    constants.MEAN,
+                    constants.MEDIAN,
+                    constants.CI_LO,
+                    constants.CI_HI,
+                ],
             ),
         },
         data_vars={
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [  # rf_ch_0.           # rf_ch_1
-                    [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],  # freq=1.0
-                    [[2.48, 0.98, 3.97], [3.66, 1.1, 6.32]],  # freq=2.0
-                    [[1.73, 0.72, 2.73], [2.54, 0.83, 4.3]],  # freq=3.0
+                [
+                    [
+                        [4.57, 4.59, 1.6, 7.52],
+                        [6.61, 6.52, 1.69, 11.7],
+                    ],  # freq=1.0
+                    [
+                        [2.48, 2.48, 0.98, 3.97],
+                        [3.66, 3.61, 1.1, 6.32],
+                    ],  # freq=2.0
+                    [
+                        [1.73, 1.73, 0.72, 2.73],
+                        [2.54, 2.50, 0.83, 4.3],
+                    ],  # freq=3.0
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1244.8, 436.19, 2047.89], [1902.85, 487.06, 3368.2]],
-            ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [[5.16181, 1.80875, 8.49197], [7.89052, 2.01976, 13.96686]],
-            ),
-            constants.OPTIMIZED_ROI: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
+                [
+                    [1244.8, 1249.58, 436.19, 2047.89],
+                    [1902.85, 1878.92, 487.06, 3368.2],
+                ],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.001699, 0.000595, 0.002795],
-                    [0.00259, 0.000663, 0.004585],
+                    [0.001699, 0.001705, 0.000595, 0.002795],
+                    [0.00259, 0.002557, 0.000663, 0.004585],
                 ],
+            ),
+            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [5.16181, 5.18164, 1.80875, 8.49197],
+                    [7.89052, 7.79130, 2.01976, 13.96686],
+                ],
+            ),
+            constants.OPTIMIZED_ROI: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[4.57, 4.59, 1.6, 7.52], [6.61, 6.52, 1.69, 11.7]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[4.57, 1.6, 7.52], [6.61, 1.69, 11.7]],
+                [[4.57, 4.59, 1.6, 7.52], [6.61, 6.52, 1.69, 11.7]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.54, 0.45, 0.62], [1.31, 0.69, 1.96]],
+                [[0.54, 0.54, 0.45, 0.62], [1.31, 1.30, 0.69, 1.96]],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.371, 0.132, 0.623], [0.337, 0.085, 0.591]],
+                [[0.371, 0.371, 0.132, 0.623], [0.337, 0.337, 0.085, 0.591]],
             ),
         },
         attrs={
@@ -2264,10 +2298,11 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # (ch_1, ch_2, ..., Total_media, [mean, ci_lo, ci_hi], [prior, posterior])
+    # (ch_1, ch_2, ..., Total_media, [mean, median, ci_lo, ci_hi],
+    # [prior, posterior])
     expected_channel_shape += (num_channels + 1,)
     expected_shape = expected_channel_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.impressions.shape, expected_channel_shape)
@@ -2316,9 +2351,9 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    # ([mean, median, ci_lo, ci_hi], [prior, posterior])
     expected_shape = expected_geo_and_time_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
@@ -2683,49 +2718,72 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             ),
             constants.METRIC: (
                 [constants.METRIC],
-                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+                [
+                    constants.MEAN,
+                    constants.MEDIAN,
+                    constants.CI_LO,
+                    constants.CI_HI,
+                ],
             ),
         },
         data_vars={
             constants.ROI: (
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
-                [  # rf_ch_0.           # rf_ch_1
-                    [[3.34, 0.20, 10.17], [7.15, 0.42, 13.10]],  # freq=1.0
-                    [[4.76, 0.66, 10.79], [4.83, 1.13, 7.86]],  # freq=2.0
-                    [[4.87, 1.17, 9.60], [3.72, 1.47, 5.71]],  # freq=3.0
+                [
+                    [
+                        [3.34, 1.81, 0.20, 10.17],
+                        [7.15, 7.77, 0.42, 13.10],
+                    ],  # freq=1.0
+                    [
+                        [4.76, 3.24, 0.66, 10.79],
+                        [4.83, 5.25, 1.13, 7.86],
+                    ],  # freq=2.0
+                    [
+                        [4.87, 3.70, 1.17, 9.60],
+                        [3.72, 3.91, 1.47, 5.71],
+                    ],  # freq=3.0
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [3.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1326.76, 320.44, 2614.4], [2060.22, 122.18, 3772.43]],
-            ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [[0.01613, 0.0039, 0.03179], [0.02505, 0.00149, 0.04587]],
-            ),
-            constants.OPTIMIZED_ROI: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [[4.87, 1.18, 9.61], [7.16, 0.42, 13.10]],
+                [
+                    [1326.76, 1008.16, 320.44, 2614.4],
+                    [2060.22, 2238.75, 122.18, 3772.43],
+                ],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000604, 0.000146, 0.001189],
-                    [0.002804, 0.000166, 0.005135],
+                    [0.000604, 0.000458, 0.000146, 0.001189],
+                    [0.002804, 0.003047, 0.000166, 0.005135],
                 ],
+            ),
+            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [
+                    [0.01613, 0.01225, 0.0039, 0.03179],
+                    [0.02505, 0.02721, 0.00149, 0.04587],
+                ],
+            ),
+            constants.OPTIMIZED_ROI: (
+                [constants.RF_CHANNEL, constants.METRIC],
+                [[4.87, 3.70, 1.18, 9.61], [7.16, 7.77, 0.42, 13.10]],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[4.87, 1.18, 9.59], [7.16, 0.42, 13.12]],
+                [[4.87, 3.70, 1.18, 9.59], [7.16, 7.78, 0.42, 13.12]],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[4.21, 2.58, 8.68], [3.11, 1.14, 3.95]],
+                [[4.21, 3.26, 2.58, 8.68], [3.11, 3.80, 1.14, 3.95]],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.476, 0.104, 0.849], [0.698, 0.076, 2.403]],
+                [
+                    [0.476, 0.48521742, 0.104, 0.849],
+                    [0.698, 0.231271, 0.076, 2.403],
+                ],
             ),
         },
         attrs={
@@ -2884,10 +2942,11 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # (ch_1, ch_2, ..., Total_media, [mean, ci_lo, ci_hi], [prior, posterior])
+    # (ch_1, ch_2, ..., Total_media, [mean, median,ci_lo, ci_hi],
+    # [prior, posterior])
     expected_channel_shape += (num_channels + 1,)
     expected_shape = expected_channel_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.impressions.shape, expected_channel_shape)
@@ -2936,9 +2995,9 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # ([mean, ci_lo, ci_hi], [prior, posterior])
+    # ([mean, median, ci_lo, ci_hi], [prior, posterior])
     expected_shape = expected_geo_and_time_shape + (
-        3,
+        4,
         2,
     )
     self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
@@ -3111,7 +3170,12 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             ),
             constants.METRIC: (
                 [constants.METRIC],
-                [constants.MEAN, constants.CI_LO, constants.CI_HI],
+                [
+                    constants.MEAN,
+                    constants.MEDIAN,
+                    constants.CI_LO,
+                    constants.CI_HI,
+                ],
             ),
         },
         data_vars={
@@ -3119,59 +3183,68 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
                 [constants.FREQUENCY, constants.RF_CHANNEL, constants.METRIC],
                 [
                     [
-                        [1.45663321, 0.51041068, 2.39638944],
-                        [2.12286782, 0.54957444, 3.75214096],
+                        [1.45663321, 1.46222901, 0.51041067, 2.39638948],
+                        [2.12286782, 2.09572244, 0.54957443, 3.752141],
                     ],
                     [
-                        [0.78908628, 0.31107242, 1.26464759],
-                        [1.17641294, 0.35569778, 2.02744753],
+                        [0.78908628, 0.79023874, 0.31107241, 1.2646476],
+                        [1.17641282, 1.16203976, 0.35569778, 2.02744746],
                     ],
                     [
-                        [0.54987609, 0.22928859, 0.86951892],
-                        [0.8145231, 0.26908819, 1.38052572],
+                        [0.54987603, 0.5502463, 0.22928859, 0.86951894],
+                        [0.81452322, 0.80485409, 0.26908818, 1.38052571],
                     ],
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
             constants.OPTIMIZED_INCREMENTAL_IMPACT: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[396.44, 138.92, 652.21], [611.12, 158.21, 1080.15]],
+                [
+                    [396.44, 397.96, 138.92, 652.21],
+                    [611.12, 603.30, 158.21, 1080.15],
+                ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[5.1566, 1.8069, 8.48342], [7.94896, 2.05785, 14.04969]],
+                [
+                    [5.1566, 5.1764145, 1.8069, 8.48342],
+                    [7.94896, 7.8473177, 2.05785, 14.04969],
+                ],
             ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [1.45663321, 0.51041068, 2.39638944],
-                    [2.12286782, 0.54957444, 3.75214096],
+                    [1.45663321, 1.462229, 0.51041068, 2.39638944],
+                    [2.12286782, 2.0957224, 0.54957444, 3.75214096],
                 ],
             ),
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000541, 0.00019, 0.00089],
-                    [0.000832, 0.000215, 0.00147],
+                    [0.000541, 0.000543, 0.00019, 0.00089],
+                    [0.000832, 0.000821, 0.000215, 0.00147],
                 ],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [1.45663834, 0.51040578, 2.39639434],
-                    [2.12287164, 0.54957373, 3.75216453],
+                    [1.4566362, 1.4622416, 0.5104058, 2.396392],
+                    [2.1228676, 2.095724, 0.5495737, 3.7521646],
                 ],
             ),
             constants.OPTIMIZED_MROI_BY_FREQUENCY: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.17261705, 0.14313781, 0.19791752],
-                    [0.4224712, 0.22409489, 0.62984283],
+                    [0.17261705, 0.17397353, 0.14313781, 0.19791752],
+                    [0.4224712, 0.41871762, 0.22409489, 0.62984283],
                 ],
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[1.166, 0.417, 1.959], [1.042, 0.267, 1.82]],
+                [
+                    [1.166, 1.139, 0.417, 1.959],
+                    [1.042, 1.038, 0.267, 1.82],
+                ],
             ),
         },
         attrs={

@@ -684,6 +684,7 @@ class ReachAndFrequency:
     performance_by_frequency_df = (
         self.optimal_frequency_data[[c.ROI]]
         .sel(rf_channel=selected_channels)
+        .drop_sel(metric=c.MEDIAN)
         .to_dataframe()
         .reset_index()
         .pivot(
@@ -1366,7 +1367,7 @@ class MediaSummary:
 
     The dataset contains the following:
 
-    - **Coordinates:** `channel`, `metric` (`mean`, `ci_hi`, `ci_lo`),
+    - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_hi`, `ci_lo`),
       `distribution` (`prior`, `posterior`)
     - **Data variables:** `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
@@ -1396,9 +1397,25 @@ class MediaSummary:
       )
     use_revenue = self._meridian.input_data.revenue_per_kpi is not None
     distribution = [c.PRIOR] * include_prior + [c.POSTERIOR] * include_posterior
-    df = self.media_summary_metrics.sel(
-        distribution=distribution
-    ).to_dataframe()
+
+    # Format CPIK to use median instead of mean.
+    df_mean = (
+        self.media_summary_metrics.drop_vars([c.CPIK])
+        .sel(distribution=distribution)
+        .drop_sel(metric=c.MEDIAN)
+        .to_dataframe()
+        .rename({c.MEAN: 'central_tendency'})
+    )
+    df_median = (
+        self.media_summary_metrics[c.CPIK]
+        .sel(distribution=distribution)
+        .drop_sel(metric=c.MEAN)
+        .to_dataframe()
+        .rename({c.MEDIAN: 'central_tendency'})
+    )
+    df = pd.concat(
+        [df_mean, df_median], axis=1
+    )
 
     data_vars = self.media_summary_metrics.data_vars
     digits = {k: 1 if min(abs(df[k])) < 1 else 0 for k in list(data_vars)}
@@ -1420,7 +1437,7 @@ class MediaSummary:
       if k in df.columns:
         df[k] = '$' + df[k].astype(str)
 
-    # Format the model result data variables as mean (ci_lo, ci_hi).
+    # Format the model result data variables as central_tendency (ci_lo, ci_hi).
     index_vars = [c.CHANNEL, c.DISTRIBUTION]
     input_data = [k for k, v in data_vars.items() if len(v.shape) == 1]
     return (
@@ -2158,10 +2175,16 @@ class MediaSummary:
     Returns:
       A dataframe of the posterior values for the selected metric.
     """
+    # Format CPIK to use median instead of mean.
+    central_tendency = c.MEDIAN if metric == c.CPIK else c.MEAN
+    unused_central_tendency = c.MEAN if metric == c.CPIK else c.MEDIAN
     return (
         self.media_summary_metrics[metric]
         .sel(distribution=c.POSTERIOR)
-        .drop_sel(channel=c.ALL_CHANNELS)
+        .drop_sel(
+            channel=c.ALL_CHANNELS,
+            metric=unused_central_tendency,
+        )
         .to_dataframe()
         .reset_index()
         .pivot(
@@ -2170,5 +2193,5 @@ class MediaSummary:
             values=metric,
         )
         .reset_index()
-        .rename(columns={c.MEAN: metric})
+        .rename(columns={central_tendency: metric})
     )

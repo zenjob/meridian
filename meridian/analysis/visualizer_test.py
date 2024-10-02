@@ -1689,6 +1689,20 @@ class MediaSummaryTest(parameterized.TestCase):
         marginal_roi_by_reach=False,
     )
 
+  def test_media_summary_plot_roi_correct_columns(self):
+    plot = self.media_summary_revenue.plot_roi_bar_chart()
+    df = plot.data
+
+    self.assertEqual(
+        list(df.columns),
+        [
+            c.CHANNEL,
+            c.CI_HI,
+            c.CI_LO,
+            c.ROI,
+        ],
+    )
+
   def test_media_summary_plot_roi_no_ci_plots_bar_chart(self):
     plot = self.media_summary_revenue.plot_roi_bar_chart(include_ci=False)
     self.assertIsInstance(plot, alt.LayerChart)
@@ -1986,7 +2000,7 @@ class MediaSummaryTest(parameterized.TestCase):
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
     }
-    media_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = 100000
+    media_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = 200000
     media_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = 60
     with mock.patch.object(
         visualizer.MediaSummary,
