@@ -1759,6 +1759,26 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
           has_media_dim=has_media_dim,
       )
 
+  def test_filter_and_aggregate_geos_and_times_empty_geos(self):
+    tensor = tf.convert_to_tensor(self.input_data_media_only.media_spend)
+    modified_tensor = (
+        self.analyzer_media_only.filter_and_aggregate_geos_and_times(
+            tensor,
+            selected_geos=[],
+        )
+    )
+    self.assertAllEqual(modified_tensor, tf.zeros([3]))
+
+  def test_filter_and_aggregate_geos_and_times_empty_times(self):
+    tensor = tf.convert_to_tensor(self.input_data_media_only.media_spend)
+    modified_tensor = (
+        self.analyzer_media_only.filter_and_aggregate_geos_and_times(
+            tensor,
+            selected_times=[],
+        )
+    )
+    self.assertAllEqual(modified_tensor, tf.zeros([3]))
+
   def test_filter_and_aggregate_geos_and_times_incorrect_geos(self):
     with self.assertRaisesRegex(
         ValueError,

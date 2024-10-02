@@ -168,6 +168,8 @@ def _validate_selected_times(
     comparison_arg_name: str,
 ):
   """Raises an error if selected_times is invalid."""
+  if not selected_times:
+    return
   if _is_bool_list(selected_times):
     if len(selected_times) != n_times:
       raise ValueError(
@@ -658,7 +660,7 @@ class Analyzer:
     time_dim = tensor.ndim - 1 - (1 if has_media_dim else 0)
 
     # Validate the selected geo and time dimensions and create a mask.
-    if selected_geos:
+    if selected_geos is not None:
       if any(geo not in mmm.input_data.geo for geo in selected_geos):
         raise ValueError(
             "`selected_geos` must match the geo dimension names from "
@@ -667,7 +669,7 @@ class Analyzer:
       geo_mask = [x in selected_geos for x in mmm.input_data.geo]
       tensor = tf.boolean_mask(tensor, geo_mask, axis=geo_dim)
 
-    if selected_times:
+    if selected_times is not None:
       _validate_selected_times(
           selected_times=selected_times,
           input_times=mmm.input_data.time,
@@ -675,11 +677,11 @@ class Analyzer:
           arg_name="selected_times",
           comparison_arg_name="`tensor`",
       )
-      if _is_bool_list(selected_times):
-        tensor = tf.boolean_mask(tensor, selected_times, axis=time_dim)
-      elif _is_str_list(selected_times):
+      if _is_str_list(selected_times):
         time_mask = [x in selected_times for x in mmm.input_data.time]
         tensor = tf.boolean_mask(tensor, time_mask, axis=time_dim)
+      elif _is_bool_list(selected_times):
+        tensor = tf.boolean_mask(tensor, selected_times, axis=time_dim)
 
     tensor_dims = "...gt" + "m" * has_media_dim
     output_dims = (
