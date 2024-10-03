@@ -842,19 +842,19 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="wrong_controls",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_CONTROLS,
-          data_name="controls",
+          data_name=constants.CONTROLS,
           dims_bad=np.array([b"control_0", b"control_1"]),
       ),
       dict(
           testcase_name="wrong_media",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_MEDIA,
-          data_name="media",
+          data_name=constants.MEDIA,
           dims_bad=np.array([b"media_channel_1", b"media_channel_2"]),
       ),
       dict(
           testcase_name="wrong_rf",
           dataset=test_utils.DATASET_WITHOUT_GEO_VARIATION_IN_REACH,
-          data_name="reach",
+          data_name=constants.REACH,
           dims_bad=np.array([b"rf_channel_0", b"rf_channel_1"]),
       ),
   )
@@ -870,6 +870,44 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         " in a model with a parameter for each time period.  To address this,"
         " you can either: (1) decrease the number of knots (n_knots < n_time),"
         " or (2) drop the listed variables that do not vary across geos.",
+    ):
+      model.Meridian(
+          input_data=test_utils.sample_input_data_from_dataset(
+              dataset, kpi_type=constants.NON_REVENUE
+          )
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="wrong_controls",
+          dataset=test_utils.DATASET_WITHOUT_TIME_VARIATION_IN_CONTROLS,
+          data_name=constants.CONTROLS,
+          dims_bad=np.array([b"control_0", b"control_1"]),
+      ),
+      dict(
+          testcase_name="wrong_media",
+          dataset=test_utils.DATASET_WITHOUT_TIME_VARIATION_IN_MEDIA,
+          data_name=constants.MEDIA,
+          dims_bad=np.array([b"media_channel_1", b"media_channel_2"]),
+      ),
+      dict(
+          testcase_name="wrong_rf",
+          dataset=test_utils.DATASET_WITHOUT_TIME_VARIATION_IN_REACH,
+          data_name=constants.REACH,
+          dims_bad=np.array([b"rf_channel_0", b"rf_channel_1"]),
+      ),
+  )
+  def test_init_without_time_variation_fails(
+      self, dataset: xr.Dataset, data_name: str, dims_bad: Sequence[str]
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        f"The following {data_name} variables do not vary across time, making"
+        f" a model with geo main effects unidentifiable: {dims_bad}. This can"
+        " lead to poor model convergence. Since these variables only vary"
+        " across geo and not across time, they are collinear with geo and"
+        " redundant in a model with geo main effects. To address this, drop"
+        " the listed variables that do not vary across time.",
     ):
       model.Meridian(
           input_data=test_utils.sample_input_data_from_dataset(

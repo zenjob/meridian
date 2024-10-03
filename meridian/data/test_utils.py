@@ -26,10 +26,32 @@ import xarray as xr
 
 _SAMPLE_START_DATE = datetime.date(2021, 1, 25)
 
+
+def _sample_names(prefix: str, n_names: int | None) -> list[str] | None:
+  """Generates a list of sample names.
+
+  It concatenates the same prefix with consecutive numbers to generate a list
+  of strings that can be used as sample names of columns/arrays/etc.
+  """
+  return [prefix + str(n) for n in range(n_names)] if n_names else None
+
+
+def _sample_times(
+    n_times: int,
+    start_date: datetime.date = _SAMPLE_START_DATE,
+    date_format: str = c.DATE_FORMAT,
+) -> list[str]:
+  """Generates sample `time`s."""
+  return [
+      (start_date + datetime.timedelta(weeks=w)).strftime(date_format)
+      for w in range(n_times)
+  ]
+
+
 _REQUIRED_COORDS = immutabledict.immutabledict({
     c.GEO: ['geo_0', 'geo_1'],
-    c.TIME: [_SAMPLE_START_DATE.strftime(c.DATE_FORMAT)],
-    c.MEDIA_TIME: [_SAMPLE_START_DATE.strftime(c.DATE_FORMAT)],
+    c.TIME: _sample_times(n_times=3),
+    c.MEDIA_TIME: _sample_times(n_times=3),
     c.CONTROL_VARIABLE: ['control_0', 'control_1'],
 })
 _MEDIA_COORDS = immutabledict.immutabledict(
@@ -40,36 +62,57 @@ _RF_COORDS = immutabledict.immutabledict(
 )
 
 _REQUIRED_DATA_VARS = immutabledict.immutabledict({
-    c.KPI: (['geo', 'time'], [[0.1], [0.2]]),
+    c.KPI: (['geo', 'time'], [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
     c.CONTROLS: (
         ['geo', 'time', 'control_variable'],
-        [[[2.1, 2.2]], [[2.3, 2.4]]],
+        [
+            [[2.1, 2.2], [2.3, 2.4], [2.5, 2.6]],
+            [[2.11, 2.21], [2.31, 2.41], [2.51, 2.61]],
+        ],
     ),
     c.POPULATION: (['geo'], [3.1, 3.1]),
 })
 _OPTIONAL_DATA_VARS = immutabledict.immutabledict({
-    c.REVENUE_PER_KPI: (['geo', 'time'], [[1.1], [1.2]]),
+    c.REVENUE_PER_KPI: (['geo', 'time'], [[1.1, 1.2, 1.3], [1.4, 1.5, 1.6]]),
 })
 _MEDIA_DATA_VARS = immutabledict.immutabledict({
     c.MEDIA: (
         ['geo', 'media_time', 'media_channel'],
-        [[[4.1, 4.2, 4.3]], [[4.4, 4.5, 4.6]]],
+        [
+            [[4.1, 4.2, 4.3], [4.4, 4.5, 4.6], [4.7, 4.8, 4.9]],
+            [[4.11, 4.21, 4.31], [4.41, 4.51, 4.61], [4.71, 4.81, 4.91]],
+        ],
     ),
     c.MEDIA_SPEND: (
         ['geo', 'time', 'media_channel'],
-        [[[5.1, 5.2, 5.3]], [[5.4, 5.5, 5.6]]],
+        [
+            [[5.1, 5.2, 5.3], [5.4, 5.5, 5.6], [5.7, 5.8, 5.9]],
+            [[5.11, 5.21, 5.31], [5.41, 5.51, 5.61], [5.71, 5.81, 5.91]],
+        ],
     ),
 })
 _RF_DATA_VARS = immutabledict.immutabledict({
     c.REACH: (
         ['geo', 'media_time', 'rf_channel'],
-        [[[6.1, 6.2]], [[6.3, 6.4]]],
+        [
+            [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+            [[6.11, 6.21], [6.31, 6.41], [6.51, 6.61]],
+        ],
     ),
     c.FREQUENCY: (
         ['geo', 'media_time', 'rf_channel'],
-        [[[7.1, 7.2]], [[7.3, 7.4]]],
+        [
+            [[7.1, 7.2], [7.3, 7.4], [7.5, 7.6]],
+            [[7.11, 7.21], [7.31, 7.41], [7.51, 7.61]],
+        ],
     ),
-    c.RF_SPEND: (['geo', 'time', 'rf_channel'], [[[8.1, 8.2]], [[8.3, 8.4]]]),
+    c.RF_SPEND: (
+        ['geo', 'time', 'rf_channel'],
+        [
+            [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+            [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+        ],
+    ),
 })
 
 WRONG_DATASET_WO_MEDIA_WO_RF = xr.Dataset(
@@ -82,7 +125,10 @@ WRONG_DATASET_PARTIAL_MEDIA_WO_RF = xr.Dataset(
     | {
         c.MEDIA: (
             ['geo', 'media_time', 'media_channel'],
-            [[[4.1, 4.2, 4.3]], [[4.4, 4.5, 4.6]]],
+            [
+                [[4.1, 4.2, 4.3], [4.4, 4.5, 4.6], [4.7, 4.8, 4.9]],
+                [[4.11, 4.21, 4.31], [4.41, 4.51, 4.61], [4.71, 4.81, 4.91]],
+            ],
         ),
     },
 )
@@ -92,11 +138,17 @@ WRONG_DATASET_WO_MEDIA_PARTIAL_RF = xr.Dataset(
     | {
         c.REACH: (
             ['geo', 'media_time', 'rf_channel'],
-            [[[6.1, 6.2]], [[6.3, 6.4]]],
+            [
+                [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+                [[6.11, 6.21], [6.31, 6.41], [6.51, 6.61]],
+            ],
         ),
         c.RF_SPEND: (
             ['geo', 'time', 'rf_channel'],
-            [[[8.1, 8.2]], [[8.3, 8.4]]],
+            [
+                [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+                [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
         ),
     },
 )
@@ -106,17 +158,26 @@ WRONG_DATASET_PARTIAL_MEDIA_PARTIAL_RF = xr.Dataset(
     | {
         c.MEDIA_SPEND: (
             ['geo', 'time', 'media_channel'],
-            [[[5.1, 5.2, 5.3]], [[5.4, 5.5, 5.6]]],
-        )
+            [
+                [[5.1, 5.2, 5.3], [5.4, 5.5, 5.6], [5.7, 5.8, 5.9]],
+                [[5.11, 5.21, 5.31], [5.41, 5.51, 5.61], [5.71, 5.81, 5.91]],
+            ],
+        ),
     }
     | {
         c.REACH: (
             ['geo', 'media_time', 'rf_channel'],
-            [[[6.1, 6.2]], [[6.3, 6.4]]],
+            [
+                [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+                [[6.11, 6.21], [6.31, 6.41], [6.51, 6.61]],
+            ],
         ),
         c.RF_SPEND: (
             ['geo', 'time', 'rf_channel'],
-            [[[8.1, 8.2]], [[8.3, 8.4]]],
+            [
+                [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+                [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
         ),
     },
 )
@@ -127,11 +188,17 @@ WRONG_DATASET_W_MEDIA_PARTIAL_RF = xr.Dataset(
     | {
         c.REACH: (
             ['geo', 'media_time', 'rf_channel'],
-            [[[6.1, 6.2]], [[6.3, 6.4]]],
+            [
+                [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+                [[6.11, 6.21], [6.31, 6.41], [6.51, 6.61]],
+            ],
         ),
         c.RF_SPEND: (
             ['geo', 'time', 'rf_channel'],
-            [[[8.1, 8.2]], [[8.3, 8.4]]],
+            [
+                [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+                [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
         ),
     },
 )
@@ -142,8 +209,11 @@ WRONG_DATASET_PARTIAL_MEDIA_W_RF = xr.Dataset(
     | {
         c.MEDIA: (
             ['geo', 'media_time', 'media_channel'],
-            [[[4.1, 4.2, 4.3]], [[4.4, 4.5, 4.6]]],
-        )
+            [
+                [[4.1, 4.2, 4.3], [4.4, 4.5, 4.6], [4.7, 4.8, 4.9]],
+                [[4.11, 4.21, 4.31], [4.41, 4.51, 4.61], [4.71, 4.81, 4.91]],
+            ],
+        ),
     },
 )
 
@@ -152,11 +222,17 @@ DATASET_WITHOUT_GEO_VARIATION_IN_CONTROLS = xr.Dataset(
     data_vars=_MEDIA_DATA_VARS
     | _RF_DATA_VARS
     | {
-        c.KPI: (['geo', 'time'], [[0.1], [0.2]]),
-        c.REVENUE_PER_KPI: (['geo', 'time'], [[1.1], [1.2]]),
+        c.KPI: (['geo', 'time'], [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+        c.REVENUE_PER_KPI: (
+            ['geo', 'time'],
+            [[1.1, 1.2, 1.3], [1.4, 1.5, 1.6]],
+        ),
         c.CONTROLS: (
             ['geo', 'time', 'control_variable'],
-            [[[2.1, 2.2]], [[2.1, 2.2]]],
+            [
+                [[2.1, 2.2], [2.3, 2.4], [2.5, 2.6]],
+                [[2.1, 2.2], [2.3, 2.4], [2.5, 2.6]],
+            ],
         ),
         c.POPULATION: (['geo'], [3.1, 3.1]),
     },
@@ -170,11 +246,17 @@ DATASET_WITHOUT_GEO_VARIATION_IN_MEDIA = xr.Dataset(
     | {
         c.MEDIA: (
             ['geo', 'media_time', 'media_channel'],
-            [[[4.1, 4.2, 4.3]], [[4.4, 4.2, 4.3]]],
+            [
+                [[4.1, 4.2, 4.3], [4.4, 4.5, 4.6], [4.7, 4.8, 4.9]],
+                [[4.11, 4.2, 4.3], [4.41, 4.5, 4.6], [4.71, 4.8, 4.9]],
+            ],
         ),
         c.MEDIA_SPEND: (
             ['geo', 'time', 'media_channel'],
-            [[[5.1, 5.2, 5.3]], [[5.4, 5.5, 5.6]]],
+            [
+                [[5.1, 5.2, 5.3], [5.4, 5.5, 5.6], [5.7, 5.8, 5.9]],
+                [[5.11, 5.21, 5.31], [5.41, 5.51, 5.61], [5.71, 5.81, 5.91]],
+            ],
         ),
     },
 )
@@ -187,15 +269,98 @@ DATASET_WITHOUT_GEO_VARIATION_IN_REACH = xr.Dataset(
     | {
         c.REACH: (
             ['geo', 'media_time', 'rf_channel'],
-            [[[6.1, 6.2]], [[6.1, 6.2]]],
+            [
+                [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+                [[6.1, 6.2], [6.3, 6.4], [6.5, 6.6]],
+            ],
         ),
         c.FREQUENCY: (
             ['geo', 'media_time', 'rf_channel'],
-            [[[7.1, 7.2]], [[7.3, 7.4]]],
+            [
+                [[7.1, 7.2], [7.3, 7.4], [7.5, 7.6]],
+                [[7.11, 7.21], [7.31, 7.41], [7.51, 7.61]],
+            ],
         ),
         c.RF_SPEND: (
             ['geo', 'time', 'rf_channel'],
-            [[[8.1, 8.2]], [[8.3, 8.4]]],
+            [
+                [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+                [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
+        ),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_CONTROLS = xr.Dataset(
+    coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS,
+    data_vars=_MEDIA_DATA_VARS
+    | _RF_DATA_VARS
+    | {
+        c.KPI: (['geo', 'time'], [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+        c.REVENUE_PER_KPI: (
+            ['geo', 'time'],
+            [[1.1, 1.2, 1.3], [1.4, 1.5, 1.6]],
+        ),
+        c.CONTROLS: (
+            ['geo', 'time', 'control_variable'],
+            [
+                [[2.1, 2.2], [2.1, 2.2], [2.1, 2.2]],
+                [[2.7, 2.8], [2.7, 2.8], [2.7, 2.8]],
+            ],
+        ),
+        c.POPULATION: (['geo'], [3.1, 3.1]),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_MEDIA = xr.Dataset(
+    coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS,
+    data_vars=_REQUIRED_DATA_VARS
+    | _OPTIONAL_DATA_VARS
+    | _RF_DATA_VARS
+    | {
+        c.MEDIA: (
+            ['geo', 'media_time', 'media_channel'],
+            [
+                [[4.1, 4.2, 4.3], [4.4, 4.2, 4.3], [4.7, 4.2, 4.3]],
+                [[4.11, 4.21, 4.31], [4.41, 4.21, 4.31], [4.71, 4.21, 4.31]],
+            ],
+        ),
+        c.MEDIA_SPEND: (
+            ['geo', 'time', 'media_channel'],
+            [
+                [[5.1, 5.2, 5.3], [5.4, 5.5, 5.6], [5.7, 5.8, 5.9]],
+                [[5.11, 5.21, 5.31], [5.41, 5.51, 5.61], [5.71, 5.81, 5.91]],
+            ],
+        ),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_REACH = xr.Dataset(
+    coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS,
+    data_vars=_REQUIRED_DATA_VARS
+    | _OPTIONAL_DATA_VARS
+    | _MEDIA_DATA_VARS
+    | {
+        c.REACH: (
+            ['geo', 'media_time', 'rf_channel'],
+            [
+                [[6.1, 6.2], [6.1, 6.2], [6.1, 6.2]],
+                [[6.7, 6.8], [6.7, 6.8], [6.7, 6.8]],
+            ],
+        ),
+        c.FREQUENCY: (
+            ['geo', 'media_time', 'rf_channel'],
+            [
+                [[7.1, 7.2], [7.3, 7.4], [7.5, 7.6]],
+                [[7.11, 7.21], [7.31, 7.41], [7.51, 7.61]],
+            ],
+        ),
+        c.RF_SPEND: (
+            ['geo', 'time', 'rf_channel'],
+            [
+                [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
+                [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
         ),
     },
 )
@@ -334,27 +499,6 @@ NATIONAL_COORD_TO_COLUMNS_WO_POPULATION_W_GEO = dataclasses.replace(
     NATIONAL_COORD_TO_COLUMNS_WO_POPULATION_WO_GEO,
     geo='geo',
 )
-
-
-def _sample_names(prefix: str, n_names: int | None) -> list[str] | None:
-  """Generates a list of sample names.
-
-  It concatenates the same prefix with consecutive numbers to generate a list
-  of strings that can be used as sample names of columns/arrays/etc.
-  """
-  return [prefix + str(n) for n in range(n_names)] if n_names else None
-
-
-def _sample_times(
-    n_times: int,
-    start_date: datetime.date = _SAMPLE_START_DATE,
-    date_format: str = c.DATE_FORMAT,
-) -> list[str]:
-  """Generates sample `time`s."""
-  return [
-      (start_date + datetime.timedelta(weeks=w)).strftime(date_format)
-      for w in range(n_times)
-  ]
 
 
 def random_media_da(

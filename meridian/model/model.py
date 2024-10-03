@@ -171,6 +171,7 @@ class Meridian:
 
     self._validate_custom_priors()
     self._validate_geo_invariants()
+    self._validate_time_invariants()
 
   @property
   def input_data(self) -> data.InputData:
@@ -523,19 +524,19 @@ class Meridian:
 
     self._check_if_no_geo_variation(
         self.controls_scaled,
-        "controls",
+        constants.CONTROLS,
         self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
     )
     if self.input_data.media is not None:
       self._check_if_no_geo_variation(
           self.media_tensors.media_scaled,
-          "media",
+          constants.MEDIA,
           self.input_data.media.coords[constants.MEDIA_CHANNEL].values,
       )
     if self.input_data.reach is not None:
       self._check_if_no_geo_variation(
           self.rf_tensors.reach_scaled,
-          "reach",
+          constants.REACH,
           self.input_data.reach.coords[constants.RF_CHANNEL].values,
       )
 
@@ -548,6 +549,7 @@ class Meridian:
   ):
     """Raise an error if `n_knots == n_time` and data lacks geo variation."""
 
+    # Result shape: [n, d], where d is the number of axes of condition.
     col_idx_full = tf.where(tf.math.reduce_std(scaled_data, axis=0) < epsilon)[
         :, 1
     ]
@@ -569,6 +571,55 @@ class Meridian:
           " address this, you can either: (1) decrease the number of knots"
           " (n_knots < n_time), or (2) drop the listed variables that do not"
           " vary across geos."
+      )
+
+  def _validate_time_invariants(self):
+    """Validates model time invariants."""
+
+    self._check_if_no_time_variation(
+        self.controls_scaled,
+        constants.CONTROLS,
+        self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
+    )
+    if self.input_data.media is not None:
+      self._check_if_no_time_variation(
+          self.media_tensors.media_scaled,
+          constants.MEDIA,
+          self.input_data.media.coords[constants.MEDIA_CHANNEL].values,
+      )
+    if self.input_data.reach is not None:
+      self._check_if_no_time_variation(
+          self.rf_tensors.reach_scaled,
+          constants.REACH,
+          self.input_data.reach.coords[constants.RF_CHANNEL].values,
+      )
+
+  def _check_if_no_time_variation(
+      self,
+      scaled_data: tf.Tensor,
+      data_name: str,
+      data_dims: Sequence[str],
+      epsilon=1e-4,
+  ):
+    """Raise an error if data lacks time variation."""
+
+    # Result shape: [n, d], where d is the number of axes of condition.
+    col_idx_full = tf.where(tf.math.reduce_std(scaled_data, axis=1) < epsilon)[
+        :, 1
+    ]
+    col_idx_unique, _, counts = tf.unique_with_counts(col_idx_full)
+    mask = tf.equal(counts, self.n_geos)
+    col_idx_bad = tf.boolean_mask(col_idx_unique, mask)
+    dims_bad = tf.gather(data_dims, col_idx_bad)
+
+    if col_idx_bad.shape[0] and not self.is_national:
+      raise ValueError(
+          f"The following {data_name} variables do not vary across time, making"
+          f" a model with geo main effects unidentifiable: {dims_bad}. This can"
+          " lead to poor model convergence. Since these variables only vary"
+          " across geo and not across time, they are collinear with geo and"
+          " redundant in a model with geo main effects. To address this, drop"
+          " the listed variables that do not vary across time."
       )
 
   def adstock_hill_media(
