@@ -133,22 +133,20 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
 
-  # TODO(b/365142518): Deprecate this function in favor of
-  # get_mean_median_and_ci
-  def test_get_mean_and_ci(self):
+  def test_get_central_tendency_and_ci(self):
     data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
-    result = analyzer.get_mean_and_ci(
-        data, confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL
-    )
+    result = analyzer.get_central_tendency_and_ci(data, confidence_level=0.9)
     np.testing.assert_allclose(
         result,
-        np.array([[4.5, 1.3, 9.1], [4, 2, 6.7], [3.5, 1.3, 5.7]]),
+        np.array([[4.5, 1.3, 9.1], [4.0, 2.0, 6.7], [3.5, 1.3, 5.7]]),
         atol=0.1,
     )
 
-  def test_get_mean_median_and_ci(self):
+  def test_get_central_tendency_and_ci_returns_median(self):
     data = np.array([[[10.0, 7, 4], [3, 2, 1]], [[1, 2, 3], [4, 5, 6.0]]])
-    result = analyzer.get_mean_median_and_ci(data, confidence_level=0.9)
+    result = analyzer.get_central_tendency_and_ci(
+        data, confidence_level=0.9, include_median=True
+    )
     np.testing.assert_allclose(
         result,
         np.array(

@@ -887,7 +887,7 @@ def generate_model_fit_data(
     actual: Sequence[Sequence[int]] | None = None,
 ) -> xr.Dataset:
   """Helper method to generate simulated model fit analyzed data."""
-  metric = [c.MEAN, c.CI_LO, c.CI_HI]
+  metric = [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI]
   if geo:
     n_geos = len(geo)
   else:
@@ -902,8 +902,8 @@ def generate_model_fit_data(
     )
 
   np.random.seed(0)
-  expected = abs(np.random.lognormal(10, 1, size=(n_geos, n_time, 3)))
-  baseline = abs(np.random.lognormal(10, 1, size=(n_geos, n_time, 3)))
+  expected = abs(np.random.lognormal(10, 1, size=(n_geos, n_time, 4)))
+  baseline = abs(np.random.lognormal(10, 1, size=(n_geos, n_time, 4)))
   if not actual:
     actual = abs(np.random.lognormal(10, 1, size=(n_geos, n_time)))
 

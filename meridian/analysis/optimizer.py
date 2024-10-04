@@ -1337,14 +1337,20 @@ class BudgetOptimizer:
         use_kpi=use_kpi,
         batch_size=batch_size,
     )
-    # incremental_impact_with_mean_and_ci here is an ndarray with the shape
-    # (n_channels, n_metrics) where n_metrics = 3 for (mean, ci_lo, and ci_hi)
-    incremental_impact_with_mean_and_ci = analyzer.get_mean_and_ci(
-        data=incremental_impact,
-        confidence_level=confidence_level,
+    # incremental_impact_with_mean_median_and_ci here is an ndarray with the
+    # shape (n_channels, n_metrics) where n_metrics = 4 for (mean, median,
+    # ci_lo, and ci_hi)
+    incremental_impact_with_mean_median_and_ci = (
+        analyzer.get_central_tendency_and_ci(
+            data=incremental_impact,
+            confidence_level=confidence_level,
+            include_median=True,
+        )
     )
     # Total of `mean` column.
-    total_incremental_impact = np.sum(incremental_impact_with_mean_and_ci[:, 0])
+    total_incremental_impact = np.sum(
+        incremental_impact_with_mean_median_and_ci[:, 0]
+    )
 
     # expected_outcome here is a tensor with the shape (n_chains, n_draws)
     expected_outcome = self._analyzer.expected_outcome(
@@ -1359,9 +1365,10 @@ class BudgetOptimizer:
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
 
     pct_contrib = incremental_impact / mean_expected_outcome[..., None] * 100
-    pct_contrib_with_mean_and_ci = analyzer.get_mean_and_ci(
+    pct_contrib_with_mean_median_and_ci = analyzer.get_central_tendency_and_ci(
         data=pct_contrib,
         confidence_level=confidence_level,
+        include_median=True,
     )
 
     aggregated_impressions = self._analyzer.get_aggregated_impressions(
@@ -1372,9 +1379,12 @@ class BudgetOptimizer:
         optimal_frequency=optimal_frequency,
     )
     effectiveness = incremental_impact / aggregated_impressions
-    effectiveness_with_mean_and_ci = analyzer.get_mean_and_ci(
-        data=effectiveness,
-        confidence_level=confidence_level,
+    effectiveness_with_mean_median_and_ci = (
+        analyzer.get_central_tendency_and_ci(
+            data=effectiveness,
+            confidence_level=confidence_level,
+            include_median=True,
+        )
     )
 
     total_spend = np.sum(spend) if np.sum(spend) > 0 else 1
@@ -1383,15 +1393,15 @@ class BudgetOptimizer:
         c.PCT_OF_SPEND: ([c.CHANNEL], spend / total_spend),
         c.INCREMENTAL_IMPACT: (
             [c.CHANNEL, c.METRIC],
-            incremental_impact_with_mean_and_ci,
+            incremental_impact_with_mean_median_and_ci,
         ),
         c.PCT_OF_CONTRIBUTION: (
             [c.CHANNEL, c.METRIC],
-            pct_contrib_with_mean_and_ci,
+            pct_contrib_with_mean_median_and_ci,
         ),
         c.EFFECTIVENESS: (
             [c.CHANNEL, c.METRIC],
-            effectiveness_with_mean_and_ci,
+            effectiveness_with_mean_median_and_ci,
         ),
     }
     attributes = {
@@ -1403,9 +1413,10 @@ class BudgetOptimizer:
         c.CONFIDENCE_LEVEL: confidence_level,
     }
     if use_kpi:
-      cpik = analyzer.get_mean_and_ci(
+      cpik = analyzer.get_central_tendency_and_ci(
           data=tf.math.divide_no_nan(spend, incremental_impact),
           confidence_level=confidence_level,
+          include_median=True,
       )
       data_vars[c.CPIK] = ([c.CHANNEL, c.METRIC], cpik)
       total_inc_impact = np.sum(incremental_impact, -1)
@@ -1414,11 +1425,12 @@ class BudgetOptimizer:
           axis=(0, 1),
       )
     else:
-      roi = analyzer.get_mean_and_ci(
+      roi = analyzer.get_central_tendency_and_ci(
           data=tf.math.divide_no_nan(incremental_impact, spend),
           confidence_level=confidence_level,
+          include_median=True,
       )
-      marginal_roi = analyzer.get_mean_and_ci(
+      marginal_roi = analyzer.get_central_tendency_and_ci(
           data=self._analyzer.marginal_roi(
               use_posterior=use_posterior,
               new_media=new_media,
@@ -1431,6 +1443,7 @@ class BudgetOptimizer:
               by_reach=True,
           ),
           confidence_level=confidence_level,
+          include_median=True,
       )
       data_vars[c.ROI] = ([c.CHANNEL, c.METRIC], roi)
       data_vars[c.MROI] = ([c.CHANNEL, c.METRIC], marginal_roi)
@@ -1445,7 +1458,7 @@ class BudgetOptimizer:
             ),
             c.METRIC: (
                 [c.METRIC],
-                [c.MEAN, c.CI_LO, c.CI_HI],
+                [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI],
             ),
         },
         attrs=attributes | (attrs or {}),

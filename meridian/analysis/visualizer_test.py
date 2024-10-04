@@ -565,7 +565,8 @@ class ModelFitTest(absltest.TestCase):
     ][c.MEAN][0]
     self.assertEqual(plot_actual_value, 16)
     self.assertEqual(
-        list(plot.data.columns), [c.TIME, c.TYPE, c.CI_HI, c.CI_LO, c.MEAN]
+        list(plot.data.columns),
+        [c.TIME, c.TYPE, c.CI_HI, c.CI_LO, c.MEAN, c.MEDIAN],
     )
 
   def test_model_fit_national_level_aggregates_selected_geos(self):

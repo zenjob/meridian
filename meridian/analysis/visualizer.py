@@ -1413,9 +1413,7 @@ class MediaSummary:
         .to_dataframe()
         .rename({c.MEDIAN: 'central_tendency'})
     )
-    df = pd.concat(
-        [df_mean, df_median], axis=1
-    )
+    df = pd.concat([df_mean, df_median], axis=1)
 
     data_vars = self.media_summary_metrics.data_vars
     digits = {k: 1 if min(abs(df[k])) < 1 else 0 for k in list(data_vars)}
