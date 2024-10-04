@@ -35,6 +35,31 @@ __all__ = [
 ]
 
 
+def _transformed_new_or_scaled(
+    new_variable: tf.Tensor | None,
+    transformer: transformers.TensorTransformer | None,
+    scaled_variable: tf.Tensor | None,
+) -> tf.Tensor | None:
+  """Returns the transformed new variable or the scaled variable.
+
+  If the `new_variable` is present, returns
+  `transformer.forward(new_variable)`. Otherwise, returns the
+  `scaled_variable`.
+
+  Args:
+    new_variable: Optional tensor to be transformed..
+    transformer: Optional DataTransformer.
+    scaled_variable: Tensor to be returned if `new_variable` is None.
+
+  Returns:
+    The transformed new variable (if the new variable is present) or the
+    original scaled variable from the input data otherwise.
+  """
+  if new_variable is None or transformer is None:
+    return scaled_variable
+  return transformer.forward(new_variable)
+
+
 # TODO(b/365142518): Deprecate this function in favor of get_mean_median_and_ci
 def get_mean_and_ci(
     data: np.ndarray | tf.Tensor,
@@ -502,26 +527,19 @@ class Analyzer:
     """
     adstock_tensors = {}
 
-    if (
-        new_media is None
-        or self._meridian.media_tensors.media_transformer is None
-    ):
-      media_scaled = self._meridian.media_tensors.media_scaled
-    else:
-      media_scaled = self._meridian.media_tensors.media_transformer.forward(
-          new_media
-      )
-    adstock_tensors["media_scaled"] = media_scaled
+    adstock_tensors[constants.MEDIA_SCALED] = _transformed_new_or_scaled(
+        new_variable=new_media,
+        transformer=self._meridian.media_tensors.media_transformer,
+        scaled_variable=self._meridian.media_tensors.media_scaled,
+    )
 
-    if new_reach is None or self._meridian.rf_tensors.reach_transformer is None:
-      reach_scaled = self._meridian.rf_tensors.reach_scaled
-    else:
-      reach_scaled = self._meridian.rf_tensors.reach_transformer.forward(
-          new_reach
-      )
-    adstock_tensors["reach_scaled"] = reach_scaled
+    adstock_tensors[constants.REACH_SCALED] = _transformed_new_or_scaled(
+        new_variable=new_reach,
+        transformer=self._meridian.rf_tensors.reach_transformer,
+        scaled_variable=self._meridian.rf_tensors.reach_scaled,
+    )
 
-    adstock_tensors["frequency"] = (
+    adstock_tensors[constants.FREQUENCY] = (
         new_frequency
         if new_frequency is not None
         else self._meridian.rf_tensors.frequency

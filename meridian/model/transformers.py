@@ -14,18 +14,36 @@
 
 """Contains data transformers for various inputs of the Meridian model."""
 
+import abc
 import numpy as np
 import tensorflow as tf
 
 
 __all__ = [
+    "TensorTransformer",
     "MediaTransformer",
     "ControlsTransformer",
     "KpiTransformer",
 ]
 
 
-class MediaTransformer:
+class TensorTransformer(abc.ABC):
+  """Abstract class for data transformers."""
+
+  @abc.abstractmethod
+  @tf.function(jit_compile=True)
+  def forward(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Transforms a given tensor."""
+    raise NotImplementedError("`forward` must be implemented.")
+
+  @abc.abstractmethod
+  @tf.function(jit_compile=True)
+  def inverse(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Transforms back a given tensor."""
+    raise NotImplementedError("`inverse` must be implemented.")
+
+
+class MediaTransformer(TensorTransformer):
   """Contains forward and inverse media transformation methods.
 
   This class stores scale factors computed from per-geo medians of the `media`
@@ -69,17 +87,17 @@ class MediaTransformer:
     return self._population_scaled_median_m
 
   @tf.function(jit_compile=True)
-  def forward(self, media: tf.Tensor) -> tf.Tensor:
-    """Scales a given `media` tensor using the stored scale factors."""
-    return media / self._scale_factors_gm[:, tf.newaxis, :]
+  def forward(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales a given tensor using the stored scale factors."""
+    return tensor / self._scale_factors_gm[:, tf.newaxis, :]
 
   @tf.function(jit_compile=True)
-  def inverse(self, media: tf.Tensor) -> tf.Tensor:
-    """Scales a given `media` tensor using the inversed stored scale factors."""
-    return media * self._scale_factors_gm[:, tf.newaxis, :]
+  def inverse(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales a given tensor using the inversed stored scale factors."""
+    return tensor * self._scale_factors_gm[:, tf.newaxis, :]
 
 
-class ControlsTransformer:
+class ControlsTransformer(TensorTransformer):
   """Contains forward and inverse controls transformation methods.
 
   This class stores means and standard deviations of the controls data, used
@@ -120,16 +138,16 @@ class ControlsTransformer:
       self._stdevs = tf.math.reduce_std(controls, axis=(0, 1))
 
   @tf.function(jit_compile=True)
-  def forward(self, controls: tf.Tensor) -> tf.Tensor:
-    """Scales a given `controls` tensor using the stored coefficients."""
+  def forward(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales a given tensor using the stored coefficients."""
     if self._population_scaling_factors is not None:
-      controls /= self._population_scaling_factors[:, None, :]
-    return tf.math.divide_no_nan(controls - self._means, self._stdevs)
+      tensor /= self._population_scaling_factors[:, None, :]
+    return tf.math.divide_no_nan(tensor - self._means, self._stdevs)
 
   @tf.function(jit_compile=True)
-  def inverse(self, controls: tf.Tensor) -> tf.Tensor:
-    """Scales back a given `controls` tensor using the stored coefficients."""
-    scaled_controls = controls * self._stdevs + self._means
+  def inverse(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales back a given tensor using the stored coefficients."""
+    scaled_controls = tensor * self._stdevs + self._means
     return (
         scaled_controls * self._population_scaling_factors[:, None, :]
         if self._population_scaling_factors is not None
@@ -137,7 +155,7 @@ class ControlsTransformer:
     )
 
 
-class KpiTransformer:
+class KpiTransformer(TensorTransformer):
   """Contains forward and inverse KPI transformation methods.
 
   This class stores coefficients to scale KPI, first by geo and then
@@ -173,17 +191,17 @@ class KpiTransformer:
     return self._population_scaled_stdev
 
   @tf.function(jit_compile=True)
-  def forward(self, kpi: tf.Tensor) -> tf.Tensor:
-    """Scales a given `kpi` tensor using the stored coefficients."""
+  def forward(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales a given tensor using the stored coefficients."""
     return tf.math.divide_no_nan(
-        tf.math.divide_no_nan(kpi, self._population[:, tf.newaxis])
+        tf.math.divide_no_nan(tensor, self._population[:, tf.newaxis])
         - self._population_scaled_mean,
         self._population_scaled_stdev,
     )
 
   @tf.function(jit_compile=True)
-  def inverse(self, kpi: tf.Tensor) -> tf.Tensor:
-    """Scales back a given `kpi` tensor using the stored coefficients."""
+  def inverse(self, tensor: tf.Tensor) -> tf.Tensor:
+    """Scales back a given tensor using the stored coefficients."""
     return (
-        kpi * self._population_scaled_stdev + self._population_scaled_mean
+        tensor * self._population_scaled_stdev + self._population_scaled_mean
     ) * self._population[:, tf.newaxis]

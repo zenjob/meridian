@@ -89,6 +89,10 @@ POSSIBLE_INPUT_DATA_ARRAY_NAMES = (
     + RF_INPUT_DATA_ARRAY_NAMES
 )
 
+# Scaled input data variables.
+MEDIA_SCALED = 'media_scaled'
+REACH_SCALED = 'reach_scaled'
+
 # Input data coordinates.
 GEO = 'geo'
 TIME = 'time'
