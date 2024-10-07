@@ -31,6 +31,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Fix an error in the data loader that occurs when the geo column is an integer.
 * Add a _check_if_no_time_variation method to Meridian to raise an error if a
   variable has no time variation.
+* Make the performance breakdown section of the model summary report display
+  both ROI and CPIK charts for all scenarios.
 
 ## [0.7.0] - 2024-09-20
 

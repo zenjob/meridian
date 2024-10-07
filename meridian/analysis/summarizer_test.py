@@ -314,7 +314,7 @@ class SummarizerTest(parameterized.TestCase):
   @parameterized.parameters(
       summarizer.MODEL_FIT_CARD_SPEC,
       summarizer.CHANNEL_CONTRIB_CARD_SPEC,
-      summarizer.ROI_BREAKDOWN_CARD_SPEC,
+      summarizer.PERFORMANCE_BREAKDOWN_CARD_SPEC,
       summarizer.RESPONSE_CURVES_CARD_SPEC,
   )
   def test_output_card_static_chart_spec(self, card_spec):
@@ -364,7 +364,7 @@ class SummarizerTest(parameterized.TestCase):
           ],
       ),
       (
-          summary_text.ROI_BREAKDOWN_CARD_ID,
+          summary_text.PERFORMANCE_BREAKDOWN_CARD_ID,
           [
               (
                   summary_text.ROI_EFFECTIVENESS_CHART_ID,
@@ -375,6 +375,10 @@ class SummarizerTest(parameterized.TestCase):
                   summary_text.ROI_MARGINAL_CHART_DESCRIPTION,
               ),
               (summary_text.ROI_CHANNEL_CHART_ID,),
+              (
+                  summary_text.CPIK_CHANNEL_CHART_ID,
+                  summary_text.CPIK_CHANNEL_CHART_DESCRIPTION,
+              ),
           ],
       ),
       (
@@ -419,16 +423,6 @@ class SummarizerTest(parameterized.TestCase):
         charts.append((chart_id, chart_description_text))
 
     self.assertEqual(set(expected_chart_tuples), set(charts))
-
-  def test_cpik_section_no_revenue_per_kpi(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_kpi,
-    )
-    cards_node = test_utils.get_child_element(summary_html_dom, 'body/cards')
-    self.assertLen(cards_node, 4)
-    self.assertEqual(
-        cards_node[2].attrib['id'], summary_text.CPIK_BREAKDOWN_CARD_ID
-    )
 
   def test_model_fit_card_custom_date_range(self):
     model_fit = self.model_fit
@@ -827,7 +821,7 @@ class SummarizerTest(parameterized.TestCase):
 
     self.assertIn('Rf_Ch_1 and Ch_0 drove the most', insights_text)
 
-  def test_roi_breakdown_card_plotters_called(self):
+  def test_performance_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
 
     mock_spec_1 = 'roi_effectiveness'
@@ -840,6 +834,8 @@ class SummarizerTest(parameterized.TestCase):
     media_summary.plot_roi_bar_chart().to_json.return_value = (
         f'["{mock_spec_3}"]'
     )
+    mock_spec_4 = 'cpik_bar'
+    media_summary.plot_cpik().to_json.return_value = f'["{mock_spec_4}"]'
 
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
@@ -848,13 +844,14 @@ class SummarizerTest(parameterized.TestCase):
         media_summary.plot_roi_vs_effectiveness(),
         media_summary.plot_roi_vs_mroi(),
         media_summary.plot_roi_bar_chart(),
+        media_summary.plot_cpik(),
     ]:
       mock_plot.to_json.assert_called_once()
 
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.ROI_BREAKDOWN_CARD_ID},
+        attribs={'id': summary_text.PERFORMANCE_BREAKDOWN_CARD_ID},
     )
     script_texts = [script.text for script in card.findall('charts/script')]
 
@@ -867,12 +864,21 @@ class SummarizerTest(parameterized.TestCase):
     mock_spec_3_exists = any(
         [mock_spec_3 in script_text for script_text in script_texts]
     )
+    mock_spec_4_exists = any(
+        [mock_spec_4 in script_text for script_text in script_texts]
+    )
     self.assertTrue(
-        all([mock_spec_1_exists, mock_spec_2_exists, mock_spec_3_exists])
+        all([
+            mock_spec_1_exists,
+            mock_spec_2_exists,
+            mock_spec_3_exists,
+            mock_spec_4_exists,
+        ])
     )
 
-  def test_roi_breakdown_card_insights(self):
+  def test_performance_breakdown_card_insights(self):
     high_roi = high_mroi = 999999
+    low_cpik = 0.01
     self.media_metrics[c.ROI].loc[{
         c.CHANNEL: 'ch_0',
         c.DISTRIBUTION: c.POSTERIOR,
@@ -883,6 +889,11 @@ class SummarizerTest(parameterized.TestCase):
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
     }] = high_mroi
+    self.media_metrics[c.CPIK].loc[{
+        c.CHANNEL: 'ch_1',
+        c.DISTRIBUTION: c.POSTERIOR,
+        c.METRIC: c.MEDIAN,
+    }] = low_cpik
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
     )
@@ -890,7 +901,7 @@ class SummarizerTest(parameterized.TestCase):
     card = test_utils.get_child_element(
         summary_html_dom,
         'body/cards/card',
-        attribs={'id': summary_text.ROI_BREAKDOWN_CARD_ID},
+        attribs={'id': summary_text.PERFORMANCE_BREAKDOWN_CARD_ID},
     )
     insights_text = test_utils.get_child_element(
         card, 'card-insights/p', {'class': 'insights-text'}
@@ -906,75 +917,13 @@ class SummarizerTest(parameterized.TestCase):
         f'Ch_0 had the highest marginal\nROI at {high_mroi:.2f}',
         insights_text,
     )
-
-  def test_cpik_breakdown_card_plotters_called(self):
-    media_summary = self.media_summary
-    media_summary.cpik().to_json.return_value = '["cpik"]'
-
-    summary_html_dom = self._get_output_model_results_summary_html_dom(
-        self.summarizer_kpi,
-    )
-    media_summary.plot_cpik().to_json.assert_called_once()
-
-    card = test_utils.get_child_element(
-        summary_html_dom,
-        'body/cards/card',
-        attribs={'id': summary_text.CPIK_BREAKDOWN_CARD_ID},
-    )
-    script_texts = [script.text for script in card.findall('charts/script')]
-
-    self.assertTrue(
-        any(['cpik' in script_text for script_text in script_texts])
-    )
-
-  def test_cpik_breakdown_card_insights(self):
-    low_cpik = 0.01
-    self.media_metrics[c.CPIK].loc[{
-        c.CHANNEL: 'ch_0',
-        c.DISTRIBUTION: c.POSTERIOR,
-        c.METRIC: c.MEDIAN,
-    }] = low_cpik
-    summary_html_dom = self._get_output_model_results_summary_html_dom(
-        self.summarizer_kpi,
-    )
-
-    card = test_utils.get_child_element(
-        summary_html_dom,
-        'body/cards/card',
-        attribs={'id': summary_text.CPIK_BREAKDOWN_CARD_ID},
-    )
-    insights_text = test_utils.get_child_element(
-        card, 'card-insights/p', {'class': 'insights-text'}
-    ).text
-    self.assertIsNotNone(insights_text)
-    insights_text = insights_text.strip()
-
     self.assertIn(
-        f'Ch_0 drove the lowest CPIK at ${low_cpik:.2f}',
+        f'Ch_1 drove the lowest CPIK\nat ${low_cpik:.2f}',
         insights_text,
     )
     self.assertIn(
-        f'For every\nKPI unit, you spent ${low_cpik:.2f}',
+        f'For every KPI unit, you spent ${low_cpik:.2f}',
         insights_text,
-    )
-
-  def test_cpik_channel_chart_text(self):
-    summary_html_dom = self._get_output_model_results_summary_html_dom(
-        self.summarizer_kpi,
-    )
-    card = test_utils.get_child_element(
-        summary_html_dom,
-        'body/cards/card',
-        attribs={'id': summary_text.CPIK_BREAKDOWN_CARD_ID},
-    )
-
-    cpik_chart_description = test_utils.get_child_element(
-        card, 'charts/chart/chart-description'
-    ).text
-    self.assertIsNotNone(cpik_chart_description)
-    self.assertEqual(
-        cpik_chart_description.strip(),
-        summary_text.CPIK_CHANNEL_CHART_DESCRIPTION,
     )
 
   def test_response_curves_card_plotters_called(self):
