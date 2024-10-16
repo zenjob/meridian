@@ -135,8 +135,8 @@ class TimeCoordinates:
     """Creates a `TimeCoordinates` from a polymorphic series of dates.
 
     Args:
-      dates: a polymorphic series of dates; it can either be a pandas
-        `DatetimeIndex` or an xarray `DataArray` with "YYYY-mm-dd" string
+      dates: A polymorphic series of dates; it can either be a Pandas
+        `DatetimeIndex` or an Xarray `DataArray` with "YYYY-mm-dd" string
         labels.
 
     Returns:
@@ -193,7 +193,7 @@ class TimeCoordinates:
 
     Args:
       selected_interval: Tuple of the start and end times, or a `DateInterval`
-        proto. If None, `all_dates` is returned.
+        proto. If `None`, then `all_dates` is returned.
 
     Returns:
       A sequence of dates representing the subset of `all_dates` between the
@@ -220,22 +220,22 @@ class TimeCoordinates:
   ) -> list[datetime.date] | None:
     """Validates and returns time dimension values based on the selected times.
 
-    If both `start_date` and `end_date` are None, returns None.
+    If both `start_date` and `end_date` are `None`, returns `None`.
 
     Args:
-      start_date: Start date of the selected time period. If None, implies the
+      start_date: Start date of the selected time period. If `None`, implies the
         earliest time dimension value in the input data.
-      end_date: End date of the selected time period. If None, implies the
+      end_date: End date of the selected time period. If `None`, implies the
         latest time dimension value in the input data.
 
     Returns:
       A list of time dimension values (as `datetime.date` objects) in the input
-      data within the selected time period, or do nothing and pass through None
-      if both arguments are Nones, or if `start_date` and `end_date` correspond
-      to the entire time range in the input data.
+      data within the selected time period, or do nothing and pass through
+      `None` if both arguments are `None`, or if `start_date` and `end_date`
+      correspond to the entire time range in the input data.
 
     Raises:
-      ValueError if `start_date` or `end_date` is not in the input data's time
+      `ValueError` if `start_date` or `end_date` is not in the input data's time
       dimension coordinates.
     """
     if start_date is None and end_date is None:

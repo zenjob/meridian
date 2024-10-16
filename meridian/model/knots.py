@@ -68,11 +68,12 @@ def l1_distance_weights(
 ) -> np.ndarray:
   """Computes weights at knots for every time period.
 
-  The two neighboring knots inform the estimate of a particular time period. The
-  amount they inform the time period depends on how close (L1 distance) they
-  are. If a time point coincides with a knot location, then 100% weight is
-  given to that knot. If a time point lies outside the range of knots, then 100%
-  weight is given to the nearest endpoint knot.
+  The two neighboring knots inform the weight estimate of a particular time
+  period. The amount each of the two neighboring knots inform the weight at a
+  time period depends on how close (L1 distance) they are to the time period. If
+  a time point coincides with a knot location, then 100% weight is given to that
+  knot. If a time point lies outside the range of knots, then 100% weight is
+  given to the nearest endpoint knot.
 
   This function computes an `(n_knots, n_times)` array of weights that are used
   to model trend and seasonality. For a given time, the array contains two
