@@ -98,11 +98,12 @@ class InputData:
       time periods must align with the time window of `kpi` and `controls`. Due
       to lagged effects, we recommend that the time window for media includes up
       to `max_lag` additional periods prior to this window. If `n_media_times` <
-      `n_times` + `max_lag`, the model effectively imputes media history. If
-      `n_media_times` > `n_times` + `max_lag`, then only the final `n_times` +
-      `max_lag` periods are used to fit the model. `media` and `media_spend`
-      must contain the same number of media channels in the same order. If
-      either of these arguments is passed, then the other is not optional.
+      `n_times` + `max_lag`, the model effectively imputes media history as zero
+      (no media execution). If `n_media_times` > `n_times` + `max_lag`, then
+      only the final `n_times` + `max_lag` periods are used to fit the model.
+      `media` and `media_spend` must contain the same number of media channels
+      in the same order. If either of these arguments is passed, then the other
+      is not optional.
     media_spend: An optional `DataArray` containing the cost of each media
       channel. This is used as the denominator for ROI calculations. The
       DataArray shape can be `(n_geos, n_times, n_media_channels)` or
