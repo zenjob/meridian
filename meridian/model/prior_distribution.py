@@ -25,6 +25,7 @@ from typing import Any
 import warnings
 from meridian import constants
 import numpy as np
+import tensorflow as tf
 import tensorflow_probability as tfp
 
 
@@ -140,14 +141,20 @@ class PriorDistribution:
       deterministic function of `roi_m`, `alpha_m`, `ec_m`, `slope_m`, and the
       spend associated with each media channel (for example, the model is
       reparameterized with `roi_m` in place of `beta_m`). Default distribution
-      is `LogNormal(0.2, 0.9)`.
+      is `LogNormal(0.2, 0.9)`. When `use_roi_prior` is `True`, `kpi_type` =
+      `non_revenue` and `revenue_per_kpi` is not provided the default value for
+      `roi_m` will be ignored and the model will assume a total media
+      contribution prior.
     roi_rf: Prior distribution on the hierarchical ROI in RF input. Meridian
       ignores this distribution if `use_roi_prior` is `False` and uses `beta_rf`
       instead. When `use_roi_prior` is `True`, then `beta_rf` is calculated as a
       deterministic function of `roi_rf`, `alpha_rf`, `ec_rf`, `slope_rf`, and
       the spend associated with each media channel (for example, the model is
       reparameterized with `roi_rf` in place of `beta_rf`). Default distribution
-      is `LogNormal(0.2, 0.9)`.
+      is `LogNormal(0.2, 0.9)`. When `use_roi_prior` is `True`, `kpi_type` =
+      `non_revenue` and `revenue_per_kpi` is not provided the default value for
+      `roi_rf` will be ignored and the model will assume a total media
+      contribution prior.
   """
 
   knot_values: tfp.distributions.Distribution = dataclasses.field(
@@ -227,16 +234,8 @@ class PriorDistribution:
           5.0, name=constants.SIGMA
       ),
   )
-  roi_m: tfp.distributions.Distribution = dataclasses.field(
-      default_factory=lambda: tfp.distributions.LogNormal(
-          0.2, 0.9, name=constants.ROI_M
-      ),
-  )
-  roi_rf: tfp.distributions.Distribution = dataclasses.field(
-      default_factory=lambda: tfp.distributions.LogNormal(
-          0.2, 0.9, name=constants.ROI_RF
-      ),
-  )
+  roi_m: tfp.distributions.Distribution = constants.DEFAULT_ROI_M_DISTRIBUTION
+  roi_rf: tfp.distributions.Distribution = constants.DEFAULT_ROI_RF_DISTRIBUTION
 
   def __setstate__(self, state):
     # Override to support pickling.
@@ -292,6 +291,9 @@ class PriorDistribution:
       sigma_shape: int,
       n_knots: int,
       is_national: bool,
+      set_roi_prior: bool,
+      kpi: float,
+      total_spend: np.ndarray,
   ) -> PriorDistribution:
     """Returns a new `PriorDistribution` with broadcast distribution attributes.
 
@@ -306,6 +308,11 @@ class PriorDistribution:
       n_knots: Number of knots used.
       is_national: A boolean indicator whether the prior distribution will be
         adapted for a national model.
+      set_roi_prior: A boolean indicator whether the ROI prior should be set.
+      kpi: Sum of the entire KPI across geos and time. Required if
+        `set_roi_prior=True`.
+      total_spend: Spend per media channel summed across geos and time. Required
+        if `set_roi_prior=True`.
 
     Returns:
       A new `PriorDistribution` broadcast from this prior distribution,
@@ -447,11 +454,45 @@ class PriorDistribution:
     sigma = tfp.distributions.BatchBroadcast(
         self.sigma, sigma_shape, name=constants.SIGMA
     )
+
+    if set_roi_prior and _distributions_are_equal(
+        self.roi_m, constants.DEFAULT_ROI_M_DISTRIBUTION
+    ):
+      warnings.warn(
+          'Consider setting custom ROI priors, as kpi_type was specified as'
+          ' `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the'
+          ' total media contribution prior will be used with'
+          f' `p_mean={constants.P_MEAN}` and `p_sd={constants.P_SD}` . Further'
+          ' documentation available at '
+          ' https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi#set-total-media-contribution-prior'
+      )
+      roi_m_converted = _get_total_media_contribution_prior(
+          kpi, total_spend, constants.ROI_M
+      )
+    else:
+      roi_m_converted = self.roi_m
     roi_m = tfp.distributions.BatchBroadcast(
-        self.roi_m, n_media_channels, name=constants.ROI_M
+        roi_m_converted, n_media_channels, name=constants.ROI_M
     )
+
+    if set_roi_prior and _distributions_are_equal(
+        self.roi_rf, constants.DEFAULT_ROI_RF_DISTRIBUTION
+    ):
+      warnings.warn(
+          'Consider setting custom ROI priors, as kpi_type was specified as'
+          ' `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the'
+          ' total media contribution prior will be used with'
+          f' `p_mean={constants.P_MEAN}` and `p_sd={constants.P_SD}` . Further'
+          ' documentation available at '
+          ' https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi#set-total-media-contribution-prior'
+      )
+      roi_rf_converted = _get_total_media_contribution_prior(
+          kpi, total_spend, constants.ROI_RF
+      )
+    else:
+      roi_rf_converted = self.roi_rf
     roi_rf = tfp.distributions.BatchBroadcast(
-        self.roi_rf, n_rf_channels, name=constants.ROI_RF
+        roi_rf_converted, n_rf_channels, name=constants.ROI_RF
     )
 
     return PriorDistribution(
@@ -503,3 +544,59 @@ def _convert_to_deterministic_0_distribution(
     return tfp.distributions.Deterministic(loc=0, name=distribution.name)
   else:
     return distribution
+
+
+def _get_total_media_contribution_prior(
+    kpi: float,
+    total_spend: np.ndarray,
+    name: str,
+    p_mean: float = constants.P_MEAN,
+    p_sd: float = constants.P_SD,
+) -> tfp.distributions.Distribution:
+  """Determines ROI priors based on total media contribution.
+
+  Args:
+    kpi: Sum of the entire KPI across geos and time.
+    total_spend: Spend per media channel summed across geos and time.
+    name: Name of the distribution.
+    p_mean: Prior mean proportion of KPI incremental due to all media. Default
+      value is `0.4`.
+    p_sd: Prior standard deviation proportion of KPI incremental to all media.
+      Default value is `0.2`.
+
+  Returns:
+    A new `Distribution` based on total media contribution.
+  """
+  roi_mean = p_mean * kpi / np.sum(total_spend)
+  roi_sd = p_sd * kpi / np.sqrt(np.sum(np.power(total_spend, 2)))
+  lognormal_sigma = tf.cast(
+      np.sqrt(np.log(roi_sd**2 / roi_mean**2 + 1)), dtype=tf.float32
+  )
+  lognormal_mu = tf.cast(
+      np.log(roi_mean * np.exp(-(lognormal_sigma**2) / 2)), dtype=tf.float32
+  )
+  return tfp.distributions.LogNormal(lognormal_mu, lognormal_sigma, name=name)
+
+
+def _distributions_are_equal(
+    a: tfp.distributions.Distribution, b: tfp.distributions.Distribution
+) -> bool:
+  """Determine if two distributions are equal."""
+  if type(a) != type(b):  # pylint: disable=unidiomatic-typecheck
+    return False
+
+  a_params = a.parameters.copy()
+  b_params = b.parameters.copy()
+
+  if constants.DISTRIBUTION in a_params and constants.DISTRIBUTION in b_params:
+    if not _distributions_are_equal(
+        a_params[constants.DISTRIBUTION], b_params[constants.DISTRIBUTION]
+    ):
+      return False
+    del a_params[constants.DISTRIBUTION]
+    del b_params[constants.DISTRIBUTION]
+
+  if constants.DISTRIBUTION in a_params or constants.DISTRIBUTION in b_params:
+    return False
+
+  return a_params == b_params

@@ -282,10 +282,12 @@ class InputData:
     else:
       if self.revenue_per_kpi is None:
         warnings.warn(
-            "Set custom ROI priors, as kpi_type was specified as `non_revenue`"
-            " with no `revenue_per_kpi` being set; further documentation"
-            " available at"
-            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi",
+            "Consider setting custom priors, as kpi_type was specified as"
+            " `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the"
+            " total media contribution prior will be used with"
+            f" `p_mean={constants.P_MEAN}` and `p_sd={constants.P_SD}` ."
+            " Further documentation available at"
+            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi#set-total-media-contribution-prior",
             UserWarning,
         )
 

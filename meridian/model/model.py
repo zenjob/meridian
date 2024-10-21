@@ -169,7 +169,6 @@ class Meridian:
           unique_sigma_for_each_geo=self.model_spec.unique_sigma_for_each_geo,
       )
 
-    self._validate_custom_priors()
     self._validate_geo_invariants()
     self._validate_time_invariants()
 
@@ -347,9 +346,24 @@ class Meridian:
 
   @functools.cached_property
   def prior_broadcast(self) -> prior_distribution.PriorDistribution:
+    """Returns broadcasted `PriorDistribution` object."""
     sigma_shape = (
         len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
     )
+    set_roi_prior = (
+        self.input_data.revenue_per_kpi is None
+        and self.input_data.kpi_type == constants.NON_REVENUE
+        and self.model_spec.use_roi_prior
+    )
+    total_spend = self.input_data.get_total_spend()
+    # Total spend can have 1, 2 or 3 dimensions. Aggregate by channel.
+    if len(total_spend.shape) == 1:
+      # Already aggregated by channel.
+      agg_total_spend = total_spend
+    elif len(total_spend.shape) == 2:
+      agg_total_spend = np.sum(total_spend, axis=(0,))
+    else:
+      agg_total_spend = np.sum(total_spend, axis=(0, 1))
 
     return self.model_spec.prior.broadcast(
         n_geos=self.n_geos,
@@ -359,6 +373,9 @@ class Meridian:
         sigma_shape=sigma_shape,
         n_knots=self.knot_info.n_knots,
         is_national=self.is_national,
+        set_roi_prior=set_roi_prior,
+        kpi=np.sum(self.input_data.kpi.values),
+        total_spend=agg_total_spend,
     )
 
   def expand_selected_time_dims(
@@ -455,66 +472,6 @@ class Meridian:
           "The shape of `control_population_scaling_id`"
           f" {self.model_spec.control_population_scaling_id.shape} is different"
           f" from `(n_controls,) = ({self.n_controls},)`."
-      )
-
-  def _validate_custom_priors(self):
-    """Validates custom priors invariants."""
-    # Check that custom priors were not set, by confirming that model_spec's
-    # `roi_m` and `roi_rf` properties equal the default `roi_m` and `roi_rf`
-    # properties. If the properties are equal then custom priors were not set.
-    default_model_spec = spec.ModelSpec()
-    default_roi_m = default_model_spec.prior.roi_m
-    default_roi_rf = default_model_spec.prior.roi_rf
-
-    def _check_tfd_params_equal(dict1, dict2):
-      """Compares two dicts for equality, assuming they have identical keys.
-
-      Assumes '==' works for all values except numpy arrays, which are compared
-      using numpy.array_equal.
-
-      Args:
-        dict1: The first dict to compare.
-        dict2: The second dict to compare.
-
-      Returns:
-        True if the dicts are equal, False otherwise.
-      """
-      for key, value1 in dict1.items():
-        value2 = dict2[key]
-        if isinstance(value1, np.ndarray) or isinstance(value2, np.ndarray):
-          if not np.array_equal(value1, value2):
-            return False
-        elif value1 != value2:
-          return False
-      return True
-
-    # Check `roi_m` properties match default `roi_m` properties (that the
-    # distributions (e.g. Normal, LogNormal) and parameters (loc and scale) are
-    # equal).
-    roi_m_properties_equal = isinstance(
-        self.model_spec.prior.roi_m, type(default_roi_m)
-    ) and _check_tfd_params_equal(
-        self.model_spec.prior.roi_m.parameters, default_roi_m.parameters
-    )
-    # Check `roi_rf` properties match default `roi_rf` properties.
-    roi_rf_properties_equal = isinstance(
-        self.model_spec.prior.roi_rf, type(default_roi_rf)
-    ) and _check_tfd_params_equal(
-        self.model_spec.prior.roi_rf.parameters, default_roi_rf.parameters
-    )
-
-    if (
-        self.input_data.revenue_per_kpi is None
-        and self.input_data.kpi_type == constants.NON_REVENUE
-        and self.model_spec.use_roi_prior
-        and roi_m_properties_equal
-        and roi_rf_properties_equal
-    ):
-      raise ValueError(
-          "Custom priors should be set during model creation since"
-          " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
-          " Further documentation is available at"
-          " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
       )
 
   def _validate_geo_invariants(self):

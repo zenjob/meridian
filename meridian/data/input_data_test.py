@@ -262,10 +262,11 @@ class InputDataTest(parameterized.TestCase):
     with self.assertWarnsRegex(
         UserWarning,
         expected_regex=(
-            "Set custom ROI priors, as kpi_type was specified as `non_revenue`"
-            " with no `revenue_per_kpi` being set; further documentation"
-            " available at"
-            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi"
+            "Consider setting custom priors, as kpi_type was specified as"
+            " `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the"
+            " total media contribution prior will be used with `p_mean=0.4` and"
+            " `p_sd=0.2` . Further documentation available at"
+            " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi#set-total-media-contribution-prior"
         ),
     ):
       input_data.InputData(

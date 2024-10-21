@@ -24,6 +24,7 @@ from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
 from meridian import constants
+from meridian.data import input_data
 from meridian.data import test_utils
 from meridian.model import adstock_hill
 from meridian.model import knots as knots_module
@@ -319,7 +320,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     model_spec = spec.ModelSpec(
         roi_calibration_period=np.ones((2, 3), dtype=bool)
     )
-    input_data = (
+    data = (
         self.national_input_data_media_and_rf
         if input_data_type == "national"
         else self.input_data_with_media_and_rf
@@ -328,7 +329,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         error_msg,
     ):
-      model.Meridian(input_data=input_data, model_spec=model_spec)
+      model.Meridian(input_data=data, model_spec=model_spec)
 
   @parameterized.named_parameters(
       dict(
@@ -351,13 +352,13 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     model_spec = spec.ModelSpec(
         rf_roi_calibration_period=np.ones((4, 5), dtype=bool)
     )
-    input_data = (
+    data = (
         self.national_input_data_media_and_rf
         if input_data_type == "national"
         else self.input_data_with_media_and_rf
     )
     with self.assertRaisesWithLiteralMatch(ValueError, error_msg):
-      model.Meridian(input_data=input_data, model_spec=model_spec)
+      model.Meridian(input_data=data, model_spec=model_spec)
 
   @parameterized.named_parameters(
       dict(
@@ -381,7 +382,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       self, input_data_type: str, error_msg: str
   ):
     model_spec = spec.ModelSpec(holdout_id=np.ones((2, 8), dtype=bool))
-    input_data = (
+    data = (
         self.national_input_data_media_and_rf
         if input_data_type == "national"
         else self.input_data_with_media_and_rf
@@ -390,9 +391,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         error_msg,
     ):
-      _ = model.Meridian(
-          input_data=input_data, model_spec=model_spec
-      ).holdout_id
+      _ = model.Meridian(input_data=data, model_spec=model_spec).holdout_id
 
   def test_init_with_wrong_control_population_scaling_id_shape_fails(self):
     model_spec = spec.ModelSpec(
@@ -474,30 +473,17 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         autospec=True,
         return_value=knots_module.KnotInfo(3, np.array([2, 5, 8]), np.eye(3)),
     ) as mock_get_knot_info:
-      input_data = (
+      data = (
           self.national_input_data_media_only
           if is_national
           else self.input_data_with_media_only
       )
       _ = model.Meridian(
-          input_data=input_data,
+          input_data=data,
           model_spec=spec.ModelSpec(knots=knots),
       ).knot_info
       mock_get_knot_info.assert_called_once_with(
           self._N_TIMES, knots, is_national
-      )
-
-  def test_custom_priors_not_passed_in(self):
-    with self.assertRaisesWithLiteralMatch(
-        ValueError,
-        "Custom priors should be set during model creation since"
-        " `kpi_type` = `non_revenue` and `revenue_per_kpi` was not passed in."
-        " Further documentation is available at"
-        " https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi",
-    ):
-      model.Meridian(
-          input_data=self.input_data_non_revenue_no_revenue_per_kpi,
-          model_spec=spec.ModelSpec(),
       )
 
   def test_custom_priors_not_passed_in_ok_without_use_roi_prior(self):
@@ -518,7 +504,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_custom_priors_okay_with_array_params(self):
     my_prior = prior_distribution.PriorDistribution(
-        roi_m=tfp.distributions.LogNormal(np.array([1, 1]), np.array([1, 1]))
+        roi_m=tfp.distributions.LogNormal([1, 1], [1, 1])
     )
     meridian = model.Meridian(
         input_data=self.input_data_non_revenue_no_revenue_per_kpi,
@@ -655,105 +641,99 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="media_only",
-          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+          data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
               n_media_channels=_N_MEDIA_CHANNELS
           ),
       ),
       dict(
           testcase_name="rf_only",
-          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+          data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
               n_rf_channels=_N_RF_CHANNELS
           ),
       ),
       dict(
           testcase_name="rf_and_media",
-          input_data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+          data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
               n_media_channels=_N_MEDIA_CHANNELS, n_rf_channels=_N_RF_CHANNELS
           ),
       ),
   )
-  def test_input_data_tensor_properties(self, input_data):
-    meridian = model.Meridian(input_data=input_data)
+  def test_input_data_tensor_properties(self, data):
+    meridian = model.Meridian(input_data=data)
     self.assertAllEqual(
-        tf.convert_to_tensor(input_data.kpi, dtype=tf.float32),
+        tf.convert_to_tensor(data.kpi, dtype=tf.float32),
         meridian.kpi,
     )
     self.assertAllEqual(
-        tf.convert_to_tensor(input_data.revenue_per_kpi, dtype=tf.float32),
+        tf.convert_to_tensor(data.revenue_per_kpi, dtype=tf.float32),
         meridian.revenue_per_kpi,
     )
     self.assertAllEqual(
-        tf.convert_to_tensor(input_data.controls, dtype=tf.float32),
+        tf.convert_to_tensor(data.controls, dtype=tf.float32),
         meridian.controls,
     )
     self.assertAllEqual(
-        tf.convert_to_tensor(input_data.population, dtype=tf.float32),
+        tf.convert_to_tensor(data.population, dtype=tf.float32),
         meridian.population,
     )
-    if input_data.media is not None:
+    if data.media is not None:
       self.assertAllEqual(
-          tf.convert_to_tensor(input_data.media, dtype=tf.float32),
+          tf.convert_to_tensor(data.media, dtype=tf.float32),
           meridian.media_tensors.media,
       )
       self.assertAllEqual(
           meridian.all_channel_names,
-          list(input_data.media_channel.data)
-          + (
-              list(input_data.rf_channel.data)
-              if input_data.rf_channel is not None
-              else []
-          ),
+          list(data.media_channel.data)
+          + (list(data.rf_channel.data) if data.rf_channel is not None else []),
       )
-    if input_data.media_spend is not None:
+    if data.media_spend is not None:
       self.assertAllEqual(
-          tf.convert_to_tensor(input_data.media_spend, dtype=tf.float32),
+          tf.convert_to_tensor(data.media_spend, dtype=tf.float32),
           meridian.media_tensors.media_spend,
       )
-    if input_data.reach is not None:
+    if data.reach is not None:
       self.assertAllEqual(
-          tf.convert_to_tensor(input_data.reach, dtype=tf.float32),
+          tf.convert_to_tensor(data.reach, dtype=tf.float32),
           meridian.rf_tensors.reach,
       )
       self.assertAllEqual(
           meridian.all_channel_names,
           (
-              list(input_data.media_channel.data)
-              if input_data.media_channel is not None
+              list(data.media_channel.data)
+              if data.media_channel is not None
               else []
           )
-          + list(input_data.rf_channel.data),
+          + list(data.rf_channel.data),
       )
-    if input_data.frequency is not None:
+    if data.frequency is not None:
       self.assertAllEqual(
-          tf.convert_to_tensor(input_data.frequency, dtype=tf.float32),
+          tf.convert_to_tensor(data.frequency, dtype=tf.float32),
           meridian.rf_tensors.frequency,
       )
-    if input_data.rf_spend is not None:
+    if data.rf_spend is not None:
       self.assertAllEqual(
-          tf.convert_to_tensor(input_data.rf_spend, dtype=tf.float32),
+          tf.convert_to_tensor(data.rf_spend, dtype=tf.float32),
           meridian.rf_tensors.rf_spend,
       )
-    if input_data.media_spend is not None and input_data.rf_spend is not None:
+    if data.media_spend is not None and data.rf_spend is not None:
       self.assertAllClose(
           tf.concat(
               [
-                  tf.convert_to_tensor(
-                      input_data.media_spend, dtype=tf.float32
-                  ),
-                  tf.convert_to_tensor(input_data.rf_spend, dtype=tf.float32),
+                  tf.convert_to_tensor(data.media_spend, dtype=tf.float32),
+                  tf.convert_to_tensor(data.rf_spend, dtype=tf.float32),
               ],
               axis=-1,
           ),
           meridian.total_spend,
       )
-    elif input_data.media_spend is not None:
+    elif data.media_spend is not None:
       self.assertAllClose(
-          tf.convert_to_tensor(input_data.media_spend, dtype=tf.float32),
+          tf.convert_to_tensor(data.media_spend, dtype=tf.float32),
           meridian.total_spend,
       )
     else:
       self.assertAllClose(
-          tf.convert_to_tensor(input_data.rf_spend, dtype=tf.float32),
+          tf.convert_to_tensor(data.rf_spend, dtype=tf.float32),
           meridian.total_spend,
       )
 
@@ -963,6 +943,54 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     # Validate sigma.
     self.assertEqual(meridian.prior_broadcast.sigma.batch_shape, (1,))
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="1d",
+          get_total_spend=np.array([1.0, 2.0, 3.0, 4.0]),
+          expected_total_spend=np.array([1.0, 2.0, 3.0, 4.0]),
+      ),
+      dict(
+          testcase_name="2d",
+          get_total_spend=np.array([[1.0, 2.0], [4.0, 5.0]]),
+          expected_total_spend=np.array([5.0, 7.0]),
+      ),
+      dict(
+          testcase_name="3d",
+          get_total_spend=np.array([
+              [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+              [[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]],
+          ]),
+          expected_total_spend=np.array([55.0, 77.0, 99.0]),
+      ),
+  )
+  def test_broadcast_is_called_non_revenue_no_revenue_per_kpi_total_spend(
+      self, get_total_spend: np.ndarray, expected_total_spend: np.ndarray
+  ):
+    mock_get_total_spend = self.enter_context(
+        mock.patch.object(
+            input_data.InputData,
+            "get_total_spend",
+            autospec=True,
+        )
+    )
+    mock_get_total_spend.return_value = get_total_spend
+    mock_broadcast = self.enter_context(
+        mock.patch.object(
+            prior_distribution.PriorDistribution,
+            "broadcast",
+            autospec=True,
+        )
+    )
+    meridian = model.Meridian(
+        input_data=self.input_data_non_revenue_no_revenue_per_kpi
+    )
+    _ = meridian.prior_broadcast
+
+    _, mock_kwargs = mock_broadcast.call_args
+    self.assertEqual(mock_kwargs["set_roi_prior"], True)
+    self.assertEqual(mock_kwargs["kpi"], np.sum(meridian.input_data.kpi))
+    np.testing.assert_allclose(mock_kwargs["total_spend"], expected_total_spend)
 
   def test_scaled_data_shape(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)

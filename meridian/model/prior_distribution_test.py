@@ -20,6 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from meridian import constants as c
 from meridian.model import prior_distribution
+import numpy as np
 import tensorflow_probability as tfp
 
 _N_GEOS = 10
@@ -71,6 +72,9 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
+        set_roi_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
     )
 
   def assert_distribution_params_are_equal(
@@ -177,6 +181,9 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
+        set_roi_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
     )
 
     scalar_distributions_list = [
@@ -245,6 +252,9 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=sigma_shape,
         n_knots=_N_KNOTS,
         is_national=False,
+        set_roi_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
     )
 
     # Validate `tau_g_excl_baseline` distribution.
@@ -329,6 +339,9 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
+          set_roi_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
       )
       self.assertLen(warns, 1)
       for w in warns:
@@ -407,6 +420,9 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
+          set_roi_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
       )
 
   @parameterized.named_parameters(
@@ -476,6 +492,9 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
+          set_roi_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
       )
 
   @parameterized.named_parameters(
@@ -514,6 +533,9 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
+          set_roi_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
       )
 
   @parameterized.named_parameters(
@@ -582,6 +604,9 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=True,
+          set_roi_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
       )
       self.assertLen(warns, number_of_warnings)
       for w in warns:
@@ -670,6 +695,107 @@ class PriorDistributionTest(parameterized.TestCase):
     )
 
   @parameterized.named_parameters(
+      dict(
+          testcase_name='with_custom_roi_m',
+          roi_m=tfp.distributions.LogNormal(0.2, 0.8, name=c.ROI_M),
+          roi_rf=None,
+          number_of_warnings=1,
+      ),
+      dict(
+          testcase_name='with_custom_roi_rf',
+          roi_m=None,
+          roi_rf=tfp.distributions.LogNormal(0.2, 0.8, name=c.ROI_RF),
+          number_of_warnings=1,
+      ),
+      dict(
+          testcase_name='with_defaults',
+          roi_m=None,
+          roi_rf=None,
+          number_of_warnings=2,
+      ),
+  )
+  def test_roi_prior_distribution(
+      self,
+      roi_m: tfp.distributions.Distribution,
+      roi_rf: tfp.distributions.Distribution,
+      number_of_warnings: int,
+  ):
+    roi_m_dist = self.sample_distributions[c.ROI_M] if not roi_m else roi_m
+    roi_rf_dist = self.sample_distributions[c.ROI_RF] if not roi_rf else roi_rf
+
+    # Create prior distribution with given parameters.
+    distribution = prior_distribution.PriorDistribution(
+        roi_m=roi_m_dist,
+        roi_rf=roi_rf_dist,
+    )
+
+    with warnings.catch_warnings(record=True) as warns:
+      # Cause all warnings to always be triggered.
+      warnings.simplefilter('always')
+      kpi = 1.0
+      total_spend = np.ones(_N_MEDIA_CHANNELS + _N_RF_CHANNELS)
+      broadcast_distribution = distribution.broadcast(
+          n_geos=_N_GEOS,
+          n_media_channels=_N_MEDIA_CHANNELS,
+          n_rf_channels=_N_RF_CHANNELS,
+          n_controls=_N_CONTROLS,
+          sigma_shape=_N_GEOS,
+          n_knots=_N_KNOTS,
+          is_national=False,
+          set_roi_prior=True,
+          kpi=kpi,
+          total_spend=total_spend,
+      )
+      self.assertLen(warns, number_of_warnings)
+      for w in warns:
+        self.assertTrue(issubclass(w.category, UserWarning))
+        self.assertIn(
+            'Consider setting custom ROI priors, as kpi_type was specified as'
+            ' `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the'
+            ' total media contribution prior will be used with `p_mean=0.4` and'
+            ' `p_sd=0.2` . Further documentation available at '
+            ' https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi#set-total-media-contribution-prior',
+            str(w.message),
+        )
+
+    self.assertEqual(
+        broadcast_distribution.roi_m.batch_shape, (_N_MEDIA_CHANNELS,)
+    )
+    self.assertIsInstance(
+        broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
+        tfp.distributions.LogNormal,
+    )
+    if roi_m is not None:
+      expected_roi_m = roi_m
+    else:
+      expected_roi_m = prior_distribution._get_total_media_contribution_prior(
+          kpi=kpi,
+          total_spend=total_spend,
+          name=c.ROI_M,
+      )
+    self.assert_distribution_params_are_equal(
+        broadcast_distribution.roi_m.distribution, expected_roi_m
+    )
+    self.assertEqual(
+        broadcast_distribution.roi_rf.batch_shape, (_N_RF_CHANNELS,)
+    )
+    self.assertIsInstance(
+        broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
+        tfp.distributions.LogNormal,
+    )
+    if roi_rf is not None:
+      expected_roi_rf = roi_rf
+    else:
+      expected_roi_rf = prior_distribution._get_total_media_contribution_prior(
+          kpi=kpi,
+          total_spend=total_spend,
+          name=c.ROI_RF,
+      )
+    self.assert_distribution_params_are_equal(
+        broadcast_distribution.roi_rf.distribution, expected_roi_rf
+    )
+
+  @parameterized.named_parameters(
       (c.KNOT_VALUES, c.KNOT_VALUES),
       (c.TAU_G_EXCL_BASELINE, c.TAU_G_EXCL_BASELINE),
       (c.BETA_M, c.BETA_M),
@@ -733,6 +859,9 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
+        set_roi_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
     )
     distribution.__setstate__(distribution.__getstate__())
 
@@ -740,6 +869,100 @@ class PriorDistributionTest(parameterized.TestCase):
       self.assert_distribution_params_are_equal(
           v, self.sample_broadcast.__dict__[k]
       )
+
+  def test_get_total_media_contribution_prior(self):
+    distribution = prior_distribution._get_total_media_contribution_prior(
+        kpi=1.0,
+        total_spend=np.array([1, 2, 3]),
+        name='name',
+    )
+    expected_distribution = tfp.distributions.LogNormal(
+        -2.956268548965454, 0.7045827507972717, name='name'
+    )
+
+    self.assert_distribution_params_are_equal(
+        distribution.parameters, expected_distribution.parameters
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='same',
+          a=tfp.distributions.Deterministic(0, name='name_1'),
+          b=tfp.distributions.Deterministic(0, name='name_1'),
+          expected_result=True,
+      ),
+      dict(
+          testcase_name='same_type_different_name',
+          a=tfp.distributions.Deterministic(1, name='name_1'),
+          b=tfp.distributions.Deterministic(1, name='name_2'),
+          expected_result=False,
+      ),
+      dict(
+          testcase_name='same_type_different_params',
+          a=tfp.distributions.LogNormal(0.7, 0.4, name='name_1'),
+          b=tfp.distributions.LogNormal(0.7, 0.6, name='name_1'),
+          expected_result=False,
+      ),
+      dict(
+          testcase_name='same_complex_distributions',
+          a=tfp.distributions.TransformedDistribution(
+              tfp.distributions.LogNormal(0.7, 0.4),
+              tfp.bijectors.Shift(0.1),
+              name='name_1',
+          ),
+          b=tfp.distributions.TransformedDistribution(
+              tfp.distributions.LogNormal(0.7, 0.4),
+              tfp.bijectors.Shift(0.1),
+              name='name_1',
+          ),
+          expected_result=True,
+      ),
+      dict(
+          testcase_name='different_outer_complex_distributions',
+          a=tfp.distributions.BatchBroadcast(
+              tfp.distributions.HalfNormal(5.0), 3
+          ),
+          b=tfp.distributions.BatchBroadcast(
+              tfp.distributions.HalfNormal(5.0), 7
+          ),
+          expected_result=False,
+      ),
+      dict(
+          testcase_name='different_inner_complex_distributions',
+          a=tfp.distributions.BatchBroadcast(
+              tfp.distributions.HalfNormal(5.0), 3
+          ),
+          b=tfp.distributions.BatchBroadcast(
+              tfp.distributions.Uniform(0.0, 1.0), 3
+          ),
+          expected_result=False,
+      ),
+      dict(
+          testcase_name='different_simple_and_complex_distributions',
+          a=tfp.distributions.HalfNormal(5.0),
+          b=tfp.distributions.BatchBroadcast(
+              tfp.distributions.HalfNormal(5.0), 3
+          ),
+          expected_result=False,
+      ),
+      dict(
+          testcase_name='different_complex_and_simple_distributions',
+          a=tfp.distributions.BatchBroadcast(
+              tfp.distributions.HalfNormal(5.0), 7
+          ),
+          b=tfp.distributions.HalfNormal(5.0),
+          expected_result=False,
+      ),
+  )
+  def test_distributions_are_equal(
+      self,
+      a: tfp.distributions.Distribution,
+      b: tfp.distributions.Distribution,
+      expected_result: bool,
+  ):
+    self.assertEqual(
+        prior_distribution._distributions_are_equal(a, b), expected_result
+    )
 
 
 if __name__ == '__main__':
