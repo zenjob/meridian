@@ -17,7 +17,7 @@
 from collections.abc import Mapping, Sequence
 import dataclasses
 import itertools
-from typing import Any
+from typing import Any, Optional
 import warnings
 
 from meridian import constants
@@ -32,7 +32,34 @@ import xarray as xr
 
 __all__ = [
     "Analyzer",
+    "DataTensors",
+    "DistributionTensors",
 ]
+
+
+class DataTensors(tf.experimental.ExtensionType):
+  """Container for data variables arguments of Analyzer methods."""
+
+  media_scaled: Optional[tf.Tensor] = None
+  reach_scaled: Optional[tf.Tensor] = None
+  frequency: Optional[tf.Tensor] = None
+  controls_scaled: Optional[tf.Tensor] = None
+
+
+class DistributionTensors(tf.experimental.ExtensionType):
+  """Container for parameters distributions arguments of Analyzer methods."""
+
+  alpha_m: Optional[tf.Tensor] = None
+  alpha_rf: Optional[tf.Tensor] = None
+  ec_m: Optional[tf.Tensor] = None
+  ec_rf: Optional[tf.Tensor] = None
+  slope_m: Optional[tf.Tensor] = None
+  slope_rf: Optional[tf.Tensor] = None
+  beta_gm: Optional[tf.Tensor] = None
+  beta_grf: Optional[tf.Tensor] = None
+  mu_t: Optional[tf.Tensor] = None
+  tau_g: Optional[tf.Tensor] = None
+  gamma_gc: Optional[tf.Tensor] = None
 
 
 def _transformed_new_or_scaled(
@@ -308,21 +335,8 @@ class Analyzer:
   @tf.function(jit_compile=True)
   def _get_kpi_means(
       self,
-      mu_t: tf.Tensor,
-      tau_g: tf.Tensor,
-      gamma_gc: tf.Tensor | None,
-      controls_scaled: tf.Tensor,
-      media_scaled: tf.Tensor | None,
-      reach_scaled: tf.Tensor | None,
-      frequency: tf.Tensor | None,
-      alpha_m: tf.Tensor | None = None,
-      alpha_rf: tf.Tensor | None = None,
-      ec_m: tf.Tensor | None = None,
-      ec_rf: tf.Tensor | None = None,
-      slope_m: tf.Tensor | None = None,
-      slope_rf: tf.Tensor | None = None,
-      beta_gm: tf.Tensor | None = None,
-      beta_grf: tf.Tensor | None = None,
+      data_tensors: DataTensors,
+      dist_tensors: DistributionTensors,
   ) -> tf.Tensor:
     """Computes batched KPI means.
 
@@ -330,47 +344,37 @@ class Analyzer:
     data (lagged time periods are included).
 
     Args:
-      mu_t: mu_t distribution from inference data.
-      tau_g: tau_g distribution from inference data.
-      gamma_gc: gamma_gc distribution from inference data.
-      controls_scaled: ControlTransformer scaled controls tensor.
-      media_scaled: MediaTransformer scaled media tensor.
-      reach_scaled: MediaTransformer scaled reach tensor.
-      frequency: Non scaled frequency tensor.
-      alpha_m: Optional parameter for adstock calculations. Used in conjunction
-        with `media`.
-      alpha_rf: Optional parameter for adstock calculations. Used in conjunction
-        with `reach` and `frequency`.
-      ec_m: Optional parameter for hill calculations. Used in conjunction with
-        `media`.
-      ec_rf: Optional parameter for hill calculations. Used in conjunction with
-        `reach` and `frequency`.
-      slope_m: Optional parameter for hill calculations. Used in conjunction
-        with `media`.
-      slope_rf: Optional parameter for hill calculations. Used in conjunction
-        with `reach` and `frequency`.
-      beta_gm: Optional parameter from inference data. Used in conjunction with
-        `media`.
-      beta_grf: Optional parameter from inference data. Used in conjunction with
-        `reach` and `frequency`.
+      data_tensors: A `DataTensors` container with the following tensors:
+        `controls_scaled`: ControlTransformer scaled controls tensor.
+        `media_scaled`: MediaTransformer scaled media tensor. `reach_scaled`:
+        MediaTransformer scaled reach tensor. `frequency`: Non scaled frequency
+        tensor.
+      dist_tensors: A `DistributionTensors` container with the following
+        distribution parameters: `mu_t`: mu_t distribution from inference data.
+        `tau_g`: tau_g distribution from inference data. `gamma_gc`: gamma_gc
+        distribution from inference data. `alpha_m: Optional parameter for
+        adstock calculations. Used in conjunction with `media`. `alpha_rf`:
+        Optional parameter for adstock calculations. Used in conjunction with
+        `reach` and `frequency`. `ec_m`: Optional parameter for hill
+        calculations. Used in conjunction with `media`. `ec_rf`: Optional
+        parameter for hill calculations. Used in conjunction with `reach` and
+        `frequency`. `slope_m`: Optional parameter for hill calculations. Used
+        in conjunction with `media`. `slope_rf`: Optional parameter for hill
+        calculations. Used in conjunction with `reach` and `frequency`.
+        `beta_gm`: Optional parameter from inference data. Used in conjunction
+        with `media`. `beta_grf`: Optional parameter from inference data. Used
+        in conjunction with `reach` and `frequency`.
 
     Returns:
       Tensor representing adstock/hill-transformed media.
     """
-    tau_gt = tf.expand_dims(tau_g, -1) + tf.expand_dims(mu_t, -2)
+    tau_gt = tf.expand_dims(dist_tensors.tau_g, -1) + tf.expand_dims(
+        dist_tensors.mu_t, -2
+    )
     combined_media_transformed, combined_beta = (
         self._get_transformed_media_and_beta(
-            media=media_scaled,
-            reach=reach_scaled,
-            frequency=frequency,
-            alpha_m=alpha_m,
-            alpha_rf=alpha_rf,
-            ec_m=ec_m,
-            ec_rf=ec_rf,
-            slope_m=slope_m,
-            slope_rf=slope_rf,
-            beta_gm=beta_gm,
-            beta_grf=beta_grf,
+            data_tensors=data_tensors,
+            dist_tensors=dist_tensors,
         )
     )
 
@@ -379,7 +383,11 @@ class Analyzer:
         + tf.einsum(
             "...gtm,...gm->...gt", combined_media_transformed, combined_beta
         )
-        + tf.einsum("...gtc,...gc->...gt", controls_scaled, gamma_gc)
+        + tf.einsum(
+            "...gtc,...gc->...gt",
+            data_tensors.controls_scaled,
+            dist_tensors.gamma_gc,
+        )
     )
 
   def _check_revenue_data_exists(self, use_kpi: bool = False):
@@ -468,13 +476,15 @@ class Analyzer:
       new_media: tf.Tensor | None,
       new_reach: tf.Tensor | None,
       new_frequency: tf.Tensor | None,
-  ) -> dict[str, tf.Tensor | None]:
+      new_controls: tf.Tensor | None = None,
+  ) -> DataTensors:
     """Get adstock_hill parameter tensors based on data availability.
 
     Args:
       new_media: Optional tensor with dimensions matching media.
       new_reach: Optional tensor with dimensions matching reach.
       new_frequency: Optional tensor with dimensions matching frequency.
+      new_controls: Optional tensor with dimensions matching controls.
 
     Returns:
       dictionary containing optional media, reach, and frequency data tensors.
@@ -498,7 +508,13 @@ class Analyzer:
         if new_frequency is not None
         else self._meridian.rf_tensors.frequency
     )
-    return adstock_tensors
+
+    adstock_tensors[constants.CONTROLS_SCALED] = _transformed_new_or_scaled(
+        new_variable=new_controls,
+        transformer=self._meridian.controls_transformer,
+        scaled_variable=self._meridian.controls_scaled,
+    )
+    return DataTensors(**adstock_tensors)
 
   def _get_adstock_hill_param_names(self) -> list[str]:
     """Gets adstock_hill distributions.
@@ -526,17 +542,8 @@ class Analyzer:
 
   def _get_transformed_media_and_beta(
       self,
-      media: tf.Tensor | None = None,
-      reach: tf.Tensor | None = None,
-      frequency: tf.Tensor | None = None,
-      alpha_m: tf.Tensor | None = None,
-      alpha_rf: tf.Tensor | None = None,
-      ec_m: tf.Tensor | None = None,
-      ec_rf: tf.Tensor | None = None,
-      slope_m: tf.Tensor | None = None,
-      slope_rf: tf.Tensor | None = None,
-      beta_gm: tf.Tensor | None = None,
-      beta_grf: tf.Tensor | None = None,
+      data_tensors: DataTensors,
+      dist_tensors: DistributionTensors,
       n_times_output: int | None = None,
   ) -> tuple[tf.Tensor | None, tf.Tensor | None]:
     """Function for transforming media using adstock and hill functions.
@@ -545,25 +552,22 @@ class Analyzer:
     the desired order.
 
     Args:
-      media: Optional media tensor.
-      reach: Optional reach tensor.
-      frequency: Optional frequency tensor.
-      alpha_m: Optional parameter for adstock calculations. Used in conjunction
-        with `media`.
-      alpha_rf: Optional parameter for adstock calculations. Used in conjunction
+      data_tensors: A `DataTensors` container with the following tensors:
+        `media_scaled`: Optional media tensor. `reach_scaled`: Optional reach
+        tensor. `frequency`: Optional frequency tensor.
+      dist_tensors: A `DistributionTensors` container with the following
+        distribution tensors: `alpha_m`: Optional parameter for adstock
+        calculations. Used in conjunction with `media`. `alpha_rf`: Optional
+        parameter for adstock calculations. Used in conjunction with `reach` and
+        `frequency`. `ec_m`: Optional parameter for hill calculations. Used in
+        conjunction with `media`. `ec_rf`: Optional parameter for hill
+        calculations. Used in conjunction with `reach` and `frequency`.
+        `slope_m`: Optional parameter for hill calculations. Used in conjunction
+        with `media`. `slope_rf`: Optional parameter for hill calculations. Used
+        in conjunction with `reach` and `frequency`. `beta_gm`: Optional
+        parameter from inference data. Used in conjunction with `media`.
+        `beta_grf`: Optional parameter from inference data. Used in conjunction
         with `reach` and `frequency`.
-      ec_m: Optional parameter for hill calculations. Used in conjunction with
-        `media`.
-      ec_rf: Optional parameter for hill calculations. Used in conjunction with
-        `reach` and `frequency`.
-      slope_m: Optional parameter for hill calculations. Used in conjunction
-        with `media`.
-      slope_rf: Optional parameter for hill calculations. Used in conjunction
-        with `reach` and `frequency`.
-      beta_gm: Optional parameter from inference data. Used in conjunction with
-        `media`.
-      beta_grf: Optional parameter from inference data. Used in conjunction with
-        `reach` and `frequency`.
       n_times_output: Optional number of time periods to output. Defaults to the
         corresponding argument defaults for `adstock_hill_media` and
         `adstock_hill_rf`.
@@ -571,23 +575,23 @@ class Analyzer:
     Returns:
       A tuple `(combined_media_transformed, combined_beta)`.
     """
-    if media is not None:
+    if data_tensors.media_scaled is not None:
       media_transformed = self._meridian.adstock_hill_media(
-          media=media,
-          alpha=alpha_m,
-          ec=ec_m,
-          slope=slope_m,
+          media=data_tensors.media_scaled,
+          alpha=dist_tensors.alpha_m,
+          ec=dist_tensors.ec_m,
+          slope=dist_tensors.slope_m,
           n_times_output=n_times_output,
       )
     else:
       media_transformed = None
-    if reach is not None:
+    if data_tensors.reach_scaled is not None:
       rf_transformed = self._meridian.adstock_hill_rf(
-          reach=reach,
-          frequency=frequency,
-          alpha=alpha_rf,
-          ec=ec_rf,
-          slope=slope_rf,
+          reach=data_tensors.reach_scaled,
+          frequency=data_tensors.frequency,
+          alpha=dist_tensors.alpha_rf,
+          ec=dist_tensors.ec_rf,
+          slope=dist_tensors.slope_rf,
           n_times_output=n_times_output,
       )
     else:
@@ -597,13 +601,15 @@ class Analyzer:
       combined_media_transformed = tf.concat(
           [media_transformed, rf_transformed], axis=-1
       )
-      combined_beta = tf.concat([beta_gm, beta_grf], axis=-1)
+      combined_beta = tf.concat(
+          [dist_tensors.beta_gm, dist_tensors.beta_grf], axis=-1
+      )
     elif media_transformed is not None:
       combined_media_transformed = media_transformed
-      combined_beta = beta_gm
+      combined_beta = dist_tensors.beta_gm
     else:
       combined_media_transformed = rf_transformed
-      combined_beta = beta_grf
+      combined_beta = dist_tensors.beta_grf
     return combined_media_transformed, combined_beta
 
   def filter_and_aggregate_geos_and_times(
@@ -835,14 +841,13 @@ class Analyzer:
         if use_posterior
         else self._meridian.inference_data.prior
     )
-    tensor_kwargs = self._get_adstock_hill_tensors(
-        new_media, new_reach, new_frequency
+    data_tensors = self._get_adstock_hill_tensors(
+        new_media=new_media,
+        new_reach=new_reach,
+        new_frequency=new_frequency,
+        new_controls=new_controls,
     )
-    tensor_kwargs["controls_scaled"] = (
-        self._meridian.controls_scaled
-        if new_controls is None
-        else self._meridian.controls_transformer.forward(new_controls)
-    )
+
     n_draws = params.draw.size
     n_chains = params.chain.size
     outcome_means = tf.zeros(
@@ -861,10 +866,12 @@ class Analyzer:
           k: tf.convert_to_tensor(params[k][:, start_index:stop_index, ...])
           for k in param_list
       }
+      dist_tensors = DistributionTensors(**batch_dists)
+
       outcome_means_temps.append(
           self._get_kpi_means(
-              **tensor_kwargs,
-              **batch_dists,
+              data_tensors=data_tensors,
+              dist_tensors=dist_tensors,
           )
       )
     outcome_means = tf.concat([outcome_means, *outcome_means_temps], axis=1)
@@ -907,66 +914,49 @@ class Analyzer:
 
   def _get_incremental_kpi(
       self,
-      media_scaled: tf.Tensor | None,
-      reach_scaled: tf.Tensor | None,
-      frequency: tf.Tensor | None,
-      alpha_m: tf.Tensor | None = None,
-      alpha_rf: tf.Tensor | None = None,
-      ec_m: tf.Tensor | None = None,
-      ec_rf: tf.Tensor | None = None,
-      slope_m: tf.Tensor | None = None,
-      slope_rf: tf.Tensor | None = None,
-      beta_gm: tf.Tensor | None = None,
-      beta_grf: tf.Tensor | None = None,
+      data_tensors: DataTensors,
+      dist_tensors: DistributionTensors,
   ) -> tf.Tensor:
     """Computes incremental KPI distribution.
 
     Args:
-      media_scaled: Optional scaled media tensor.
-      reach_scaled: Optional scaled reach tensor.
-      frequency: Optional non scaled frequency tensor.
-      alpha_m: Optional parameter for adstock calculations. Used in conjunction
-        with `media`.
-      alpha_rf: Optional parameter for adstock calculations. Used in conjunction
+      data_tensors: A `DataTensors` container with the following tensors:
+        `media_scaled`: Optional scaled media tensor. `reach_scaled`: Optional
+        scaled reach tensor. `frequency`: Optional non scaled frequency tensor.
+      dist_tensors: A `DistributionTensors` container with the following
+        distribution tensors: `alpha_m`: Optional parameter for adstock
+        calculations. Used in conjunction with `media`. `alpha_rf`: Optional
+        parameter for adstock calculations. Used in conjunction with `reach` and
+        `frequency`. `ec_m`: Optional parameter for hill calculations. Used in
+        conjunction with `media`. `ec_rf`: Optional parameter for hill
+        calculations. Used in conjunction with `reach` and `frequency`.
+        `slope_m`: Optional parameter for hill calculations. Used in conjunction
+        with `media`. `slope_rf`: Optional parameter for hill calculations. Used
+        in conjunction with `reach` and `frequency`. `beta_gm`: Optional
+        parameter from inference data. Used in conjunction with `media`.
+        `beta_grf`: Optional parameter from inference data. Used in conjunction
         with `reach` and `frequency`.
-      ec_m: Optional parameter for hill calculations. Used in conjunction with
-        `media`.
-      ec_rf: Optional parameter for hill calculations. Used in conjunction with
-        `reach` and `frequency`.
-      slope_m: Optional parameter for hill calculations. Used in conjunction
-        with `media`.
-      slope_rf: Optional parameter for hill calculations. Used in conjunction
-        with `reach` and `frequency`.
-      beta_gm: Optional parameter from inference data. Used in conjunction with
-        `media`.
-      beta_grf: Optional parameter from inference data. Used in conjunction with
-        `reach` and `frequency`.
 
     Returns:
       Tensor of incremental KPI distribution.
     """
     n_media_times = self._meridian.n_media_times
-    if media_scaled is not None:
-      n_times = media_scaled.shape[1]
+    if data_tensors.media_scaled is not None:
+      n_times = data_tensors.media_scaled.shape[
+          1
+      ]  # pytype: disable=attribute-error
       n_times_output = n_times if n_times != n_media_times else None
-    elif reach_scaled is not None:
-      n_times = reach_scaled.shape[1]
+    elif data_tensors.reach_scaled is not None:
+      n_times = data_tensors.reach_scaled.shape[
+          1
+      ]  # pytype: disable=attribute-error
       n_times_output = n_times if n_times != n_media_times else None
     else:
       raise ValueError("Both media_scaled and reach_scaled cannot be None.")
     combined_media_transformed, combined_beta = (
         self._get_transformed_media_and_beta(
-            media=media_scaled,
-            reach=reach_scaled,
-            frequency=frequency,
-            alpha_m=alpha_m,
-            alpha_rf=alpha_rf,
-            ec_m=ec_m,
-            ec_rf=ec_rf,
-            slope_m=slope_m,
-            slope_rf=slope_rf,
-            beta_gm=beta_gm,
-            beta_grf=beta_grf,
+            data_tensors=data_tensors,
+            dist_tensors=dist_tensors,
             n_times_output=n_times_output,
         )
     )
@@ -1017,18 +1007,9 @@ class Analyzer:
   @tf.function(jit_compile=True)
   def _incremental_impact_impl(
       self,
-      media_scaled: tf.Tensor | None,
-      reach_scaled: tf.Tensor | None,
-      frequency: tf.Tensor | None,
+      data_tensors: DataTensors,
+      dist_tensors: DistributionTensors,
       revenue_per_kpi: tf.Tensor | None = None,
-      alpha_m: tf.Tensor | None = None,
-      alpha_rf: tf.Tensor | None = None,
-      ec_m: tf.Tensor | None = None,
-      ec_rf: tf.Tensor | None = None,
-      slope_m: tf.Tensor | None = None,
-      slope_rf: tf.Tensor | None = None,
-      beta_gm: tf.Tensor | None = None,
-      beta_grf: tf.Tensor | None = None,
       inverse_transform_impact: bool | None = None,
       use_kpi: bool | None = None,
       selected_geos: Sequence[str] | None = None,
@@ -1039,32 +1020,30 @@ class Analyzer:
     """Computes incremental impact (revenue or KPI) on a batch of data.
 
     Args:
-      media_scaled: `media` data scaled by the per-geo median, normalized by the
-        geo population. Shape (n_geos x T x n_media_channels), for any time
-        dimension T.
-      reach_scaled: `reach` data scaled by the per-geo median, normalized by the
-        geo population. Shape (n_geos x T x n_rf_channels), for any time
-        dimension T.
-      frequency: Contains frequency data with shape(n_geos x T x n_rf_channels),
-        for any time dimension T.
-      revenue_per_kpi: Contains revenue per kpi data with shape (n_geos x T),
-        for any time dimension T.
-      alpha_m: media_channel specific alpha parameter for adstock calculations.
-        Used in conjunction with `media`.
-      alpha_rf: rf_channel specific alpha parameter for adstock calculations.
-        Used in conjunction with `reach` and `frequency`.
-      ec_m: media_channel specific ec parameter for hill calculations. Used in
-        conjunction with `media`.
-      ec_rf: rf_channel specific ec parameter for hill calculations. Used in
-        conjunction with `reach` and `frequency`.
-      slope_m: media_channel specific slope parameter for hill calculations.
-        Used in conjunction with `media`.
-      slope_rf: rf_channel specific slope parameter for hill calculations. Used
-        in conjunction with `reach` and `frequency`.
-      beta_gm: media_channel specific parameter from inference data. Used in
-        conjunction with `media`.
-      beta_grf: rf_channel specific beta_g parameter from inference data. Used
-        in conjunction with `reach` and `frequency`.
+      data_tensors: A `DataTensors` container with the following tensors:
+        `media_scaled`: `media` data scaled by the per-geo median, normalized by
+        the geo population. Shape (n_geos x T x n_media_channels), for any time
+        dimension T. `reach_scaled`: `reach` data scaled by the per-geo median,
+        normalized by the geo population. Shape (n_geos x T x n_rf_channels),
+        for any time dimension T. `frequency`: Contains frequency data with
+        shape(n_geos x T x n_rf_channels), for any time dimension T.
+      dist_tensors: A `DistributionTensors` container with the following
+        distribution tensors: `alpha_m`: media_channel specific alpha parameter
+        for adstock calculations. Used in conjunction with `media`. `alpha_rf`:
+        rf_channel specific alpha parameter for adstock calculations. Used in
+        conjunction with `reach` and `frequency`. `ec_m`: media_channel specific
+        ec parameter for hill calculations. Used in conjunction with `media`.
+        `ec_rf`: rf_channel specific ec parameter for hill calculations. Used in
+        conjunction with `reach` and `frequency`. `slope_m`: media_channel
+        specific slope parameter for hill calculations. Used in conjunction with
+        `media`. `slope_rf`: rf_channel specific slope parameter for hill
+        calculations. Used in conjunction with `reach` and `frequency`.
+        `beta_gm`: media_channel specific parameter from inference data. Used in
+        conjunction with `media`. `beta_grf`: rf_channel specific beta_g
+        parameter from inference data. Used in conjunction with `reach` and
+        `frequency`.
+      revenue_per_kpi: Contains revenue per kpi data with shape `(n_geos x T)`,
+        for any time dimension `T`.
       inverse_transform_impact: Boolean. If `True`, returns the expected impact
         in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
@@ -1090,21 +1069,14 @@ class Analyzer:
     """
     self._check_revenue_data_exists(use_kpi)
     transformed_impact = self._get_incremental_kpi(
-        media_scaled=media_scaled,
-        reach_scaled=reach_scaled,
-        frequency=frequency,
-        alpha_m=alpha_m,
-        alpha_rf=alpha_rf,
-        ec_m=ec_m,
-        ec_rf=ec_rf,
-        slope_m=slope_m,
-        slope_rf=slope_rf,
-        beta_gm=beta_gm,
-        beta_grf=beta_grf,
+        data_tensors=data_tensors,
+        dist_tensors=dist_tensors,
     )
     if inverse_transform_impact:
       incremental_impact = self._inverse_impact(
-          transformed_impact, use_kpi=use_kpi, revenue_per_kpi=revenue_per_kpi
+          transformed_impact,
+          use_kpi=use_kpi,
+          revenue_per_kpi=revenue_per_kpi,
       )
     else:
       incremental_impact = transformed_impact
@@ -1383,11 +1355,11 @@ class Analyzer:
     new_reach0 = None if new_reach is None else new_reach * counterfactual0
     new_media1 = None if new_media is None else new_media * counterfactual1
     new_reach1 = None if new_reach is None else new_reach * counterfactual1
-    tensor_kwargs0 = self._get_adstock_hill_tensors(
-        new_media0, new_reach0, new_frequency
+    data_tensors0 = self._get_adstock_hill_tensors(
+        new_media=new_media0, new_reach=new_reach0, new_frequency=new_frequency
     )
-    tensor_kwargs1 = self._get_adstock_hill_tensors(
-        new_media1, new_reach1, new_frequency
+    data_tensors1 = self._get_adstock_hill_tensors(
+        new_media=new_media1, new_reach=new_reach1, new_frequency=new_frequency
     )
 
     # Calculate incremental impact in batches.
@@ -1417,17 +1389,18 @@ class Analyzer:
           k: tf.convert_to_tensor(params[k][:, start_index:stop_index, ...])
           for k in param_list
       }
+      dist_tensors = DistributionTensors(**batch_dists)
       incremental_impact_temps[i] = self._incremental_impact_impl(
-          **tensor_kwargs1,
-          **batch_dists,
+          data_tensors=data_tensors1,
+          dist_tensors=dist_tensors,
           **dim_kwargs,
           **incremental_revenue_kwargs,
       )
       # Calculate incremental impact under counterfactual scenario "Media_0".
       if scaling_factor0 != 0 or not all(media_selected_times):
         incremental_impact_temps[i] -= self._incremental_impact_impl(
-            **tensor_kwargs0,
-            **batch_dists,
+            data_tensors=data_tensors0,
+            dist_tensors=dist_tensors,
             **dim_kwargs,
             **incremental_revenue_kwargs,
         )

@@ -93,6 +93,7 @@ POSSIBLE_INPUT_DATA_ARRAY_NAMES = (
 # Scaled input data variables.
 MEDIA_SCALED = 'media_scaled'
 REACH_SCALED = 'reach_scaled'
+CONTROLS_SCALED = 'controls_scaled'
 
 # Input data coordinates.
 GEO = 'geo'
