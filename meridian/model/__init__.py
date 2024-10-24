@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Meridian model API."""
+"""The Meridian API module that models the data."""
 
 from meridian.model import adstock_hill
 from meridian.model import knots
