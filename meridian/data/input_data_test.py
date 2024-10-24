@@ -215,6 +215,153 @@ class InputDataTest(parameterized.TestCase):
           media_spend=self.media_spend,
       )
 
+  def test_validate_media_channels_duplicate_names(self):
+    media = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        explicit_media_channel_names=[
+            "ch_1",
+            "ch_2",
+            "ch_3",
+            "ch_4",
+            "ch_5",
+            "ch_5",
+        ],
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Media channel names across `media_channel` and `rf_channel` must"
+            " be unique."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi,
+          media=media,
+          media_spend=self.media_spend,
+      )
+
+  def test_validate_rf_channels_duplicate_names(self):
+    reach = test_utils.random_reach_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_rf_channels=self.n_rf_channels,
+        explicit_rf_channel_names=[
+            "rf_ch_1",
+            "rf_ch_1",
+        ],
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Media channel names across `media_channel` and `rf_channel` must"
+            " be unique."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+          reach=reach,
+          frequency=self.not_lagged_frequency,
+          rf_spend=self.rf_spend,
+      )
+
+  def test_validate_rf_channels_with_duplicate_media_channels(self):
+    media = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        explicit_media_channel_names=[
+            "ch_1",
+            "ch_2",
+            "ch_3",
+            "ch_4",
+            "ch_5",
+            "ch_5",
+        ],
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Media channel names across `media_channel` and `rf_channel` must"
+            " be unique."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=media,
+          media_spend=self.media_spend,
+          reach=self.not_lagged_reach,
+          frequency=self.not_lagged_frequency,
+          rf_spend=self.rf_spend,
+      )
+
+  def test_validate_duplicate_channel_names_across_media_and_rf(self):
+    media = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        explicit_media_channel_names=[
+            "ch_1",
+            "ch_2",
+            "ch_3",
+            "ch_4",
+            "ch_5",
+            "ch_6",
+        ],
+    )
+    reach = test_utils.random_reach_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_rf_channels=self.n_rf_channels,
+        explicit_rf_channel_names=[
+            "rf_ch_1",
+            "ch_2",
+        ],
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Media channel names across `media_channel` and `rf_channel` must"
+            " be unique."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=media,
+          media_spend=self.media_spend,
+          reach=reach,
+          frequency=self.not_lagged_frequency,
+          rf_spend=self.rf_spend,
+      )
+
   def test_scenarios_kpi_type_revenue_revenue_per_kpi_set_to_ones(self):
     input_data_test = input_data.InputData(
         controls=self.not_lagged_controls,

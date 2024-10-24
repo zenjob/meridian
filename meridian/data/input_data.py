@@ -177,6 +177,7 @@ class InputData:
     self._validate_scenarios()
     self._validate_names()
     self._validate_dimensions()
+    self._validate_media_channels()
     self._validate_time_formats()
     self._validate_times()
 
@@ -382,6 +383,19 @@ class InputData:
     )
     _check_dim_match(constants.CONTROL_VARIABLE, [self.controls])
 
+  def _validate_media_channels(self):
+    """Verifies Meridian media channel names invariants.
+
+    In the input data, media channel names across `media_channel` and
+    `rf_channel` must be unique.
+    """
+    all_channels = self.get_all_channels()
+    if len(np.unique(all_channels)) != all_channels.size:
+      raise ValueError(
+          "Media channel names across `media_channel` and `rf_channel` must be"
+          " unique."
+      )
+
   def _validate_times(self):
     """Validates time coordinate values."""
     self._validate_time(self.media)
@@ -498,15 +512,24 @@ class InputData:
     return geo_by_population[constants.GEO][:num_geos].tolist()
 
   def get_all_channels(self) -> np.ndarray:
-    """Returns all the channel dimensions, including both media and RF."""
+    """Returns all the channel dimensions, including both media and RF.
+
+    If both media and RF channels are present, then the RF channels are
+    concatenated to the end of the media channels.
+    """
+    # pytype: disable=attribute-error
     if self.media_channel is not None and self.rf_channel is not None:
       return np.concatenate(
-          [self.media_channel.values, self.rf_channel.values], axis=None
+          [self.media_channel.values, self.rf_channel.values],
+          axis=None,
       )
     elif self.rf_channel is not None:
       return self.rf_channel.values
-    else:
+    elif self.media_channel is not None:
       return self.media_channel.values
+    else:
+      raise ValueError("Both RF and media channel values are missing.")
+    # pytype: enable=attribute-error
 
   def get_all_media_and_rf(self) -> np.ndarray:
     """Returns all of the media execution values, including both media and RF.

@@ -14,6 +14,7 @@
 
 """Helper functions for Data module unit tests."""
 
+from collections.abc import Sequence
 import dataclasses
 import datetime
 import immutabledict
@@ -509,6 +510,7 @@ def random_media_da(
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
     explicit_time_index=None,
+    explicit_media_channel_names: Sequence[str] | None = None,
 ) -> xr.DataArray:
   """Generates a sample `media` DataArray.
 
@@ -520,6 +522,8 @@ def random_media_da(
     seed: Random seed used by `np.random.seed()`
     date_format: The date format to use for time coordinate labels
     explicit_time_index: If given, ignore `date_format` and use this as is
+    explicit_media_channel_names: If given, ignore `n_media_channels` and use
+      this as is
 
   Returns:
     A DataArray containing random data.
@@ -545,15 +549,18 @@ def random_media_da(
   else:
     media_time = explicit_time_index
 
+  media_channels = (
+      explicit_media_channel_names
+      if explicit_media_channel_names is not None
+      else _sample_names(prefix='ch_', n_names=n_media_channels)
+  )
   return xr.DataArray(
       media,
       dims=['geo', 'media_time', 'media_channel'],
       coords={
           'geo': _sample_names(prefix='geo_', n_names=n_geos),
           'media_time': media_time,
-          'media_channel': _sample_names(
-              prefix='ch_', n_names=n_media_channels
-          ),
+          'media_channel': media_channels,
       },
       name='media',
   )
@@ -763,6 +770,7 @@ def random_reach_da(
     n_media_times: int,
     n_rf_channels: int,
     seed: int = 0,
+    explicit_rf_channel_names: Sequence[str] | None = None,
 ) -> xr.DataArray:
   """Generates a sample `reach` DataArray."""
 
@@ -780,6 +788,11 @@ def random_reach_da(
       )
   )
 
+  channels = (
+      explicit_rf_channel_names
+      if explicit_rf_channel_names is not None
+      else _sample_names(prefix='rf_ch_', n_names=n_rf_channels)
+  )
   return xr.DataArray(
       reach,
       dims=['geo', 'media_time', 'rf_channel'],
@@ -788,7 +801,7 @@ def random_reach_da(
           'media_time': _sample_times(
               n_times=n_media_times, start_date=start_date
           ),
-          'rf_channel': _sample_names(prefix='rf_ch_', n_names=n_rf_channels),
+          'rf_channel': channels,
       },
       name='reach',
   )
