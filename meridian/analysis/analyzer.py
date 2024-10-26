@@ -3158,7 +3158,7 @@ class Analyzer:
   def r_hat_summary(self, bad_r_hat_threshold: float = 1.2) -> pd.DataFrame:
     """Computes a summary of the R-hat values for each parameter in the model.
 
-    Calculates the Gelman & Rubin (1992) potential scale reduction for chain
+    Summarizes the Gelman & Rubin (1992) potential scale reduction for chain
     convergence, commonly referred to as R-hat. It is a convergence diagnostic
     measure that measures the degree to which variance (of the means) between
     chains exceeds what you would expect if the chains were identically
