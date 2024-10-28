@@ -156,7 +156,7 @@ def compact_number_expr(value: str = 'value', n_sig_digits: int = 3) -> str:
 
   Returns: The Vega expression string to format the text into a compact form.
   """
-  return f"replace(format(datum.{value}, '.{n_sig_digits}s'), 'G', 'B')"
+  return f"replace(format(datum.{value}, '.{n_sig_digits}~s'), 'G', 'B')"
 
 
 def format_number_text(percent_value: float, actual_value: float) -> str:

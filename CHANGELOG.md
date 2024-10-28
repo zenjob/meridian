@@ -34,6 +34,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Make the performance breakdown section of the model summary report display
   both ROI and CPIK charts for all scenarios.
 * Set default ROI priors for non-revenue, no revenue-per-KPI models.
+* Do not specify significant digits in the y-axis labels in plot_spend_delta,
+  trim insignificant trailing zeros in all charts.
+
 
 ## [0.7.0] - 2024-09-20
 

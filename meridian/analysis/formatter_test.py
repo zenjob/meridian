@@ -43,11 +43,11 @@ class FormatterTest(parameterized.TestCase):
 
   def test_compact_number_expr_default(self):
     expr = formatter.compact_number_expr()
-    self.assertEqual(expr, "replace(format(datum.value, '.3s'), 'G', 'B')")
+    self.assertEqual(expr, "replace(format(datum.value, '.3~s'), 'G', 'B')")
 
   def test_compact_number_expr_params(self):
     expr = formatter.compact_number_expr('other', 2)
-    self.assertEqual(expr, "replace(format(datum.other, '.2s'), 'G', 'B')")
+    self.assertEqual(expr, "replace(format(datum.other, '.2~s'), 'G', 'B')")
 
   @parameterized.named_parameters(
       ('rounded_up_percent', 0.4257, 15, '42.6% (15)'),

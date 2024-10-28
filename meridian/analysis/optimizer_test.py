@@ -1912,7 +1912,7 @@ class OptimizerPlotsTest(absltest.TestCase):
         {
             'axis': {
                 'domain': False,
-                'labelExpr': "replace(format(datum.value, '.3s'), 'G', 'B')",
+                'labelExpr': "replace(format(datum.value, '.3~s'), 'G', 'B')",
                 'labelPadding': c.PADDING_10,
                 'tickCount': 5,
                 'ticks': False,
@@ -2077,7 +2077,7 @@ class OptimizerPlotsTest(absltest.TestCase):
         {
             'axis': {
                 'domain': False,
-                'labelExpr': formatter.compact_number_expr(n_sig_digits=1),
+                'labelExpr': formatter.compact_number_expr(),
                 'title': '$',
                 **formatter.AXIS_CONFIG,
                 **formatter.Y_AXIS_TITLE_CONFIG,

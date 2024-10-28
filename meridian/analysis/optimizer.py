@@ -364,7 +364,7 @@ class OptimizationResults:
                 axis=alt.Axis(
                     title='$',
                     domain=False,
-                    labelExpr=formatter.compact_number_expr(n_sig_digits=1),
+                    labelExpr=formatter.compact_number_expr(),
                     **formatter.AXIS_CONFIG,
                     **formatter.Y_AXIS_TITLE_CONFIG,
                 ),
