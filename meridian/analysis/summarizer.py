@@ -126,9 +126,11 @@ class Summarizer:
 
     template_env = formatter.create_template_env()
     template_env.globals[c.START_DATE] = start_date.strftime(
-        c.SUMMARY_DATE_FORMAT
+        f'%b {start_date.day}, %Y'
     )
-    template_env.globals[c.END_DATE] = end_date.strftime(c.SUMMARY_DATE_FORMAT)
+    template_env.globals[c.END_DATE] = end_date.strftime(
+        f'%b {end_date.day}, %Y'
+    )
 
     html_template = template_env.get_template('summary.html.jinja')
     cards_htmls = self._create_cards_htmls(

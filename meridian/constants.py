@@ -52,9 +52,6 @@ GREY_300 = '#DADCE0'
 
 # Example: "2024-01-09"
 DATE_FORMAT = '%Y-%m-%d'
-# Example: "Jan 1, 2024"
-SUMMARY_DATE_FORMAT = '%b %-d, %Y'
-
 
 # Input data variables.
 KPI = 'kpi'
