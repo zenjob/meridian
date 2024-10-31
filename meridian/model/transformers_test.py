@@ -80,7 +80,7 @@ class MediaTransformerTest(absltest.TestCase):
     tf.debugging.assert_near(median, np.ones(self._n_media_channels))
 
 
-class ControlsTransformerTest(absltest.TestCase):
+class CenteringAndScalingTransformerTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -108,14 +108,14 @@ class ControlsTransformerTest(absltest.TestCase):
     self._controls4 = tf.tile(
         self._population[:, None, None], (1, self._n_times, self._n_controls)
     )
-    self._transformer = transformers.ControlsTransformer(
+    self._transformer = transformers.CenteringAndScalingTransformer(
         self._controls4, self._population, self._population_scaling_id
     )
     self._controls_transformed = self._transformer.forward(self._controls4)
 
   def test_output_shape_and_range(self):
-    transformer = transformers.ControlsTransformer(
-        controls=self._controls1, population=self._population
+    transformer = transformers.CenteringAndScalingTransformer(
+        tensor=self._controls1, population=self._population
     )
 
     transformed_controls = transformer.forward(self._controls2)
@@ -133,8 +133,8 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_forward_no_variation(self):
-    transformer = transformers.ControlsTransformer(
-        controls=self._controls3, population=self._population
+    transformer = transformers.CenteringAndScalingTransformer(
+        tensor=self._controls3, population=self._population
     )
     transformed_controls = transformer.forward(self._controls3)
     tf.debugging.assert_near(
@@ -144,8 +144,8 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_forward_inverse_is_identity(self):
-    transformer = transformers.ControlsTransformer(
-        controls=self._controls1, population=self._population
+    transformer = transformers.CenteringAndScalingTransformer(
+        tensor=self._controls1, population=self._population
     )
     transformed_controls = transformer.inverse(
         transformer.forward(self._controls2)
@@ -157,7 +157,7 @@ class ControlsTransformerTest(absltest.TestCase):
     )
 
   def test_default_population_args(self):
-    default_transformer = transformers.ControlsTransformer(
+    default_transformer = transformers.CenteringAndScalingTransformer(
         self._controls4, self._population
     )
     self.assertIsNone(default_transformer._population_scaling_factors)

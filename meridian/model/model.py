@@ -269,7 +269,7 @@ class Meridian:
     )
 
   @functools.cached_property
-  def controls_transformer(self) -> transformers.ControlsTransformer:
+  def controls_transformer(self) -> transformers.CenteringAndScalingTransformer:
     if self.model_spec.control_population_scaling_id is not None:
       controls_population_scaling_id = tf.convert_to_tensor(
           self.model_spec.control_population_scaling_id, dtype=bool
@@ -277,8 +277,8 @@ class Meridian:
     else:
       controls_population_scaling_id = None
 
-    return transformers.ControlsTransformer(
-        controls=self.controls,
+    return transformers.CenteringAndScalingTransformer(
+        tensor=self.controls,
         population=self.population,
         population_scaling_id=controls_population_scaling_id,
     )

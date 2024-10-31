@@ -22,7 +22,7 @@ import tensorflow as tf
 __all__ = [
     "TensorTransformer",
     "MediaTransformer",
-    "ControlsTransformer",
+    "CenteringAndScalingTransformer",
     "KpiTransformer",
 ]
 
@@ -97,29 +97,31 @@ class MediaTransformer(TensorTransformer):
     return tensor * self._scale_factors_gm[:, tf.newaxis, :]
 
 
-class ControlsTransformer(TensorTransformer):
-  """Contains forward and inverse controls transformation methods.
+class CenteringAndScalingTransformer(TensorTransformer):
+  """Applies centering and scaling transformations to a tensor.
 
-  This class stores means and standard deviations of the controls data, used
-  to scale a given `controls` tensor.
+  This class transforms a tensor so each variable has mean zero and standard
+  deviation one. Optionally, each variable can be scaled by population before
+  the centering and scaling transformations are applied. The class stores the
+  mean and standard deviation of each variable.
   """
 
   def __init__(
       self,
-      controls: tf.Tensor,
+      tensor: tf.Tensor,
       population: tf.Tensor,
       population_scaling_id: tf.Tensor | None = None,
   ):
-    """`ControlsTransformer` constructor.
+    """`CenteringAndScalingTransformer` constructor.
 
     Args:
-      controls: A tensor of dimension `(n_geos, n_times, n_controls)` containing
-        the controls data, used to compute the mean and stddev.
+      tensor: A tensor of dimension `(n_geos, n_times, n_channel)` used to
+        compute the means and standard deviations.
       population: A tensor of dimension `(n_geos,)` containing the population of
         each geo, used to compute the scale factors.
       population_scaling_id: An optional boolean tensor of dimension
-        `(n_controls,)` indicating the control variables for which the control
-        value will be scaled by population.
+        `(n_channels,)` indicating the variables for which the value will be
+        scaled by population.
     """
     if population_scaling_id is not None:
       self._population_scaling_factors = tf.where(
@@ -127,15 +129,15 @@ class ControlsTransformer(TensorTransformer):
           population[:, None],
           tf.ones_like(population)[:, None],
       )
-      population_scaled_controls = (
-          controls / self._population_scaling_factors[:, None, :]
+      population_scaled_tensor = (
+          tensor / self._population_scaling_factors[:, None, :]
       )
-      self._means = tf.reduce_mean(population_scaled_controls, axis=(0, 1))
-      self._stdevs = tf.math.reduce_std(population_scaled_controls, axis=(0, 1))
+      self._means = tf.reduce_mean(population_scaled_tensor, axis=(0, 1))
+      self._stdevs = tf.math.reduce_std(population_scaled_tensor, axis=(0, 1))
     else:
       self._population_scaling_factors = None
-      self._means = tf.reduce_mean(controls, axis=(0, 1))
-      self._stdevs = tf.math.reduce_std(controls, axis=(0, 1))
+      self._means = tf.reduce_mean(tensor, axis=(0, 1))
+      self._stdevs = tf.math.reduce_std(tensor, axis=(0, 1))
 
   @tf.function(jit_compile=True)
   def forward(self, tensor: tf.Tensor) -> tf.Tensor:
@@ -147,11 +149,11 @@ class ControlsTransformer(TensorTransformer):
   @tf.function(jit_compile=True)
   def inverse(self, tensor: tf.Tensor) -> tf.Tensor:
     """Scales back a given tensor using the stored coefficients."""
-    scaled_controls = tensor * self._stdevs + self._means
+    scaled_tensor = tensor * self._stdevs + self._means
     return (
-        scaled_controls * self._population_scaling_factors[:, None, :]
+        scaled_tensor * self._population_scaling_factors[:, None, :]
         if self._population_scaling_factors is not None
-        else scaled_controls
+        else scaled_tensor
     )
 
 

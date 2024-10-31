@@ -36,7 +36,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Set default ROI priors for non-revenue, no revenue-per-KPI models.
 * Do not specify significant digits in the y-axis labels in plot_spend_delta,
   trim insignificant trailing zeros in all charts.
-
+* Rename ControlsTransformer to CenteringAndScalingTransformer.
 
 ## [0.7.0] - 2024-09-20
 
