@@ -234,8 +234,16 @@ class PriorDistribution:
           5.0, name=constants.SIGMA
       ),
   )
-  roi_m: tfp.distributions.Distribution = constants.DEFAULT_ROI_M_DISTRIBUTION
-  roi_rf: tfp.distributions.Distribution = constants.DEFAULT_ROI_RF_DISTRIBUTION
+  roi_m: tfp.distributions.Distribution = dataclasses.field(
+      default_factory=lambda: tfp.distributions.LogNormal(
+          0.2, 0.9, name=constants.ROI_M
+      ),
+  )
+  roi_rf: tfp.distributions.Distribution = dataclasses.field(
+      default_factory=lambda: tfp.distributions.LogNormal(
+          0.2, 0.9, name=constants.ROI_RF
+      ),
+  )
 
   def __setstate__(self, state):
     # Override to support pickling.
@@ -455,8 +463,9 @@ class PriorDistribution:
         self.sigma, sigma_shape, name=constants.SIGMA
     )
 
+    default_distribution = PriorDistribution()
     if set_roi_prior and _distributions_are_equal(
-        self.roi_m, constants.DEFAULT_ROI_M_DISTRIBUTION
+        self.roi_m, default_distribution.roi_m
     ):
       warnings.warn(
           'Consider setting custom ROI priors, as kpi_type was specified as'
@@ -476,7 +485,7 @@ class PriorDistribution:
     )
 
     if set_roi_prior and _distributions_are_equal(
-        self.roi_rf, constants.DEFAULT_ROI_RF_DISTRIBUTION
+        self.roi_rf, default_distribution.roi_rf
     ):
       warnings.warn(
           'Consider setting custom ROI priors, as kpi_type was specified as'

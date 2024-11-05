@@ -15,7 +15,6 @@
 """Constants shared across the Meridian library."""
 
 import immutabledict
-import tensorflow_probability as tfp
 
 # HEX color map.
 BLACK_100 = '#000000'
@@ -283,8 +282,6 @@ DISTRIBUTION = 'distribution'
 DISTRIBUTION_TYPE = 'distribution_type'
 PRIOR = 'prior'
 POSTERIOR = 'posterior'
-DEFAULT_ROI_M_DISTRIBUTION = tfp.distributions.LogNormal(0.2, 0.9, name=ROI_M)
-DEFAULT_ROI_RF_DISTRIBUTION = tfp.distributions.LogNormal(0.2, 0.9, name=ROI_RF)
 # Prior mean proportion of KPI incremental due to all media.
 P_MEAN = 0.4
 # Prior standard deviation proportion of KPI incremental to all media.
