@@ -23,20 +23,22 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.8.0] - 2024-11-05
+
 * Expand media summary metrics to return ROI, mROI, and CPIK in all scenarios
-  with the addition of the use_kpi argument.
+  with the addition of the `use_kpi` argument.
 * Optimal frequency now calculates the frequency that maximizes the mean ROI in
   all cases such that it is consistent when used in the budget optimization that
   optimizes revenue.
 * Fix an error in the data loader that occurs when the geo column is an integer.
-* Add a _check_if_no_time_variation method to Meridian to raise an error if a
+* Add a `_check_if_no_time_variation` method to Meridian to raise an error if a
   variable has no time variation.
 * Make the performance breakdown section of the model summary report display
   both ROI and CPIK charts for all scenarios.
 * Set default ROI priors for non-revenue, no revenue-per-KPI models.
 * Do not specify significant digits in the y-axis labels in plot_spend_delta,
   trim insignificant trailing zeros in all charts.
-* Rename ControlsTransformer to CenteringAndScalingTransformer.
+* Rename `ControlsTransformer` to `CenteringAndScalingTransformer`.
 
 ## [0.7.0] - 2024-09-20
 
@@ -88,4 +90,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.5.0]: https://github.com/google/meridian/releases/tag/v0.5.0
 [0.6.0]: https://github.com/google/meridian/releases/tag/v0.6.0
 [0.7.0]: https://github.com/google/meridian/releases/tag/v0.7.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.7.0...HEAD
+[0.8.0]: https://github.com/google/meridian/releases/tag/v0.8.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.8.0...HEAD
