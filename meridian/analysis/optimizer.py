@@ -126,12 +126,9 @@ class OptimizationResults:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`
+        `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`
-
-    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
-    CPIK is used.
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`
     """
     return self._nonoptimized_data
 
@@ -146,12 +143,9 @@ class OptimizationResults:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`
+        `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`
-
-    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
-    CPIK is used.
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`
     """
     return self._nonoptimized_data_with_optimal_freq
 
@@ -166,12 +160,10 @@ class OptimizationResults:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`
+        `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `fixed_budget`
-
-    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
-    CPIK is used.
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `fixed_budget`,
+        `is_revenue_kpi`
     """
     return self._optimized_data
 
@@ -1322,7 +1314,7 @@ class BudgetOptimizer:
             hist_spend, spend, optimal_frequency
         )
     )
-    use_kpi = self._meridian.revenue_per_kpi is None
+    kpi_only = self._meridian.revenue_per_kpi is None
     budget = np.sum(spend)
     all_times = self._meridian.input_data.time.values.tolist()
 
@@ -1334,7 +1326,7 @@ class BudgetOptimizer:
         new_reach=new_reach,
         new_frequency=new_frequency,
         selected_times=selected_times,
-        use_kpi=use_kpi,
+        use_kpi=kpi_only,
         batch_size=batch_size,
     )
     # incremental_impact_with_mean_median_and_ci here is an ndarray with the
@@ -1359,7 +1351,7 @@ class BudgetOptimizer:
         new_reach=new_reach,
         new_frequency=new_frequency,
         selected_times=selected_times,
-        use_kpi=use_kpi,
+        use_kpi=kpi_only,
         batch_size=batch_size,
     )
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
@@ -1387,6 +1379,39 @@ class BudgetOptimizer:
         )
     )
 
+    roi = analyzer.get_central_tendency_and_ci(
+        data=tf.math.divide_no_nan(incremental_impact, spend),
+        confidence_level=confidence_level,
+        include_median=True,
+    )
+    marginal_roi = analyzer.get_central_tendency_and_ci(
+        data=self._analyzer.marginal_roi(
+            use_posterior=use_posterior,
+            new_media=new_media,
+            new_reach=new_reach,
+            new_frequency=new_frequency,
+            new_media_spend=new_media_spend,
+            new_rf_spend=new_rf_spend,
+            selected_times=selected_times,
+            batch_size=batch_size,
+            by_reach=True,
+            use_kpi=kpi_only,
+        ),
+        confidence_level=confidence_level,
+        include_median=True,
+    )
+
+    cpik = analyzer.get_central_tendency_and_ci(
+        data=tf.math.divide_no_nan(spend, incremental_impact),
+        confidence_level=confidence_level,
+        include_median=True,
+    )
+    total_inc_impact = np.sum(incremental_impact, -1)
+    total_cpik = np.mean(
+        tf.math.divide_no_nan(budget, total_inc_impact),
+        axis=(0, 1),
+    )
+
     total_spend = np.sum(spend) if np.sum(spend) > 0 else 1
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
@@ -1403,51 +1428,22 @@ class BudgetOptimizer:
             [c.CHANNEL, c.METRIC],
             effectiveness_with_mean_median_and_ci,
         ),
+        c.ROI: ([c.CHANNEL, c.METRIC], roi),
+        c.MROI: ([c.CHANNEL, c.METRIC], marginal_roi),
+        c.CPIK: ([c.CHANNEL, c.METRIC], cpik),
     }
+
     attributes = {
         c.START_DATE: min(selected_times) if selected_times else all_times[0],
         c.END_DATE: max(selected_times) if selected_times else all_times[-1],
         c.BUDGET: budget,
         c.PROFIT: total_incremental_impact - budget,
         c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
+        c.TOTAL_ROI: total_incremental_impact / budget,
+        c.TOTAL_CPIK: total_cpik,
+        c.IS_REVENUE_KPI: not kpi_only,
         c.CONFIDENCE_LEVEL: confidence_level,
     }
-    if use_kpi:
-      cpik = analyzer.get_central_tendency_and_ci(
-          data=tf.math.divide_no_nan(spend, incremental_impact),
-          confidence_level=confidence_level,
-          include_median=True,
-      )
-      data_vars[c.CPIK] = ([c.CHANNEL, c.METRIC], cpik)
-      total_inc_impact = np.sum(incremental_impact, -1)
-      attributes[c.TOTAL_CPIK] = np.mean(
-          tf.math.divide_no_nan(budget, total_inc_impact),
-          axis=(0, 1),
-      )
-    else:
-      roi = analyzer.get_central_tendency_and_ci(
-          data=tf.math.divide_no_nan(incremental_impact, spend),
-          confidence_level=confidence_level,
-          include_median=True,
-      )
-      marginal_roi = analyzer.get_central_tendency_and_ci(
-          data=self._analyzer.marginal_roi(
-              use_posterior=use_posterior,
-              new_media=new_media,
-              new_reach=new_reach,
-              new_frequency=new_frequency,
-              new_media_spend=new_media_spend,
-              new_rf_spend=new_rf_spend,
-              selected_times=selected_times,
-              batch_size=batch_size,
-              by_reach=True,
-          ),
-          confidence_level=confidence_level,
-          include_median=True,
-      )
-      data_vars[c.ROI] = ([c.CHANNEL, c.METRIC], roi)
-      data_vars[c.MROI] = ([c.CHANNEL, c.METRIC], marginal_roi)
-      attributes[c.TOTAL_ROI] = total_incremental_impact / budget
 
     return xr.Dataset(
         data_vars=data_vars,
