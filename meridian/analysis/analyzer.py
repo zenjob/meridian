@@ -471,7 +471,7 @@ class Analyzer:
         .reset_index()
     )
 
-  def _get_adstock_hill_tensors(
+  def _get_tensor_args_for_get_kpi_means(
       self,
       new_media: tf.Tensor | None,
       new_reach: tf.Tensor | None,
@@ -489,35 +489,35 @@ class Analyzer:
     Returns:
       dictionary containing optional media, reach, and frequency data tensors.
     """
-    adstock_tensors = {}
+    scaled_tensors = {}
 
-    adstock_tensors[constants.MEDIA_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.MEDIA_SCALED] = _transformed_new_or_scaled(
         new_variable=new_media,
         transformer=self._meridian.media_tensors.media_transformer,
         scaled_variable=self._meridian.media_tensors.media_scaled,
     )
 
-    adstock_tensors[constants.REACH_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.REACH_SCALED] = _transformed_new_or_scaled(
         new_variable=new_reach,
         transformer=self._meridian.rf_tensors.reach_transformer,
         scaled_variable=self._meridian.rf_tensors.reach_scaled,
     )
 
-    adstock_tensors[constants.FREQUENCY] = (
+    scaled_tensors[constants.FREQUENCY] = (
         new_frequency
         if new_frequency is not None
         else self._meridian.rf_tensors.frequency
     )
 
-    adstock_tensors[constants.CONTROLS_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.CONTROLS_SCALED] = _transformed_new_or_scaled(
         new_variable=new_controls,
         transformer=self._meridian.controls_transformer,
         scaled_variable=self._meridian.controls_scaled,
     )
-    return DataTensors(**adstock_tensors)
+    return DataTensors(**scaled_tensors)
 
-  def _get_adstock_hill_param_names(self) -> list[str]:
-    """Gets adstock_hill distributions.
+  def _get_tensor_param_names(self) -> list[str]:
+    """Gets media, reach and frequency distributions.
 
     Returns:
       A list containing available media and rf parameters names in inference
@@ -841,7 +841,7 @@ class Analyzer:
         if use_posterior
         else self._meridian.inference_data.prior
     )
-    data_tensors = self._get_adstock_hill_tensors(
+    data_tensors = self._get_tensor_args_for_get_kpi_means(
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
@@ -858,7 +858,7 @@ class Analyzer:
         constants.MU_T,
         constants.TAU_G,
         constants.GAMMA_GC,
-    ] + self._get_adstock_hill_param_names()
+    ] + self._get_tensor_param_names()
     outcome_means_temps = []
     for start_index in batch_starting_indices:
       stop_index = np.min([n_draws, start_index + batch_size])
@@ -1355,10 +1355,10 @@ class Analyzer:
     new_reach0 = None if new_reach is None else new_reach * counterfactual0
     new_media1 = None if new_media is None else new_media * counterfactual1
     new_reach1 = None if new_reach is None else new_reach * counterfactual1
-    data_tensors0 = self._get_adstock_hill_tensors(
+    data_tensors0 = self._get_tensor_args_for_get_kpi_means(
         new_media=new_media0, new_reach=new_reach0, new_frequency=new_frequency
     )
-    data_tensors1 = self._get_adstock_hill_tensors(
+    data_tensors1 = self._get_tensor_args_for_get_kpi_means(
         new_media=new_media1, new_reach=new_reach1, new_frequency=new_frequency
     )
 
@@ -1370,7 +1370,7 @@ class Analyzer:
     )
     n_draws = params.draw.size
     batch_starting_indices = np.arange(n_draws, step=batch_size)
-    param_list = self._get_adstock_hill_param_names()
+    param_list = self._get_tensor_param_names()
     incremental_impact_temps = [None] * len(batch_starting_indices)
     dim_kwargs = {
         "selected_geos": selected_geos,
