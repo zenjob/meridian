@@ -135,24 +135,29 @@ OPTIMIZATION_TITLE = 'MMM Optimization Report'
 
 SCENARIO_PLAN_CARD_ID = 'scenario-plan'
 SCENARIO_PLAN_CARD_TITLE = 'Optimization scenario'
-SCENARIO_PLAN_INSIGHTS_FORMAT = """These are the estimated results from a
-{scenario_type} budget scenario with a channel-level spend constraint of
--{lower_bound}% to +{upper_bound}% of the current spend over the time period
-from {start_date} to {end_date}."""
-SCENARIO_PLAN_BASE_INSIGHTS_FORMAT = """These are the estimated
-results from a {scenario_type} budget scenario based on channel-level spend
-constraints over the time period from {start_date} to {end_date}."""
+SCENARIO_PLAN_INSIGHTS_UNIFORM_SPEND_BOUNDS = """These are the estimated results
+from a {scenario_type} budget scenario with a channel-level spend constraint of
+-{lower_bound}% to +{upper_bound}% of the non-optimized spend."""
+SCENARIO_PLAN_INSIGHTS_VARIED_SPEND_BOUNDS = """These are the estimated results
+from a {scenario_type} budget scenario based on channel-level spend constraints
+of the non-optimized spend."""
+SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET = """The non-optimized spend for each
+channel is equal to the historical spend during the period from {start_date} to
+{end_date}."""
+SCENARIO_PLAN_INSIGHTS_NEW_BUDGET = """The non-optimized spend for each channel
+equals the total budget allocated based on the proportion of historical spend
+for each channel during the period from {start_date} to {end_date}."""
 
 
-CURRENT_BUDGET_LABEL = 'Current budget'
+NON_OPTIMIZED_BUDGET_LABEL = 'Non-optimized budget'
 OPTIMIZED_BUDGET_LABEL = 'Optimized budget'
 FIXED_BUDGET_LABEL = 'Fixed'
 FLEXIBLE_BUDGET_LABEL = 'Flexible'
-CURRENT_ROI_LABEL = 'Current ROI'
+NON_OPTIMIZED_ROI_LABEL = 'Non-optimized ROI'
 OPTIMIZED_ROI_LABEL = 'Optimized ROI'
-CURRENT_CPIK_LABEL = 'Current CPIK'
+NON_OPTIMIZED_CPIK_LABEL = 'Non-optimized CPIK'
 OPTIMIZED_CPIK_LABEL = 'Optimized CPIK'
-CURRENT_INC_IMPACT_LABEL = 'Current incremental {impact}'
+NON_OPTIMIZED_INC_IMPACT_LABEL = 'Non-optimized incremental {impact}'
 OPTIMIZED_INC_IMPACT_LABEL = 'Optimized incremental {impact}'
 
 BUDGET_ALLOCATION_CARD_ID = 'budget-allocation'
@@ -164,14 +169,14 @@ SPEND_DELTA_CHART_ID = 'spend-delta-chart'
 SPEND_DELTA_CHART_TITLE = 'Change in optimized spend for each channel'
 SPEND_DELTA_CHART_INSIGHTS = """Note: Each bar represents the change in
 optimized spend for a channel. Negative values indicate a decrease in spend
-while positive values indicate an increase from your current spend."""
+while positive values indicate an increase from your non-optimized spend."""
 
 SPEND_ALLOCATION_CHART_ID = 'spend-allocation-chart'
 SPEND_ALLOCATION_CHART_TITLE = 'Optimized budget allocation'
 
 IMPACT_DELTA_CHART_ID = 'impact-delta-chart'
 IMPACT_DELTA_CHART_TITLE = 'Optimized incremental {impact} across all channels'
-IMPACT_DELTA_CHART_INSIGHTS_FORMAT = """Note: The "current" bar presents the
+IMPACT_DELTA_CHART_INSIGHTS_FORMAT = """Note: The "non_optimized" bar presents the
 incremental {impact} before optimization, and the subsequent bars represent the
 change in incremental {impact} for each channel based on the optimal spend
 level. The final bar labeled "optimized" shows the total incremental {impact}

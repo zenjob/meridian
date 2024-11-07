@@ -195,6 +195,7 @@ def _create_budget_data(
       c.TOTAL_CPIK: sum(spend) / sum(inc_impact[:, 0]),
       c.TOTAL_ROI: sum(inc_impact[:, 0]) / sum(spend),
       c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL,
+      c.USE_HISTORICAL_BUDGET: True,
   }
 
   return xr.Dataset(
@@ -1881,7 +1882,7 @@ class OptimizerPlotsTest(absltest.TestCase):
     self.assertEqual(list(df.columns), [c.CHANNEL, c.INCREMENTAL_IMPACT])
     self.assertEqual(
         list(df.channel),
-        ['current', 'channel 2', 'channel 0', 'channel 1', 'optimized'],
+        ['non_optimized', 'channel 2', 'channel 0', 'channel 1', 'optimized'],
     )
 
   def test_impact_waterfall_chart_correct_config(self):
@@ -1933,8 +1934,8 @@ class OptimizerPlotsTest(absltest.TestCase):
                 {
                     'value': c.BLUE_500,
                     'test': (
-                        f"datum.channel === '{c.CURRENT}' || datum.channel ==="
-                        f" '{c.OPTIMIZED}'"
+                        f"datum.channel === '{c.NON_OPTIMIZED}' ||"
+                        f" datum.channel === '{c.OPTIMIZED}'"
                     ),
                 },
                 {'value': c.RED_300, 'test': 'datum.incremental_impact < 0'},
@@ -2593,12 +2594,61 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertIsNotNone(insights_text)
     self.assertEqual(
         insights_text.strip(),
-        summary_text.SCENARIO_PLAN_INSIGHTS_FORMAT.format(
+        summary_text.SCENARIO_PLAN_INSIGHTS_UNIFORM_SPEND_BOUNDS.format(
             scenario_type='fixed',
             lower_bound=30,
             upper_bound=30,
-            start_date='2020-01-05',
-            end_date='2020-06-28',
+        )
+        + ' '
+        + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
+            start_date='2020-01-05', end_date='2020-06-28'
+        ),
+    )
+
+  def test_output_scenario_plan_card_text_new_budget(self):
+    new_non_optimized_data = _SAMPLE_NON_OPTIMIZED_DATA.copy()
+    new_non_optimized_data.attrs[c.USE_HISTORICAL_BUDGET] = False
+    new_budget_optimization_results = optimizer.OptimizationResults(
+        meridian=self.budget_optimizer._meridian,
+        analyzer=self.budget_optimizer._analyzer,
+        use_posterior=True,
+        use_optimal_frequency=True,
+        spend_ratio=np.array([1.0, 1.0, 1.0]),
+        spend_bounds=(np.array([0.7]), np.array([1.3])),
+        _nonoptimized_data=new_non_optimized_data,
+        _optimized_data=_SAMPLE_OPTIMIZED_DATA,
+        _nonoptimized_data_with_optimal_freq=mock.MagicMock(),
+        _optimization_grid=mock.MagicMock(),
+    )
+    summary_html_dom = self._get_output_summary_html_dom(
+        new_budget_optimization_results
+    )
+    card = analysis_test_utils.get_child_element(
+        summary_html_dom,
+        'body/cards/card',
+        attribs={'id': summary_text.SCENARIO_PLAN_CARD_ID},
+    )
+    card_title_text = analysis_test_utils.get_child_element(
+        card, 'card-title'
+    ).text
+    self.assertIsNotNone(card_title_text)
+    self.assertEqual(
+        card_title_text.strip(), summary_text.SCENARIO_PLAN_CARD_TITLE
+    )
+    insights_text = analysis_test_utils.get_child_element(
+        card, 'card-insights/p', {'class': 'insights-text'}
+    ).text
+    self.assertIsNotNone(insights_text)
+    self.assertEqual(
+        insights_text.strip(),
+        summary_text.SCENARIO_PLAN_INSIGHTS_UNIFORM_SPEND_BOUNDS.format(
+            scenario_type='fixed',
+            lower_bound=30,
+            upper_bound=30,
+        )
+        + ' '
+        + summary_text.SCENARIO_PLAN_INSIGHTS_NEW_BUDGET.format(
+            start_date='2020-01-05', end_date='2020-06-28'
         ),
     )
 
@@ -2628,8 +2678,11 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertIsNotNone(insights_text)
     self.assertEqual(
         insights_text.strip(),
-        summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+        summary_text.SCENARIO_PLAN_INSIGHTS_VARIED_SPEND_BOUNDS.format(
             scenario_type='fixed',
+        )
+        + ' '
+        + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
             start_date='2020-01-05',
             end_date='2020-06-28',
         ),
@@ -2662,8 +2715,11 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertIsNotNone(insights_text)
     self.assertEqual(
         insights_text.strip(),
-        summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+        summary_text.SCENARIO_PLAN_INSIGHTS_VARIED_SPEND_BOUNDS.format(
             scenario_type='fixed',
+        )
+        + ' '
+        + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
             start_date='2020-01-05',
             end_date='2020-06-28',
         ),
@@ -2684,25 +2740,31 @@ class OptimizerOutputTest(parameterized.TestCase):
 
     title = analysis_test_utils.get_child_element(stats[0], 'stats-title').text
     self.assertIsNotNone(title)
-    self.assertEqual(title.strip(), 'Current budget')
+    self.assertEqual(title.strip(), 'Non-optimized budget')
     title = analysis_test_utils.get_child_element(stats[1], 'stats-title').text
     self.assertIsNotNone(title)
     self.assertEqual(title.strip(), 'Optimized budget')
     title = analysis_test_utils.get_child_element(stats[2], 'stats-title').text
     self.assertIsNotNone(title)
-    self.assertEqual(title.strip(), 'Current CPIK')
+    self.assertEqual(title.strip(), 'Non-optimized CPIK')
     title = analysis_test_utils.get_child_element(stats[3], 'stats-title').text
     self.assertIsNotNone(title)
     self.assertEqual(title.strip(), 'Optimized CPIK')
     title = analysis_test_utils.get_child_element(stats[4], 'stats-title').text
     self.assertIsNotNone(title)
-    self.assertEqual(title.strip(), 'Current incremental KPI')
+    self.assertEqual(title.strip(), 'Non-optimized incremental KPI')
     title = analysis_test_utils.get_child_element(stats[5], 'stats-title').text
     self.assertIsNotNone(title)
     self.assertEqual(title.strip(), 'Optimized incremental KPI')
 
   @parameterized.named_parameters(
-      ('current_budget', 0, summary_text.CURRENT_BUDGET_LABEL, '$600', None),
+      (
+          'non_optimized_budget',
+          0,
+          summary_text.NON_OPTIMIZED_BUDGET_LABEL,
+          '$600',
+          None,
+      ),
       (
           'optimization_results',
           1,
@@ -2710,12 +2772,18 @@ class OptimizerOutputTest(parameterized.TestCase):
           '$600',
           '$0',
       ),
-      ('current_roi', 2, summary_text.CURRENT_ROI_LABEL, '1.3', None),
+      (
+          'non_optimized_roi',
+          2,
+          summary_text.NON_OPTIMIZED_ROI_LABEL,
+          '1.3',
+          None,
+      ),
       ('optimized_roi', 3, summary_text.OPTIMIZED_ROI_LABEL, '1.4', '+0.1'),
       (
-          'current_inc_revenue',
+          'non_optimized_inc_revenue',
           4,
-          summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=c.REVENUE),
+          summary_text.NON_OPTIMIZED_INC_IMPACT_LABEL.format(impact=c.REVENUE),
           '$760',
           None,
       ),

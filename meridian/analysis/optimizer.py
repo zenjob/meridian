@@ -128,7 +128,11 @@ class OptimizationResults:
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
         `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`,
+        `use_historical_budget`
+
+    ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
+    CPIK is used.
     """
     return self._nonoptimized_data
 
@@ -145,7 +149,8 @@ class OptimizationResults:
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
         `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`
+        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`,
+        `use_historical_budget`
     """
     return self._nonoptimized_data_with_optimal_freq
 
@@ -163,7 +168,7 @@ class OptimizationResults:
         `incremental_impact`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
         `total_incremental_impact`, `total_roi`, `total_cpik`, `fixed_budget`,
-        `is_revenue_kpi`
+        `is_revenue_kpi`, `use_historical_budget`
     """
     return self._optimized_data
 
@@ -239,8 +244,8 @@ class OptimizationResults:
         'condition': [
             {
                 'test': (
-                    f"datum.channel === '{c.CURRENT}' || datum.channel ==="
-                    f" '{c.OPTIMIZED}'"
+                    f"datum.channel === '{c.NON_OPTIMIZED}' || datum.channel"
+                    f" === '{c.OPTIMIZED}'"
                 ),
                 'value': c.BLUE_500,
             },
@@ -252,7 +257,7 @@ class OptimizationResults:
     # To show the details of the incremental impact delta, zoom into the plot by
     # adjusting the domain of the y-axis so that the incremental impact does not
     # start at 0. Calculate the total decrease in incremental impact to pad the
-    # y-axis from the current total incremental impact value.
+    # y-axis from the non-optimized total incremental impact value.
     sum_decr = sum(df[df.incremental_impact < 0].incremental_impact)
     y_padding = float(f'1e{int(math.log10(-sum_decr))}') if sum_decr < 0 else 2
     domain_scale = [
@@ -585,7 +590,7 @@ class OptimizationResults:
         )
         .reset_index()
     )
-    current_points_df = (
+    non_optimized_points_df = (
         self.nonoptimized_data_with_optimal_freq[
             [c.SPEND, c.INCREMENTAL_IMPACT]
         ]
@@ -594,7 +599,9 @@ class OptimizationResults:
         .reset_index()
         .rename(columns={c.INCREMENTAL_IMPACT: c.MEAN})
     )
-    current_points_df[c.SPEND_LEVEL] = summary_text.NONOPTIMIZED_SPEND_LABEL
+    non_optimized_points_df[c.SPEND_LEVEL] = (
+        summary_text.NONOPTIMIZED_SPEND_LABEL
+    )
     optimal_points_df = (
         self.optimized_data[[c.SPEND, c.INCREMENTAL_IMPACT]]
         .sel(metric=c.MEAN, drop=True)
@@ -605,7 +612,7 @@ class OptimizationResults:
     optimal_points_df[c.SPEND_LEVEL] = summary_text.OPTIMIZED_SPEND_LABEL
 
     concat_df = pd.concat(
-        [response_curves_df, optimal_points_df, current_points_df]
+        [response_curves_df, optimal_points_df, non_optimized_points_df]
     )
     merged_df = concat_df.merge(spend_constraints_df, on=c.CHANNEL)
     if n_top_channels:
@@ -636,7 +643,7 @@ class OptimizationResults:
     sorted_df = self._get_delta_data(c.INCREMENTAL_IMPACT)
     sorted_df.loc[len(sorted_df)] = [c.OPTIMIZED, 0]
     sorted_df.loc[-1] = [
-        c.CURRENT,
+        c.NON_OPTIMIZED,
         self.nonoptimized_data.total_incremental_impact,
     ]
     sorted_df.sort_index(inplace=True)
@@ -675,18 +682,29 @@ class OptimizationResults:
     )
     lbounds, ubounds = self.spend_bounds
     if len(lbounds) > 1 or len(ubounds) > 1:
-      insights = summary_text.SCENARIO_PLAN_BASE_INSIGHTS_FORMAT.format(
+      insights = summary_text.SCENARIO_PLAN_INSIGHTS_VARIED_SPEND_BOUNDS.format(
           scenario_type=scenario_type,
-          start_date=self.optimized_data.start_date,
-          end_date=self.optimized_data.end_date,
       )
     else:
       lower_bound = int((1 - lbounds[0]) * 100)
       upper_bound = int((ubounds[0] - 1) * 100)
-      insights = summary_text.SCENARIO_PLAN_INSIGHTS_FORMAT.format(
-          scenario_type=scenario_type,
-          lower_bound=lower_bound,
-          upper_bound=upper_bound,
+      insights = (
+          summary_text.SCENARIO_PLAN_INSIGHTS_UNIFORM_SPEND_BOUNDS.format(
+              scenario_type=scenario_type,
+              lower_bound=lower_bound,
+              upper_bound=upper_bound,
+          )
+      )
+    if self.nonoptimized_data.use_historical_budget:
+      insights += (
+          ' '
+          + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
+              start_date=self.optimized_data.start_date,
+              end_date=self.optimized_data.end_date,
+          )
+      )
+    else:
+      insights += ' ' + summary_text.SCENARIO_PLAN_INSIGHTS_NEW_BUDGET.format(
           start_date=self.optimized_data.start_date,
           end_date=self.optimized_data.end_date,
       )
@@ -702,8 +720,8 @@ class OptimizationResults:
     impact = self._kpi_or_revenue
     budget_diff = self.optimized_data.budget - self.nonoptimized_data.budget
     budget_prefix = '+' if budget_diff > 0 else ''
-    current_budget = formatter.StatsSpec(
-        title=summary_text.CURRENT_BUDGET_LABEL,
+    non_optimized_budget = formatter.StatsSpec(
+        title=summary_text.NON_OPTIMIZED_BUDGET_LABEL,
         stat=formatter.format_monetary_num(self.nonoptimized_data.budget),
     )
     optimized_budget = formatter.StatsSpec(
@@ -716,21 +734,25 @@ class OptimizationResults:
       diff = round(
           self.optimized_data.total_roi - self.nonoptimized_data.total_roi, 1
       )
-      current_performance_title = summary_text.CURRENT_ROI_LABEL
-      current_performance_stat = round(self.nonoptimized_data.total_roi, 1)
+      non_optimized_performance_title = summary_text.NON_OPTIMIZED_ROI_LABEL
+      non_optimized_performance_stat = round(
+          self.nonoptimized_data.total_roi, 1
+      )
       optimized_performance_title = summary_text.OPTIMIZED_ROI_LABEL
       optimized_performance_stat = round(self.optimized_data.total_roi, 1)
       optimized_performance_diff = f'+{str(diff)}' if diff > 0 else str(diff)
     else:
       diff = self.optimized_data.total_cpik - self.nonoptimized_data.total_cpik
-      current_performance_title = summary_text.CURRENT_CPIK_LABEL
-      current_performance_stat = f'${self.nonoptimized_data.total_cpik:.2f}'
+      non_optimized_performance_title = summary_text.NON_OPTIMIZED_CPIK_LABEL
+      non_optimized_performance_stat = (
+          f'${self.nonoptimized_data.total_cpik:.2f}'
+      )
       optimized_performance_title = summary_text.OPTIMIZED_CPIK_LABEL
       optimized_performance_stat = f'${self.optimized_data.total_cpik:.2f}'
       optimized_performance_diff = formatter.compact_number(diff, 2, '$')
-    current_performance = formatter.StatsSpec(
-        title=current_performance_title,
-        stat=current_performance_stat,
+    non_optimized_performance = formatter.StatsSpec(
+        title=non_optimized_performance_title,
+        stat=non_optimized_performance_stat,
     )
     optimized_performance = formatter.StatsSpec(
         title=optimized_performance_title,
@@ -743,8 +765,8 @@ class OptimizationResults:
         - self.nonoptimized_data.total_incremental_impact
     )
     inc_impact_prefix = '+' if inc_impact_diff > 0 else ''
-    current_inc_impact = formatter.StatsSpec(
-        title=summary_text.CURRENT_INC_IMPACT_LABEL.format(impact=impact),
+    non_optimized_inc_impact = formatter.StatsSpec(
+        title=summary_text.NON_OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
         stat=formatter.format_monetary_num(
             self.nonoptimized_data.total_incremental_impact,
         ),
@@ -758,11 +780,11 @@ class OptimizationResults:
         + formatter.format_monetary_num(inc_impact_diff),
     )
     return [
-        current_budget,
+        non_optimized_budget,
         optimized_budget,
-        current_performance,
+        non_optimized_performance,
         optimized_performance,
-        current_inc_impact,
+        non_optimized_inc_impact,
         optimized_inc_impact,
     ]
 
@@ -808,12 +830,12 @@ class OptimizationResults:
     )
 
   def _create_budget_allocation_table(self) -> pd.DataFrame:
-    """Creates a table of the current vs optimized spend split by channel."""
-    current = (
+    """Creates a table of the non-optimized vs optimized spend allocation."""
+    non_optimized = (
         self.nonoptimized_data[c.PCT_OF_SPEND]
         .to_dataframe()
         .reset_index()
-        .rename(columns={c.PCT_OF_SPEND: c.CURRENT})
+        .rename(columns={c.PCT_OF_SPEND: c.NON_OPTIMIZED})
     )
     optimized = (
         self.optimized_data[c.PCT_OF_SPEND]
@@ -822,11 +844,13 @@ class OptimizationResults:
         .rename(columns={c.PCT_OF_SPEND: c.OPTIMIZED})
     )
     df = (
-        current.merge(optimized, on=c.CHANNEL)
+        non_optimized.merge(optimized, on=c.CHANNEL)
         .sort_values(by=c.OPTIMIZED, ascending=False)
         .reset_index(drop=True)
     )
-    df[c.CURRENT] = df[c.CURRENT].apply(lambda x: f'{round(x * 100)}%')
+    df[c.NON_OPTIMIZED] = df[c.NON_OPTIMIZED].apply(
+        lambda x: f'{round(x * 100)}%'
+    )
     df[c.OPTIMIZED] = df[c.OPTIMIZED].apply(lambda x: f'{round(x * 100)}%')
     return df
 
@@ -953,6 +977,9 @@ class BudgetOptimizer:
       selected_time_dims = None
 
     hist_spend = self._get_hist_spend(selected_time_dims)
+    use_historical_budget = budget is None or round(budget) == round(
+        np.sum(hist_spend)
+    )
     budget = budget or np.sum(hist_spend)
     pct_of_spend = self._validate_pct_of_spend(hist_spend, pct_of_spend)
     spend = budget * pct_of_spend
@@ -1013,6 +1040,7 @@ class BudgetOptimizer:
         selected_times=selected_time_dims,
         confidence_level=confidence_level,
         batch_size=batch_size,
+        use_historical_budget=use_historical_budget,
     )
     nonoptimized_data_with_optimal_freq = self._create_budget_dataset(
         use_posterior=use_posterior,
@@ -1022,6 +1050,7 @@ class BudgetOptimizer:
         optimal_frequency=optimal_frequency,
         confidence_level=confidence_level,
         batch_size=batch_size,
+        use_historical_budget=use_historical_budget,
     )
     optimized_data = self._create_budget_dataset(
         use_posterior=use_posterior,
@@ -1032,6 +1061,7 @@ class BudgetOptimizer:
         attrs=constraints,
         confidence_level=confidence_level,
         batch_size=batch_size,
+        use_historical_budget=use_historical_budget,
     )
 
     optimization_grid = self._create_optimization_grid(
@@ -1305,6 +1335,7 @@ class BudgetOptimizer:
       attrs: Mapping[str, Any] | None = None,
       confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
+      use_historical_budget: bool = True,
   ) -> xr.Dataset:
     """Creates the budget dataset."""
     spend = tf.convert_to_tensor(spend, dtype=tf.float32)
@@ -1443,6 +1474,7 @@ class BudgetOptimizer:
         c.TOTAL_CPIK: total_cpik,
         c.IS_REVENUE_KPI: not kpi_only,
         c.CONFIDENCE_LEVEL: confidence_level,
+        c.USE_HISTORICAL_BUDGET: use_historical_budget,
     }
 
     return xr.Dataset(
@@ -1820,7 +1852,7 @@ def _exceeds_optimization_constraints(
       channel for all media and RF channels.
     incremental_impact: np.ndarray with dimensions (`n_total_channels`)
       containing incremental impact per channel for all media and RF channels.
-    roi_grid_point: float roi for current optimation step.
+    roi_grid_point: float roi for non-optimized optimation step.
     target_mroi: Optional float indicating the target marginal return on
       investment (mroi) constraint. This can be translated into "How much can I
       spend when I have flexible budget until the mroi of each channel hits the
