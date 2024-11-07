@@ -2781,6 +2781,9 @@ class Analyzer:
     number of impressions remains unchanged as frequency varies. Meridian solves
     for the frequency at which posterior mean ROI is optimized.
 
+    Note: ROI is computed with revenue if `revenue_per_kpi` is defined (or if
+    `kpi_type == 'revenue'`), or else with generic non-revenue KPI.
+
     Args:
       freq_grid: List of frequency values. The ROI of each channel is calculated
         for each frequency value in the list. By default, the list includes

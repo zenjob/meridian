@@ -907,6 +907,10 @@ class BudgetOptimizer:
   ) -> OptimizationResults:
     """Finds the optimal budget allocation that maximizes impact.
 
+    Here, "impact" is defined as KPI: revenue KPI if the model data has revenue
+    data (or there is a `revenue_per_kpi` conversion available), or else generic
+    non-revenue KPI otherwise.
+
     Args:
       use_posterior: Boolean. If `True`, then the budget is optimized based on
         the posterior distribution of the model. Otherwise, the prior
