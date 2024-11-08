@@ -892,7 +892,7 @@ class BudgetOptimizer:
   def optimize(
       self,
       use_posterior: bool = True,
-      selected_times: tuple[str, str] | None = None,
+      selected_times: tuple[str | None, str | None] | None = None,
       fixed_budget: bool = True,
       budget: float | None = None,
       pct_of_spend: Sequence[float] | None = None,
@@ -918,7 +918,9 @@ class BudgetOptimizer:
       selected_times: Tuple containing the start and end time dimension
         coordinates for the duration to run the optimization on. Selected time
         values should align with the Meridian time dimension coordinates in the
-        underlying model. By default, all times periods are used.
+        underlying model. By default, all times periods are used. Either start
+        or end time component can be `None` to represent the first or the last
+        time coordinate, respectively.
       fixed_budget: Boolean indicating whether it's a fixed budget optimization
         or flexible budget optimization. Defaults to `True`. If `False`, must
         specify either `target_roi` or `target_mroi`.

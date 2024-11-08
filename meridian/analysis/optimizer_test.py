@@ -585,28 +585,63 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     _, mock_kwargs = mock_incremental_impact.call_args
     self.assertIsNone(mock_kwargs['selected_times'])
 
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'selected_times_range',
+          'selected_times_arg': ['2021-05-17', '2021-06-14'],
+          'expected_times': [
+              '2021-05-17',
+              '2021-05-24',
+              '2021-05-31',
+              '2021-06-07',
+              '2021-06-14',
+          ],
+      },
+      {
+          'testcase_name': 'end_none',
+          'selected_times_arg': ['2021-02-08', None],
+          'expected_times': (
+              pd.date_range(start='2021-2-8', end='2021-12-27', freq='7D')
+              .strftime('%Y-%m-%d')
+              .tolist()
+          ),
+      },
+      {
+          'testcase_name': 'start_none',
+          'selected_times_arg': [None, '2021-11-15'],
+          'expected_times': (
+              pd.date_range(start='2021-01-25', end='2021-11-15', freq='7D')
+              .strftime('%Y-%m-%d')
+              .tolist()
+          ),
+      },
+      {
+          'testcase_name': 'none_tuple',
+          'selected_times_arg': [None, None],
+          'expected_times': None,
+      },
+      {
+          'testcase_name': 'none',
+          'selected_times_arg': None,
+          'expected_times': None,
+      },
+  )
   @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_selected_times_used_correctly(self, mock_incremental_impact):
+  def test_selected_times_used_correctly(
+      self, mock_incremental_impact, selected_times_arg, expected_times
+  ):
     mock_incremental_impact.return_value = tf.ones((
         _N_CHAINS,
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
     ))
-    selected_time_dims = [
-        '2021-05-17',
-        '2021-05-24',
-        '2021-05-31',
-        '2021-06-07',
-        '2021-06-14',
-    ]
-    selected_time = ('2021-05-17', '2021-06-14')
 
-    _ = self.budget_optimizer_media_and_rf.optimize(
-        selected_times=selected_time
+    self.budget_optimizer_media_and_rf.optimize(
+        selected_times=selected_times_arg
     )
 
     _, mock_kwargs = mock_incremental_impact.call_args
-    self.assertEqual(mock_kwargs['selected_times'], selected_time_dims)
+    self.assertEqual(mock_kwargs['selected_times'], expected_times)
 
   def test_default_hist_spend_with_time_geo_dims(self):
     expected_spend = np.round(
