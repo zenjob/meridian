@@ -1873,7 +1873,7 @@ class MediaSummaryTest(parameterized.TestCase):
     plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     encoding = plot.layer[1].encoding
     self.assertEqual(encoding.text.shorthand, "impact_text")
-    self.assertEqual(encoding.x.shorthand, "sum_impact:Q")
+    self.assertEqual(encoding.x.shorthand, "text_x:Q")
     self.assertEqual(encoding.y.shorthand, f"{c.CHANNEL}:N")
     self.assertIsNotNone(encoding.y.axis)
     self.assertIsNone(encoding.y.sort)

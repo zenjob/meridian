@@ -1529,6 +1529,10 @@ class MediaSummary:
         )
         .transform_calculate(
             prev_sum=f'datum.sum_impact - datum.{c.PCT_OF_CONTRIBUTION}',
+            text_x=(
+                'datum.incremental_impact < 0 ? datum.prev_sum :'
+                ' datum.sum_impact'
+            ),
         )
         .encode(
             y=alt.Y(
@@ -1569,7 +1573,7 @@ class MediaSummary:
         color=c.GREY_700,
     ).encode(
         text='impact_text',
-        x='sum_impact:Q',
+        x='text_x:Q',
     )
     return (
         (bar + text)
