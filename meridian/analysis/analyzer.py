@@ -2103,37 +2103,15 @@ class Analyzer:
   ):
     """Aggregates incremental impacts for MediaSummary metrics."""
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
-    expected_outcome = self.expected_outcome(
-        use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
-    )
     incremental_impact_m = self.incremental_impact(
         use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
     )
-    new_media = (
-        tf.zeros_like(self._meridian.media_tensors.media)
-        if self._meridian.media_tensors.media is not None
-        else None
-    )
-    new_reach = (
-        tf.zeros_like(self._meridian.rf_tensors.reach)
-        if self._meridian.rf_tensors.reach is not None
-        else None
-    )
-    new_frequency = (
-        tf.zeros_like(self._meridian.rf_tensors.frequency)
-        if self._meridian.rf_tensors.frequency is not None
-        else None
-    )
-    incremental_impact_total = expected_outcome - self.expected_outcome(
-        use_posterior=use_posterior,
-        new_media=new_media,
-        new_reach=new_reach,
-        new_frequency=new_frequency,
-        use_kpi=use_kpi,
-        **roi_kwargs,
+
+    incremental_impact_total = tf.reduce_sum(
+        incremental_impact_m, axis=-1, keepdims=True
     )
     return tf.concat(
-        [incremental_impact_m, incremental_impact_total[..., None]],
+        [incremental_impact_m, incremental_impact_total],
         axis=-1,
     )
 
@@ -2781,8 +2759,8 @@ class Analyzer:
     number of impressions remains unchanged as frequency varies. Meridian solves
     for the frequency at which posterior mean ROI is optimized.
 
-    Note: ROI is computed with revenue if `revenue_per_kpi` is defined (or if
-    `kpi_type == 'revenue'`), or else with generic non-revenue KPI.
+    Note: The ROI numerator is revenue if `revenue_per_kpi` is defined or if
+    `kpi_type == 'revenue'`. Otherwise, the ROI numerator is KPI units.
 
     Args:
       freq_grid: List of frequency values. The ROI of each channel is calculated
