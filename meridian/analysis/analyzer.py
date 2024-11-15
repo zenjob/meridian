@@ -40,10 +40,10 @@ __all__ = [
 class DataTensors(tf.experimental.ExtensionType):
   """Container for data variables arguments of Analyzer methods."""
 
-  media_scaled: Optional[tf.Tensor] = None
-  reach_scaled: Optional[tf.Tensor] = None
+  media: Optional[tf.Tensor] = None
+  reach: Optional[tf.Tensor] = None
   frequency: Optional[tf.Tensor] = None
-  controls_scaled: Optional[tf.Tensor] = None
+  controls: Optional[tf.Tensor] = None
 
 
 class DistributionTensors(tf.experimental.ExtensionType):
@@ -345,10 +345,9 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `controls_scaled`: ControlTransformer scaled controls tensor.
-        `media_scaled`: MediaTransformer scaled media tensor. `reach_scaled`:
-        MediaTransformer scaled reach tensor. `frequency`: Non scaled frequency
-        tensor.
+        `controls`: ControlTransformer scaled controls tensor. `media`:
+        MediaTransformer scaled media tensor. `reach`: MediaTransformer scaled
+        reach tensor. `frequency`: Non scaled frequency tensor.
       dist_tensors: A `DistributionTensors` container with the following
         distribution parameters: `mu_t`: mu_t distribution from inference data.
         `tau_g`: tau_g distribution from inference data. `gamma_gc`: gamma_gc
@@ -385,7 +384,7 @@ class Analyzer:
         )
         + tf.einsum(
             "...gtc,...gc->...gt",
-            data_tensors.controls_scaled,
+            data_tensors.controls,
             dist_tensors.gamma_gc,
         )
     )
@@ -471,7 +470,7 @@ class Analyzer:
         .reset_index()
     )
 
-  def _get_tensor_args_for_get_kpi_means(
+  def _get_scaled_data_tensors(
       self,
       new_media: tf.Tensor | None,
       new_reach: tf.Tensor | None,
@@ -491,13 +490,13 @@ class Analyzer:
     """
     scaled_tensors = {}
 
-    scaled_tensors[constants.MEDIA_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.MEDIA] = _transformed_new_or_scaled(
         new_variable=new_media,
         transformer=self._meridian.media_tensors.media_transformer,
         scaled_variable=self._meridian.media_tensors.media_scaled,
     )
 
-    scaled_tensors[constants.REACH_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.REACH] = _transformed_new_or_scaled(
         new_variable=new_reach,
         transformer=self._meridian.rf_tensors.reach_transformer,
         scaled_variable=self._meridian.rf_tensors.reach_scaled,
@@ -509,7 +508,7 @@ class Analyzer:
         else self._meridian.rf_tensors.frequency
     )
 
-    scaled_tensors[constants.CONTROLS_SCALED] = _transformed_new_or_scaled(
+    scaled_tensors[constants.CONTROLS] = _transformed_new_or_scaled(
         new_variable=new_controls,
         transformer=self._meridian.controls_transformer,
         scaled_variable=self._meridian.controls_scaled,
@@ -553,8 +552,8 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `media_scaled`: Optional media tensor. `reach_scaled`: Optional reach
-        tensor. `frequency`: Optional frequency tensor.
+        `media`, `reach` and `frequency`. The `media` and `reach` tensors are
+        expected to be scaled by the corresponding transformers.
       dist_tensors: A `DistributionTensors` container with the following
         distribution tensors: `alpha_m`: Optional parameter for adstock
         calculations. Used in conjunction with `media`. `alpha_rf`: Optional
@@ -575,9 +574,9 @@ class Analyzer:
     Returns:
       A tuple `(combined_media_transformed, combined_beta)`.
     """
-    if data_tensors.media_scaled is not None:
+    if data_tensors.media is not None:
       media_transformed = self._meridian.adstock_hill_media(
-          media=data_tensors.media_scaled,
+          media=data_tensors.media,
           alpha=dist_tensors.alpha_m,
           ec=dist_tensors.ec_m,
           slope=dist_tensors.slope_m,
@@ -585,9 +584,9 @@ class Analyzer:
       )
     else:
       media_transformed = None
-    if data_tensors.reach_scaled is not None:
+    if data_tensors.reach is not None:
       rf_transformed = self._meridian.adstock_hill_rf(
-          reach=data_tensors.reach_scaled,
+          reach=data_tensors.reach,
           frequency=data_tensors.frequency,
           alpha=dist_tensors.alpha_rf,
           ec=dist_tensors.ec_rf,
@@ -841,7 +840,7 @@ class Analyzer:
         if use_posterior
         else self._meridian.inference_data.prior
     )
-    data_tensors = self._get_tensor_args_for_get_kpi_means(
+    data_tensors = self._get_scaled_data_tensors(
         new_media=new_media,
         new_reach=new_reach,
         new_frequency=new_frequency,
@@ -921,8 +920,8 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `media_scaled`: Optional scaled media tensor. `reach_scaled`: Optional
-        scaled reach tensor. `frequency`: Optional non scaled frequency tensor.
+        `media`, `reach` and `frequency`. The `media` and `reach` tensors are
+        expected to be scaled by the corresponding transformers.
       dist_tensors: A `DistributionTensors` container with the following
         distribution tensors: `alpha_m`: Optional parameter for adstock
         calculations. Used in conjunction with `media`. `alpha_rf`: Optional
@@ -941,15 +940,11 @@ class Analyzer:
       Tensor of incremental KPI distribution.
     """
     n_media_times = self._meridian.n_media_times
-    if data_tensors.media_scaled is not None:
-      n_times = data_tensors.media_scaled.shape[
-          1
-      ]  # pytype: disable=attribute-error
+    if data_tensors.media is not None:
+      n_times = data_tensors.media.shape[1]  # pytype: disable=attribute-error
       n_times_output = n_times if n_times != n_media_times else None
-    elif data_tensors.reach_scaled is not None:
-      n_times = data_tensors.reach_scaled.shape[
-          1
-      ]  # pytype: disable=attribute-error
+    elif data_tensors.reach is not None:
+      n_times = data_tensors.reach.shape[1]  # pytype: disable=attribute-error
       n_times_output = n_times if n_times != n_media_times else None
     else:
       raise ValueError("Both media_scaled and reach_scaled cannot be None.")
@@ -1021,9 +1016,9 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `media_scaled`: `media` data scaled by the per-geo median, normalized by
-        the geo population. Shape (n_geos x T x n_media_channels), for any time
-        dimension T. `reach_scaled`: `reach` data scaled by the per-geo median,
+        `media`: `media` data scaled by the per-geo median, normalized by the
+        geo population. Shape (n_geos x T x n_media_channels), for any time
+        dimension T. `reach`: `reach` data scaled by the per-geo median,
         normalized by the geo population. Shape (n_geos x T x n_rf_channels),
         for any time dimension T. `frequency`: Contains frequency data with
         shape(n_geos x T x n_rf_channels), for any time dimension T.
@@ -1355,10 +1350,10 @@ class Analyzer:
     new_reach0 = None if new_reach is None else new_reach * counterfactual0
     new_media1 = None if new_media is None else new_media * counterfactual1
     new_reach1 = None if new_reach is None else new_reach * counterfactual1
-    data_tensors0 = self._get_tensor_args_for_get_kpi_means(
+    data_tensors0 = self._get_scaled_data_tensors(
         new_media=new_media0, new_reach=new_reach0, new_frequency=new_frequency
     )
-    data_tensors1 = self._get_tensor_args_for_get_kpi_means(
+    data_tensors1 = self._get_scaled_data_tensors(
         new_media=new_media1, new_reach=new_reach1, new_frequency=new_frequency
     )
 
@@ -2630,7 +2625,7 @@ class Analyzer:
         "batch_size": batch_size,
     }
 
-    new_data_tensor = self._get_performance_tensors(
+    performance_data = self._get_performance_tensors(
         new_media,
         new_media_spend,
         new_reach,
@@ -2639,16 +2634,16 @@ class Analyzer:
         **dim_kwargs,
     )
     new_data_kwargs = {
-        "new_media": new_data_tensor.media,
-        "new_reach": new_data_tensor.reach,
-        "new_frequency": new_data_tensor.frequency,
+        "new_media": performance_data.media,
+        "new_reach": performance_data.reach,
+        "new_frequency": performance_data.frequency,
     }
     new_spend_kwargs = {
-        "new_media_spend": new_data_tensor.media_spend,
-        "new_rf_spend": new_data_tensor.rf_spend,
+        "new_media_spend": performance_data.media_spend,
+        "new_rf_spend": performance_data.rf_spend,
     }
 
-    spend = new_data_tensor.total_spend()
+    spend = performance_data.total_spend()
     if spend is not None and spend.ndim == 3:
       spend = self.filter_and_aggregate_geos_and_times(spend, **dim_kwargs)
 
@@ -2699,7 +2694,7 @@ class Analyzer:
         data=incremental_impact_tensor
         / self.get_aggregated_impressions(
             **dim_kwargs,
-            optimal_frequency=new_data_tensor.frequency,
+            optimal_frequency=performance_data.frequency,
         ),
         confidence_level=confidence_level,
         include_median=True,
