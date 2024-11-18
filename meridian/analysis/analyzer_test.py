@@ -60,6 +60,14 @@ _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH = os.path.join(
     _TEST_DIR,
     "sample_posterior_rf_only.nc",
 )
+_TEST_SAMPLE_PRIOR_NON_PAID_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_prior_non_paid.nc",
+)
+_TEST_SAMPLE_POSTERIOR_NON_PAID_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_posterior_non_paid.nc",
+)
 _TEST_SAMPLE_TRACE_PATH = os.path.join(
     _TEST_DIR,
     "sample_trace.nc",
@@ -75,6 +83,9 @@ _N_MEDIA_TIMES = 52
 _N_CONTROLS = 2
 _N_MEDIA_CHANNELS = 3
 _N_RF_CHANNELS = 2
+_N_NON_MEDIA_CHANNELS = 4
+_N_ORGANIC_MEDIA_CHANNELS = 4
+_N_ORGANIC_RF_CHANNELS = 1
 
 
 def _convert_with_swap(array: xr.DataArray) -> tf.Tensor:
@@ -324,10 +335,11 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     }
     with self.assertRaisesRegex(
         ValueError,
-        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-        "provided with a different number of time periods than in "
-        "`InputData`, then all new parameters originally in `InputData` must "
-        "be provided with the same number of time periods.",
+        "If new_media, new_reach, new_frequency, new_organic_media,"
+        " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi is"
+        " provided with a different number of time periods than in `InputData`,"
+        " then all new parameters originally in `InputData` must be provided"
+        " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
       self.analyzer_media_and_rf.incremental_impact(
@@ -360,11 +372,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   def test_incremental_impact_flexible_times_selected_times_wrong_type(self):
     with self.assertRaisesRegex(
         ValueError,
-        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-        "provided with a different number of time periods than in "
-        "`InputData`, then `selected_times` and `media_selected_times` "
-        "must be a list of booleans with length equal to the number of "
-        "time periods in the new data.",
+        "If new_media, new_reach, new_frequency, new_organic_media,"
+        " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi is"
+        " provided with a different number of time periods than in `InputData`,"
+        " then `selected_times` and `media_selected_times` must be a list of"
+        " booleans with length equal to the number of time periods in the new"
+        " data.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
           new_data=analyzer.DataTensors(
@@ -381,11 +394,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   ):
     with self.assertRaisesRegex(
         ValueError,
-        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-        "provided with a different number of time periods than in "
-        "`InputData`, then `selected_times` and `media_selected_times` "
-        "must be a list of booleans with length equal to the number of "
-        "time periods in the new data.",
+        "If new_media, new_reach, new_frequency, new_organic_media,"
+        " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi is"
+        " provided with a different number of time periods than in `InputData`,"
+        " then `selected_times` and `media_selected_times` must be a list of"
+        " booleans with length equal to the number of time periods in the new"
+        " data.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
           new_data=analyzer.DataTensors(
@@ -934,7 +948,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_media_summary_returns_correct_values(self):
-    media_summary = self.analyzer_media_and_rf.media_summary_metrics(
+    media_summary = self.analyzer_media_and_rf.summary_metrics(
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
         aggregate_geos=True,
@@ -1044,7 +1058,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     analyzer_ = self.analyzer_media_and_rf
     num_channels = _N_MEDIA_CHANNELS + _N_RF_CHANNELS
 
-    media_summary = analyzer_.media_summary_metrics(
+    media_summary = analyzer_.summary_metrics(
         confidence_level=0.8,
         marginal_roi_by_reach=False,
         aggregate_geos=aggregate_geos,
@@ -1423,7 +1437,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     response_data_spend = response_curve_data.spend.values
 
-    media_summary_spend = self.analyzer_media_and_rf.media_summary_metrics(
+    media_summary_spend = self.analyzer_media_and_rf.summary_metrics(
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
     ).spend[:-1]
@@ -2041,10 +2055,11 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.assertRaisesRegex(
         ValueError,
-        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-        "provided with a different number of time periods than in "
-        "`InputData`, then all new parameters originally in `InputData` must "
-        "be provided with the same number of time periods.",
+        "If new_media, new_reach, new_frequency, new_organic_media,"
+        " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi is"
+        " provided with a different number of time periods than in `InputData`,"
+        " then all new parameters originally in `InputData` must be provided"
+        " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
       self.analyzer_media_only.incremental_impact(
@@ -2341,7 +2356,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     model_analyzer = self.analyzer_media_only
     num_channels = _N_MEDIA_CHANNELS
 
-    media_summary = model_analyzer.media_summary_metrics(
+    media_summary = model_analyzer.summary_metrics(
         confidence_level=0.8,
         marginal_roi_by_reach=False,
         aggregate_geos=aggregate_geos,
@@ -2507,10 +2522,11 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     }
     with self.assertRaisesRegex(
         ValueError,
-        "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-        "provided with a different number of time periods than in "
-        "`InputData`, then all new parameters originally in `InputData` must "
-        "be provided with the same number of time periods.",
+        "If new_media, new_reach, new_frequency, new_organic_media,"
+        " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi is"
+        " provided with a different number of time periods than in `InputData`,"
+        " then all new parameters originally in `InputData` must be provided"
+        " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
       self.analyzer_rf_only.incremental_impact(
@@ -2748,7 +2764,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
   def test_media_summary_warns_if_time_not_aggregated(self):
     with warnings.catch_warnings(record=True) as w:
       warnings.simplefilter("always")
-      media_summary = self.analyzer_rf_only.media_summary_metrics(
+      media_summary = self.analyzer_rf_only.summary_metrics(
           confidence_level=0.8,
           marginal_roi_by_reach=False,
           aggregate_geos=True,
@@ -2964,7 +2980,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     response_curve_data = self.analyzer_rf_only.response_curves(by_reach=False)
     response_data_spend = response_curve_data.spend.values
 
-    media_summary_spend = self.analyzer_rf_only.media_summary_metrics(
+    media_summary_spend = self.analyzer_rf_only.summary_metrics(
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
     ).spend[:-1]
@@ -2989,7 +3005,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     model_analyzer = self.analyzer_rf_only
     num_channels = _N_RF_CHANNELS
 
-    media_summary = model_analyzer.media_summary_metrics(
+    media_summary = model_analyzer.summary_metrics(
         confidence_level=0.8,
         marginal_roi_by_reach=False,
         aggregate_geos=aggregate_geos,
@@ -3138,7 +3154,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_media_summary_metrics(self):
-    media_summary = self.analyzer_kpi.media_summary_metrics(
+    media_summary = self.analyzer_kpi.summary_metrics(
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         marginal_roi_by_reach=False,
         aggregate_geos=True,
@@ -3363,6 +3379,405 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
+
+
+class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    super(AnalyzerNonMediaTest, cls).setUpClass()
+    # Input data resulting in revenue computation.
+    cls.input_data_non_media = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+            seed=0,
+        )
+    )
+    model_spec = spec.ModelSpec(max_lag=15)
+    cls.meridian_non_media = model.Meridian(
+        input_data=cls.input_data_non_media, model_spec=model_spec
+    )
+    cls.analyzer_non_media = analyzer.Analyzer(cls.meridian_non_media)
+
+    cls.inference_data_non_media = _build_inference_data(
+        _TEST_SAMPLE_PRIOR_NON_PAID_PATH,
+        _TEST_SAMPLE_POSTERIOR_NON_PAID_PATH,
+    )
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: cls.inference_data_non_media),
+        )
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="use_prior",
+          use_posterior=False,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_PRIOR,
+          non_media_baseline_values=None,
+      ),
+      dict(
+          testcase_name="use_posterior",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_POSTERIOR,
+          non_media_baseline_values=None,
+      ),
+      dict(
+          testcase_name="all_min",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_POSTERIOR,
+          non_media_baseline_values=["min", "min", "min", "min"],
+      ),
+      dict(
+          testcase_name="all_max",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MAX,
+          non_media_baseline_values=["max", "max", "max", "max"],
+      ),
+      dict(
+          testcase_name="mix",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MIX,
+          non_media_baseline_values=["min", "max", "max", "min"],
+      ),
+      dict(
+          testcase_name="mix_as_floats",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MIX,
+          non_media_baseline_values=["min", 3.630, 2.448, "min"],
+      ),
+      dict(
+          testcase_name="all_fixed",
+          use_posterior=True,
+          expected_result=test_utils.INC_IMPACT_NON_MEDIA_FIXED,
+          non_media_baseline_values=[45.2, 1.03, 0.24, 7.77],
+      ),
+  )
+  def test_incremental_impact_non_media(
+      self,
+      use_posterior: bool,
+      expected_result: np.ndarray,
+      non_media_baseline_values: Sequence[float | str] | None,
+  ):
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=self.inference_data_non_media
+    )
+    impact = self.analyzer_non_media.incremental_impact(
+        use_posterior=use_posterior,
+        non_media_baseline_values=non_media_baseline_values,
+        include_non_paid_channels=True,
+    )
+    self.assertAllClose(
+        impact,
+        tf.convert_to_tensor(expected_result),
+        rtol=1e-2,
+        atol=1e-2,
+    )
+
+  def test_incremental_impact_wrong_non_media_raises_exception(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "new_non_media_treatments.shape must match non_media_treatments.shape",
+    ):
+      self.analyzer_non_media.incremental_impact(
+          new_data=analyzer.DataTensors(
+              non_media_treatments=self.meridian_non_media.population
+          ),
+      )
+
+  def test_incremental_impact_wrong_baseline_types_shape_raises_exception(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The number of non-media channels (4) does not match the number of"
+        " baseline types (3).",
+    ):
+      self.analyzer_non_media.incremental_impact(
+          non_media_baseline_values=["min", "max", "min"],
+          include_non_paid_channels=True,
+      )
+
+  def test_incremental_impact_wrong_baseline_type_raises_exception(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Invalid non_media_baseline_values value: 'wrong'. Only float numbers"
+        " and strings 'min' and 'max' are supported.",
+    ):
+      self.analyzer_non_media.incremental_impact(
+          non_media_baseline_values=["min", "max", "max", "wrong"],
+          include_non_paid_channels=True,
+      )
+
+
+class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    super(AnalyzerOrganicMediaTest, cls).setUpClass()
+    # Input data resulting in revenue computation.
+    cls.input_data_non_paid = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+            n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+            n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    cls.not_lagged_input_data_non_paid = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+            n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+            n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+            seed=0,
+        )
+    )
+    model_spec = spec.ModelSpec(max_lag=15)
+    cls.meridian_non_paid = model.Meridian(
+        input_data=cls.input_data_non_paid, model_spec=model_spec
+    )
+    cls.analyzer_non_paid = analyzer.Analyzer(cls.meridian_non_paid)
+
+    cls.inference_data_non_paid = _build_inference_data(
+        _TEST_SAMPLE_PRIOR_NON_PAID_PATH,
+        _TEST_SAMPLE_POSTERIOR_NON_PAID_PATH,
+    )
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: cls.inference_data_non_paid),
+        )
+    )
+
+  @parameterized.product(
+      selected_geos=[["geo_1", "geo_3"]],
+      selected_times=[
+          ["2021-04-19", "2021-09-13", "2021-12-13"],
+      ],
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      # (media, rf, non_media_treatments, organic_media, organic_rf)
+      # (3, 0, 0, 0, 0) -> 3
+      # (0, 2, 0, 0, 0) -> 2
+      # (3, 2, 0, 0, 0) -> 5
+      # (3, 2, 4, 4, 1) -> 14
+      selected_channels=[
+          (_N_MEDIA_CHANNELS, 0, 0, 0, 0),
+          (0, _N_RF_CHANNELS, 0, 0, 0),
+          (_N_MEDIA_CHANNELS, _N_RF_CHANNELS, 0, 0, 0),
+          (
+              _N_MEDIA_CHANNELS,
+              _N_RF_CHANNELS,
+              _N_NON_MEDIA_CHANNELS,
+              _N_ORGANIC_MEDIA_CHANNELS,
+              _N_ORGANIC_RF_CHANNELS,
+          ),
+      ],
+  )
+  def test_filter_and_aggregate_geos_and_times_accepts_channel_shape(
+      self,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_channels: tuple[int, int, int, int, int],
+  ):
+    (
+        n_media_channels,
+        n_rf_channels,
+        n_non_media_channels,
+        n_organic_media_channels,
+        n_organic_rf_channels,
+    ) = selected_channels
+    tensors = []
+    if n_media_channels > 0:
+      tensors.append(
+          tf.convert_to_tensor(self.not_lagged_input_data_non_paid.media)
+      )
+    if n_rf_channels > 0:
+      tensors.append(
+          tf.convert_to_tensor(self.not_lagged_input_data_non_paid.reach)
+      )
+    if n_non_media_channels > 0:
+      tensors.append(
+          tf.convert_to_tensor(
+              self.not_lagged_input_data_non_paid.non_media_treatments
+          )
+      )
+    if n_organic_media_channels > 0:
+      tensors.append(
+          tf.convert_to_tensor(
+              self.not_lagged_input_data_non_paid.organic_media
+          )
+      )
+    if n_organic_rf_channels > 0:
+      tensors.append(
+          tf.convert_to_tensor(
+              self.not_lagged_input_data_non_paid.organic_reach
+          )
+      )
+    tensor = tf.concat(tensors, axis=-1)
+    modified_tensor = (
+        self.analyzer_non_paid.filter_and_aggregate_geos_and_times(
+            tensor,
+            selected_geos=selected_geos,
+            selected_times=selected_times,
+            aggregate_geos=aggregate_geos,
+            aggregate_times=aggregate_times,
+            flexible_time_dim=False,
+            has_media_dim=True,
+        )
+    )
+    expected_shape = ()
+    if not aggregate_geos:
+      expected_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      if selected_times is not None:
+        if all(isinstance(time, bool) for time in selected_times):
+          n_times = sum(selected_times)
+        else:
+          n_times = len(selected_times)
+      else:
+        n_times = _N_TIMES
+      expected_shape += (n_times,)
+    expected_shape += (
+        n_media_channels
+        + n_rf_channels
+        + n_non_media_channels
+        + n_organic_media_channels
+        + n_organic_rf_channels,
+    )
+    self.assertEqual(modified_tensor.shape, expected_shape)
+
+  @parameterized.product(
+      # (media, rf, non_media_treatments, organic_media, organic_rf)
+      # (3, 0, 0, 0, 0) -> 3
+      # (0, 2, 0, 0, 0) -> 2
+      # (3, 2, 0, 0, 0) -> 5
+      # (3, 2, 4, 4, 1) -> 14
+      num_channels=[1, 4, 6, 7, 8, 9, 10, 11, 12, 13],
+  )
+  def test_filter_and_aggregate_geos_and_times_wrong_channels_fails(
+      self,
+      num_channels=int,
+  ):
+    self.assertNotIn(
+        num_channels,
+        [
+            _N_MEDIA_CHANNELS,
+            _N_RF_CHANNELS,
+            _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
+            _N_MEDIA_CHANNELS
+            + _N_RF_CHANNELS
+            + _N_NON_MEDIA_CHANNELS
+            + _N_ORGANIC_MEDIA_CHANNELS
+            + _N_ORGANIC_RF_CHANNELS,
+        ],
+    )
+    tensor = tf.concat(
+        [
+            self.not_lagged_input_data_non_paid.media,
+            self.not_lagged_input_data_non_paid.reach,
+            self.not_lagged_input_data_non_paid.non_media_treatments,
+            self.not_lagged_input_data_non_paid.organic_media,
+            self.not_lagged_input_data_non_paid.organic_reach,
+        ],
+        axis=-1,
+    )
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The tensor must have shape [..., n_geos, n_times, n_channels] or [...,"
+        " n_geos, n_times] if `flexible_time_dim=False`.",
+    ):
+      self.analyzer_non_paid.filter_and_aggregate_geos_and_times(
+          tensor[..., :num_channels],
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="use_prior",
+          use_posterior=False,
+          expected_outcome=test_utils.INC_IMPACT_NON_PAID_USE_PRIOR,
+      ),
+      dict(
+          testcase_name="use_posterior",
+          use_posterior=True,
+          expected_outcome=test_utils.INC_IMPACT_NON_PAID_USE_POSTERIOR,
+      ),
+  )
+  def test_incremental_impact_organic_media(
+      self,
+      use_posterior: bool,
+      expected_outcome: np.ndarray,
+  ):
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=self.inference_data_non_paid
+    )
+    impact = self.analyzer_non_paid.incremental_impact(
+        use_posterior=use_posterior,
+    )
+    self.assertAllClose(
+        impact,
+        tf.convert_to_tensor(expected_outcome),
+        rtol=1e-2,
+        atol=1e-2,
+    )
+
+  @parameterized.product(
+      use_posterior=[False, True],
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      geos_to_include=[None, ["geo_1", "geo_3"]],
+      times_to_include=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_expected_outcome_non_paid_returns_correct_shape(
+      self,
+      use_posterior: bool,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      geos_to_include: Sequence[str] | None,
+      times_to_include: Sequence[str] | None,
+  ):
+    impact = self.analyzer_non_paid.expected_outcome(
+        use_posterior=use_posterior,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=geos_to_include,
+        selected_times=times_to_include,
+    )
+    expected_shape = (_N_CHAINS, _N_KEEP) if use_posterior else (1, _N_DRAWS)
+    if not aggregate_geos:
+      expected_shape += (
+          (len(geos_to_include),) if geos_to_include is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_shape += (
+          (len(times_to_include),)
+          if times_to_include is not None
+          else (_N_TIMES,)
+      )
+    self.assertEqual(impact.shape, expected_shape)
 
 
 class AnalyzerNotFittedTest(absltest.TestCase):

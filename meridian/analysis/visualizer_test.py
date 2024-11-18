@@ -1486,12 +1486,20 @@ class MediaSummaryTest(parameterized.TestCase):
     )
     meridian_revenue_2.input_data.kpi_type = c.NON_REVENUE
     meridian_revenue_2.input_data.revenue_per_kpi = revenue_per_kpi
-    self.mock_media_metrics = test_utils.generate_media_summary_metrics()
-    self.mock_analyzer_method = self.enter_context(
+    self.mock_paid_media_metrics = test_utils.generate_paid_summary_metrics()
+    self.mock_all_summary_metrics = test_utils.generate_all_summary_metrics()
+
+    def mock_summary_metrics(**kwargs):
+      if kwargs.get("include_non_paid_channels", False):
+        return self.mock_all_summary_metrics
+      else:
+        return self.mock_paid_media_metrics
+
+    self.mock_analyzer_summary_metrics = self.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
-            "media_summary_metrics",
-            return_value=self.mock_media_metrics,
+            "summary_metrics",
+            side_effect=mock_summary_metrics,
         )
     )
     self.media_summary_revenue = visualizer.MediaSummary(self.meridian_revenue)
@@ -1542,8 +1550,8 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_media_summary_metrics_property(self):
     self.assertEqual(
-        self.media_summary_revenue.media_summary_metrics,
-        self.mock_media_metrics,
+        self.media_summary_revenue.paid_summary_metrics,
+        self.mock_paid_media_metrics,
     )
 
   def test_media_summary_summary_table_distribution_error(self):
@@ -1585,13 +1593,13 @@ class MediaSummaryTest(parameterized.TestCase):
     )
 
   def test_media_summary_summary_table_kpi(self):
-    media_metrics = test_utils.generate_media_summary_metrics().drop_vars(
-        [c.ROI, c.MROI]
+    media_summary_metrics = (
+        test_utils.generate_paid_summary_metrics().drop_vars([c.ROI, c.MROI])
     )
     with mock.patch.object(
         visualizer.MediaSummary,
-        "media_summary_metrics",
-        new=property(lambda unused_self: media_metrics),
+        "paid_summary_metrics",
+        new=property(lambda unused_self: media_summary_metrics),
     ):
       df = self.media_summary_kpi.summary_table()
     self.assertListEqual(
@@ -1628,7 +1636,7 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_summary_table_format_credible_interval(self):
     df = self.media_summary_revenue.summary_table()
-    inc_rev = self.mock_media_metrics.incremental_impact
+    inc_rev = self.mock_paid_media_metrics.incremental_impact
     expected_mean = inc_rev.sel(metric="mean", distribution="prior").values[0]
     expected_ci_lo = inc_rev.sel(metric="ci_lo", distribution="prior").values[0]
     expected_ci_hi = inc_rev.sel(metric="ci_hi", distribution="prior").values[0]
@@ -1646,29 +1654,43 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_update_ci(self):
     self.assertEqual(
-        self.media_summary_revenue.media_summary_metrics.confidence_level,
+        self.media_summary_revenue.paid_summary_metrics.confidence_level,
         c.DEFAULT_CONFIDENCE_LEVEL,
     )
-    self.media_summary_revenue.update_media_summary_metrics(
+    self.media_summary_revenue.update_summary_metrics(
         confidence_level=0.8, marginal_roi_by_reach=False
     )
-    self.mock_analyzer_method.assert_called_with(
-        confidence_level=0.8, selected_times=None, marginal_roi_by_reach=False
+    self.mock_analyzer_summary_metrics.assert_any_call(
+        confidence_level=0.8,
+        selected_times=None,
+        marginal_roi_by_reach=False,
+        include_non_paid_channels=False,
+    )
+    self.mock_analyzer_summary_metrics.assert_any_call(
+        confidence_level=0.8,
+        selected_times=None,
+        include_non_paid_channels=True,
     )
 
   def test_media_summary_update_selected_times(self):
     times = ["2023-01-01", "2023-01-08", "2023-01-15"]
     self.assertEqual(
-        self.media_summary_revenue.media_summary_metrics.confidence_level,
+        self.media_summary_revenue.paid_summary_metrics.confidence_level,
         0.9,
     )
-    self.media_summary_revenue.update_media_summary_metrics(
+    self.media_summary_revenue.update_summary_metrics(
         selected_times=times, marginal_roi_by_reach=False
     )
-    self.mock_analyzer_method.assert_called_with(
+    self.mock_analyzer_summary_metrics.assert_any_call(
         confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
         selected_times=times,
         marginal_roi_by_reach=False,
+        include_non_paid_channels=False,
+    )
+    self.mock_analyzer_summary_metrics.assert_any_call(
+        confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
+        selected_times=times,
+        include_non_paid_channels=True,
     )
 
   def test_media_summary_plot_roi_correct_columns(self):
@@ -1758,7 +1780,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.layer[3].mark.type, "text")
 
   def test_media_summary_plot_waterfall_chart_correct_data(self):
-    media_metrics = xr.Dataset(
+    summary_metrics = xr.Dataset(
         data_vars={
             c.INCREMENTAL_IMPACT: (
                 [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
@@ -1777,8 +1799,8 @@ class MediaSummaryTest(parameterized.TestCase):
     )
     with mock.patch.object(
         visualizer.MediaSummary,
-        "media_summary_metrics",
-        new=property(lambda unused_self: media_metrics),
+        "all_summary_metrics",
+        new=property(lambda unused_self: summary_metrics),
     ):
       plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
 
@@ -1822,18 +1844,18 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_plot_waterfall_chart_correct_formatted_text(
       self, pct, impact, expected_text
   ):
-    media_metrics = test_utils.generate_media_summary_metrics()
+    summary_metrics = test_utils.generate_all_summary_metrics()
     total_media_dict = {
         c.CHANNEL: c.ALL_CHANNELS,
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
     }
-    media_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = impact
-    media_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = pct
+    summary_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = impact
+    summary_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = pct
     with mock.patch.object(
         visualizer.MediaSummary,
-        "media_summary_metrics",
-        new=property(lambda unused_self: media_metrics),
+        "all_summary_metrics",
+        new=property(lambda unused_self: summary_metrics),
     ):
       plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     df = plot.data
@@ -1862,9 +1884,9 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_plot_waterfall_chart_correct_properties(self):
     plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     self.assertEqual(plot.layer[0].mark.size, 42)
-    self.assertLen(plot.data.channel, 6)
+    self.assertLen(plot.data.channel, 13)
     self.assertEqual(plot.layer[0].encoding.y.scale.paddingOuter, 0.2)
-    expected_height = 42 * 6 + 42 * 2 * 0.2
+    expected_height = 42 * 13 + 42 * 2 * 0.2
     self.assertEqual(plot.height, expected_height)
     self.assertEqual(plot.width, 500)
     self.assertEqual(plot.title.text, summary_text.CHANNEL_DRIVERS_CHART_TITLE)
@@ -1968,7 +1990,7 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_plot_spend_vs_contribution_correct_data(self):
     media_summary = visualizer.MediaSummary(self.meridian_revenue)
-    media_metrics = test_utils.generate_media_summary_metrics()
+    media_metrics = test_utils.generate_paid_summary_metrics()
     total_media_dict = {
         c.CHANNEL: c.ALL_CHANNELS,
         c.DISTRIBUTION: c.POSTERIOR,
@@ -1978,7 +2000,7 @@ class MediaSummaryTest(parameterized.TestCase):
     media_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = 60
     with mock.patch.object(
         visualizer.MediaSummary,
-        "media_summary_metrics",
+        "paid_summary_metrics",
         new=property(lambda unused_self: media_metrics),
     ):
       plot = media_summary.plot_spend_vs_contribution()
@@ -2143,7 +2165,7 @@ class MediaSummaryTest(parameterized.TestCase):
             c.SPEND,
         ],
     )
-    self.assertNotIn("All Channels", list(plot.data.channel))
+    self.assertNotIn(c.ALL_CHANNELS, list(plot.data.channel))
 
   def test_media_summary_plot_roi_vs_effectiveness_correct_mark(self):
     plot = self.media_summary_revenue.plot_roi_vs_effectiveness()

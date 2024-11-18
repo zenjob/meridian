@@ -310,7 +310,7 @@ class Summarizer:
       ascending: bool = False,
   ) -> pd.DataFrame:
     return (
-        media_summary.media_summary_metrics[metrics]
+        media_summary.paid_summary_metrics[metrics]
         .sel(distribution=c.POSTERIOR, metric=c.MEAN)
         .drop_sel(channel=c.ALL_CHANNELS)
         .to_dataframe()
@@ -326,7 +326,7 @@ class Summarizer:
       ascending: bool = False,
   ) -> pd.DataFrame:
     return (
-        media_summary.media_summary_metrics[metrics]
+        media_summary.paid_summary_metrics[metrics]
         .sel(distribution=c.POSTERIOR, metric=c.MEDIAN)
         .drop_sel(channel=c.ALL_CHANNELS)
         .to_dataframe()
@@ -471,7 +471,7 @@ class Summarizer:
     rf_channels = reach_frequency.optimal_frequency_data.rf_channel
     assert rf_channels.size > 0
     # This will raise KeyError if not all `rf_channels` can be found in here:
-    rf_channel_spends = media_summary.media_summary_metrics[c.SPEND].sel(
+    rf_channel_spends = media_summary.paid_summary_metrics[c.SPEND].sel(
         channel=rf_channels
     )
     most_spend_rf_channel = rf_channel_spends.idxmax()

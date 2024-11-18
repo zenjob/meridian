@@ -1368,31 +1368,52 @@ class MediaSummary:
     self._confidence_level = confidence_level
     self._selected_times = selected_times
     self._marginal_roi_by_reach = marginal_roi_by_reach
-    self._media_summary_metrics = self._analyzer.media_summary_metrics(
-        selected_times=selected_times,
-        marginal_roi_by_reach=marginal_roi_by_reach,
-        use_kpi=self._meridian.input_data.revenue_per_kpi is None,
-        confidence_level=confidence_level,
-    )
 
-  @property
-  def media_summary_metrics(self) -> xr.Dataset:
-    """Dataset holding the calculated media summary metrics.
+  @functools.cached_property
+  def paid_summary_metrics(self) -> xr.Dataset:
+    """Dataset holding the calculated summary metrics for the paid channels.
 
     The dataset contains the following:
 
-    - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_hi`, `ci_lo`),
+    - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`),
       `distribution` (`prior`, `posterior`)
     - **Data variables:** `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
       `effectiveness`, `mroi`.
     """
-    return self._media_summary_metrics
+    return self._analyzer.summary_metrics(
+        selected_times=self._selected_times,
+        marginal_roi_by_reach=self._marginal_roi_by_reach,
+        use_kpi=self._meridian.input_data.revenue_per_kpi is None,
+        confidence_level=self._confidence_level,
+        include_non_paid_channels=False,
+    )
+
+  @functools.cached_property
+  def all_summary_metrics(self) -> xr.Dataset:
+    """Dataset holding the calculated summary metrics for all channels.
+
+    The dataset contains the following:
+
+    - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`),
+      `distribution` (`prior`, `posterior`)
+    - **Data variables:** `incremental_impact`, `pct_of_contribution`,
+      `effectiveness`.
+    """
+    return self._analyzer.summary_metrics(
+        selected_times=self._selected_times,
+        use_kpi=self._meridian.input_data.revenue_per_kpi is None,
+        confidence_level=self._confidence_level,
+        include_non_paid_channels=True,
+    )
 
   def summary_table(
-      self, include_prior: bool = True, include_posterior: bool = True
+      self,
+      include_prior: bool = True,
+      include_posterior: bool = True,
+      include_non_paid_channels: bool = False,
   ) -> pd.DataFrame:
-    """Returns a formatted dataframe table of the media summary metrics.
+    """Returns a formatted dataframe table of the summary metrics.
 
     Mean and credible interval summary metrics are formatted as text.
 
@@ -1401,6 +1422,12 @@ class MediaSummary:
         One of `include_prior` and `include_posterior` must be True.
       include_posterior: If True, posterior distribution summary metrics are
         included. One of `include_prior` and `include_posterior` must be True.
+      include_non_paid_channels: Boolean. If `True`, non-paid channels (organic
+        media, organic reach and frequency, and non-media treatments) are
+        included in the summary but only the metrics independent of spend are
+        reported. If `False`, only the paid channels (media, reach and
+        frequency) are included but the summary contains also the metrics
+        dependent on spend. Default: `False`.
 
     Returns:
       pandas.DataFrame of formatted summary metrics.
@@ -1409,43 +1436,79 @@ class MediaSummary:
       raise ValueError(
           'At least one of `include_posterior` or `include_prior` must be True.'
       )
+
     use_revenue = self._meridian.input_data.revenue_per_kpi is not None
     distribution = [c.PRIOR] * include_prior + [c.POSTERIOR] * include_posterior
 
-    # Format CPIK to use median instead of mean.
-    df_mean = (
-        self.media_summary_metrics.drop_vars([c.CPIK])
-        .sel(distribution=distribution)
-        .drop_sel(metric=c.MEDIAN)
-        .to_dataframe()
-        .rename({c.MEAN: 'central_tendency'})
-    )
-    df_median = (
-        self.media_summary_metrics[c.CPIK]
-        .sel(distribution=distribution)
-        .drop_sel(metric=c.MEAN)
-        .to_dataframe()
-        .rename({c.MEDIAN: 'central_tendency'})
-    )
-    df = pd.concat([df_mean, df_median], axis=1)
+    percentage_metrics = [
+        c.PCT_OF_CONTRIBUTION,
+    ]
+    if include_non_paid_channels:
+      monetary_metrics = [c.INCREMENTAL_IMPACT] * use_revenue
+      summary_metrics = self.all_summary_metrics
+      columns_rename_dict = {
+          c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
+          c.INCREMENTAL_IMPACT: (
+              summary_text.INC_REVENUE_COL
+              if use_revenue
+              else summary_text.INC_KPI_COL
+          ),
+      }
+      df = (
+          summary_metrics.sel(distribution=distribution)
+          .drop_sel(metric=c.MEDIAN)
+          .to_dataframe()
+          .rename({c.MEAN: 'central_tendency'})
+      )
+    else:  # not include_non_paid_channels
+      percentage_metrics.extend([
+          c.PCT_OF_IMPRESSIONS,
+          c.PCT_OF_SPEND,
+      ])
+      monetary_metrics = [c.CPM, c.CPIK] + [
+          c.SPEND,
+          c.INCREMENTAL_IMPACT,
+      ] * use_revenue
+      summary_metrics = self.paid_summary_metrics
+      columns_rename_dict = {
+          c.PCT_OF_IMPRESSIONS: summary_text.PCT_IMPRESSIONS_COL,
+          c.PCT_OF_SPEND: summary_text.PCT_SPEND_COL,
+          c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
+          c.INCREMENTAL_IMPACT: (
+              summary_text.INC_REVENUE_COL
+              if use_revenue
+              else summary_text.INC_KPI_COL
+          ),
+      }
+      # Format CPIK to use median instead of mean.
+      df_mean = (
+          summary_metrics.drop_vars([c.CPIK])
+          .sel(distribution=distribution)
+          .drop_sel(metric=c.MEDIAN)
+          .to_dataframe()
+          .rename({c.MEAN: 'central_tendency'})
+      )
+      df_median = (
+          summary_metrics[c.CPIK]
+          .sel(distribution=distribution)
+          .drop_sel(metric=c.MEAN)
+          .to_dataframe()
+          .rename({c.MEDIAN: 'central_tendency'})
+      )
+      df = pd.concat([df_mean, df_median], axis=1)
 
-    data_vars = self.media_summary_metrics.data_vars
+    data_vars = summary_metrics.data_vars
     digits = {k: 1 if min(abs(df[k])) < 1 else 0 for k in list(data_vars)}
     digits[c.EFFECTIVENESS] = 2
     for k, v in digits.items():
       df[k] = df[k].apply(f'{{0:,.{v}f}}'.format)
 
     # Format percentages.
-    for k in [
-        c.PCT_OF_IMPRESSIONS,
-        c.PCT_OF_SPEND,
-        c.PCT_OF_CONTRIBUTION,
-    ]:
+    for k in percentage_metrics:
       df[k] = df[k].astype(str) + '%'
 
     # Format monetary values.
-    monetary = [c.CPM, c.CPIK] + [c.SPEND, c.INCREMENTAL_IMPACT] * use_revenue
-    for k in monetary:
+    for k in monetary_metrics:
       if k in df.columns:
         df[k] = '$' + df[k].astype(str)
 
@@ -1456,21 +1519,10 @@ class MediaSummary:
         df.groupby(index_vars + input_data, sort=False)
         .aggregate(lambda g: f'{g[0]} ({g[1]}, {g[2]})')
         .reset_index()
-        .rename(
-            columns={
-                c.PCT_OF_IMPRESSIONS: summary_text.PCT_IMPRESSIONS_COL,
-                c.PCT_OF_SPEND: summary_text.PCT_SPEND_COL,
-                c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
-                c.INCREMENTAL_IMPACT: (
-                    summary_text.INC_REVENUE_COL
-                    if use_revenue
-                    else summary_text.INC_KPI_COL
-                ),
-            }
-        )
+        .rename(columns=columns_rename_dict)
     )
 
-  def update_media_summary_metrics(
+  def update_summary_metrics(
       self,
       confidence_level: float | None = None,
       selected_times: Sequence[str] | None = None,
@@ -1493,10 +1545,16 @@ class MediaSummary:
     self._confidence_level = confidence_level or self._confidence_level
     self._selected_times = selected_times
     self._marginal_roi_by_reach = marginal_roi_by_reach
-    self._media_summary_metrics = self._analyzer.media_summary_metrics(
+    self._paid_summary_metrics = self._analyzer.summary_metrics(
         selected_times=selected_times,
         marginal_roi_by_reach=marginal_roi_by_reach,
         confidence_level=self._confidence_level,
+        include_non_paid_channels=False,
+    )
+    self._all_summary_metrics = self._analyzer.summary_metrics(
+        selected_times=selected_times,
+        confidence_level=self._confidence_level,
+        include_non_paid_channels=True,
     )
 
   def plot_contribution_waterfall_chart(self) -> alt.Chart:
@@ -1510,7 +1568,7 @@ class MediaSummary:
         if self._meridian.input_data.revenue_per_kpi is not None
         else c.KPI.upper()
     )
-    impact_df = self._transform_contribution_metrics()
+    impact_df = self._transform_contribution_metrics(include_non_paid=True)
     pct = c.PCT_OF_CONTRIBUTION
     value = c.INCREMENTAL_IMPACT
     impact_df['impact_text'] = impact_df.apply(
@@ -1595,7 +1653,9 @@ class MediaSummary:
     Returns:
       An Altair plot showing the contributions for all channels.
     """
-    impact_df = self._transform_contribution_metrics([c.ALL_CHANNELS])
+    impact_df = self._transform_contribution_metrics(
+        [c.ALL_CHANNELS], include_non_paid=True
+    )
 
     domain = [c.BASELINE, c.ALL_CHANNELS]
     colors = [c.YELLOW_600, c.BLUE_700]
@@ -1867,7 +1927,7 @@ class MediaSummary:
       An Altair bubble plot showing the ROI, spend, and another metric.
     """
     if selected_channels:
-      channels = self.media_summary_metrics.channel
+      channels = self.paid_summary_metrics.channel
       if any(channel not in channels for channel in selected_channels):
         raise ValueError(
             '`selected_channels` should match the channel dimension names from '
@@ -1925,7 +1985,7 @@ class MediaSummary:
     """Plots a bar chart showing the specified metric for each channel.
 
     Args:
-      metric: A media summary metric to plot.
+      metric: A summary metric to plot.
       metric_label: The label to use to identify the metric on the plot axis.
       title: The title of the plot.
       include_ci: If `True`, plots the credible interval. Defaults to `True`.
@@ -1933,7 +1993,7 @@ class MediaSummary:
     Returns:
       An Altair plot showing the specified metric per channel.
     """
-    df = self._media_summary_metric_to_df(metric)
+    df = self._summary_metric_to_df(metric)
     base = (
         alt.Chart(df)
         .mark_bar(
@@ -1991,27 +2051,29 @@ class MediaSummary:
   def _transform_media_metrics_for_roi_bubble_plot(
       self, metric: str, selected_channels: Sequence[str] | None = None
   ) -> pd.DataFrame:
-    """Transforms the media metrics specifically for plotting the bubble plots.
+    """Transforms the metrics specifically for plotting the bubble plots.
 
     This dataframe is for comparing ROI, spend, and the specified metric to be
     used in plotting the bubble comparison plots.
 
     Args:
-      metric: Name of the metric in the media summary metrics dataset to compare
+      metric: Name of the metric in the summary metrics dataset to compare
         against ROI.
       selected_channels: Optional list of a subset of channels to filter by.
 
     Returns:
       A dataframe filtered based on the specifications.
     """
-    metrics_df = self._media_summary_metrics_to_mean_df(
+    metrics_df = self._summary_metrics_to_mean_df(
         metrics=[c.ROI, metric], selected_channels=selected_channels
     )
-    spend_df = self.media_summary_metrics[c.SPEND].to_dataframe().reset_index()
+    spend_df = self.paid_summary_metrics[c.SPEND].to_dataframe().reset_index()
     return metrics_df.merge(spend_df, on=c.CHANNEL)
 
   def _transform_contribution_metrics(
-      self, selected_channels: Sequence[str] | None = None
+      self,
+      selected_channels: Sequence[str] | None = None,
+      include_non_paid: bool = False,
   ) -> pd.DataFrame:
     """Transforms the media metrics for the contribution plot.
 
@@ -2022,6 +2084,8 @@ class MediaSummary:
 
     Args:
       selected_channels: Optional list of a subset of channels to filter by.
+      include_non_paid: If `True`, includes the organic media, organic RF and
+        non-media channels in the contribution plot. Defaults to `False`.
 
     Returns:
       A dataframe with impact contributions per channel.
@@ -2031,15 +2095,16 @@ class MediaSummary:
         c.METRIC: c.MEAN,
         c.CHANNEL: c.ALL_CHANNELS,
     }
+    summary_metrics = (
+        self.all_summary_metrics
+        if include_non_paid
+        else self.paid_summary_metrics
+    )
     total_media_impact = (
-        self.media_summary_metrics[c.INCREMENTAL_IMPACT]
-        .sel(total_media_criteria)
-        .item()
+        summary_metrics[c.INCREMENTAL_IMPACT].sel(total_media_criteria).item()
     )
     total_media_pct = (
-        self.media_summary_metrics[c.PCT_OF_CONTRIBUTION]
-        .sel(total_media_criteria)
-        .item()
+        summary_metrics[c.PCT_OF_CONTRIBUTION].sel(total_media_criteria).item()
         / 100
     )
     total_impact = total_media_impact / total_media_pct
@@ -2054,12 +2119,13 @@ class MediaSummary:
         },
         index=[0],
     )
-    impact_df = self._media_summary_metrics_to_mean_df(
+    impact_df = self._summary_metrics_to_mean_df(
         metrics=[
             c.INCREMENTAL_IMPACT,
             c.PCT_OF_CONTRIBUTION,
         ],
         selected_channels=selected_channels,
+        include_non_paid=include_non_paid,
     )
     # Convert to percentage values between 0-1.
     impact_df[c.PCT_OF_CONTRIBUTION] = impact_df[c.PCT_OF_CONTRIBUTION].div(100)
@@ -2085,7 +2151,7 @@ class MediaSummary:
     else:
       impact = summary_text.KPI_LABEL
     total_media_impact = (
-        self.media_summary_metrics[c.INCREMENTAL_IMPACT]
+        self.paid_summary_metrics[c.INCREMENTAL_IMPACT]
         .sel(
             distribution=c.POSTERIOR,
             metric=c.MEAN,
@@ -2093,7 +2159,7 @@ class MediaSummary:
         )
         .item()
     )
-    impact_pct_df = self._media_summary_metrics_to_mean_df(
+    impact_pct_df = self._summary_metrics_to_mean_df(
         metrics=[c.INCREMENTAL_IMPACT]
     )
     impact_pct_df[c.PCT] = impact_pct_df[c.INCREMENTAL_IMPACT].div(
@@ -2102,7 +2168,7 @@ class MediaSummary:
     impact_pct_df.drop(columns=[c.INCREMENTAL_IMPACT], inplace=True)
     impact_pct_df['label'] = f'% {impact}'
     spend_pct_df = (
-        self.media_summary_metrics[c.PCT_OF_SPEND]
+        self.paid_summary_metrics[c.PCT_OF_SPEND]
         .drop_sel(channel=[c.ALL_CHANNELS])
         .to_dataframe()
         .reset_index()
@@ -2112,19 +2178,20 @@ class MediaSummary:
     spend_pct_df['label'] = '% Spend'
 
     pct_df = pd.concat([impact_pct_df, spend_pct_df])
-    roi_df = self._media_summary_metrics_to_mean_df(metrics=[c.ROI])
+    roi_df = self._summary_metrics_to_mean_df(metrics=[c.ROI])
     plot_df = pct_df.merge(roi_df, on=c.CHANNEL)
     scale_factor = plot_df[c.PCT].max() / plot_df[c.ROI].max()
     plot_df[c.ROI_SCALED] = plot_df[c.ROI] * scale_factor
 
     return plot_df
 
-  def _media_summary_metrics_to_mean_df(
+  def _summary_metrics_to_mean_df(
       self,
       metrics: Sequence[str],
       selected_channels: Sequence[str] | None = None,
+      include_non_paid: bool = False,
   ) -> pd.DataFrame:
-    """Transforms the media summary metrics to a dataframe of mean values.
+    """Transforms the summary metrics to a dataframe of mean values.
 
     The dataframe has the selected metrics as the columns as well as the media.
     The metrics values are the posterior mean values for each of the selected
@@ -2134,11 +2201,18 @@ class MediaSummary:
       metrics: A list of the metrics to include in the dataframe.
       selected_channels: List of channels to include. If None, all media
         channels will be included.
+      include_non_paid: If `True`, includes the organic media, organic RF and
+        non-media channels in the dataframe. Defaults to `False`.
 
     Returns:
       A dataframe of posterior mean values for the selected metrics and media.
     """
-    metrics_dataset = self.media_summary_metrics[metrics].sel(
+    summary_metrics = (
+        self.all_summary_metrics
+        if include_non_paid
+        else self.paid_summary_metrics
+    )
+    metrics_dataset = summary_metrics[metrics].sel(
         distribution=c.POSTERIOR, metric=c.MEAN
     )
     if selected_channels:
@@ -2151,14 +2225,14 @@ class MediaSummary:
         .reset_index()
     )
 
-  def _media_summary_metric_to_df(self, metric: str) -> pd.DataFrame:
-    """Transforms a media summary metric to a pivoted dataframe.
+  def _summary_metric_to_df(self, metric: str) -> pd.DataFrame:
+    """Transforms a summary metric to a pivoted dataframe.
 
     The dataframe includes the posterior data for the selected metric and its
     credible interval per channel.
 
     Args:
-      metric: The media summary metric to include in the dataframe.
+      metric: The summary metric to include in the dataframe.
 
     Returns:
       A dataframe of the posterior values for the selected metric.
@@ -2167,7 +2241,7 @@ class MediaSummary:
     central_tendency = c.MEDIAN if metric == c.CPIK else c.MEAN
     unused_central_tendency = c.MEAN if metric == c.CPIK else c.MEDIAN
     return (
-        self.media_summary_metrics[metric]
+        self.paid_summary_metrics[metric]
         .sel(distribution=c.POSTERIOR)
         .drop_sel(
             channel=c.ALL_CHANNELS,

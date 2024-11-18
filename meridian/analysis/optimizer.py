@@ -1129,7 +1129,7 @@ class BudgetOptimizer:
             ),
             c.CHANNEL: (
                 [c.CHANNEL],
-                self._meridian.input_data.get_all_channels(),
+                self._meridian.input_data.get_all_paid_channels(),
             ),
         },
         attrs={c.SPEND_STEP_SIZE: spend_step_size},
@@ -1367,6 +1367,7 @@ class BudgetOptimizer:
         selected_times=selected_times,
         use_kpi=kpi_only,
         batch_size=batch_size,
+        include_non_paid_channels=False,
     )
     # incremental_impact_with_mean_median_and_ci here is an ndarray with the
     # shape (n_channels, n_metrics) where n_metrics = 4 for (mean, median,
@@ -1394,6 +1395,7 @@ class BudgetOptimizer:
         selected_times=selected_times,
         use_kpi=kpi_only,
         batch_size=batch_size,
+        include_non_paid_channels=False,
     )
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
 
@@ -1492,7 +1494,7 @@ class BudgetOptimizer:
         coords={
             c.CHANNEL: (
                 [c.CHANNEL],
-                self._meridian.input_data.get_all_channels(),
+                self._meridian.input_data.get_all_paid_channels(),
             ),
             c.METRIC: (
                 [c.METRIC],
@@ -1627,6 +1629,7 @@ class BudgetOptimizer:
             ),
             selected_times=selected_times,
             use_kpi=use_kpi,
+            include_non_paid_channels=False,
             batch_size=batch_size,
         ),
         (c.CHAINS_DIMENSION, c.DRAWS_DIMENSION),
@@ -1683,7 +1686,7 @@ class BudgetOptimizer:
         (np.max(np.subtract(spend_bound_upper, spend_bound_lower)) // step_size)
         + 1
     )
-    n_grid_columns = len(self._meridian.input_data.get_all_channels())
+    n_grid_columns = len(self._meridian.input_data.get_all_paid_channels())
     spend_grid = np.full([n_grid_rows, n_grid_columns], np.nan)
     for i in range(n_grid_columns):
       spend_grid_m = np.arange(

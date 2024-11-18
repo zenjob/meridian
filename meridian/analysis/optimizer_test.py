@@ -410,8 +410,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
-            'media_summary_metrics',
-            return_value=analysis_test_utils.generate_media_summary_metrics(),
+            'summary_metrics',
+            return_value=analysis_test_utils.generate_paid_summary_metrics(),
         )
     )
 
@@ -1333,6 +1333,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         use_kpi=False,
         batch_size=c.DEFAULT_BATCH_SIZE,
+        include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
@@ -1400,6 +1401,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
+        include_non_paid_channels=False,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
@@ -1465,6 +1467,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
+        include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
@@ -1539,6 +1542,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
+        include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
@@ -1606,6 +1610,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
+        include_non_paid_channels=False,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
@@ -1673,6 +1678,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
+        include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
@@ -3215,8 +3221,8 @@ class OptimizerKPITest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
-            'media_summary_metrics',
-            return_value=analysis_test_utils.generate_media_summary_metrics(),
+            'summary_metrics',
+            return_value=analysis_test_utils.generate_paid_summary_metrics(),
         )
     )
 
@@ -3253,6 +3259,7 @@ class OptimizerKPITest(parameterized.TestCase):
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_posterior=use_posterior,
         new_data=mock.ANY,
+        include_non_paid_channels=False,
     )
 
   @parameterized.parameters([True, False])
@@ -3275,6 +3282,7 @@ class OptimizerKPITest(parameterized.TestCase):
         selected_times=None,
         use_kpi=True,
         batch_size=c.DEFAULT_BATCH_SIZE,
+        include_non_paid_channels=False,
     )
 
   def test_results_kpi_only(self):

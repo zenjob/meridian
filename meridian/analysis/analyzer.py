@@ -47,6 +47,14 @@ class DataTensors(tf.experimental.ExtensionType):
       time dimension `T`.
     frequency: Optional tensor with dimensions `(n_geos, T, n_rf_channels)` for
       any time dimension `T`.
+    organic_media: Optional tensor with dimensions `(n_geos, T,
+      n_organic_media_channels)` for any time dimension `T`.
+    organic_reach: Optional tensor with dimensions `(n_geos, T,
+      n_organic_rf_channels)` for any time dimension `T`.
+    organic_frequency: Optional tensor with dimensions `(n_geos, T,
+      n_organic_rf_channels)` for any time dimension `T`.
+    non_media_treatments: Optional tensor with dimensions `(n_geos, T,
+      n_non_media_channels)` for any time dimension `T`.
     controls: Optional tensor with dimensions `(n_geos, n_times, n_controls)`.
     revenue_per_kpi: Optional tensor with dimensions `(n_geos, n_times)`.
   """
@@ -54,6 +62,10 @@ class DataTensors(tf.experimental.ExtensionType):
   media: Optional[tf.Tensor] = None
   reach: Optional[tf.Tensor] = None
   frequency: Optional[tf.Tensor] = None
+  organic_media: Optional[tf.Tensor] = None
+  organic_reach: Optional[tf.Tensor] = None
+  organic_frequency: Optional[tf.Tensor] = None
+  non_media_treatments: Optional[tf.Tensor] = None
   controls: Optional[tf.Tensor] = None
   revenue_per_kpi: Optional[tf.Tensor] = None
 
@@ -63,15 +75,24 @@ class DistributionTensors(tf.experimental.ExtensionType):
 
   alpha_m: Optional[tf.Tensor] = None
   alpha_rf: Optional[tf.Tensor] = None
+  alpha_om: Optional[tf.Tensor] = None
+  alpha_orf: Optional[tf.Tensor] = None
   ec_m: Optional[tf.Tensor] = None
   ec_rf: Optional[tf.Tensor] = None
+  ec_om: Optional[tf.Tensor] = None
+  ec_orf: Optional[tf.Tensor] = None
   slope_m: Optional[tf.Tensor] = None
   slope_rf: Optional[tf.Tensor] = None
+  slope_om: Optional[tf.Tensor] = None
+  slope_orf: Optional[tf.Tensor] = None
   beta_gm: Optional[tf.Tensor] = None
   beta_grf: Optional[tf.Tensor] = None
+  beta_gom: Optional[tf.Tensor] = None
+  beta_gorf: Optional[tf.Tensor] = None
   mu_t: Optional[tf.Tensor] = None
   tau_g: Optional[tf.Tensor] = None
   gamma_gc: Optional[tf.Tensor] = None
+  gamma_gn: Optional[tf.Tensor] = None
 
 
 def _transformed_new_or_scaled(
@@ -335,6 +356,79 @@ def _central_tendency_and_ci_by_prior_and_posterior(
   return xr.Dataset(data_vars=xr_data, coords=xr_coords)
 
 
+def _compute_non_media_baseline(
+    non_media_treatments: tf.Tensor,
+    non_media_baseline_values: Sequence[float | str] | None = None,
+    non_media_selected_times: Sequence[bool] | None = None,
+) -> tf.Tensor:
+  """Computes the baseline for each non-media treatment channel.
+
+  Args:
+    non_media_treatments: The non-media treatment input data.
+    non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+      Each element is either a float (which means that the fixed value will be
+      used as baseline for the given channel) or one of the strings "min" or
+      "max" (which mean that the global minimum or maximum value will be used as
+      baseline for the values of the given non_media treatment channel). If
+      None, the minimum value is used as baseline for each non_media treatment
+      channel.
+    non_media_selected_times: Optional list of shape (n_times,). Each element is
+      a boolean indicating whether the corresponding time period should be
+      included in the baseline computation.
+
+  Returns:
+    A tensor of shape (n_geos, n_times, n_non_media_channels) containing the
+    baseline values for each non-media treatment channel.
+  """
+
+  if non_media_selected_times is None:
+    non_media_selected_times = [True] * non_media_treatments.shape[-2]
+
+  if non_media_baseline_values is None:
+    # If non_media_baseline_values is not provided, use the minimum value for
+    # each non_media treatment channel as the baseline.
+    non_media_baseline_values_filled = [
+        constants.NON_MEDIA_BASELINE_MIN
+    ] * non_media_treatments.shape[-1]
+  else:
+    non_media_baseline_values_filled = non_media_baseline_values
+
+  if non_media_treatments.shape[-1] != len(non_media_baseline_values_filled):
+    raise ValueError(
+        "The number of non-media channels"
+        f" ({non_media_treatments.shape[-1]}) does not match the number"
+        f" of baseline types ({len(non_media_baseline_values_filled)})."
+    )
+
+  baseline_list = []
+  for channel in range(non_media_treatments.shape[-1]):
+    baseline_value = non_media_baseline_values_filled[channel]
+
+    if baseline_value == constants.NON_MEDIA_BASELINE_MIN:
+      baseline_for_channel = tf.reduce_min(
+          non_media_treatments[..., channel], axis=[0, 1]
+      )
+    elif baseline_value == constants.NON_MEDIA_BASELINE_MAX:
+      baseline_for_channel = tf.reduce_max(
+          non_media_treatments[..., channel], axis=[0, 1]
+      )
+    elif isinstance(baseline_value, float):
+      baseline_for_channel = tf.cast(baseline_value, tf.float32)
+    else:
+      raise ValueError(
+          f"Invalid non_media_baseline_values value: '{baseline_value}'. Only"
+          " float numbers and strings 'min' and 'max' are supported."
+      )
+
+    baseline_list.append(
+        baseline_for_channel
+        * tf.ones_like(non_media_treatments[..., channel])
+        * non_media_selected_times
+    )
+
+  return tf.stack(baseline_list, axis=-1)
+
+
 class Analyzer:
   """Runs calculations to analyze the raw data after fitting the model."""
 
@@ -358,27 +452,16 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `controls`: ControlTransformer scaled controls tensor. `media`:
-        MediaTransformer scaled media tensor. `reach`: MediaTransformer scaled
-        reach tensor. `frequency`: Non scaled frequency tensor.
-      dist_tensors: A `DistributionTensors` container with the following
-        distribution parameters: `mu_t`: mu_t distribution from inference data.
-        `tau_g`: tau_g distribution from inference data. `gamma_gc`: gamma_gc
-        distribution from inference data. `alpha_m: Optional parameter for
-        adstock calculations. Used in conjunction with `media`. `alpha_rf`:
-        Optional parameter for adstock calculations. Used in conjunction with
-        `reach` and `frequency`. `ec_m`: Optional parameter for hill
-        calculations. Used in conjunction with `media`. `ec_rf`: Optional
-        parameter for hill calculations. Used in conjunction with `reach` and
-        `frequency`. `slope_m`: Optional parameter for hill calculations. Used
-        in conjunction with `media`. `slope_rf`: Optional parameter for hill
-        calculations. Used in conjunction with `reach` and `frequency`.
-        `beta_gm`: Optional parameter from inference data. Used in conjunction
-        with `media`. `beta_grf`: Optional parameter from inference data. Used
-        in conjunction with `reach` and `frequency`.
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments`, `controls`. The `media`,
+        `reach`, `organic_media`, `organic_reach` and `non_media_treatments`
+        tensors are assumed to be scaled by their corresponding transformers.
+      dist_tensors: A `DistributionTensors` container with the distribution
+        tensors for media, RF, organic media, organic RF, non-media treatments,
+        and controls.
 
     Returns:
-      Tensor representing adstock/hill-transformed media.
+      Tensor representing computed kpi means.
     """
     tau_gt = tf.expand_dims(dist_tensors.tau_g, -1) + tf.expand_dims(
         dist_tensors.mu_t, -2
@@ -390,7 +473,7 @@ class Analyzer:
         )
     )
 
-    return (
+    result = (
         tau_gt
         + tf.einsum(
             "...gtm,...gm->...gt", combined_media_transformed, combined_beta
@@ -401,6 +484,13 @@ class Analyzer:
             dist_tensors.gamma_gc,
         )
     )
+    if data_tensors.non_media_treatments is not None:
+      result += tf.einsum(
+          "...gtm,...gm->...gt",
+          data_tensors.non_media_treatments,
+          dist_tensors.gamma_gn,
+      )
+    return result
 
   def _check_revenue_data_exists(self, use_kpi: bool = False):
     """Raises an error if `use_kpi` is False but revenue data does not exist."""
@@ -486,16 +576,19 @@ class Analyzer:
   def _get_scaled_data_tensors(
       self,
       new_data: DataTensors | None = None,
+      include_non_paid_channels: bool = True,
   ) -> DataTensors:
     """Get scaled tensors using given new data and original data.
 
     This method returns a new `DataTensors` container with scaled versions of
-    `media`, `reach`, `frequency`, `controls` and `revenue_per_kpi` tensors. For
-    each tensor, if its value is provided in the `new_data` argument, the
-    provided tensors are used. Otherwise the original tensors from the Meridian
-    model are used. The tensors are then either scaled by their corresponding
-    transformers (`media`, `reach`, `controls`), or left as is (`frequency`,
-    `revenue_per_kpi`). For example,
+    `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+    `organic_frequency`, `non_media_treatments`, `controls` and
+    `revenue_per_kpi` tensors. For each tensor, if its value is provided in the
+    `new_data` argument, the provided tensors are used. Otherwise the original
+    tensors from the Meridian model are used. The tensors are then either scaled
+    by their corresponding transformers (`media`, `reach`, `organic_media`,
+    `organic_reach`, `non_media_treatments`, `controls`), or left as is
+    (`frequency`, `organic_frequency`, `revenue_per_kpi`). For example,
 
     ```
     _get_scaled_data_tensors(
@@ -509,21 +602,29 @@ class Analyzer:
 
     Args:
       new_data: An optional `DataTensors` container with optional tensors:
-        `media`, `reach`, `frequency`, `controls` and `revenue_per_kpi`. If
-        `None`, the original scaled tensors from the Meridian object are used.
-        If `new_data` is provided, the output contains the scaled versions of
-        the tensors in `new_data` and the original scaled versions of all the
-        remaining tensors.
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments`, `controls` and
+        `revenue_per_kpi`. If `None`, the original scaled tensors from the
+        Meridian object are used. If `new_data` is provided, the output contains
+        the scaled versions of the tensors in `new_data` and the original scaled
+        versions of all the remaining tensors.
+      include_non_paid_channels: Boolean. If `True`, organic media, organic RF
+        and non-media treatments data is included in the output.
 
     Returns:
       A DataTensors object containing the scaled `media`, `reach`, `frequency`
-      `controls` and `revenue_per_kpi` data tensors.
+      `organic_media`, `organic_reach`, `organic_frequency`,
+      `non_media_treatments`, `controls` and `revenue_per_kpi` data tensors.
     """
     if new_data is None:
       return DataTensors(
           media=self._meridian.media_tensors.media_scaled,
           reach=self._meridian.rf_tensors.reach_scaled,
           frequency=self._meridian.rf_tensors.frequency,
+          organic_media=self._meridian.organic_media_tensors.organic_media_scaled,
+          organic_reach=self._meridian.organic_rf_tensors.organic_reach_scaled,
+          organic_frequency=self._meridian.organic_rf_tensors.organic_frequency,
+          non_media_treatments=self._meridian.non_media_treatments_scaled,
           controls=self._meridian.controls_scaled,
           revenue_per_kpi=self._meridian.revenue_per_kpi,
       )
@@ -555,20 +656,60 @@ class Analyzer:
         if new_data.revenue_per_kpi is not None
         else self._meridian.revenue_per_kpi
     )
-    return DataTensors(
-        media=media_scaled,
-        reach=reach_scaled,
-        frequency=frequency,
-        controls=controls_scaled,
-        revenue_per_kpi=revenue_per_kpi,
-    )
 
-  def _get_tensor_param_names(self) -> list[str]:
-    """Gets media, reach and frequency distributions.
+    if include_non_paid_channels:
+      organic_media_scaled = _transformed_new_or_scaled(
+          new_variable=new_data.organic_media,
+          transformer=self._meridian.organic_media_tensors.organic_media_transformer,
+          scaled_variable=self._meridian.organic_media_tensors.organic_media_scaled,
+      )
+      organic_reach_scaled = _transformed_new_or_scaled(
+          new_variable=new_data.organic_reach,
+          transformer=self._meridian.organic_rf_tensors.organic_reach_transformer,
+          scaled_variable=self._meridian.organic_rf_tensors.organic_reach_scaled,
+      )
+      organic_frequency = (
+          new_data.organic_frequency
+          if new_data.organic_frequency is not None
+          else self._meridian.organic_rf_tensors.organic_frequency
+      )
+      non_media_treatments_scaled = _transformed_new_or_scaled(
+          new_variable=new_data.non_media_treatments,
+          transformer=self._meridian.non_media_transformer,
+          scaled_variable=self._meridian.non_media_treatments_scaled,
+      )
+      return DataTensors(
+          media=media_scaled,
+          reach=reach_scaled,
+          frequency=frequency,
+          organic_media=organic_media_scaled,
+          organic_reach=organic_reach_scaled,
+          organic_frequency=organic_frequency,
+          non_media_treatments=non_media_treatments_scaled,
+          controls=controls_scaled,
+          revenue_per_kpi=revenue_per_kpi,
+      )
+    else:
+      return DataTensors(
+          media=media_scaled,
+          reach=reach_scaled,
+          frequency=frequency,
+          controls=controls_scaled,
+          revenue_per_kpi=revenue_per_kpi,
+      )
+
+  def _get_causal_param_names(
+      self, include_non_paid_channels: bool = True
+  ) -> list[str]:
+    """Gets media, RF, non-media, organic media, and organic RF distributions.
+
+    Args:
+      include_non_paid_channels: Boolean. If `True`, organic media, organic RF
+        and non-media treatments data is included in the output.
 
     Returns:
-      A list containing available media and rf parameters names in inference
-      data.
+      A list containing available media, RF, non-media treatments, organic media
+      and organic RF parameters names in inference data.
     """
     params = []
     if self._meridian.media_tensors.media is not None:
@@ -585,6 +726,25 @@ class Analyzer:
           constants.ALPHA_RF,
           constants.BETA_GRF,
       ])
+    if include_non_paid_channels:
+      if self._meridian.organic_media_tensors.organic_media is not None:
+        params.extend([
+            constants.EC_OM,
+            constants.SLOPE_OM,
+            constants.ALPHA_OM,
+            constants.BETA_GOM,
+        ])
+      if self._meridian.organic_rf_tensors.organic_reach is not None:
+        params.extend([
+            constants.EC_ORF,
+            constants.SLOPE_ORF,
+            constants.ALPHA_ORF,
+            constants.BETA_GORF,
+        ])
+      if self._meridian.non_media_treatments is not None:
+        params.extend([
+            constants.GAMMA_GN,
+        ])
     return params
 
   def _get_transformed_media_and_beta(
@@ -600,21 +760,10 @@ class Analyzer:
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `media`, `reach` and `frequency`. The `media` and `reach` tensors are
-        expected to be scaled by the corresponding transformers.
-      dist_tensors: A `DistributionTensors` container with the following
-        distribution tensors: `alpha_m`: Optional parameter for adstock
-        calculations. Used in conjunction with `media`. `alpha_rf`: Optional
-        parameter for adstock calculations. Used in conjunction with `reach` and
-        `frequency`. `ec_m`: Optional parameter for hill calculations. Used in
-        conjunction with `media`. `ec_rf`: Optional parameter for hill
-        calculations. Used in conjunction with `reach` and `frequency`.
-        `slope_m`: Optional parameter for hill calculations. Used in conjunction
-        with `media`. `slope_rf`: Optional parameter for hill calculations. Used
-        in conjunction with `reach` and `frequency`. `beta_gm`: Optional
-        parameter from inference data. Used in conjunction with `media`.
-        `beta_grf`: Optional parameter from inference data. Used in conjunction
-        with `reach` and `frequency`.
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`.
+      dist_tensors: A `DistributionTensors` container with the distribution
+        tensors for media, RF, organic media, and organic RF channels.
       n_times_output: Optional number of time periods to output. Defaults to the
         corresponding argument defaults for `adstock_hill_media` and
         `adstock_hill_rf`.
@@ -622,41 +771,58 @@ class Analyzer:
     Returns:
       A tuple `(combined_media_transformed, combined_beta)`.
     """
+    combined_medias = []
+    combined_betas = []
     if data_tensors.media is not None:
-      media_transformed = self._meridian.adstock_hill_media(
-          media=data_tensors.media,
-          alpha=dist_tensors.alpha_m,
-          ec=dist_tensors.ec_m,
-          slope=dist_tensors.slope_m,
-          n_times_output=n_times_output,
+      combined_medias.append(
+          self._meridian.adstock_hill_media(
+              media=data_tensors.media,
+              alpha=dist_tensors.alpha_m,
+              ec=dist_tensors.ec_m,
+              slope=dist_tensors.slope_m,
+              n_times_output=n_times_output,
+          )
       )
-    else:
-      media_transformed = None
-    if data_tensors.reach is not None:
-      rf_transformed = self._meridian.adstock_hill_rf(
-          reach=data_tensors.reach,
-          frequency=data_tensors.frequency,
-          alpha=dist_tensors.alpha_rf,
-          ec=dist_tensors.ec_rf,
-          slope=dist_tensors.slope_rf,
-          n_times_output=n_times_output,
-      )
-    else:
-      rf_transformed = None
+      combined_betas.append(dist_tensors.beta_gm)
 
-    if media_transformed is not None and rf_transformed is not None:
-      combined_media_transformed = tf.concat(
-          [media_transformed, rf_transformed], axis=-1
+    if data_tensors.reach is not None:
+      combined_medias.append(
+          self._meridian.adstock_hill_rf(
+              reach=data_tensors.reach,
+              frequency=data_tensors.frequency,
+              alpha=dist_tensors.alpha_rf,
+              ec=dist_tensors.ec_rf,
+              slope=dist_tensors.slope_rf,
+              n_times_output=n_times_output,
+          )
       )
-      combined_beta = tf.concat(
-          [dist_tensors.beta_gm, dist_tensors.beta_grf], axis=-1
+      combined_betas.append(dist_tensors.beta_grf)
+    if data_tensors.organic_media is not None:
+      combined_medias.append(
+          self._meridian.adstock_hill_media(
+              media=data_tensors.organic_media,
+              alpha=dist_tensors.alpha_om,
+              ec=dist_tensors.ec_om,
+              slope=dist_tensors.slope_om,
+              n_times_output=n_times_output,
+          )
       )
-    elif media_transformed is not None:
-      combined_media_transformed = media_transformed
-      combined_beta = dist_tensors.beta_gm
-    else:
-      combined_media_transformed = rf_transformed
-      combined_beta = dist_tensors.beta_grf
+      combined_betas.append(dist_tensors.beta_gom)
+    if data_tensors.organic_reach is not None:
+      combined_medias.append(
+          self._meridian.adstock_hill_rf(
+              reach=data_tensors.organic_reach,
+              frequency=data_tensors.organic_frequency,
+              alpha=dist_tensors.alpha_orf,
+              ec=dist_tensors.ec_orf,
+              slope=dist_tensors.slope_orf,
+              n_times_output=n_times_output,
+          )
+      )
+      combined_betas.append(dist_tensors.beta_gorf)
+
+    combined_media_transformed = tf.concat(combined_medias, axis=-1)
+    combined_beta = tf.concat(combined_betas, axis=-1)
     return combined_media_transformed, combined_beta
 
   def filter_and_aggregate_geos_and_times(
@@ -673,7 +839,9 @@ class Analyzer:
 
     Args:
       tensor: Tensor with dimensions `[..., n_geos, n_times]` or `[..., n_geos,
-        n_times, n_channels]`.
+        n_times, n_channels]`, where `n_channels` is the number of either media
+        channels, RF channels, all paid channels (media and RF), or all channels
+        (media, RF, non-media, organic media, organic RF).
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included. The selected geos should match those in
         `InputData.geo`.
@@ -714,6 +882,11 @@ class Analyzer:
         mmm.n_media_channels,
         mmm.n_rf_channels,
         mmm.n_media_channels + mmm.n_rf_channels,
+        mmm.n_media_channels
+        + mmm.n_rf_channels
+        + mmm.n_non_media_channels
+        + mmm.n_organic_media_channels
+        + mmm.n_organic_rf_channels,
     ]
     expected_shapes_w_media = [
         tf.TensorShape(shape)
@@ -787,21 +960,24 @@ class Analyzer:
       aggregate_times: bool = True,
       inverse_transform_outcome: bool = True,
       use_kpi: bool = False,
+      include_non_paid_channels: bool = True,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
     """Calculates either prior or posterior expected outcome.
 
-    This calculates `E(Impact|Media, Controls)` for each posterior (or prior)
-    parameter draw, where `Impact` ("outcome") refers to either `revenue` if
-    `use_kpi=False`, or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not
-    defined, `use_kpi` cannot be `False`.
+    This calculates `E(Impact|Media, RF, Organic media, Organic RF, Non-media
+    treatments, Controls)` for each posterior (or prior) parameter draw, where
+    `Impact` ("outcome") refers to either `revenue` if `use_kpi=False`, or `kpi`
+    if `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi` cannot
+    be `False`.
 
     If `new_data=None`, this method calculates expected outcome conditional on
-    the media and control values that the Meridian object was initialized with.
-    The user can also override this historical data through the `new_data`
-    argument, as long as the new tensors' dimensions match. For example,
+    the values of the independent variables that the Meridian object was
+    initialized with. The user can also override this historical data through
+    the `new_data` argument, as long as the new tensors' dimensions match. For
+    example,
 
-    ```
+    ```python
     new_data=DataTensors(reach=new_reach, frequency=new_frequency)
     ```
 
@@ -820,15 +996,18 @@ class Analyzer:
         distribution is calculated. Otherwise, the prior distribution is
         calculated.
       new_data: An optional `DataTensors` container with optional new tensors:
-        `media`, `reach`, `frequency`, `controls`. If `None`, expected outcome
-        is calculated conditional on the original values of the data tensors
-        that the Meridian object was initialized with. If `new_data` argument is
-        used, expected outcome is calculated conditional on the values of the
-        tensors passed in `new_data` and on the original values of the remaining
-        unset tensors. For example, `expected_outcome(new_data=DataTensors(
-        reach=new_reach, frequency=new_frequency))` calculates expected outcome
-        conditional on the original `media` and `controls` tensors and on the
-        new given values for `reach` and `frequency` tensors.
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments`, `controls`. If `None`,
+        expected outcome is calculated conditional on the original values of the
+        data tensors that the Meridian object was initialized with. If
+        `new_data` argument is used, expected outcome is calculated conditional
+        on the values of the tensors passed in `new_data` and on the original
+        values of the remaining unset tensors. For example,
+        `expected_outcome(new_data=DataTensors(reach=new_reach,
+        frequency=new_frequency))` calculates expected outcome conditional on
+        the original `media`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments` and `controls` tensors and
+        on the new given values for `reach` and `frequency` tensors.
       selected_geos: Optional list of containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
@@ -847,6 +1026,10 @@ class Analyzer:
         otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
         It is required that `use_kpi = True` if `revenue_per_kpi` is not defined
         or if `inverse_transform_outcome = False`.
+      include_non_paid_channels: Boolean. If `True`, the expected outcome is
+        calculated including the non-media treatments, organic media and organic
+        rf variables. If `False`, the expected outcome is calculated without the
+        non-media treatments, organic media and organic rf variables.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -901,13 +1084,40 @@ class Analyzer:
           self._meridian.rf_tensors.frequency,
           "frequency",
       )
+      _check_shape_matches(
+          new_data.organic_media,
+          "new_organic_media",
+          self._meridian.organic_media_tensors.organic_media,
+          "organic_media",
+      )
+      _check_shape_matches(
+          new_data.organic_reach,
+          "new_organic_reach",
+          self._meridian.organic_rf_tensors.organic_reach,
+          "organic_reach",
+      )
+      _check_shape_matches(
+          new_data.organic_frequency,
+          "new_organic_frequency",
+          self._meridian.organic_rf_tensors.organic_frequency,
+          "organic_frequency",
+      )
+      _check_shape_matches(
+          new_data.non_media_treatments,
+          "new_non_media_treatments",
+          self._meridian.non_media_treatments,
+          "non_media_treatments",
+      )
 
     params = (
         self._meridian.inference_data.posterior
         if use_posterior
         else self._meridian.inference_data.prior
     )
-    data_tensors = self._get_scaled_data_tensors(new_data=new_data)
+    data_tensors = self._get_scaled_data_tensors(
+        new_data=new_data,
+        include_non_paid_channels=include_non_paid_channels,
+    )
 
     n_draws = params.draw.size
     n_chains = params.chain.size
@@ -919,7 +1129,7 @@ class Analyzer:
         constants.MU_T,
         constants.TAU_G,
         constants.GAMMA_GC,
-    ] + self._get_tensor_param_names()
+    ] + self._get_causal_param_names()
     outcome_means_temps = []
     for start_index in batch_starting_indices:
       stop_index = np.min([n_draws, start_index + batch_size])
@@ -977,26 +1187,27 @@ class Analyzer:
       self,
       data_tensors: DataTensors,
       dist_tensors: DistributionTensors,
+      non_media_baseline_values: Sequence[float | str] | None = None,
   ) -> tf.Tensor:
     """Computes incremental KPI distribution.
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
-        `media`, `reach` and `frequency`. The `media` and `reach` tensors are
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments, `controls` and
+        `revenue_per_kpi`. The `media`, `reach`, `organic_media`,
+        `organic_reach`, `non_media_treatments` and `controls` tensors are
         expected to be scaled by the corresponding transformers.
-      dist_tensors: A `DistributionTensors` container with the following
-        distribution tensors: `alpha_m`: Optional parameter for adstock
-        calculations. Used in conjunction with `media`. `alpha_rf`: Optional
-        parameter for adstock calculations. Used in conjunction with `reach` and
-        `frequency`. `ec_m`: Optional parameter for hill calculations. Used in
-        conjunction with `media`. `ec_rf`: Optional parameter for hill
-        calculations. Used in conjunction with `reach` and `frequency`.
-        `slope_m`: Optional parameter for hill calculations. Used in conjunction
-        with `media`. `slope_rf`: Optional parameter for hill calculations. Used
-        in conjunction with `reach` and `frequency`. `beta_gm`: Optional
-        parameter from inference data. Used in conjunction with `media`.
-        `beta_grf`: Optional parameter from inference data. Used in conjunction
-        with `reach` and `frequency`.
+      dist_tensors: A `DistributionTensors` container with the distribution
+        tensors for media, RF, organic media, organic RF and non-media
+        treatments channels.
+      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+        Each element is either a float (which means that the fixed value will be
+        used as baseline for the given channel) or one of the strings "min" or
+        "max" (which mean that the global minimum or maximum value will be used
+        as baseline for the scaled values of the given non_media treatments
+        channel). If None, the minimum value is used as baseline for each
+        non_media treatments channel.
 
     Returns:
       Tensor of incremental KPI distribution.
@@ -1017,11 +1228,24 @@ class Analyzer:
             n_times_output=n_times_output,
         )
     )
-    return tf.einsum(
+    combined_media_kpi = tf.einsum(
         "...gtm,...gm->...gtm",
         combined_media_transformed,
         combined_beta,
     )
+    if data_tensors.non_media_treatments is not None:
+      non_media_scaled_baseline = _compute_non_media_baseline(
+          non_media_treatments=data_tensors.non_media_treatments,
+          non_media_baseline_values=non_media_baseline_values,
+      )
+      non_media_kpi = tf.einsum(
+          "gtn,...gn->...gtn",
+          data_tensors.non_media_treatments - non_media_scaled_baseline,
+          dist_tensors.gamma_gn,
+      )
+      return tf.concat([combined_media_kpi, non_media_kpi], axis=-1)
+    else:
+      return combined_media_kpi
 
   def _inverse_impact(
       self,
@@ -1066,6 +1290,7 @@ class Analyzer:
       self,
       data_tensors: DataTensors,
       dist_tensors: DistributionTensors,
+      non_media_baseline_values: Sequence[float | str] | None = None,
       inverse_transform_impact: bool | None = None,
       use_kpi: bool | None = None,
       selected_geos: Sequence[str] | None = None,
@@ -1083,23 +1308,27 @@ class Analyzer:
         normalized by the geo population. Shape (n_geos x T x n_rf_channels),
         for any time dimension T. `frequency`: Contains frequency data with
         shape(n_geos x T x n_rf_channels), for any time dimension T.
-        `revenue_per_kpi`: Contains revenue per kpi data with shape `(n_geos x
-        T)`, for any time dimension `T`.
-      dist_tensors: A `DistributionTensors` container with the following
-        distribution tensors: `alpha_m`: media_channel specific alpha parameter
-        for adstock calculations. Used in conjunction with `media`. `alpha_rf`:
-        rf_channel specific alpha parameter for adstock calculations. Used in
-        conjunction with `reach` and `frequency`. `ec_m`: media_channel specific
-        ec parameter for hill calculations. Used in conjunction with `media`.
-        `ec_rf`: rf_channel specific ec parameter for hill calculations. Used in
-        conjunction with `reach` and `frequency`. `slope_m`: media_channel
-        specific slope parameter for hill calculations. Used in conjunction with
-        `media`. `slope_rf`: rf_channel specific slope parameter for hill
-        calculations. Used in conjunction with `reach` and `frequency`.
-        `beta_gm`: media_channel specific parameter from inference data. Used in
-        conjunction with `media`. `beta_grf`: rf_channel specific beta_g
-        parameter from inference data. Used in conjunction with `reach` and
-        `frequency`.
+        `organic_media`: `organic media data scaled by the per-geo median,
+        normalized by the geo population. Shape (n_geos x T x
+        n_organic_media_channels), for any time dimension T. `organic_reach`:
+        `organic reach` data scaled by the per-geo median, normalized by the geo
+        poulation. Shape (n_geos x T x n_organic_rf_channels), for any time
+        dimension T. `organic_frequency`: `organic frequency data` with shape
+        (n_geos x T x n_organic_rf_channels), for any time dimension T.
+        `non_media_treatments`: `non_media_treatments` data with shape (n_geos x
+        T x n_non_media_channels), for any time dimension T. `revenue_per_kpi`:
+        Contains revenue per kpi data with shape `(n_geos x T)`, for any time
+        dimension `T`.
+     dist_tensors: A `DistributionTensors` container with the distribution
+       tensors for media, RF, organic media, organic RF and non-media treatments
+       channels.
+      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+        Each element is either a float (which means that the fixed value will be
+        used as baseline for the given channel) or one of the strings "min" or
+        "max" (which mean that the global minimum or maximum value will be used
+        as baseline for the scaled values of the given non_media treatments
+        channel). If None, the minimum value is used as baseline for each
+        non_media treatments channel.
       inverse_transform_impact: Boolean. If `True`, returns the expected impact
         in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
@@ -1127,6 +1356,7 @@ class Analyzer:
     transformed_impact = self._get_incremental_kpi(
         data_tensors=data_tensors,
         dist_tensors=dist_tensors,
+        non_media_baseline_values=non_media_baseline_values,
     )
     if inverse_transform_impact:
       incremental_impact = self._inverse_impact(
@@ -1150,6 +1380,7 @@ class Analyzer:
       self,
       use_posterior: bool = True,
       new_data: DataTensors | None = None,
+      non_media_baseline_values: Sequence[float | str] | None = None,
       scaling_factor0: float = 0.0,
       scaling_factor1: float = 1.0,
       selected_geos: Sequence[str] | None = None,
@@ -1159,6 +1390,7 @@ class Analyzer:
       aggregate_times: bool = True,
       inverse_transform_impact: bool = True,
       use_kpi: bool = False,
+      include_non_paid_channels: bool = True,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
     """Calculates either the posterior or prior incremental impact.
@@ -1179,11 +1411,13 @@ class Analyzer:
     defined, `use_kpi` cannot be False.
 
     If `new_data=None`, this method computes incremental impact using `media`,
-    `reach`, `frequency`, and `revenue_per_kpi` tensors that the Meridian
+    `reach`, `frequency`, `organic_media`, `organic_reach`, `organic_frequency`,
+    `non_media_treatments` and `revenue_per_kpi` tensors that the Meridian
     object was initialized with. This behavior can be overridden with the
     `new_data` argument. For example, `new_data=DataTensors(media=new_media)`
     calculates incremental impact using the `new_media` tensor and the original
-    values of `reach`, `frequency`, and `revenue_per_kpi` tensors.
+    values of `reach`, `frequency`, `organic_media`, `organic_reach`,
+    `organic_frequency`, `non_media_treatments` and `revenue_per_kpi` tensors.
 
     The calculation in this method depends on two key assumptions made in the
     Meridian implementation:
@@ -1200,16 +1434,26 @@ class Analyzer:
         distribution is calculated. Otherwise, the prior distribution is
         calculated.
       new_data: Optional `DataTensors` container with optional tensors: `media`,
-        `reach`, `frequency`, and `revenue_per_kpi`. If `None`, the incremental
-        impact is calculated using the `InputData` provided to the Meridian
-        object. If `new_data` is provided, the incremental impact is calculated
-        using the new tensors in `new_data` and the original values of the
-        remaining tensors. For example,
+        `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments` and `revenue_per_kpi`. If
+        `None`, the incremental impact is calculated using the `InputData`
+        provided to the Meridian object. If `new_data` is provided, the
+        incremental impact is calculated using the new tensors in `new_data` and
+        the original values of the remaining tensors. For example,
         `incremental_impact(new_data=DataTensors(media=new_media)` computes the
         incremental impact using `new_media` and the original values of `reach`,
-        `frequency`, and `revenue_per_kpi`. If any of the tensors in `new_data`
-        is provided with a different number of time periods than in `InputData`,
-        then all tensors must be provided with the same number of time periods.
+        `frequency`, `organic_media`, `organic_reach`, `organic_frequency`,
+        `non_media_treatments` and `revenue_per_kpi`. If any of the tensors in
+        `new_data` is provided with a different number of time periods than in
+        `InputData`, then all tensors must be provided with the same number of
+        time periods.
+      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+        Each element is either a float (which means that the fixed value will be
+        used as baseline for the given channel) or one of the strings "min" or
+        "max" (which mean that the global minimum or maximum value will be used
+        as baseline for the scaled values of the given non_media treatments
+        channel). If not provided, the minimum value is used as the baseline for
+        each non_media treatments channel.
       scaling_factor0: Float. The factor by which to scale the counterfactual
         scenario "Media_0" during the time periods specified in
         `media_selected_times`. Must be non-negative and less than
@@ -1254,6 +1498,9 @@ class Analyzer:
         otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
         It is required that `use_kpi = True` if `revenue_per_kpi` data is not
         available or if `inverse_transform_impact = False`.
+      include_non_paid_channels: Boolean. If `True`, then non-media treatments
+        and organic effects are included in the calculation. If `False`, then
+        only the paid media and RF effects are included.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -1262,9 +1509,12 @@ class Analyzer:
     Returns:
       Tensor of incremental impact (either KPI or revenue, depending on
       `use_kpi` argument) with dimensions `(n_chains, n_draws, n_geos,
-      n_times, n_channels)` where `n_channels` is the total number of media and
-      RF channels. The `n_geos` and `n_times` dimensions are dropped if
-      `aggregate_geos=True` or `aggregate_times=True`, respectively.
+      n_times, n_channels)`. If `include_non_paid_channels=True`, then
+      `n_channel` is the total number of media, RF, organic media, and organic
+      RF and non-media channels. If `include_non_paid_channels=False`, then
+      `n_channels` is the total number of media and RF channels. The `n_geos`
+      and `n_times` dimensions are dropped if `aggregate_geos=True` or
+      `aggregate_times=True`, respectively.
     Raises:
       NotFittedModelError: If `sample_posterior()` (for `use_posterior=True`)
         or `sample_prior()` (for `use_posterior=False`) has not been called
@@ -1334,25 +1584,32 @@ class Analyzer:
     if mmm.rf_tensors.reach is not None:
       required_new_params.append(new_data.reach)
       required_new_params.append(new_data.frequency)
+    if mmm.organic_media_tensors.organic_media is not None:
+      required_new_params.append(new_data.organic_media)
+    if mmm.organic_rf_tensors.organic_reach is not None:
+      required_new_params.append(new_data.organic_reach)
+      required_new_params.append(new_data.organic_frequency)
     if not use_kpi:
       required_new_params.append(new_data.revenue_per_kpi)
     if use_flexible_time:
       if any(param is None for param in required_new_params):
         raise ValueError(
-            "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-            "provided with a different number of time periods than in "
-            "`InputData`, then all new parameters originally in `InputData` "
-            "must be provided with the same number of time periods."
+            "If new_media, new_reach, new_frequency, new_organic_media,"
+            " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi"
+            " is provided with a different number of time periods than in"
+            " `InputData`, then all new parameters originally in `InputData`"
+            " must be provided with the same number of time periods."
         )
       if (selected_times and not _is_bool_list(selected_times)) or (
           media_selected_times and not _is_bool_list(media_selected_times)
       ):
         raise ValueError(
-            "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
-            "provided with a different number of time periods than in "
-            "`InputData`, then `selected_times` and `media_selected_times` "
-            "must be a list of booleans with length equal to the number of "
-            "time periods in the new data."
+            "If new_media, new_reach, new_frequency, new_organic_media,"
+            " new_organic_reach, new_organic_frequency, or new_revenue_per_kpi"
+            " is provided with a different number of time periods than in"
+            " `InputData`, then `selected_times` and `media_selected_times`"
+            " must be a list of booleans with length equal to the number of"
+            " time periods in the new data."
         )
     new_shape = (mmm.n_geos, new_n_media_times)
     _check_shape_matches(
@@ -1370,6 +1627,31 @@ class Analyzer:
         "new_frequency",
         t2_shape=tf.TensorShape(new_shape + (mmm.n_rf_channels,)),
     )
+    _check_shape_matches(
+        new_data.non_media_treatments,
+        "new_non_media_treatments",
+        self._meridian.non_media_treatments,
+        "non_media_treatments",
+    )
+    _check_shape_matches(
+        new_data.organic_media,
+        "new_organic_media",
+        self._meridian.organic_media_tensors.organic_media,
+        "organic_media",
+    )
+    _check_shape_matches(
+        new_data.organic_reach,
+        "new_organic_reach",
+        self._meridian.organic_rf_tensors.organic_reach,
+        "organic_reach",
+    )
+    _check_shape_matches(
+        new_data.organic_frequency,
+        "new_organic_frequency",
+        self._meridian.organic_rf_tensors.organic_frequency,
+        "organic_frequency",
+    )
+
     if not use_kpi:
       _check_shape_matches(
           new_data.revenue_per_kpi,
@@ -1388,10 +1670,27 @@ class Analyzer:
       new_reach = mmm.rf_tensors.reach
     else:
       new_reach = new_data.reach
+    if new_data.organic_media is None:
+      new_organic_media = mmm.organic_media_tensors.organic_media
+    else:
+      new_organic_media = new_data.organic_media
+    if new_data.organic_reach is None:
+      new_organic_reach = mmm.organic_rf_tensors.organic_reach
+    else:
+      new_organic_reach = new_data.organic_reach
+    if new_data.non_media_treatments is None:
+      new_non_media_treatments = mmm.non_media_treatments
+    else:
+      new_non_media_treatments = new_data.non_media_treatments
+
     new_data = DataTensors(
         media=new_media,
         reach=new_reach,
         frequency=new_data.frequency,
+        organic_media=new_organic_media,
+        organic_reach=new_organic_reach,
+        organic_frequency=new_data.organic_frequency,
+        non_media_treatments=new_non_media_treatments,
         revenue_per_kpi=new_data.revenue_per_kpi,
     )
     if media_selected_times is None:
@@ -1408,6 +1707,7 @@ class Analyzer:
         media_selected_times = [
             x in media_selected_times for x in mmm.input_data.media_time
         ]
+    non_media_selected_times = media_selected_times[-mmm.n_times :]
 
     # Set counterfactual media and reach tensors based on the scaling factors
     # and the media selected times.
@@ -1423,27 +1723,70 @@ class Analyzer:
     new_reach0 = (
         None if new_data.reach is None else new_data.reach * counterfactual0
     )
+    new_organic_media0 = (
+        None
+        if new_data.organic_media is None
+        else new_data.organic_media * counterfactual0
+    )
+    new_organic_reach0 = (
+        None
+        if new_data.organic_reach is None
+        else new_data.organic_reach * counterfactual0
+    )
+    if new_data.non_media_treatments is not None:
+      new_non_media_treatments0 = _compute_non_media_baseline(
+          non_media_treatments=new_data.non_media_treatments,
+          non_media_baseline_values=non_media_baseline_values,
+          non_media_selected_times=non_media_selected_times,
+      )
+    else:
+      new_non_media_treatments0 = None
     new_media1 = (
         None if new_data.media is None else new_data.media * counterfactual1
     )
     new_reach1 = (
         None if new_data.reach is None else new_data.reach * counterfactual1
     )
+    new_organic_media1 = (
+        None
+        if new_data.organic_media is None
+        else new_data.organic_media * counterfactual1
+    )
+    new_organic_reach1 = (
+        None
+        if new_data.organic_reach is None
+        else new_data.organic_reach * counterfactual1
+    )
+    new_non_media_treatments1 = (
+        None
+        if new_data.non_media_treatments is None
+        else new_data.non_media_treatments
+    )
     data_tensors0 = self._get_scaled_data_tensors(
         new_data=DataTensors(
             media=new_media0,
             reach=new_reach0,
             frequency=new_data.frequency,
+            organic_media=new_organic_media0,
+            organic_reach=new_organic_reach0,
+            organic_frequency=new_data.organic_frequency,
+            non_media_treatments=new_non_media_treatments0,
             revenue_per_kpi=new_data.revenue_per_kpi,
-        )
+        ),
+        include_non_paid_channels=include_non_paid_channels,
     )
     data_tensors1 = self._get_scaled_data_tensors(
         new_data=DataTensors(
             media=new_media1,
             reach=new_reach1,
             frequency=new_data.frequency,
+            organic_media=new_organic_media1,
+            organic_reach=new_organic_reach1,
+            organic_frequency=new_data.organic_frequency,
+            non_media_treatments=new_non_media_treatments1,
             revenue_per_kpi=new_data.revenue_per_kpi,
-        )
+        ),
+        include_non_paid_channels=include_non_paid_channels,
     )
 
     # Calculate incremental impact in batches.
@@ -1454,7 +1797,7 @@ class Analyzer:
     )
     n_draws = params.draw.size
     batch_starting_indices = np.arange(n_draws, step=batch_size)
-    param_list = self._get_tensor_param_names()
+    param_list = self._get_causal_param_names()
     incremental_impact_temps = [None] * len(batch_starting_indices)
     dim_kwargs = {
         "selected_geos": selected_geos,
@@ -1465,6 +1808,7 @@ class Analyzer:
     incremental_revenue_kwargs = {
         "inverse_transform_impact": inverse_transform_impact,
         "use_kpi": use_kpi,
+        "non_media_baseline_values": non_media_baseline_values,
     }
     for i, start_index in enumerate(batch_starting_indices):
       stop_index = np.min([n_draws, start_index + batch_size])
@@ -1755,6 +2099,7 @@ class Analyzer:
         "use_posterior": use_posterior,
         "use_kpi": use_kpi,
         "batch_size": batch_size,
+        "include_non_paid_channels": False,
     }
     performance_tensors = self._get_performance_tensors(
         new_media,
@@ -1888,6 +2233,7 @@ class Analyzer:
         "use_posterior": use_posterior,
         "use_kpi": use_kpi,
         "batch_size": batch_size,
+        "include_non_paid_channels": False,
     }
     # TODO: Organize the tensors passed between the methods
     # using DataTensors.
@@ -1978,6 +2324,7 @@ class Analyzer:
         "use_kpi": True,
         "use_posterior": use_posterior,
         "batch_size": batch_size,
+        "include_non_paid_channels": False,
     }
     # TODO: Organize the tensors passed between the methods
     # using DataTensors.
@@ -2175,6 +2522,7 @@ class Analyzer:
 
   def _calculate_baseline_expected_outcome(
       self,
+      non_media_baseline_values: Sequence[str | float] | None = None,
       **expected_outcome_kwargs,
   ) -> tf.Tensor:
     """Calculates either the posterior or prior expected outcome of baseline.
@@ -2183,11 +2531,23 @@ class Analyzer:
     following argument values:
       1) `new_media` is set to all zeros
       2) `new_reach` is set to all zeros
-      3) `new_controls` are set to historical values
+      3) `new_organic_media` is set to all zeros
+      4) `new_organic_reach` is set to all zeros
+      5) `new_non_media_treatments` is set to the counterfactual values
+      according to the
+        `non_media_baseline_values` argument
+      6) `new_controls` are set to historical values
 
     All other arguments of `expected_outcome` can be passed to this method.
 
     Args:
+      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+        Each element is either a float (which means that the fixed value will be
+        used as baseline for the given channel) or one of the strings "min" or
+        "max" (which mean that the global minimum or maximum value will be used
+        as baseline for the values of the given non_media treatment channel). If
+        None, the minimum value is used as baseline for each non_media treatment
+        channel.
       **expected_outcome_kwargs: kwargs to pass to `expected_outcome`, which
         could contain use_posterior, selected_geos, selected_times,
         aggregate_geos, aggregate_times, inverse_transform_impact, use_kpi,
@@ -2209,33 +2569,62 @@ class Analyzer:
         if self._meridian.rf_tensors.reach is not None
         else None
     )
+    new_organic_media = (
+        tf.zeros_like(self._meridian.organic_media_tensors.organic_media)
+        if self._meridian.organic_media_tensors.organic_media is not None
+        else None
+    )
+    new_organic_reach = (
+        tf.zeros_like(self._meridian.organic_rf_tensors.organic_reach)
+        if self._meridian.organic_rf_tensors.organic_reach is not None
+        else None
+    )
+    if self._meridian.non_media_treatments is not None:
+      new_non_media_treatments = _compute_non_media_baseline(
+          non_media_treatments=self._meridian.non_media_treatments,
+          non_media_baseline_values=non_media_baseline_values,
+      )
+    else:
+      new_non_media_treatments = None
     new_controls = self._meridian.controls
 
     new_data = DataTensors(
         media=new_media,
         reach=new_reach,
+        organic_media=new_organic_media,
+        organic_reach=new_organic_reach,
+        non_media_treatments=new_non_media_treatments,
         controls=new_controls,
     )
     return self.expected_outcome(new_data=new_data, **expected_outcome_kwargs)
 
   def _compute_incremental_impact_aggregate(
-      self, use_posterior: bool, use_kpi: bool | None = None, **roi_kwargs
+      self,
+      use_posterior: bool,
+      use_kpi: bool | None = None,
+      include_non_paid_channels: bool = True,
+      non_media_baseline_values: Sequence[str | float] | None = None,
+      **roi_kwargs,
   ):
     """Aggregates incremental impacts for MediaSummary metrics."""
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
     incremental_impact_m = self.incremental_impact(
-        use_posterior=use_posterior, use_kpi=use_kpi, **roi_kwargs
+        use_posterior=use_posterior,
+        use_kpi=use_kpi,
+        include_non_paid_channels=include_non_paid_channels,
+        non_media_baseline_values=non_media_baseline_values,
+        **roi_kwargs,
     )
-
     incremental_impact_total = tf.reduce_sum(
         incremental_impact_m, axis=-1, keepdims=True
     )
+
     return tf.concat(
         [incremental_impact_m, incremental_impact_total],
         axis=-1,
     )
 
-  def media_summary_metrics(
+  def summary_metrics(
       self,
       marginal_roi_by_reach: bool = True,
       marginal_roi_incremental_increase: float = 0.01,
@@ -2247,11 +2636,12 @@ class Analyzer:
       use_kpi: bool = False,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
+      include_non_paid_channels: bool = False,
   ) -> xr.Dataset:
-    """Returns media summary metrics.
+    """Returns summary metrics.
 
     Note that `mroi` and `effectiveness` metrics are not defined (`math.nan`)
-    for the aggregate `"All Channels"` channel dimension.
+    for the aggregate `"All Paid Channels"` channel dimension.
 
     Args:
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
@@ -2259,9 +2649,11 @@ class Analyzer:
         assumption is that the next dollar spent only impacts reach, holding
         frequency constant. If this argument is `False`, the assumption is that
         the next dollar spent only impacts frequency, holding reach constant.
+        Used only when `include_non_paid_channels` is `False`.
       marginal_roi_incremental_increase: Small fraction by which each channel's
         spend is increased when calculating its mROI numerator. The mROI
-        denominator is this fraction of the channel's total spend.
+        denominator is this fraction of the channel's total spend. Used only
+        when `include_non_paid_channels` is `False`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2274,21 +2666,29 @@ class Analyzer:
         containing the optimal frequency per channel, that maximizes posterior
         mean roi. Default value is `None`, and historical frequency is used for
         the metrics calculation.
-      use_kpi: Boolean. If `True`, the media summary metrics are calculated
-        using KPI. If `False`, the metrics are calculated using revenue.
-      confidence_level: Confidence level for media summary metrics credible
-        intervals, represented as a value between zero and one.
+      use_kpi: Boolean. If `True`, the summary metrics are calculated using KPI.
+        If `False`, the metrics are calculated using revenue.
+      confidence_level: Confidence level for summary metrics credible intervals,
+        represented as a value between zero and one.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
         generally be faster with larger `batch_size` values.
+      include_non_paid_channels: Boolean. If `True`, non-paid channels (organic
+        media, organic reach and frequency, and non-media treatments) are
+        included in the summary but only the metrics independent of spend are
+        reported. If `False`, only the paid channels (media, reach and
+        frequency) are included but the summary contains also the metrics
+        dependent on spend. Default: `False`.
 
     Returns:
       An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `median`,
       `ci_low`, `ci_high`), `distribution` (prior, posterior) and contains the
-      following data variables: `impressions`, `pct_of_impressions`, `spend`,
-      `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
-      `effectiveness`, `mroi`, `cpik`.
+      following non-paid data variables: `incremental_impact,
+      `pct_of_contribution`, `effectiveness`, and the following paid data
+      variables: `impressions`, `pct_of_impressions`, `spend`, `pct_of_spend`,
+      `CPM`, `roi`, `mroi`, `cpik`. The paid data variables are only included
+      when `include_non_paid_channels` is `False`.
     """
     dim_kwargs = {
         "selected_geos": selected_geos,
@@ -2296,23 +2696,11 @@ class Analyzer:
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    roi_kwargs = {"batch_size": batch_size, **dim_kwargs}
-    spend_list = []
-    if self._meridian.n_media_channels > 0:
-      spend_list.append(self._meridian.media_tensors.media_spend)
-    if self._meridian.n_rf_channels > 0:
-      spend_list.append(self._meridian.rf_tensors.rf_spend)
-    # TODO Add support for 1-dimensional spend.
-    aggregated_spend = self.filter_and_aggregate_geos_and_times(
-        tensor=tf.concat(spend_list, axis=-1), **dim_kwargs
-    )
-    spend_with_total = tf.concat(
-        [aggregated_spend, tf.reduce_sum(aggregated_spend, -1, keepdims=True)],
-        axis=-1,
-    )
-
+    batched_kwargs = {"batch_size": batch_size, **dim_kwargs}
     aggregated_impressions = self.get_aggregated_impressions(
-        optimal_frequency=optimal_frequency, **dim_kwargs
+        optimal_frequency=optimal_frequency,
+        include_non_paid_channels=False,
+        **dim_kwargs,
     )
     impressions_with_total = tf.concat(
         [
@@ -2323,16 +2711,28 @@ class Analyzer:
     )
 
     incremental_impact_prior = self._compute_incremental_impact_aggregate(
-        use_posterior=False, use_kpi=use_kpi, **roi_kwargs
+        use_posterior=False,
+        use_kpi=use_kpi,
+        include_non_paid_channels=False,
+        **batched_kwargs,
     )
     incremental_impact_posterior = self._compute_incremental_impact_aggregate(
-        use_posterior=True, use_kpi=use_kpi, **roi_kwargs
+        use_posterior=True,
+        use_kpi=use_kpi,
+        include_non_paid_channels=False,
+        **batched_kwargs,
     )
     expected_outcome_prior = self.expected_outcome(
-        use_posterior=False, use_kpi=use_kpi, **roi_kwargs
+        use_posterior=False,
+        use_kpi=use_kpi,
+        include_non_paid_channels=False,
+        **batched_kwargs,
     )
     expected_outcome_posterior = self.expected_outcome(
-        use_posterior=True, use_kpi=use_kpi, **roi_kwargs
+        use_posterior=True,
+        use_kpi=use_kpi,
+        include_non_paid_channels=False,
+        **batched_kwargs,
     )
 
     xr_dims = (
@@ -2381,12 +2781,6 @@ class Analyzer:
         ),
         **xr_coords,
     }
-    spend_data = self._compute_spend_data_aggregate(
-        spend_with_total=spend_with_total,
-        impressions_with_total=impressions_with_total,
-        xr_dims=xr_dims,
-        xr_coords=xr_coords,
-    )
     incremental_impact = _central_tendency_and_ci_by_prior_and_posterior(
         prior=incremental_impact_prior,
         posterior=incremental_impact_posterior,
@@ -2413,11 +2807,52 @@ class Analyzer:
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
         # Drop effectiveness metric values in the Dataset's data_vars for the
-        # aggregated "All Channels" channel dimension value. The "Effectiveness"
-        # metric has no meaningful interpretation in this case because the media
-        # execution metric is generally not consistent across channels.
+        # aggregated "All Paid Channels" channel dimension value. The
+        # "Effectiveness" metric has no meaningful interpretation in this case
+        # because the media execution metric is generally not consistent across
+        # channels.
     ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
 
+    if include_non_paid_channels:
+      # If non-paid channels are included, return only the non-paid metrics.
+      if not aggregate_times:
+        # Impact metrics should not be normalized by weekly media metrics, which
+        # do not have a clear interpretation due to lagged effects. Therefore,
+        # NaN values are returned for certain metrics if aggregate_times=False.
+        warning = (
+            "Effectiveness is not reported because it does not have a clear"
+            " interpretation by time period."
+        )
+        effectiveness *= np.nan
+        warnings.warn(warning)
+      return xr.merge([
+          incremental_impact,
+          pct_of_contribution,
+          effectiveness,
+      ])
+
+    # If non-paid channels are not included, return the all, paid and non-paid
+    # metrics.
+    spend_list = []
+    if self._meridian.n_media_channels > 0:
+      spend_list.append(self._meridian.media_tensors.media_spend)
+    if self._meridian.n_rf_channels > 0:
+      spend_list.append(self._meridian.rf_tensors.rf_spend)
+    # TODO Add support for 1-dimensional spend.
+    aggregated_spend = self.filter_and_aggregate_geos_and_times(
+        tensor=tf.concat(spend_list, axis=-1), **dim_kwargs
+    )
+    spend_with_total = tf.concat(
+        [aggregated_spend, tf.reduce_sum(aggregated_spend, -1, keepdims=True)],
+        axis=-1,
+    )
+
+    spend_data = self._compute_spend_data_aggregate(
+        spend_with_total=spend_with_total,
+        impressions_with_total=impressions_with_total,
+        xr_dims=xr_dims,
+        xr_coords=xr_coords,
+    )
     roi = self._compute_roi_aggregate(
         incremental_revenue_prior=incremental_impact_prior,
         incremental_revenue_posterior=incremental_impact_posterior,
@@ -2436,20 +2871,26 @@ class Analyzer:
         confidence_level=confidence_level,
         spend_with_total=spend_with_total,
         use_kpi=use_kpi,
-        **roi_kwargs,
+        **batched_kwargs,
         # Drop mROI metric values in the Dataset's data_vars for the
-        # aggregated "All Channels" channel dimension value. "Marginal ROI"
+        # aggregated "All Paid Channels" channel dimension value. "Marginal ROI"
         # calculation must arbitrarily assume how the "next dollar" of spend
-        # is allocated across "All Channels" in this case, which may cause
+        # is allocated across "All Paid Channels" in this case, which may cause
         # confusion in Meridian model and does not have much practical
         # usefulness, anyway.
     ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
     cpik = self._compute_cpik_aggregate(
         incremental_kpi_prior=self._compute_incremental_impact_aggregate(
-            use_posterior=False, use_kpi=True, **roi_kwargs
+            use_posterior=False,
+            use_kpi=True,
+            include_non_paid_channels=False,
+            **batched_kwargs,
         ),
         incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
-            use_posterior=True, use_kpi=True, **roi_kwargs
+            use_posterior=True,
+            use_kpi=True,
+            include_non_paid_channels=False,
+            **batched_kwargs,
         ),
         spend_with_total=spend_with_total,
         xr_dims=xr_dims_with_ci_and_distribution,
@@ -2487,6 +2928,7 @@ class Analyzer:
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
       optimal_frequency: Sequence[float] | None = None,
+      include_non_paid_channels: bool = True,
   ) -> tf.Tensor:
     """Computes aggregated impressions values in the data across all channels.
 
@@ -2503,6 +2945,8 @@ class Analyzer:
         containing the optimal frequency per channel, that maximizes posterior
         mean roi. Default value is `None`, and historical frequency is used for
         the metrics calculation.
+      include_non_paid_channels: Boolean. If `True`, the organic media, organic
+        RF, and non-media channels are included in the aggregation.
 
     Returns:
       A tensor with the shape `(n_selected_geos, n_selected_times, n_channels)`
@@ -2527,6 +2971,32 @@ class Analyzer:
           self._meridian.rf_tensors.reach[:, -self._meridian.n_times :, :]
           * new_frequency[:, -self._meridian.n_times :, :]
       )
+
+    if include_non_paid_channels:
+      if self._meridian.n_organic_media_channels > 0:
+        impressions_list.append(
+            self._meridian.organic_media_tensors.organic_media[
+                :, -self._meridian.n_times :, :
+            ]
+        )
+      if self._meridian.n_organic_rf_channels > 0:
+        if optimal_frequency is None:
+          new_organic_frequency = (
+              self._meridian.organic_rf_tensors.organic_frequency
+          )
+        else:
+          new_organic_frequency = (
+              tf.ones_like(self._meridian.organic_rf_tensors.organic_frequency)
+              * optimal_frequency
+          )
+        impressions_list.append(
+            self._meridian.organic_rf_tensors.organic_reach[
+                :, -self._meridian.n_times :, :
+            ]
+            * new_organic_frequency[:, -self._meridian.n_times :, :]
+        )
+      if self._meridian.n_non_media_channels > 0:
+        impressions_list.append(self._meridian.non_media_treatments)
 
     return self.filter_and_aggregate_geos_and_times(
         tensor=tf.concat(impressions_list, axis=-1),
