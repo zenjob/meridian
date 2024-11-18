@@ -1329,9 +1329,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=mock.ANY,
-        new_reach=mock.ANY,
-        new_frequency=mock.ANY,
+        new_data=mock.ANY,
         selected_times=selected_times,
         use_kpi=False,
         batch_size=c.DEFAULT_BATCH_SIZE,
@@ -1339,7 +1337,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
     np.testing.assert_allclose(
-        mock_kwargs['new_frequency'],
+        mock_kwargs['new_data'].frequency,
         self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
@@ -1398,9 +1396,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=mock.ANY,
-        new_reach=None,
-        new_frequency=None,
+        new_data=mock.ANY,
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
@@ -1465,9 +1461,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=None,
-        new_reach=mock.ANY,
-        new_frequency=mock.ANY,
+        new_data=mock.ANY,
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
@@ -1475,7 +1469,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
     np.testing.assert_allclose(
-        mock_kwargs['new_frequency'],
+        mock_kwargs['new_data'].frequency,
         self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
@@ -1541,16 +1535,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=mock.ANY,
-        new_reach=mock.ANY,
-        new_frequency=mock.ANY,
+        new_data=mock.ANY,
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
-    np.testing.assert_allclose(mock_kwargs['new_frequency'], new_frequency)
+    np.testing.assert_allclose(mock_kwargs['new_data'].frequency, new_frequency)
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
         incremental_impact_grid,
@@ -1610,9 +1602,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=mock.ANY,
-        new_reach=None,
-        new_frequency=None,
+        new_data=mock.ANY,
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
@@ -1679,16 +1669,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_incremental_impact.assert_called_with(
         use_posterior=True,
-        new_media=None,
-        new_reach=mock.ANY,
-        new_frequency=mock.ANY,
+        new_data=mock.ANY,
         selected_times=selected_times,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_impact.call_args
-    np.testing.assert_allclose(mock_kwargs['new_frequency'], new_frequency)
+    np.testing.assert_allclose(mock_kwargs['new_data'].frequency, new_frequency)
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
         incremental_impact_grid,
@@ -3264,9 +3252,7 @@ class OptimizerKPITest(parameterized.TestCase):
         use_kpi=True,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_posterior=use_posterior,
-        new_media=mock.ANY,
-        new_frequency=mock.ANY,
-        new_reach=mock.ANY,
+        new_data=mock.ANY,
     )
 
   @parameterized.parameters([True, False])
@@ -3285,9 +3271,7 @@ class OptimizerKPITest(parameterized.TestCase):
     self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
     mock_expected_outcome.assert_called_with(
         use_posterior=use_posterior,
-        new_media=mock.ANY,
-        new_reach=mock.ANY,
-        new_frequency=mock.ANY,
+        new_data=mock.ANY,
         selected_times=None,
         use_kpi=True,
         batch_size=c.DEFAULT_BATCH_SIZE,

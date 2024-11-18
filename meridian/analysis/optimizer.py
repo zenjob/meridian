@@ -1359,9 +1359,11 @@ class BudgetOptimizer:
     # (n_chains, n_draws, n_channels)
     incremental_impact = self._analyzer.incremental_impact(
         use_posterior=use_posterior,
-        new_media=new_media,
-        new_reach=new_reach,
-        new_frequency=new_frequency,
+        new_data=analyzer.DataTensors(
+            media=new_media,
+            reach=new_reach,
+            frequency=new_frequency,
+        ),
         selected_times=selected_times,
         use_kpi=kpi_only,
         batch_size=batch_size,
@@ -1384,9 +1386,11 @@ class BudgetOptimizer:
     # expected_outcome here is a tensor with the shape (n_chains, n_draws)
     expected_outcome = self._analyzer.expected_outcome(
         use_posterior=use_posterior,
-        new_media=new_media,
-        new_reach=new_reach,
-        new_frequency=new_frequency,
+        new_data=analyzer.DataTensors(
+            media=new_media,
+            reach=new_reach,
+            frequency=new_frequency,
+        ),
         selected_times=selected_times,
         use_kpi=kpi_only,
         batch_size=batch_size,
@@ -1616,9 +1620,11 @@ class BudgetOptimizer:
     incremental_impact_grid[i, :] = np.mean(
         self._analyzer.incremental_impact(
             use_posterior=use_posterior,
-            new_media=new_media,
-            new_reach=new_reach,
-            new_frequency=new_frequency,
+            new_data=analyzer.DataTensors(
+                media=new_media,
+                reach=new_reach,
+                frequency=new_frequency,
+            ),
             selected_times=selected_times,
             use_kpi=use_kpi,
             batch_size=batch_size,

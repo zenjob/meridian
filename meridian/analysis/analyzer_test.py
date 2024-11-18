@@ -155,13 +155,32 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         atol=0.1,
     )
 
+  def test_expected_outcome_new_revenue_per_kpi_raises_warning(self):
+    with warnings.catch_warnings(record=True) as w:
+      self.analyzer_media_and_rf.expected_outcome(
+          new_data=analyzer.DataTensors(
+              revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi
+          ),
+      )
+
+      self.assertLen(w, 1)
+      self.assertTrue(issubclass(w[0].category, UserWarning))
+      self.assertIn(
+          "A `revenue_per_kpi` value was passed in the `new_data` argument to"
+          " the `expected_outcome()` method. This is currently not supported"
+          " and will be ignored.",
+          str(w[0].message),
+      )
+
   def test_expected_outcome_wrong_controls_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_controls.shape must match controls.shape",
     ):
       self.analyzer_media_and_rf.expected_outcome(
-          new_controls=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              controls=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_expected_outcome_wrong_media_raises_exception(self):
@@ -170,7 +189,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "new_media.shape must match media.shape",
     ):
       self.analyzer_media_and_rf.expected_outcome(
-          new_media=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              media=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_expected_outcome_wrong_reach_raises_exception(self):
@@ -179,7 +200,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "new_reach.shape must match reach.shape",
     ):
       self.analyzer_media_and_rf.expected_outcome(
-          new_reach=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              reach=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_expected_outcome_wrong_frequency_raises_exception(self):
@@ -188,7 +211,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "new_frequency.shape must match frequency.shape",
     ):
       self.analyzer_media_and_rf.expected_outcome(
-          new_frequency=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              frequency=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_expected_outcome_wrong_kpi_transformation(self):
@@ -235,50 +260,67 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
     self.assertEqual(outcome.shape, expected_shape)
 
+  def test_incremental_impact_new_controls_raises_warning(self):
+    with warnings.catch_warnings(record=True) as w:
+      self.analyzer_media_and_rf.incremental_impact(
+          new_data=analyzer.DataTensors(
+              controls=self.meridian_media_and_rf.controls
+          ),
+      )
+
+      self.assertLen(w, 1)
+      self.assertTrue(issubclass(w[0].category, UserWarning))
+      self.assertIn(
+          "A `controls` value was passed in the `new_data` argument to the"
+          " `incremental_impact()` method. This has no effect on the output and"
+          " will be ignored.",
+          str(w[0].message),
+      )
+
   @parameterized.named_parameters(
       (
           "wrong_media_dims",
-          {"new_media": tf.ones((5, 1))},
+          analyzer.DataTensors(media=tf.ones((5, 1))),
           "New media params must have 3 dimension(s). Found 2 dimension(s).",
       ),
       (
           "wrong_reach_dims",
-          {"new_reach": tf.ones((5, 1))},
+          analyzer.DataTensors(reach=tf.ones((5, 1))),
           "New media params must have 3 dimension(s). Found 2 dimension(s).",
       ),
       (
           "wrong_frequency_dims",
-          {"new_frequency": tf.ones((5, 1))},
+          analyzer.DataTensors(frequency=tf.ones((5, 1))),
           "New media params must have 3 dimension(s). Found 2 dimension(s).",
       ),
       (
           "wrong_revenue_per_kpi_dims",
-          {"new_revenue_per_kpi": tf.ones((5))},
+          analyzer.DataTensors(revenue_per_kpi=tf.ones((5))),
           "new_revenue_per_kpi must have 2 dimension(s). Found 1 dimension(s).",
       ),
   )
   def test_incremental_impact_wrong_media_param_dims_raises_exception(
       self,
-      new_param: dict[str, tf.Tensor],
+      new_param: analyzer.DataTensors,
       expected_error_message: str,
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, expected_error_message):
-      self.analyzer_media_and_rf.incremental_impact(**new_param)
+      self.analyzer_media_and_rf.incremental_impact(new_data=new_param)
 
   @parameterized.named_parameters(
-      ("missing_media", "new_media"),
-      ("missing_reach", "new_reach"),
-      ("missing_frequency", "new_frequency"),
-      ("missing_revenue_per_kpi", "new_revenue_per_kpi"),
+      ("missing_media", "media"),
+      ("missing_reach", "reach"),
+      ("missing_frequency", "frequency"),
+      ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
   def test_incremental_impact_missing_new_param_raises_exception(
       self, missing_param: str
   ):
-    kwargs = {
-        "new_media": tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
-        "new_reach": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-        "new_frequency": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-        "new_revenue_per_kpi": tf.ones((_N_GEOS, 10)),
+    new_data_dict = {
+        "media": tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+        "reach": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "frequency": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "revenue_per_kpi": tf.ones((_N_GEOS, 10)),
     }
     with self.assertRaisesRegex(
         ValueError,
@@ -287,8 +329,10 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "`InputData`, then all new parameters originally in `InputData` must "
         "be provided with the same number of time periods.",
     ):
-      kwargs.pop(missing_param)
-      self.analyzer_media_and_rf.incremental_impact(**kwargs)
+      new_data_dict.pop(missing_param)
+      self.analyzer_media_and_rf.incremental_impact(
+          new_data=analyzer.DataTensors(**new_data_dict)
+      )
 
   def test_incremental_impact_negative_scaling_factor0(self):
     with self.assertRaisesRegex(
@@ -323,10 +367,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "time periods in the new data.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
-          new_media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
-          new_reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          new_data=analyzer.DataTensors(
+              media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+              reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          ),
           selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
       )
 
@@ -342,10 +388,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "time periods in the new data.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
-          new_media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
-          new_reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          new_data=analyzer.DataTensors(
+              media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+              reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              revenue_per_kpi=tf.ones((_N_GEOS, 10)),
+          ),
           media_selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
       )
 
@@ -386,10 +434,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "other media tensor arguments.",
     ):
       self.analyzer_media_and_rf.incremental_impact(
-          new_media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
-          new_reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-          new_revenue_per_kpi=tf.ones((_N_GEOS, 8)),
+          new_data=analyzer.DataTensors(
+              media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+              reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              frequency=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+              revenue_per_kpi=tf.ones((_N_GEOS, 8)),
+          )
       )
 
   def test_incremental_impact_wrong_new_param_n_geos_raises_exception(self):
@@ -398,7 +448,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "new_media is expected to have 5 geos. Found 4 geos.",
     ):
       shape = (_N_GEOS - 1, _N_MEDIA_TIMES, _N_MEDIA_CHANNELS)
-      self.analyzer_media_and_rf.incremental_impact(new_media=tf.ones(shape))
+      self.analyzer_media_and_rf.incremental_impact(
+          new_data=analyzer.DataTensors(media=tf.ones(shape))
+      )
 
   def test_incremental_impact_wrong_n_channels_raises_exception(self):
     with self.assertRaisesRegex(
@@ -407,7 +459,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         "is 1.",
     ):
       shape = (_N_GEOS, _N_MEDIA_TIMES, _N_RF_CHANNELS - 1)
-      self.analyzer_media_and_rf.incremental_impact(new_reach=tf.ones(shape))
+      self.analyzer_media_and_rf.incremental_impact(
+          new_data=analyzer.DataTensors(reach=tf.ones(shape))
+      )
 
   def test_incremental_impact_wrong_kpi_transformation(self):
     with self.assertRaisesRegex(
@@ -420,7 +474,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_incremental_impact_new_revenue_per_kpi_correct_shape(self):
     impact = self.analyzer_media_and_rf.incremental_impact(
-        new_revenue_per_kpi=tf.ones((_N_GEOS, _N_TIMES)),
+        new_data=analyzer.DataTensors(
+            revenue_per_kpi=tf.ones((_N_GEOS, _N_TIMES))
+        ),
     )
     self.assertEqual(
         impact.shape, (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + _N_RF_CHANNELS)
@@ -545,14 +601,16 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         return_value=self.inference_data_media_and_rf
     )
     impact = self.analyzer_media_and_rf.incremental_impact(
-        new_media=self.meridian_media_and_rf.media_tensors.media[..., -10:, :],
-        new_reach=self.meridian_media_and_rf.rf_tensors.reach[..., -10:, :],
-        new_frequency=self.meridian_media_and_rf.rf_tensors.frequency[
-            ..., -10:, :
-        ],
-        new_revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
-            ..., -10:
-        ],
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -10:, :],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -10:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -10:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -10:
+            ],
+        ),
     )
     self.assertAllClose(
         impact,
@@ -1970,16 +2028,17 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(impact.shape, expected_shape)
 
   @parameterized.named_parameters(
-      ("missing_media", "new_media"),
-      ("missing_revenue_per_kpi", "new_revenue_per_kpi"),
+      ("missing_media", "media"),
+      ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
   def test_incremental_impact_media_only_missing_new_param_raises_exception(
       self, missing_param: str
   ):
-    kwargs = {
-        "new_media": tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
-        "new_revenue_per_kpi": tf.ones((_N_GEOS, 10)),
+    new_data_dict = {
+        "media": tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
+        "revenue_per_kpi": tf.ones((_N_GEOS, 10)),
     }
+
     with self.assertRaisesRegex(
         ValueError,
         "If new_media, new_reach, new_frequency, or new_revenue_per_kpi is "
@@ -1987,8 +2046,10 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         "`InputData`, then all new parameters originally in `InputData` must "
         "be provided with the same number of time periods.",
     ):
-      kwargs.pop(missing_param)
-      self.analyzer_media_only.incremental_impact(**kwargs)
+      new_data_dict.pop(missing_param)
+      self.analyzer_media_only.incremental_impact(
+          new_data=analyzer.DataTensors(**new_data_dict)
+      )
 
   @parameterized.product(
       use_posterior=[False, True],
@@ -2058,8 +2119,10 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         return_value=self.inference_data_media_only
     )
     impact = self.analyzer_media_only.incremental_impact(
-        new_media=self.meridian_media_only.media_tensors.media[..., -10:, :],
-        new_revenue_per_kpi=self.meridian_media_only.revenue_per_kpi[..., -10:],
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_only.media_tensors.media[..., -10:, :],
+            revenue_per_kpi=self.meridian_media_only.revenue_per_kpi[..., -10:],
+        ),
     )
     print(impact.numpy())
     self.assertAllClose(
@@ -2430,17 +2493,17 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(impact.shape, expected_shape)
 
   @parameterized.named_parameters(
-      ("missing_reach", "new_reach"),
-      ("missing_frequency", "new_frequency"),
-      ("missing_revenue_per_kpi", "new_revenue_per_kpi"),
+      ("missing_reach", "reach"),
+      ("missing_frequency", "frequency"),
+      ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
   def test_incremental_impact_rf_only_missing_new_param_raises_exception(
       self, missing_param: str
   ):
-    kwargs = {
-        "new_reach": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-        "new_frequency": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
-        "new_revenue_per_kpi": tf.ones((_N_GEOS, 10)),
+    new_data_dict = {
+        "reach": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "frequency": tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
+        "revenue_per_kpi": tf.ones((_N_GEOS, 10)),
     }
     with self.assertRaisesRegex(
         ValueError,
@@ -2449,8 +2512,10 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         "`InputData`, then all new parameters originally in `InputData` must "
         "be provided with the same number of time periods.",
     ):
-      kwargs.pop(missing_param)
-      self.analyzer_rf_only.incremental_impact(**kwargs)
+      new_data_dict.pop(missing_param)
+      self.analyzer_rf_only.incremental_impact(
+          new_data=analyzer.DataTensors(**new_data_dict)
+      )
 
   @parameterized.product(
       use_posterior=[False, True],
@@ -2520,9 +2585,11 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         return_value=self.inference_data_rf_only
     )
     impact = self.analyzer_rf_only.incremental_impact(
-        new_reach=self.meridian_rf_only.rf_tensors.reach[..., -10:, :],
-        new_frequency=self.meridian_rf_only.rf_tensors.frequency[..., -10:, :],
-        new_revenue_per_kpi=self.meridian_rf_only.revenue_per_kpi[..., -10:],
+        new_data=analyzer.DataTensors(
+            reach=self.meridian_rf_only.rf_tensors.reach[..., -10:, :],
+            frequency=self.meridian_rf_only.rf_tensors.frequency[..., -10:, :],
+            revenue_per_kpi=self.meridian_rf_only.revenue_per_kpi[..., -10:],
+        )
     )
     print(impact.numpy())
     self.assertAllClose(

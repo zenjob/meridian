@@ -23,6 +23,11 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.9.0] - 2024-11-15
+
+* Organize arguments of `incremental_impact` and `expected_outcome` methods into
+  a `DataTensors` container.
+
 ## [0.8.0] - 2024-11-05
 
 * Expand media summary metrics to return ROI, mROI, and CPIK in all scenarios
@@ -91,4 +96,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.6.0]: https://github.com/google/meridian/releases/tag/v0.6.0
 [0.7.0]: https://github.com/google/meridian/releases/tag/v0.7.0
 [0.8.0]: https://github.com/google/meridian/releases/tag/v0.8.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.8.0...HEAD
+[0.9.0]: https://github.com/google/meridian/releases/tag/v0.9.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.9.0...HEAD
