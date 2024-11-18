@@ -260,7 +260,7 @@ def _validate_selected_times(
     )
 
 
-# TODO(b/358071101): Organize arguments and output with DataTensors.
+# TODO: Organize arguments and output with DataTensors.
 def _scale_tensors_by_multiplier(
     media: tf.Tensor | None,
     reach: tf.Tensor | None,
@@ -1489,7 +1489,7 @@ class Analyzer:
         )
     return tf.concat(incremental_impact_temps, axis=1)
 
-  # TODO(b/358071101) Unify usage of DataTensors and PerformanceData.
+  # TODO Unify usage of DataTensors and PerformanceData.
   @dataclasses.dataclass(frozen=True)
   class PerformanceData:
     """Dataclass for data required in profitability calculations."""
@@ -1670,7 +1670,7 @@ class Analyzer:
         rf_spend=rf_spend,
     )
 
-  # TODO(b/358071101) organize new_* arguments with DataTensors.
+  # TODO organize new_* arguments with DataTensors.
   def marginal_roi(
       self,
       incremental_increase: float = 0.01,
@@ -1773,7 +1773,7 @@ class Analyzer:
         **incremental_revenue_kwargs,
         **dim_kwargs,
     )
-    # TODO(b/358071101): Organize the tensor passed between the methods
+    # TODO: Organize the tensor passed between the methods
     # using DataTensors.
     incremented_tensors = _scale_tensors_by_multiplier(
         performance_tensors.media,
@@ -1812,7 +1812,7 @@ class Analyzer:
       denominator = spend_inc
     return tf.math.divide_no_nan(numerator, denominator)
 
-  # TODO(b/358071101): Organize the arguments with DataTensors.
+  # TODO: Organize the arguments with DataTensors.
   def roi(
       self,
       use_posterior: bool = True,
@@ -1889,7 +1889,7 @@ class Analyzer:
         "use_kpi": use_kpi,
         "batch_size": batch_size,
     }
-    # TODO(b/358071101): Organize the tensors passed between the methods
+    # TODO: Organize the tensors passed between the methods
     # using DataTensors.
     performance_tensors = self._get_performance_tensors(
         new_media,
@@ -1918,7 +1918,7 @@ class Analyzer:
       denominator = spend
     return tf.math.divide_no_nan(incremental_revenue, denominator)
 
-  # TODO(b/358071101): Organize the arguments with DataTensors.
+  # TODO: Organize the arguments with DataTensors.
   def cpik(
       self,
       use_posterior: bool = True,
@@ -1979,7 +1979,7 @@ class Analyzer:
         "use_posterior": use_posterior,
         "batch_size": batch_size,
     }
-    # TODO(b/358071101): Organize the tensors passed between the methods
+    # TODO: Organize the tensors passed between the methods
     # using DataTensors.
     tensors = self._get_performance_tensors(
         new_media,
@@ -2302,7 +2302,7 @@ class Analyzer:
       spend_list.append(self._meridian.media_tensors.media_spend)
     if self._meridian.n_rf_channels > 0:
       spend_list.append(self._meridian.rf_tensors.rf_spend)
-    # TODO(b/309655751) Add support for 1-dimensional spend.
+    # TODO Add support for 1-dimensional spend.
     aggregated_spend = self.filter_and_aggregate_geos_and_times(
         tensor=tf.concat(spend_list, axis=-1), **dim_kwargs
     )
@@ -2568,7 +2568,7 @@ class Analyzer:
       `ci_low`,`ci_high`),`distribution` (prior, posterior) and contains the
       following data variables: `baseline_impact`, `pct_of_contribution`.
     """
-    # TODO(b/358586608): Change "pct_of_contribution" to a more accurate term.
+    # TODO: Change "pct_of_contribution" to a more accurate term.
 
     use_kpi = self._meridian.input_data.revenue_per_kpi is None
     dim_kwargs = {
@@ -2667,9 +2667,9 @@ class Analyzer:
         baseline_pct_of_contribution,
     ])
 
-  # TODO(b/358071101): This method can be replaced once generalized
+  # TODO: This method can be replaced once generalized
   # `media_summary_metric` is done.
-  # TODO(b/358071101): Organize the arguments using DataTensors.
+  # TODO: Organize the arguments using DataTensors.
   def _counterfactual_metric_dataset(
       self,
       use_posterior: bool = True,
@@ -3921,7 +3921,7 @@ class Analyzer:
       spend_with_total: tf.Tensor,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
-    # TODO(b/304834270): Support calibration_period_bool.
+    # TODO: Support calibration_period_bool.
     return _central_tendency_and_ci_by_prior_and_posterior(
         prior=incremental_revenue_prior / spend_with_total,
         posterior=incremental_revenue_posterior / spend_with_total,
@@ -3959,7 +3959,7 @@ class Analyzer:
         use_kpi=use_kpi,
         **roi_kwargs,
     )
-    # TODO(b/358071101): Organize the arguments passed between the functions
+    # TODO: Organize the arguments passed between the functions
     # using DataTensors.
     incremented_tensors = _scale_tensors_by_multiplier(
         media=self._meridian.media_tensors.media,
