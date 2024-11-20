@@ -159,15 +159,15 @@ class PriorDistribution:
     gamma_c: Prior distribution on the hierarchical mean of `gamma_gc` which is
       the coefficient on control `c` for geo `g`. Hierarchy is defined over
       geos. Default distribution is `Normal(0.0, 5.0)`.
-    gamma_n: Prior distribution on the hierarchical mean of `rho_gn` which is
+    gamma_n: Prior distribution on the hierarchical mean of `gamma_gn` which is
       the coefficient on non-media channel `n` for geo `g`. Hierarchy is defined
       over geos. Default distribution is `Normal(0.0, 5.0)`.
     xi_c: Prior distribution on the hierarchical standard deviation of
       `gamma_gc` which is the coefficient on control `c` for geo `g`. Hierarchy
       is defined over geos. Default distribution is `HalfNormal(5.0)`.
-    xi_n: Prior distribution on the hierarchical standard deviation of `rho_gn`
-      which is the coefficient on non-media channel `n` for geo `g`. Hierarchy
-      is defined over geos. Default distribution is `HalfNormal(5.0)`.
+    xi_n: Prior distribution on the hierarchical standard deviation of
+      `gamma_gn` which is the coefficient on non-media channel `n` for geo `g`.
+      Hierarchy is defined over geos. Default distribution is `HalfNormal(5.0)`.
     alpha_m: Prior distribution on the `geometric decay` Adstock parameter for
       media input. Default distribution is `Uniform(0.0, 1.0)`.
     alpha_rf: Prior distribution on the `geometric decay` Adstock parameter for

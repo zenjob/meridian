@@ -2691,9 +2691,7 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(
           tf.concat(
               [
-                  tf.convert_to_tensor(
-                      data.media_spend, dtype=tf.float32
-                  ),
+                  tf.convert_to_tensor(data.media_spend, dtype=tf.float32),
                   tf.convert_to_tensor(data.rf_spend, dtype=tf.float32),
               ],
               axis=-1,
@@ -3124,6 +3122,26 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
         rtol=1e-3,
     )
 
+  def test_inference_data_non_paid_correct_dims(self):
+    model_spec = spec.ModelSpec()
+    mmm = model.Meridian(
+        input_data=self.input_data_non_media_and_organic,
+        model_spec=model_spec,
+    )
+    n_draws = 7
+    prior_draws = mmm._sample_prior_fn(n_draws, seed=1)
+    # Create Arviz InferenceData for prior draws.
+    prior_coords = mmm._create_inference_data_coords(1, n_draws)
+    prior_dims = mmm._create_inference_data_dims()
+
+    for param, tensor in prior_draws.items():
+      self.assertIn(param, prior_dims)
+      dims = prior_dims[param]
+      self.assertEqual(len(dims), len(tensor.shape))
+      for dim, shape_dim in zip(dims, tensor.shape):
+        if dim != constants.SIGMA_DIM:
+          self.assertIn(dim, prior_coords)
+          self.assertLen(prior_coords[dim], shape_dim)
 
 if __name__ == "__main__":
   absltest.main()
