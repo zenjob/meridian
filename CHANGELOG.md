@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.11.0] - 2024-11-19
+* Consistent naming for "rhat" methods.
+
 ## [0.10.0] - 2024-11-18
 
 * Add support for organic media, organic reach and frequency, and non-media
@@ -105,4 +108,6 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.8.0]: https://github.com/google/meridian/releases/tag/v0.8.0
 [0.9.0]: https://github.com/google/meridian/releases/tag/v0.9.0
 [0.10.0]: https://github.com/google/meridian/releases/tag/v0.10.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.10.0...HEAD
+[0.11.0]: https://github.com/google/meridian/releases/tag/v0.11.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.11.0...HEAD
+
