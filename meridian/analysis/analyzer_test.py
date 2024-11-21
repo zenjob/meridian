@@ -2139,7 +2139,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
             revenue_per_kpi=self.meridian_media_only.revenue_per_kpi[..., -10:],
         ),
     )
-    print(impact.numpy())
     self.assertAllClose(
         impact,
         tf.convert_to_tensor(test_utils.INC_IMPACT_MEDIA_ONLY_NEW_PARAMS),
@@ -2607,7 +2606,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             revenue_per_kpi=self.meridian_rf_only.revenue_per_kpi[..., -10:],
         )
     )
-    print(impact.numpy())
     self.assertAllClose(
         impact,
         tf.convert_to_tensor(test_utils.INC_IMPACT_RF_ONLY_NEW_PARAMS),
@@ -3514,6 +3512,18 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
           non_media_baseline_values=["min", "max", "max", "wrong"],
           include_non_paid_channels=True,
       )
+
+  def test_response_curves_use_only_paid_channels(self):
+    response_curve_data = self.analyzer_non_media.response_curves(
+        by_reach=False
+    )
+    self.assertIn(constants.CHANNEL, response_curve_data.coords)
+    self.assertLen(
+        response_curve_data.coords[constants.CHANNEL],
+        len(
+            self.analyzer_non_media._meridian.input_data.get_all_paid_channels()
+        ),
+    )
 
 
 class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):

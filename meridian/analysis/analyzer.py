@@ -3884,13 +3884,13 @@ class Analyzer:
       spend_multipliers = list(np.arange(0, 2.2, 0.2))
     incremental_impact = np.zeros((
         len(spend_multipliers),
-        len(self._meridian.input_data.get_all_channels()),
+        len(self._meridian.input_data.get_all_paid_channels()),
         3,
     ))
     for i, multiplier in enumerate(spend_multipliers):
       if multiplier == 0:
         incremental_impact[i, :, :] = tf.zeros(
-            (len(self._meridian.input_data.get_all_channels()), 3)
+            (len(self._meridian.input_data.get_all_paid_channels()), 3)
         )  # Last dimension = 3 for the mean, ci_lo and ci_hi.
         continue
       tensor_kwargs = _scale_tensors_by_multiplier(
@@ -3923,6 +3923,7 @@ class Analyzer:
           inverse_transform_impact=True,
           batch_size=batch_size,
           use_kpi=use_kpi,
+          include_non_paid_channels=False,
           **dim_kwargs,
       )
       incremental_impact[i, :] = get_central_tendency_and_ci(
@@ -3951,7 +3952,7 @@ class Analyzer:
     xr_coords = {
         constants.CHANNEL: (
             [constants.CHANNEL],
-            self._meridian.input_data.get_all_channels(),
+            self._meridian.input_data.get_all_paid_channels(),
         ),
         constants.METRIC: (
             [constants.METRIC],
