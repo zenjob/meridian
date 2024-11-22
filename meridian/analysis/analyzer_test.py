@@ -1076,7 +1076,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
 
-    # (ch_1, ch_2, ..., Total_media, [mean, median, ci_lo, ci_hi],
+    # (ch_1, ch_2, ..., All_Channels, [mean, median, ci_lo, ci_hi],
     # [prior, posterior])
     expected_channel_shape += (num_channels + 1,)
     expected_shape = expected_channel_shape + (
@@ -3788,6 +3788,58 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
           else (_N_TIMES,)
       )
     self.assertEqual(impact.shape, expected_shape)
+
+  @parameterized.product(
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+      include_non_paid_channels=[False, True],
+  )
+  def test_all_channels_summary_returns_correct_shapes(
+      self,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+      include_non_paid_channels: bool,
+  ):
+    model_analyzer = self.analyzer_non_paid
+    channels = (
+        self.analyzer_non_paid._meridian.input_data.get_all_channels()
+        if include_non_paid_channels
+        else self.analyzer_non_paid._meridian.input_data.get_all_paid_channels()
+    )
+
+    media_summary = model_analyzer.summary_metrics(
+        confidence_level=0.8,
+        marginal_roi_by_reach=False,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+        include_non_paid_channels=include_non_paid_channels,
+    )
+    expected_channel_shape = ()
+    if not aggregate_geos:
+      expected_channel_shape += (
+          (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_channel_shape += (
+          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
+      )
+
+    # (ch_1, ch_2, ..., All_Channels, [mean, median, ci_lo, ci_hi],
+    # [prior, posterior])
+    expected_channel_shape += (len(channels) + 1,)
+    expected_shape = expected_channel_shape + (
+        4,
+        2,
+    )
+    self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
+    self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
+    self.assertEqual(media_summary.effectiveness.shape, expected_shape)
 
 
 class AnalyzerNotFittedTest(absltest.TestCase):

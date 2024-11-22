@@ -2699,7 +2699,7 @@ class Analyzer:
     batched_kwargs = {"batch_size": batch_size, **dim_kwargs}
     aggregated_impressions = self.get_aggregated_impressions(
         optimal_frequency=optimal_frequency,
-        include_non_paid_channels=False,
+        include_non_paid_channels=include_non_paid_channels,
         **dim_kwargs,
     )
     impressions_with_total = tf.concat(
@@ -2713,25 +2713,25 @@ class Analyzer:
     incremental_impact_prior = self._compute_incremental_impact_aggregate(
         use_posterior=False,
         use_kpi=use_kpi,
-        include_non_paid_channels=False,
+        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
     incremental_impact_posterior = self._compute_incremental_impact_aggregate(
         use_posterior=True,
         use_kpi=use_kpi,
-        include_non_paid_channels=False,
+        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
     expected_outcome_prior = self.expected_outcome(
         use_posterior=False,
         use_kpi=use_kpi,
-        include_non_paid_channels=False,
+        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
     expected_outcome_posterior = self.expected_outcome(
         use_posterior=True,
         use_kpi=use_kpi,
-        include_non_paid_channels=False,
+        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
 
@@ -2740,11 +2740,15 @@ class Analyzer:
         + ((constants.TIME,) if not aggregate_times else ())
         + (constants.CHANNEL,)
     )
+    channels = (
+        self._meridian.input_data.get_all_channels()
+        if include_non_paid_channels
+        else self._meridian.input_data.get_all_paid_channels()
+    )
     xr_coords = {
         constants.CHANNEL: (
             [constants.CHANNEL],
-            list(self._meridian.input_data.get_all_channels())
-            + [constants.ALL_CHANNELS],
+            list(channels) + [constants.ALL_CHANNELS],
         ),
     }
     if not aggregate_geos:
