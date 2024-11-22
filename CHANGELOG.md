@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.11.1] - 2024-11-22
+* Remove unneeded argument `include_non_paid_channels` from
+  `expected_outcome()`.
 * Fix a bug in the custom RF prior validation.
 
 ## [0.11.0] - 2024-11-19
@@ -112,5 +115,6 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.9.0]: https://github.com/google/meridian/releases/tag/v0.9.0
 [0.10.0]: https://github.com/google/meridian/releases/tag/v0.10.0
 [0.11.0]: https://github.com/google/meridian/releases/tag/v0.11.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.11.0...HEAD
+[0.11.1]: https://github.com/google/meridian/releases/tag/v0.11.1
+[Unreleased]: https://github.com/google/meridian/compare/v0.11.1...HEAD
 

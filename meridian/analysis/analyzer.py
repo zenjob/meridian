@@ -960,7 +960,6 @@ class Analyzer:
       aggregate_times: bool = True,
       inverse_transform_outcome: bool = True,
       use_kpi: bool = False,
-      include_non_paid_channels: bool = True,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
     """Calculates either prior or posterior expected outcome.
@@ -1026,10 +1025,6 @@ class Analyzer:
         otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
         It is required that `use_kpi = True` if `revenue_per_kpi` is not defined
         or if `inverse_transform_outcome = False`.
-      include_non_paid_channels: Boolean. If `True`, the expected outcome is
-        calculated including the non-media treatments, organic media and organic
-        rf variables. If `False`, the expected outcome is calculated without the
-        non-media treatments, organic media and organic rf variables.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
         a memory error occurs, try reducing `batch_size`. The calculation will
@@ -1114,9 +1109,11 @@ class Analyzer:
         if use_posterior
         else self._meridian.inference_data.prior
     )
+    # We always compute the expected outcome of all channels, including non-paid
+    # channels.
     data_tensors = self._get_scaled_data_tensors(
         new_data=new_data,
-        include_non_paid_channels=include_non_paid_channels,
+        include_non_paid_channels=True,
     )
 
     n_draws = params.draw.size
@@ -2725,13 +2722,11 @@ class Analyzer:
     expected_outcome_prior = self.expected_outcome(
         use_posterior=False,
         use_kpi=use_kpi,
-        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
     expected_outcome_posterior = self.expected_outcome(
         use_posterior=True,
         use_kpi=use_kpi,
-        include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
 

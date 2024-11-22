@@ -3282,7 +3282,6 @@ class OptimizerKPITest(parameterized.TestCase):
         selected_times=None,
         use_kpi=True,
         batch_size=c.DEFAULT_BATCH_SIZE,
-        include_non_paid_channels=False,
     )
 
   def test_results_kpi_only(self):

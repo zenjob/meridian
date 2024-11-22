@@ -1395,7 +1395,6 @@ class BudgetOptimizer:
         selected_times=selected_times,
         use_kpi=kpi_only,
         batch_size=batch_size,
-        include_non_paid_channels=False,
     )
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
 
