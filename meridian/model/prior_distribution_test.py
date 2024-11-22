@@ -533,9 +533,10 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of media channels,'
-        " representing a custom prior for each channel. If you can't determine"
-        ' a custom prior, consider using the default prior for that channel.',
+        'Custom priors length (5) must match the  number of media channels '
+        "(6), representing a a custom prior for each channel. If you can't "
+        'determine a custom prior, consider using the default prior for that '
+        'channel.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,
@@ -608,9 +609,9 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of RF channels,'
-        " representing a custom prior for each channel. If you can't determine"
-        ' a custom prior, consider using the default prior for that channel.',
+        'Custom priors length (5) must match the number of RF channels (4), '
+        "representing a custom prior for each channel. If you can't determine "
+        'a custom prior, consider using the default prior for that channel.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,
@@ -675,10 +676,10 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of organic media'
-        " channels, representing a custom prior for each channel. If you can't"
-        ' determine a custom prior, consider using the default prior for that'
-        ' channel.',
+        'Custom priors length (5) must match the  number of organic media '
+        'channels (4), representing a custom prior for each channel. If you '
+        "can't determine a custom prior, consider using the default prior for "
+        'that channel.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,
@@ -743,10 +744,10 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of organic RF'
-        " channels, representing a custom prior for each channel. If you can't"
-        ' determine a custom prior, consider using the default prior for that'
-        ' channel.',
+        'Custom priors length (5) must match the number of organic RF channels '
+        "(1), representing a custom prior for each channel. If you can't "
+        'determine a custom prior, consider using the default prior for that '
+        'channel.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,
@@ -787,10 +788,10 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of control'
-        ' variables, representing a custom prior for each control variable.'
-        " If you can't determine a custom prior, consider using the default"
-        ' prior for that variable.',
+        'Custom priors length (5) must match the number of control variables '
+        '(3), representing a custom prior for each control variable. If you '
+        "can't determine a custom prior, consider using the default prior for "
+        'that variable.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,
@@ -831,10 +832,10 @@ class PriorDistributionTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        'Custom priors must have length equal to the number of non-media'
-        ' channels, representing a custom prior for each channel.'
-        " If you can't determine a custom prior, consider using the default"
-        ' prior for that channel.',
+        'Custom priors length (5) must match the number of non-media channels '
+        "(2), representing a custom prior for each channel. If you can't "
+        'determine a custom prior, consider using the default prior for that '
+        'channel.',
     ):
       distribution.broadcast(
           n_geos=_N_GEOS_NATIONAL,

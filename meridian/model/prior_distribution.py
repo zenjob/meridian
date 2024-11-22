@@ -469,10 +469,10 @@ class PriorDistribution:
           and n_media_channels != param.batch_shape[0]
       ):
         raise ValueError(
-            'Custom priors must have length equal to the number of media'
-            ' channels, representing a custom prior for each channel. If you'
-            " can't determine a custom prior, consider using the default prior"
-            ' for that channel.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f' number of media channels ({n_media_channels}), representing a '
+            "a custom prior for each channel. If you can't determine a custom "
+            'prior, consider using the default prior for that channel.'
         )
 
     _validate_media_custom_priors(self.roi_m)
@@ -490,10 +490,11 @@ class PriorDistribution:
           and n_organic_media_channels != param.batch_shape[0]
       ):
         raise ValueError(
-            'Custom priors must have length equal to the number of organic'
-            ' media channels, representing a custom prior for each channel. If'
-            " you can't determine a custom prior, consider using the default"
-            ' prior for that channel.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f' number of organic media channels ({n_organic_media_channels}), '
+            "representing a custom prior for each channel. If you can't "
+            'determine a custom prior, consider using the default prior for '
+            'that channel.'
         )
 
     _validate_organic_media_custom_priors(self.alpha_om)
@@ -510,10 +511,11 @@ class PriorDistribution:
           and n_organic_rf_channels != param.batch_shape[0]
       ):
         raise ValueError(
-            'Custom priors must have length equal to the number of organic RF'
-            ' channels, representing a custom prior for each channel. If you'
-            " can't determine a custom prior, consider using the default prior"
-            ' for that channel.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f'number of organic RF channels ({n_organic_rf_channels}), '
+            "representing a custom prior for each channel. If you can't "
+            'determine a custom prior, consider using the default prior '
+            'for that channel.'
         )
 
     _validate_organic_rf_custom_priors(self.alpha_orf)
@@ -525,15 +527,12 @@ class PriorDistribution:
     def _validate_rf_custom_priors(
         param: tfp.distributions.Distribution,
     ) -> None:
-      if (
-          param.batch_shape.as_list()
-          and n_media_channels != param.batch_shape[0]
-      ):
+      if param.batch_shape.as_list() and n_rf_channels != param.batch_shape[0]:
         raise ValueError(
-            'Custom priors must have length equal to the number of RF channels,'
-            " representing a custom prior for each channel. If you can't"
-            ' determine a custom prior, consider using the default prior for'
-            ' that channel.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f'number of RF channels ({n_rf_channels}), representing a custom '
+            "prior for each channel. If you can't determine a custom prior, "
+            'consider using the default prior for that channel.'
         )
 
     _validate_rf_custom_priors(self.roi_rf)
@@ -548,10 +547,10 @@ class PriorDistribution:
     ) -> None:
       if param.batch_shape.as_list() and n_controls != param.batch_shape[0]:
         raise ValueError(
-            'Custom priors must have length equal to the number of control'
-            ' variables, representing a custom prior for each control variable.'
-            " If you can't determine a custom prior, consider using the default"
-            ' prior for that variable.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f'number of control variables ({n_controls}), representing a '
+            "custom prior for each control variable. If you can't determine a "
+            'custom prior, consider using the default prior for that variable.'
         )
 
     _validate_control_custom_priors(self.gamma_c)
@@ -565,10 +564,11 @@ class PriorDistribution:
           and n_non_media_channels != param.batch_shape[0]
       ):
         raise ValueError(
-            'Custom priors must have length equal to the number of non-media'
-            ' channels, representing a custom prior for each channel.'
-            " If you can't determine a custom prior, consider using the default"
-            ' prior for that channel.'
+            f'Custom priors length ({param.batch_shape[0]}) must match the '
+            f'number of non-media channels ({n_non_media_channels}), '
+            "representing a custom prior for each channel. If you can't "
+            'determine a custom prior, consider using the default prior for '
+            'that channel.'
         )
 
     _validate_non_media_custom_priors(self.gamma_n)

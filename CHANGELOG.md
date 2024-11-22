@@ -23,7 +23,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Fix a bug in the custom RF prior validation.
+
 ## [0.11.0] - 2024-11-19
+
 * Consistent naming for "rhat" methods.
 
 ## [0.10.0] - 2024-11-18
