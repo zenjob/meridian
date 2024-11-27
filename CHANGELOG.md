@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.11.2] - 2024-11-27
+* Remove deprecated `all_channel_names` property from `Meridian` class.
+
 ## [0.11.1] - 2024-11-22
 * Remove unneeded argument `include_non_paid_channels` from
   `expected_outcome()`.
@@ -116,5 +119,6 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.10.0]: https://github.com/google/meridian/releases/tag/v0.10.0
 [0.11.0]: https://github.com/google/meridian/releases/tag/v0.11.0
 [0.11.1]: https://github.com/google/meridian/releases/tag/v0.11.1
-[Unreleased]: https://github.com/google/meridian/compare/v0.11.1...HEAD
+[0.11.2]: https://github.com/google/meridian/releases/tag/v0.11.2
+[Unreleased]: https://github.com/google/meridian/compare/v0.11.2...HEAD
 

@@ -121,8 +121,6 @@ class Meridian:
     n_organic_media_channels: Number of organic media channels in the data.
     n_organic_rf_channels: Number of organic reach and frequency (RF) channels
       in the data.
-    all_channel_names: Names of the all media channels (including R&F, if any)
-      in the data, in coordinate order.
     n_controls: Number of control variables in the data.
     n_non_media_channels: Number of non-media treatment channels in the data.
     n_times: Number of time periods in the KPI or spend data.
@@ -274,16 +272,6 @@ class Meridian:
     if self.input_data.organic_rf_channel is None:
       return 0
     return len(self.input_data.organic_rf_channel)
-
-  @property
-  def all_channel_names(self) -> list[str] | None:
-    """Returns all media (and RF) channel names in the data."""
-    if (
-        self.input_data.media_channel is None
-        and self.input_data.rf_channel is None
-    ):
-      return None
-    return list(self.input_data.get_all_channels())
 
   @property
   def n_controls(self) -> int:
