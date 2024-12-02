@@ -160,7 +160,7 @@ def build_organic_media_tensors(
 
 @dataclasses.dataclass(frozen=True)
 class RfTensors:
-  """Container for Reach and Frequency (RF) media values tensors.
+  """Container for Reach and Frequency (RF) media tensors.
 
   Attributes:
     reach: A tensor constructed from `InputData.reach`.
@@ -239,7 +239,7 @@ def build_rf_tensors(
 
 @dataclasses.dataclass(frozen=True)
 class OrganicRfTensors:
-  """Container for Reach and Frequency (RF) organic media values tensors.
+  """Container for Reach and Frequency (RF) organic media tensors.
 
   Attributes:
     organic_reach: A tensor constructed from `InputData.organic_reach`.

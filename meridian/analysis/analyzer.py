@@ -2691,11 +2691,11 @@ class Analyzer:
     Returns:
       An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `median`,
       `ci_low`, `ci_high`), `distribution` (prior, posterior) and contains the
-      following non-paid data variables: `incremental_impact,
-      `pct_of_contribution`, `effectiveness`, and the following paid data
-      variables: `impressions`, `pct_of_impressions`, `spend`, `pct_of_spend`,
-      `CPM`, `roi`, `mroi`, `cpik`. The paid data variables are only included
-      when `include_non_paid_channels` is `False`.
+      following non-paid data variables: `incremental_impact`,
+      `pct_of_contribution`, `effectiveness`, and the following paid
+      data variables: `impressions`, `pct_of_impressions`, `spend`,
+      `pct_of_spend`, `CPM`, `roi`, `mroi`, `cpik`. The paid data variables are
+      only included when `include_non_paid_channels` is `False`.
     """
     dim_kwargs = {
         "selected_geos": selected_geos,
@@ -3385,6 +3385,7 @@ class Analyzer:
 
     Returns:
       An xarray Dataset which contains:
+
       * Coordinates: `frequency`, `rf_channel`, `metric` (`mean`, `median`,
       `ci_lo`, `ci_hi`).
       * Data variables:
