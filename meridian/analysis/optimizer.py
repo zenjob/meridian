@@ -59,7 +59,7 @@ class OptimizationResults:
   - `optimized_data`: The optimized budget metrics.
   - `optimization_grid`: The grid information used for optimization.
 
-  The metrics (data variables) are: ROI, mROI, incremental impact, CPIK.
+  The metrics (data variables) are: ROI, mROI, incremental outcome, CPIK.
 
   Additionally, some intermediate values and referecences to the source fitted
   model and analyzer are also stored here. These are useful for visualizing and
@@ -120,15 +120,16 @@ class OptimizationResults:
     """Dataset holding the non-optimized budget metrics.
 
     For channels that have reach and frequency data, their performance metrics
-    (ROI, mROI, incremental impact, CPIK) are based on historical frequency.
+    (ROI, mROI, incremental outcome, CPIK) are based on historical frequency.
 
     The dataset contains the following:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`, `effectiveness`
+        `incremental_outcome`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`,
+        `total_incremental_outcome`, `total_roi`, `total_cpik`,
+        `is_revenue_kpi`,
         `use_historical_budget`
 
     ROI and mROI are only included if `revenue_per_kpi` is known. Otherwise,
@@ -141,16 +142,16 @@ class OptimizationResults:
     """Dataset holding the non-optimized budget metrics.
 
     For channels that have reach and frequency data, their performance metrics
-    (ROI, mROI, incremental impact, CPIK) are based on optimal frequency.
+    (ROI, mROI, incremental outcome, CPIK) are based on optimal frequency.
 
     The dataset contains the following:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`, `effectiveness`
+        `incremental_outcome`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `is_revenue_kpi`,
-        `use_historical_budget`
+        `total_incremental_outcome`, `total_roi`, `total_cpik`,
+        `is_revenue_kpi`, `use_historical_budget`
     """
     return self._nonoptimized_data_with_optimal_freq
 
@@ -159,15 +160,15 @@ class OptimizationResults:
     """Dataset holding the optimized budget metrics.
 
     For channels that have reach and frequency data, their performance metrics
-    (ROI, mROI, incremental impact) are based on optimal frequency.
+    (ROI, mROI, incremental outcome) are based on optimal frequency.
 
     The dataset contains the following:
 
       - Coordinates: `channel`
       - Data variables: `spend`, `pct_of_spend`, `roi`, `mroi`, `cpik`,
-        `incremental_impact`, `effectiveness`
+        `incremental_outcome`, `effectiveness`
       - Attributes: `start_date`, `end_date`, `budget`, `profit`,
-        `total_incremental_impact`, `total_roi`, `total_cpik`, `fixed_budget`,
+        `total_incremental_outcome`, `total_roi`, `total_cpik`, `fixed_budget`,
         `is_revenue_kpi`, `use_historical_budget`
     """
     return self._optimized_data
@@ -179,7 +180,7 @@ class OptimizationResults:
     The dataset contains the following:
 
       - Coordinates:  `grid_spend_index`, `channel`
-      - Data variables: `spend_grid`, `incremental_impact_grid`
+      - Data variables: `spend_grid`, `incremental_outcome_grid`
       - Attributes: `spend_step_size`
     """
     return self._optimization_grid
@@ -191,18 +192,18 @@ class OptimizationResults:
       with open(os.path.join(filepath, filename), 'w') as f:
         f.write(self._gen_optimization_summary())
 
-  def plot_incremental_impact_delta(self) -> alt.Chart:
-    """Plots a waterfall chart showing the change in incremental impact."""
-    impact = self._kpi_or_revenue
-    if impact == c.REVENUE:
+  def plot_incremental_outcome_delta(self) -> alt.Chart:
+    """Plots a waterfall chart showing the change in incremental outcome."""
+    outcome = self._kpi_or_revenue
+    if outcome == c.REVENUE:
       y_axis_label = summary_text.INC_REVENUE_LABEL
     else:
       y_axis_label = summary_text.INC_KPI_LABEL
-    df = self._transform_impact_delta_data()
+    df = self._transform_outcome_delta_data()
     base = (
         alt.Chart(df)
         .transform_window(
-            sum_impact=f'sum({c.INCREMENTAL_IMPACT})',
+            sum_outcome=f'sum({c.INCREMENTAL_OUTCOME})',
             lead_channel=f'lead({c.CHANNEL})',
         )
         .transform_calculate(
@@ -211,17 +212,17 @@ class OptimizationResults:
                 ' datum.lead_channel'
             ),
             prev_sum=(
-                f"datum.channel === '{c.OPTIMIZED}' ? 0 : datum.sum_impact -"
-                ' datum.incremental_impact'
+                f"datum.channel === '{c.OPTIMIZED}' ? 0 : datum.sum_outcome -"
+                ' datum.incremental_outcome'
             ),
             calc_amount=(
                 f"datum.channel === '{c.OPTIMIZED}' ?"
-                f" {formatter.compact_number_expr('sum_impact')} :"
-                f' {formatter.compact_number_expr(c.INCREMENTAL_IMPACT)}'
+                f" {formatter.compact_number_expr('sum_outcome')} :"
+                f' {formatter.compact_number_expr(c.INCREMENTAL_OUTCOME)}'
             ),
             text_y=(
-                'datum.sum_impact < datum.prev_sum ? datum.prev_sum :'
-                ' datum.sum_impact'
+                'datum.sum_outcome < datum.prev_sum ? datum.prev_sum :'
+                ' datum.sum_outcome'
             ),
         )
         .encode(
@@ -249,20 +250,20 @@ class OptimizationResults:
                 ),
                 'value': c.BLUE_500,
             },
-            {'test': 'datum.incremental_impact < 0', 'value': c.RED_300},
+            {'test': 'datum.incremental_outcome < 0', 'value': c.RED_300},
         ],
         'value': c.CYAN_400,
     }
 
-    # To show the details of the incremental impact delta, zoom into the plot by
-    # adjusting the domain of the y-axis so that the incremental impact does not
-    # start at 0. Calculate the total decrease in incremental impact to pad the
-    # y-axis from the non-optimized total incremental impact value.
-    sum_decr = sum(df[df.incremental_impact < 0].incremental_impact)
+    # To show the details of the incremental outcome delta, zoom into the plot
+    # by adjusting the domain of the y-axis so that the incremental outcome does
+    # not start at 0. Calculate the total decrease in incremental outcome to pad
+    # the y-axis from the non-optimized total incremental outcome value.
+    sum_decr = sum(df[df.incremental_outcome < 0].incremental_outcome)
     y_padding = float(f'1e{int(math.log10(-sum_decr))}') if sum_decr < 0 else 2
     domain_scale = [
-        self.nonoptimized_data.total_incremental_impact + sum_decr - y_padding,
-        self.optimized_data.total_incremental_impact + y_padding,
+        self.nonoptimized_data.total_incremental_outcome + sum_decr - y_padding,
+        self.optimized_data.total_incremental_outcome + y_padding,
     ]
     bar = base.mark_bar(
         size=c.BAR_SIZE, clip=True, cornerRadius=c.CORNER_RADIUS
@@ -280,9 +281,9 @@ class OptimizationResults:
             ),
             scale=alt.Scale(domain=domain_scale),
         ),
-        y2='sum_impact:Q',
+        y2='sum_outcome:Q',
         color=color_coding,
-        tooltip=[f'{c.CHANNEL}:N', f'{c.INCREMENTAL_IMPACT}:Q'],
+        tooltip=[f'{c.CHANNEL}:N', f'{c.INCREMENTAL_OUTCOME}:Q'],
     )
 
     text = base.mark_text(
@@ -296,7 +297,7 @@ class OptimizationResults:
         (bar + text)
         .properties(
             title=formatter.custom_title_params(
-                summary_text.IMPACT_DELTA_CHART_TITLE.format(impact=impact)
+                summary_text.OUTCOME_DELTA_CHART_TITLE.format(outcome=outcome)
             ),
             width=(c.BAR_SIZE + c.PADDING_20) * len(df)
             + c.BAR_SIZE * 2 * c.SCALED_PADDING,
@@ -411,8 +412,8 @@ class OptimizationResults:
     Returns:
       An Altair plot showing the response curves with optimization details.
     """
-    impact = self._kpi_or_revenue
-    if impact == c.REVENUE:
+    outcome = self._kpi_or_revenue
+    if outcome == c.REVENUE:
       title = summary_text.INC_REVENUE_LABEL
     else:
       title = summary_text.INC_KPI_LABEL
@@ -586,28 +587,28 @@ class OptimizationResults:
                 c.SPEND_MULTIPLIER,
             ],
             columns=c.METRIC,
-            values=c.INCREMENTAL_IMPACT,
+            values=c.INCREMENTAL_OUTCOME,
         )
         .reset_index()
     )
     non_optimized_points_df = (
         self.nonoptimized_data_with_optimal_freq[
-            [c.SPEND, c.INCREMENTAL_IMPACT]
+            [c.SPEND, c.INCREMENTAL_OUTCOME]
         ]
         .sel(metric=c.MEAN, drop=True)
         .to_dataframe()
         .reset_index()
-        .rename(columns={c.INCREMENTAL_IMPACT: c.MEAN})
+        .rename(columns={c.INCREMENTAL_OUTCOME: c.MEAN})
     )
     non_optimized_points_df[c.SPEND_LEVEL] = (
         summary_text.NONOPTIMIZED_SPEND_LABEL
     )
     optimal_points_df = (
-        self.optimized_data[[c.SPEND, c.INCREMENTAL_IMPACT]]
+        self.optimized_data[[c.SPEND, c.INCREMENTAL_OUTCOME]]
         .sel(metric=c.MEAN, drop=True)
         .to_dataframe()
         .reset_index()
-        .rename(columns={c.INCREMENTAL_IMPACT: c.MEAN})
+        .rename(columns={c.INCREMENTAL_OUTCOME: c.MEAN})
     )
     optimal_points_df[c.SPEND_LEVEL] = summary_text.OPTIMIZED_SPEND_LABEL
 
@@ -638,13 +639,13 @@ class OptimizationResults:
         df[df[metric] >= 0].sort_values([metric], ascending=False),
     ]).reset_index(drop=True)
 
-  def _transform_impact_delta_data(self) -> pd.DataFrame:
-    """Calculates the incremental impact delta after optimization."""
-    sorted_df = self._get_delta_data(c.INCREMENTAL_IMPACT)
+  def _transform_outcome_delta_data(self) -> pd.DataFrame:
+    """Calculates the incremental outcome delta after optimization."""
+    sorted_df = self._get_delta_data(c.INCREMENTAL_OUTCOME)
     sorted_df.loc[len(sorted_df)] = [c.OPTIMIZED, 0]
     sorted_df.loc[-1] = [
         c.NON_OPTIMIZED,
-        self.nonoptimized_data.total_incremental_impact,
+        self.nonoptimized_data.total_incremental_outcome,
     ]
     sorted_df.sort_index(inplace=True)
     return sorted_df
@@ -717,7 +718,7 @@ class OptimizationResults:
 
   def _create_scenario_stats_specs(self) -> Sequence[formatter.StatsSpec]:
     """Creates the stats to fill the scenario plan section."""
-    impact = self._kpi_or_revenue
+    outcome = self._kpi_or_revenue
     budget_diff = self.optimized_data.budget - self.nonoptimized_data.budget
     budget_prefix = '+' if budget_diff > 0 else ''
     non_optimized_budget = formatter.StatsSpec(
@@ -730,7 +731,7 @@ class OptimizationResults:
         delta=(budget_prefix + formatter.format_monetary_num(budget_diff)),
     )
 
-    if impact == c.REVENUE:
+    if outcome == c.REVENUE:
       diff = round(
           self.optimized_data.total_roi - self.nonoptimized_data.total_roi, 1
       )
@@ -760,37 +761,39 @@ class OptimizationResults:
         delta=optimized_performance_diff,
     )
 
-    inc_impact_diff = (
-        self.optimized_data.total_incremental_impact
-        - self.nonoptimized_data.total_incremental_impact
+    inc_outcome_diff = (
+        self.optimized_data.total_incremental_outcome
+        - self.nonoptimized_data.total_incremental_outcome
     )
-    inc_impact_prefix = '+' if inc_impact_diff > 0 else ''
-    non_optimized_inc_impact = formatter.StatsSpec(
-        title=summary_text.NON_OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
+    inc_outcome_prefix = '+' if inc_outcome_diff > 0 else ''
+    non_optimized_inc_outcome = formatter.StatsSpec(
+        title=summary_text.NON_OPTIMIZED_INC_OUTCOME_LABEL.format(
+            outcome=outcome
+        ),
         stat=formatter.format_monetary_num(
-            self.nonoptimized_data.total_incremental_impact,
+            self.nonoptimized_data.total_incremental_outcome,
         ),
     )
-    optimized_inc_impact = formatter.StatsSpec(
-        title=summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=impact),
+    optimized_inc_outcome = formatter.StatsSpec(
+        title=summary_text.OPTIMIZED_INC_OUTCOME_LABEL.format(outcome=outcome),
         stat=formatter.format_monetary_num(
-            self.optimized_data.total_incremental_impact,
+            self.optimized_data.total_incremental_outcome,
         ),
-        delta=inc_impact_prefix
-        + formatter.format_monetary_num(inc_impact_diff),
+        delta=inc_outcome_prefix
+        + formatter.format_monetary_num(inc_outcome_diff),
     )
     return [
         non_optimized_budget,
         optimized_budget,
         non_optimized_performance,
         optimized_performance,
-        non_optimized_inc_impact,
-        optimized_inc_impact,
+        non_optimized_inc_outcome,
+        optimized_inc_outcome,
     ]
 
   def _create_budget_allocation_section(self) -> str:
     """Creates the HTML card snippet for the budget allocation section."""
-    impact = self._kpi_or_revenue
+    outcome = self._kpi_or_revenue
     card_spec = formatter.CardSpec(
         id=summary_text.BUDGET_ALLOCATION_CARD_ID,
         title=summary_text.BUDGET_ALLOCATION_CARD_TITLE,
@@ -804,12 +807,12 @@ class OptimizationResults:
         id=summary_text.SPEND_ALLOCATION_CHART_ID,
         chart_json=self.plot_budget_allocation().to_json(),
     )
-    impact_delta = formatter.ChartSpec(
-        id=summary_text.IMPACT_DELTA_CHART_ID,
-        description=summary_text.IMPACT_DELTA_CHART_INSIGHTS_FORMAT.format(
-            impact=impact
+    outcome_delta = formatter.ChartSpec(
+        id=summary_text.OUTCOME_DELTA_CHART_ID,
+        description=summary_text.OUTCOME_DELTA_CHART_INSIGHTS_FORMAT.format(
+            outcome=outcome
         ),
-        chart_json=self.plot_incremental_impact_delta().to_json(),
+        chart_json=self.plot_incremental_outcome_delta().to_json(),
     )
     spend_allocation_table = formatter.TableSpec(
         id=summary_text.SPEND_ALLOCATION_TABLE_ID,
@@ -826,7 +829,7 @@ class OptimizationResults:
         self.template_env,
         card_spec,
         summary_text.BUDGET_ALLOCATION_INSIGHTS,
-        [spend_delta, spend_allocation, impact_delta, spend_allocation_table],
+        [spend_delta, spend_allocation, outcome_delta, spend_allocation_table],
     )
 
   def _create_budget_allocation_table(self) -> pd.DataFrame:
@@ -871,7 +874,7 @@ class OptimizationResults:
         self.template_env,
         card_spec,
         summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT.format(
-            impact=self._kpi_or_revenue,
+            outcome=self._kpi_or_revenue,
         ),
         [response_curves],
     )
@@ -880,7 +883,7 @@ class OptimizationResults:
 class BudgetOptimizer:
   """Runs and outputs budget optimization scenarios on your model.
 
-  Finds the optimal budget allocation that maximizes impact based on various
+  Finds the optimal budget allocation that maximizes outcome based on various
   scenarios where the budget, data, and constraints can be customized. The
   results can be viewed as plots and as an HTML summary output page.
   """
@@ -905,11 +908,11 @@ class BudgetOptimizer:
       confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> OptimizationResults:
-    """Finds the optimal budget allocation that maximizes impact.
+    """Finds the optimal budget allocation that maximizes outcome.
 
-    Here, "impact" is defined as KPI: revenue KPI if the model data has revenue
-    data (or there is a `revenue_per_kpi` conversion available), or else generic
-    non-revenue KPI otherwise.
+    Outcome is typically revenue, but when the KPI is not revenue and "revenue
+    per KPI" data is not available, then Meridian defines the Outcome to be the
+    KPI itself.
 
     Args:
       use_posterior: Boolean. If `True`, then the budget is optimized based on
@@ -927,13 +930,13 @@ class BudgetOptimizer:
       budget: Number indicating the total budget for the fixed budget scenario.
         Defaults to the historical budget.
       pct_of_spend: Numeric list of size `n_total_channels` containing the
-        percentage allocation for spend for all media and RF channels. The order
-        must match `InputData.media` with values between 0-1, summing to 1. By
-        default, the historical allocation is used. Budget and allocation are
-        used in conjunction to determine the non-optimized media-level spend,
-        which is used to calculate the non-optimized performance metrics (for
-        example, ROI) and construct the feasible range of media-level spend with
-        the spend constraints.
+        percentage allocation for spend for all media and RF channels. The
+        order must match `InputData.media` with values between 0-1, summing to
+        1. By default, the historical allocation is used. Budget and allocation
+        are used in conjunction to determine the non-optimized media-level
+        spend, which is used to calculate the non-optimized performance metrics
+        (for example, ROI) and construct the feasible range of media-level
+        spend with the spend constraints.
       spend_constraint_lower: Numeric list of size `n_total_channels` or float
         (same constraint for all channels) indicating the lower bound of
         media-level spend. The lower bound of media-level spend is `(1 -
@@ -1012,7 +1015,7 @@ class BudgetOptimizer:
             fixed_budget=fixed_budget,
         )
     )
-    (spend_grid, incremental_impact_grid) = self._create_grids(
+    (spend_grid, incremental_outcome_grid) = self._create_grids(
         spend=hist_spend,
         spend_bound_lower=optimization_lower_bound,
         spend_bound_upper=optimization_upper_bound,
@@ -1024,7 +1027,7 @@ class BudgetOptimizer:
     )
     optimal_spend = self._grid_search(
         spend_grid=spend_grid,
-        incremental_impact_grid=incremental_impact_grid,
+        incremental_outcome_grid=incremental_outcome_grid,
         budget=np.sum(rounded_spend),
         fixed_budget=fixed_budget,
         target_mroi=target_mroi,
@@ -1073,7 +1076,7 @@ class BudgetOptimizer:
     optimization_grid = self._create_optimization_grid(
         spend_grid=spend_grid,
         spend_step_size=step_size,
-        incremental_impact_grid=incremental_impact_grid,
+        incremental_outcome_grid=incremental_outcome_grid,
     )
 
     return OptimizationResults(
@@ -1093,7 +1096,7 @@ class BudgetOptimizer:
       self,
       spend_grid: np.ndarray,
       spend_step_size: float,
-      incremental_impact_grid: np.ndarray,
+      incremental_outcome_grid: np.ndarray,
   ) -> xr.Dataset:
     """Creates the optimization grid dataset.
 
@@ -1103,20 +1106,20 @@ class BudgetOptimizer:
         columns is equal to the number of total channels, containing spend by
         channel.
       spend_step_size: The step size of the spend grid.
-      incremental_impact_grid: Discrete two-dimensional grid with the size same
-        as the `spend_grid` containing incremental impact by channel.
+      incremental_outcome_grid: Discrete two-dimensional grid with the size same
+        as the `spend_grid` containing incremental outcome by channel.
 
     Returns:
       The optimization grid dataset. The dataset contains the following:
         - Coordinates:  `grid_spend_index`, `channel`
-        - Data variables: `spend_grid`, `incremental_impact_grid`
+        - Data variables: `spend_grid`, `incremental_outcome_grid`
         - Attributes: `spend_step_size`
     """
     data_vars = {
         c.SPEND_GRID: ([c.GRID_SPEND_INDEX, c.CHANNEL], spend_grid),
-        c.INCREMENTAL_IMPACT_GRID: (
+        c.INCREMENTAL_OUTCOME_GRID: (
             [c.GRID_SPEND_INDEX, c.CHANNEL],
-            incremental_impact_grid,
+            incremental_outcome_grid,
         ),
     }
 
@@ -1254,7 +1257,7 @@ class BudgetOptimizer:
 
     return (const_lower, const_upper)
 
-  def _get_incremental_impact_tensors(
+  def _get_incremental_outcome_tensors(
       self,
       hist_spend: np.ndarray,
       spend: np.ndarray,
@@ -1266,10 +1269,10 @@ class BudgetOptimizer:
       tf.Tensor | None,
       tf.Tensor | None,
   ]:
-    """Gets the tensors for incremental impact, based on spend data.
+    """Gets the tensors for incremental outcome, based on spend data.
 
     This function is used to get the tensor data used when calling
-    incremental_impact() for creating budget data. new_media is calculated
+    incremental_outcome() for creating budget data. new_media is calculated
     assuming a constant cpm between historical spend and optimization spend.
     new_reach and new_frequency are calculated by first multiplying them
     together and getting rf_media(impressions), and then calculating
@@ -1350,7 +1353,7 @@ class BudgetOptimizer:
     spend = tf.convert_to_tensor(spend, dtype=tf.float32)
     hist_spend = tf.convert_to_tensor(hist_spend, dtype=tf.float32)
     (new_media, new_media_spend, new_reach, new_frequency, new_rf_spend) = (
-        self._get_incremental_impact_tensors(
+        self._get_incremental_outcome_tensors(
             hist_spend, spend, optimal_frequency
         )
     )
@@ -1358,9 +1361,9 @@ class BudgetOptimizer:
     budget = np.sum(spend)
     all_times = self._meridian.input_data.time.values.tolist()
 
-    # incremental_impact here is a tensor with the shape
+    # incremental_outcome here is a tensor with the shape
     # (n_chains, n_draws, n_channels)
-    incremental_impact = self._analyzer.incremental_impact(
+    incremental_outcome = self._analyzer.incremental_outcome(
         use_posterior=use_posterior,
         new_data=analyzer.DataTensors(
             media=new_media,
@@ -1372,19 +1375,19 @@ class BudgetOptimizer:
         batch_size=batch_size,
         include_non_paid_channels=False,
     )
-    # incremental_impact_with_mean_median_and_ci here is an ndarray with the
+    # incremental_outcome_with_mean_median_and_ci here is an ndarray with the
     # shape (n_channels, n_metrics) where n_metrics = 4 for (mean, median,
     # ci_lo, and ci_hi)
-    incremental_impact_with_mean_median_and_ci = (
+    incremental_outcome_with_mean_median_and_ci = (
         analyzer.get_central_tendency_and_ci(
-            data=incremental_impact,
+            data=incremental_outcome,
             confidence_level=confidence_level,
             include_median=True,
         )
     )
     # Total of `mean` column.
-    total_incremental_impact = np.sum(
-        incremental_impact_with_mean_median_and_ci[:, 0]
+    total_incremental_outcome = np.sum(
+        incremental_outcome_with_mean_median_and_ci[:, 0]
     )
 
     # expected_outcome here is a tensor with the shape (n_chains, n_draws)
@@ -1401,7 +1404,7 @@ class BudgetOptimizer:
     )
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
 
-    pct_contrib = incremental_impact / mean_expected_outcome[..., None] * 100
+    pct_contrib = incremental_outcome / mean_expected_outcome[..., None] * 100
     pct_contrib_with_mean_median_and_ci = analyzer.get_central_tendency_and_ci(
         data=pct_contrib,
         confidence_level=confidence_level,
@@ -1416,7 +1419,7 @@ class BudgetOptimizer:
         optimal_frequency=optimal_frequency,
         include_non_paid_channels=False,
     )
-    effectiveness = incremental_impact / aggregated_impressions
+    effectiveness = incremental_outcome / aggregated_impressions
     effectiveness_with_mean_median_and_ci = (
         analyzer.get_central_tendency_and_ci(
             data=effectiveness,
@@ -1426,7 +1429,7 @@ class BudgetOptimizer:
     )
 
     roi = analyzer.get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(incremental_impact, spend),
+        data=tf.math.divide_no_nan(incremental_outcome, spend),
         confidence_level=confidence_level,
         include_median=True,
     )
@@ -1448,13 +1451,13 @@ class BudgetOptimizer:
     )
 
     cpik = analyzer.get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(spend, incremental_impact),
+        data=tf.math.divide_no_nan(spend, incremental_outcome),
         confidence_level=confidence_level,
         include_median=True,
     )
-    total_inc_impact = np.sum(incremental_impact, -1)
+    total_inc_outcome = np.sum(incremental_outcome, -1)
     total_cpik = np.mean(
-        tf.math.divide_no_nan(budget, total_inc_impact),
+        tf.math.divide_no_nan(budget, total_inc_outcome),
         axis=(0, 1),
     )
 
@@ -1462,9 +1465,9 @@ class BudgetOptimizer:
     data_vars = {
         c.SPEND: ([c.CHANNEL], spend),
         c.PCT_OF_SPEND: ([c.CHANNEL], spend / total_spend),
-        c.INCREMENTAL_IMPACT: (
+        c.INCREMENTAL_OUTCOME: (
             [c.CHANNEL, c.METRIC],
-            incremental_impact_with_mean_median_and_ci,
+            incremental_outcome_with_mean_median_and_ci,
         ),
         c.PCT_OF_CONTRIBUTION: (
             [c.CHANNEL, c.METRIC],
@@ -1483,9 +1486,9 @@ class BudgetOptimizer:
         c.START_DATE: min(selected_times) if selected_times else all_times[0],
         c.END_DATE: max(selected_times) if selected_times else all_times[-1],
         c.BUDGET: budget,
-        c.PROFIT: total_incremental_impact - budget,
-        c.TOTAL_INCREMENTAL_IMPACT: total_incremental_impact,
-        c.TOTAL_ROI: total_incremental_impact / budget,
+        c.PROFIT: total_incremental_outcome - budget,
+        c.TOTAL_INCREMENTAL_OUTCOME: total_incremental_outcome,
+        c.TOTAL_ROI: total_incremental_outcome / budget,
         c.TOTAL_CPIK: total_cpik,
         c.IS_REVENUE_KPI: not kpi_only,
         c.CONFIDENCE_LEVEL: confidence_level,
@@ -1556,28 +1559,28 @@ class BudgetOptimizer:
     upper_bound = np.round(spend_bounds[1] * spend, round_factor).astype(int)
     return (lower_bound, upper_bound, spend_bounds)
 
-  def _update_incremental_impact_grid(
+  def _update_incremental_outcome_grid(
       self,
       i: int,
-      incremental_impact_grid: np.ndarray,
+      incremental_outcome_grid: np.ndarray,
       multipliers_grid: tf.Tensor,
       selected_times: Sequence[str],
       use_posterior: bool = True,
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ):
-    """Updates incremental_impact_grid for each channel.
+    """Updates incremental_outcome_grid for each channel.
 
     Args:
-      i: Row index used in updating incremental_impact_grid.
-      incremental_impact_grid: Discrete two-dimensional grid with the number of
+      i: Row index used in updating incremental_outcome_grid.
+      incremental_outcome_grid: Discrete two-dimensional grid with the number of
         rows determined by the `spend_constraints` and `step_size`, and the
         number of columns is equal to the number of total channels, containing
-        incremental impact by channel.
+        incremental outcome by channel.
       multipliers_grid: A grid derived from spend.
       selected_times: Sequence of strings representing the time dimensions in
         `meridian.input_data.time` to use for optimization.
-      use_posterior: Boolean. If `True`, then the incremental impact is derived
+      use_posterior: Boolean. If `True`, then the incremental outcome is derived
         from the posterior distribution of the model. Otherwise, the prior
         distribution is used.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
@@ -1618,12 +1621,12 @@ class BudgetOptimizer:
           * self._meridian.rf_tensors.reach
       )
 
-    # incremental_impact returns a three dimensional tensor with dims
-    # (n_chains x n_draws x n_total_channels). Incremental_impact_grid requires
-    # incremental impact by channel.
+    # incremental_outcome returns a three dimensional tensor with dims
+    # (n_chains x n_draws x n_total_channels). Incremental_outcome_grid requires
+    # incremental outcome by channel.
     use_kpi = self._meridian.revenue_per_kpi is None
-    incremental_impact_grid[i, :] = np.mean(
-        self._analyzer.incremental_impact(
+    incremental_outcome_grid[i, :] = np.mean(
+        self._analyzer.incremental_outcome(
             use_posterior=use_posterior,
             new_data=analyzer.DataTensors(
                 media=new_media,
@@ -1650,7 +1653,7 @@ class BudgetOptimizer:
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> tuple[np.ndarray, np.ndarray]:
-    """Creates spend and incremental impact grids for optimization algorithm.
+    """Creates spend and incremental outcome grids for optimization algorithm.
 
     Args:
       spend: np.ndarray with actual spend per media or RF channel.
@@ -1662,7 +1665,7 @@ class BudgetOptimizer:
         in the spend grid. All media channels have the same step size.
       selected_times: Sequence of strings representing the time dimensions in
         `meridian.input_data.time` to use for optimization.
-      use_posterior: Boolean. If `True`, then the incremental impact is derived
+      use_posterior: Boolean. If `True`, then the incremental outcome is derived
         from the posterior distribution of the model. Otherwise, the prior
         distribution is used.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
@@ -1680,10 +1683,10 @@ class BudgetOptimizer:
         determined by the `spend_constraints` and `step_size`, and the number of
         columns is equal to the number of total channels, containing spend by
         channel.
-      incremental_impact_grid: Discrete two-dimensional grid with the number of
+      incremental_outcome_grid: Discrete two-dimensional grid with the number of
         rows determined by the `spend_constraints` and `step_size`, and the
         number of columns is equal to the number of total channels, containing
-        incremental impact by channel.
+        incremental outcome by channel.
     """
     n_grid_rows = int(
         (np.max(np.subtract(spend_bound_upper, spend_bound_lower)) // step_size)
@@ -1698,44 +1701,44 @@ class BudgetOptimizer:
           step_size,
       )
       spend_grid[: len(spend_grid_m), i] = spend_grid_m
-    incremental_impact_grid = np.full([n_grid_rows, n_grid_columns], np.nan)
+    incremental_outcome_grid = np.full([n_grid_rows, n_grid_columns], np.nan)
     multipliers_grid = tf.cast(
         tf.math.divide_no_nan(spend_grid, spend), dtype=tf.float32
     )
     for i in range(n_grid_rows):
-      self._update_incremental_impact_grid(
+      self._update_incremental_outcome_grid(
           i,
-          incremental_impact_grid,
+          incremental_outcome_grid,
           multipliers_grid,
           selected_times,
           use_posterior,
           optimal_frequency,
           batch_size=batch_size,
       )
-    # In theory, for RF channels, incremental_impact/spend should always be
+    # In theory, for RF channels, incremental_outcome/spend should always be
     # same despite of spend, But given the level of precision,
-    # incremental_impact/spend could have very tiny difference in high
+    # incremental_outcome/spend could have very tiny difference in high
     # decimals. This tiny difference will cause issue in
     # np.unravel_index(np.nanargmax(iROAS_grid), iROAS_grid.shape). Therefore
-    # we use the following code to fix it, and ensure incremental_impact/spend
+    # we use the following code to fix it, and ensure incremental_outcome/spend
     # is always same for RF channels.
     if self._meridian.n_rf_channels > 0:
-      rf_incremental_impact_max = np.nanmax(
-          incremental_impact_grid[:, -self._meridian.n_rf_channels :], axis=0
+      rf_incremental_outcome_max = np.nanmax(
+          incremental_outcome_grid[:, -self._meridian.n_rf_channels :], axis=0
       )
       rf_spend_max = np.nanmax(
           spend_grid[:, -self._meridian.n_rf_channels :], axis=0
       )
-      rf_roi = tf.math.divide_no_nan(rf_incremental_impact_max, rf_spend_max)
-      incremental_impact_grid[:, -self._meridian.n_rf_channels :] = (
+      rf_roi = tf.math.divide_no_nan(rf_incremental_outcome_max, rf_spend_max)
+      incremental_outcome_grid[:, -self._meridian.n_rf_channels :] = (
           rf_roi * spend_grid[:, -self._meridian.n_rf_channels :]
       )
-    return (spend_grid, incremental_impact_grid)
+    return (spend_grid, incremental_outcome_grid)
 
   def _grid_search(
       self,
       spend_grid: np.ndarray,
-      incremental_impact_grid: np.ndarray,
+      incremental_outcome_grid: np.ndarray,
       budget: float,
       fixed_budget: bool,
       target_mroi: float | None = None,
@@ -1747,8 +1750,8 @@ class BudgetOptimizer:
       spend_grid: Discrete grid with dimensions (`grid_length` x
         `n_total_channels`) containing spend by channel for all media and RF
         channels, used in the hill-climbing search algorithm.
-      incremental_impact_grid: Discrete grid with dimensions (`grid_length` x
-        `n_total_channels`) containing incremental impact by channel for all
+      incremental_outcome_grid: Discrete grid with dimensions (`grid_length` x
+        `n_total_channels`) containing incremental outcome by channel for all
         media and RF channels, used in the hill-climbing search algorithm.
       budget: Integer indicating the total budget.
       fixed_budget: Bool indicating whether it's a fixed budget optimization or
@@ -1766,21 +1769,19 @@ class BudgetOptimizer:
 
     Returns:
       optimal_spend: np.ndarry of dimension (`n_total_channels`) containing the
-      media
-        spend that maximizes incremental impact based on spend constraints for
-        all media and RF channels.
-      optimal_inc_impact: np.ndarry of dimension (`n_total_channels`) containing
-      the
-        post optimization incremental impact per channel for all media and RF
-        channels.
+        media spend that maximizes incremental outcome based on spend
+        constraints for all media and RF channels.
+      optimal_inc_outcome: np.ndarry of dimension (`n_total_channels`)
+        containing the post optimization incremental outcome per channel for all
+        media and RF channels.
     """
     spend = spend_grid[0, :].copy()
-    incremental_impact = incremental_impact_grid[0, :].copy()
+    incremental_outcome = incremental_outcome_grid[0, :].copy()
     spend_grid = spend_grid[1:, :]
-    incremental_impact_grid = incremental_impact_grid[1:, :]
+    incremental_outcome_grid = incremental_outcome_grid[1:, :]
     iterative_roi_grid = np.round(
         tf.math.divide_no_nan(
-            incremental_impact_grid - incremental_impact, spend_grid - spend
+            incremental_outcome_grid - incremental_outcome, spend_grid - spend
         ),
         decimals=8,
     )
@@ -1796,7 +1797,7 @@ class BudgetOptimizer:
       row_idx = point[0]
       media_idx = point[1]
       spend[media_idx] = spend_grid[row_idx, media_idx]
-      incremental_impact[media_idx] = incremental_impact_grid[
+      incremental_outcome[media_idx] = incremental_outcome_grid[
           row_idx, media_idx
       ]
       roi_grid_point = iterative_roi_grid[row_idx, media_idx]
@@ -1804,7 +1805,7 @@ class BudgetOptimizer:
           fixed_budget,
           budget,
           spend,
-          incremental_impact,
+          incremental_outcome,
           roi_grid_point,
           target_mroi,
           target_roi,
@@ -1814,8 +1815,8 @@ class BudgetOptimizer:
       iterative_roi_grid[0 : row_idx + 1, media_idx] = np.nan
       iterative_roi_grid[row_idx + 1 :, media_idx] = np.round(
           tf.math.divide_no_nan(
-              incremental_impact_grid[row_idx + 1 :, media_idx]
-              - incremental_impact_grid[row_idx, media_idx],
+              incremental_outcome_grid[row_idx + 1 :, media_idx]
+              - incremental_outcome_grid[row_idx, media_idx],
               spend_grid[row_idx + 1 :, media_idx]
               - spend_grid[row_idx, media_idx],
           ),
@@ -1852,7 +1853,7 @@ def _exceeds_optimization_constraints(
     fixed_budget: bool,
     budget: float,
     spend: np.ndarray,
-    incremental_impact: np.ndarray,
+    incremental_outcome: np.ndarray,
     roi_grid_point: float,
     target_mroi: float | None = None,
     target_roi: float | None = None,
@@ -1868,8 +1869,8 @@ def _exceeds_optimization_constraints(
     budget: integer indicating the total budget.
     spend: np.ndarray with dimensions (`n_total_channels`) containing spend per
       channel for all media and RF channels.
-    incremental_impact: np.ndarray with dimensions (`n_total_channels`)
-      containing incremental impact per channel for all media and RF channels.
+    incremental_outcome: np.ndarray with dimensions (`n_total_channels`)
+      containing incremental outcome per channel for all media and RF channels.
     roi_grid_point: float roi for non-optimized optimation step.
     target_mroi: Optional float indicating the target marginal return on
       investment (mroi) constraint. This can be translated into "How much can I
@@ -1882,12 +1883,12 @@ def _exceeds_optimization_constraints(
       a flexible budget until the roi of total spend hits the target roi.
 
   Returns:
-    bool indicating whether optimal spend and incremental impact have been
+    bool indicating whether optimal spend and incremental outcome have been
       found, given the optimization constraints.
   """
   if fixed_budget:
     return np.sum(spend) > budget
   elif target_roi is not None:
-    return (np.sum(incremental_impact) / np.sum(spend)) < target_roi
+    return (np.sum(incremental_outcome) / np.sum(spend)) < target_roi
   else:
     return roi_grid_point < target_mroi

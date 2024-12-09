@@ -110,7 +110,7 @@ class InputData:
       `(n_media_channels,)` if the data is aggregated over `geo` and `time`
       dimensions. Align the total cost with the time window of the `kpi` and
       `controls` data, which is the time window over which the incremental
-      revenue of the ROI numerator is calculated. The incremental revenue is
+      revenue of the ROI numerator is calculated. The incremental outcome is
       influenced by media execution prior to this time window, through lagged
       effects. `media` and `media_spend` must contain the same number of media
       channels in the same order. If either of these arguments is passed, then
@@ -152,13 +152,13 @@ class InputData:
       aggregated over geo and/or time dimensions that are not represented. We
       recommend that the spend total aligns with the time window of the `kpi`
       and `controls` data, which is the time window over which incremental
-      impact of the ROI numerator is calculated). However, note that incremental
-      impact is influenced by media execution prior to this time window, through
-      lagged effects, and excludes lagged effects beyond the time window of
-      media executed during the time window. If only `media` data is used,
-      `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend` must
-      contain the same number of media channels in the same order. If any of
-      these arguments is passed, then the others are not optional.
+      outcome of the ROI numerator is calculated). However, note that
+      incremental outcome is influenced by media execution prior to this time
+      window, through lagged effects, and excludes lagged effects beyond the
+      time window of media executed during the time window. If only `media` data
+      is used, `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend`
+      must contain the same number of media channels in the same order. If any
+      of these arguments is passed, then the others are not optional.
     organic_media: An optional `DataArray` of dimensions `(n_geos,
       n_media_times, n_organic_media_channels)` containing non-negative organic
       media values. Organic media variables are media activities that have no

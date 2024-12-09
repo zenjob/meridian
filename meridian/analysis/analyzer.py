@@ -289,7 +289,7 @@ def _scale_tensors_by_multiplier(
     multiplier: float,
     by_reach: bool,
 ) -> Mapping[str, tf.Tensor | None]:
-  """Get scaled tensors for incremental impact calculation.
+  """Get scaled tensors for incremental outcome calculation.
 
   Args:
     media: Optional tensor with dimensions matching media.
@@ -972,10 +972,10 @@ class Analyzer:
   ) -> tf.Tensor:
     """Calculates either prior or posterior expected outcome.
 
-    This calculates `E(Impact|Media, RF, Organic media, Organic RF, Non-media
+    This calculates `E(Outcome|Media, RF, Organic media, Organic RF, Non-media
     treatments, Controls)` for each posterior (or prior) parameter draw, where
-    `Impact` ("outcome") refers to either `revenue` if `use_kpi=False`, or `kpi`
-    if `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi` cannot
+    `Outcome` refers to either `revenue` if `use_kpi=False`, or `kpi` if
+    `use_kpi=True`. When `revenue_per_kpi` is not defined, `use_kpi` cannot
     be `False`.
 
     If `new_data=None`, this method calculates expected outcome conditional on
@@ -1252,36 +1252,36 @@ class Analyzer:
     else:
       return combined_media_kpi
 
-  def _inverse_impact(
+  def _inverse_outcome(
       self,
-      modeled_incremental_impact: tf.Tensor,
+      modeled_incremental_outcome: tf.Tensor,
       use_kpi: bool,
       revenue_per_kpi: tf.Tensor | None,
   ) -> tf.Tensor:
-    """Inverses incremental impact (revenue or KPI).
+    """Inverses incremental outcome (revenue or KPI).
 
     This method assumes that additive changes on the model kpi scale
     correspond to additive changes on the original kpi scale. In other
     words, the intercept and control effects do not influence the media effects.
 
     Args:
-      modeled_incremental_impact: Tensor of incremental impact modeled from
+      modeled_incremental_outcome: Tensor of incremental outcome modeled from
         parameter distributions.
       use_kpi: Boolean. If True, the incremental KPI is calculated. If False,
-        incremental revenue `(KPI * revenue_per_kpi)` is calculated. Only used
+        incremental outcome `(KPI * revenue_per_kpi)` is calculated. Only used
         if `inverse_transform_outcome=True`. `use_kpi` must be True when
         `revenue_per_kpi` is not defined.
       revenue_per_kpi: Optional tensor of revenue per kpi. Uses
         `revenue_per_kpi` from `InputData` if None.
 
     Returns:
-       Tensor of incremental impact returned in terms of revenue or KPI.
+       Tensor of incremental outcome returned in terms of revenue or KPI.
     """
     self._check_revenue_data_exists(use_kpi)
     if revenue_per_kpi is None:
       revenue_per_kpi = self._meridian.revenue_per_kpi
     t1 = self._meridian.kpi_transformer.inverse(
-        tf.einsum("...m->m...", modeled_incremental_impact)
+        tf.einsum("...m->m...", modeled_incremental_outcome)
     )
     t2 = self._meridian.kpi_transformer.inverse(tf.zeros_like(t1))
     kpi = tf.einsum("m...->...m", t1 - t2)
@@ -1291,19 +1291,19 @@ class Analyzer:
     return tf.einsum("gt,...gtm->...gtm", revenue_per_kpi, kpi)
 
   @tf.function(jit_compile=True)
-  def _incremental_impact_impl(
+  def _incremental_outcome_impl(
       self,
       data_tensors: DataTensors,
       dist_tensors: DistributionTensors,
       non_media_baseline_values: Sequence[float | str] | None = None,
-      inverse_transform_impact: bool | None = None,
+      inverse_transform_outcome: bool | None = None,
       use_kpi: bool | None = None,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
   ) -> tf.Tensor:
-    """Computes incremental impact (revenue or KPI) on a batch of data.
+    """Computes incremental outcome (revenue or KPI) on a batch of data.
 
     Args:
       data_tensors: A `DataTensors` container with the following tensors:
@@ -1334,14 +1334,14 @@ class Analyzer:
         as baseline for the scaled values of the given non_media treatments
         channel). If None, the minimum value is used as baseline for each
         non_media treatments channel.
-      inverse_transform_impact: Boolean. If `True`, returns the expected impact
-        in the original KPI or revenue (depending on what is passed to
+      inverse_transform_outcome: Boolean. If `True`, returns the expected
+        outcome in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
-        impact after transformation by `KpiTransformer`, reflecting how its
+        outcome after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
       use_kpi: If True, the incremental KPI is calculated. If False, incremental
         revenue `(KPI * revenue_per_kpi)` is calculated. Only used if
-        `inverse_transform_impact=True`. `use_kpi` must be True when
+        `inverse_transform_outcome=True`. `use_kpi` must be True when
         `revenue_per_kpi` is not defined.
       selected_geos: Contains a subset of geos to include. By default, all geos
         are included.
@@ -1349,30 +1349,30 @@ class Analyzer:
         `InputData.time` to include or a boolean list with length equal to the
         number of time periods in `new_media` (if provided). By default, all
         time periods are included.
-      aggregate_geos: If True, then incremental impact is summed over all
+      aggregate_geos: If True, then incremental outcome is summed over all
         regions.
-      aggregate_times: If True, then incremental impact is summed over all time
+      aggregate_times: If True, then incremental outcome is summed over all time
         periods.
 
     Returns:
-      Tensor containing the incremental impact distribution.
+      Tensor containing the incremental outcome distribution.
     """
     self._check_revenue_data_exists(use_kpi)
-    transformed_impact = self._get_incremental_kpi(
+    transformed_outcome = self._get_incremental_kpi(
         data_tensors=data_tensors,
         dist_tensors=dist_tensors,
         non_media_baseline_values=non_media_baseline_values,
     )
-    if inverse_transform_impact:
-      incremental_impact = self._inverse_impact(
-          transformed_impact,
+    if inverse_transform_outcome:
+      incremental_outcome = self._inverse_outcome(
+          transformed_outcome,
           use_kpi=use_kpi,
           revenue_per_kpi=data_tensors.revenue_per_kpi,
       )
     else:
-      incremental_impact = transformed_impact
+      incremental_outcome = transformed_outcome
     return self.filter_and_aggregate_geos_and_times(
-        tensor=incremental_impact,
+        tensor=incremental_outcome,
         selected_geos=selected_geos,
         selected_times=selected_times,
         aggregate_geos=aggregate_geos,
@@ -1381,7 +1381,7 @@ class Analyzer:
         has_media_dim=True,
     )
 
-  def incremental_impact(
+  def incremental_outcome(
       self,
       use_posterior: bool = True,
       new_data: DataTensors | None = None,
@@ -1393,15 +1393,15 @@ class Analyzer:
       media_selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
-      inverse_transform_impact: bool = True,
+      inverse_transform_outcome: bool = True,
       use_kpi: bool = False,
       include_non_paid_channels: bool = True,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
-    """Calculates either the posterior or prior incremental impact.
+    """Calculates either the posterior or prior incremental outcome.
 
-    This calculates the media impact of each media channel for each posterior or
-    prior parameter draw. Incremental impact is defined as:
+    This calculates the media outcome of each media channel for each posterior
+    or prior parameter draw. Incremental outcome is defined as:
 
     `E(Outcome|Media_1, Controls)` minus `E(Outcome|Media_0, Controls)`
 
@@ -1415,12 +1415,12 @@ class Analyzer:
     `use_kpi=False`, or `kpi` if `use_kpi=True`. When `revenue_per_kpi` is not
     defined, `use_kpi` cannot be False.
 
-    If `new_data=None`, this method computes incremental impact using `media`,
+    If `new_data=None`, this method computes incremental outcome using `media`,
     `reach`, `frequency`, `organic_media`, `organic_reach`, `organic_frequency`,
     `non_media_treatments` and `revenue_per_kpi` tensors that the Meridian
     object was initialized with. This behavior can be overridden with the
     `new_data` argument. For example, `new_data=DataTensors(media=new_media)`
-    calculates incremental impact using the `new_media` tensor and the original
+    calculates incremental outcome using the `new_media` tensor and the original
     values of `reach`, `frequency`, `organic_media`, `organic_reach`,
     `organic_frequency`, `non_media_treatments` and `revenue_per_kpi` tensors.
 
@@ -1431,27 +1431,27 @@ class Analyzer:
     2.  Additive changes on the model KPI scale correspond to additive
         changes on the original KPI scale. In other words, the intercept and
         control effects do not influence the media effects. This assumption
-        currently holds because the impact transformation only involves
+        currently holds because the outcome transformation only involves
         centering and scaling, for example, no log transformations.
 
     Args:
-      use_posterior: Boolean. If `True`, then the incremental impact posterior
+      use_posterior: Boolean. If `True`, then the incremental outcome posterior
         distribution is calculated. Otherwise, the prior distribution is
         calculated.
       new_data: Optional `DataTensors` container with optional tensors: `media`,
         `reach`, `frequency`, `organic_media`, `organic_reach`,
         `organic_frequency`, `non_media_treatments` and `revenue_per_kpi`. If
-        `None`, the incremental impact is calculated using the `InputData`
+        `None`, the incremental outcome is calculated using the `InputData`
         provided to the Meridian object. If `new_data` is provided, the
-        incremental impact is calculated using the new tensors in `new_data` and
-        the original values of the remaining tensors. For example,
-        `incremental_impact(new_data=DataTensors(media=new_media)` computes the
-        incremental impact using `new_media` and the original values of `reach`,
-        `frequency`, `organic_media`, `organic_reach`, `organic_frequency`,
-        `non_media_treatments` and `revenue_per_kpi`. If any of the tensors in
-        `new_data` is provided with a different number of time periods than in
-        `InputData`, then all tensors must be provided with the same number of
-        time periods.
+        incremental outcome is calculated using the new tensors in `new_data`
+        and the original values of the remaining tensors. For example,
+        `incremental_outcome(new_data=DataTensors(media=new_media)` computes the
+        incremental outcome using `new_media` and the original values of
+        `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments` and `revenue_per_kpi`. If
+        any of the tensors in `new_data` is provided with a different number of
+        time periods than in `InputData`, then all tensors must be provided with
+        the same number of time periods.
       non_media_baseline_values: Optional list of shape (n_non_media_channels,).
         Each element is either a float (which means that the fixed value will be
         used as baseline for the given channel) or one of the strings "min" or
@@ -1470,7 +1470,7 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list containing either a subset of dates to
         include or booleans with length equal to the number of time periods in
-        the `new_XXX` args, if provided. The incremental impact corresponds to
+        the `new_XXX` args, if provided. The incremental outcome corresponds to
         incremental KPI generated during the `selected_times` arg by media
         executed during the `media_selected_times` arg. Note that if
         `use_kpi=False`, then `selected_times` can only include the time periods
@@ -1481,28 +1481,28 @@ class Analyzer:
         `new_media`, if provided. If `new_media` is provided,
         `media_selected_times` can select any subset of time periods in
         `new_media`.  If `new_media` is not provided, `media_selected_times`
-        selects from `InputData.time`. The incremental impact corresponds to
+        selects from `InputData.time`. The incremental outcome corresponds to
         incremental KPI generated during the `selected_times` arg by media
         executed during the `media_selected_times` arg. For each channel, the
-        incremental impact is defined as the difference between expected KPI
+        incremental outcome is defined as the difference between expected KPI
         when media execution is scaled by `scaling_factor1` and
         `scaling_factor0` during these specified time periods. By default, the
         difference is between media at historical execution levels, or as
         provided in `new_media`, versus zero execution. Defaults to include all
         time periods.
-      aggregate_geos: Boolean. If `True`, then incremental impact is summed over
-        all regions.
-      aggregate_times: Boolean. If `True`, then incremental impact is summed
+      aggregate_geos: Boolean. If `True`, then incremental outcome is summed
+        over all regions.
+      aggregate_times: Boolean. If `True`, then incremental outcome is summed
         over all time periods.
-      inverse_transform_impact: Boolean. If `True`, returns the expected impact
-        in the original KPI or revenue (depending on what is passed to
+      inverse_transform_outcome: Boolean. If `True`, returns the expected
+        outcome in the original KPI or revenue (depending on what is passed to
         `use_kpi`), as it was passed to `InputData`. If False, returns the
-        impact after transformation by `KpiTransformer`, reflecting how its
+        outcome after transformation by `KpiTransformer`, reflecting how its
         represented within the model.
       use_kpi: Boolean. If `use_kpi = True`, the expected KPI is calculated;
         otherwise the expected revenue `(kpi * revenue_per_kpi)` is calculated.
         It is required that `use_kpi = True` if `revenue_per_kpi` data is not
-        available or if `inverse_transform_impact = False`.
+        available or if `inverse_transform_outcome = False`.
       include_non_paid_channels: Boolean. If `True`, then non-media treatments
         and organic effects are included in the calculation. If `False`, then
         only the paid media and RF effects are included.
@@ -1512,7 +1512,7 @@ class Analyzer:
         generally be faster with larger `batch_size` values.
 
     Returns:
-      Tensor of incremental impact (either KPI or revenue, depending on
+      Tensor of incremental outcome (either KPI or revenue, depending on
       `use_kpi` argument) with dimensions `(n_chains, n_draws, n_geos,
       n_times, n_channels)`. If `include_non_paid_channels=True`, then
       `n_channel` is the total number of media, RF, organic media, and organic
@@ -1529,7 +1529,7 @@ class Analyzer:
     """
     mmm = self._meridian
     self._check_revenue_data_exists(use_kpi)
-    self._check_kpi_transformation(inverse_transform_impact, use_kpi)
+    self._check_kpi_transformation(inverse_transform_outcome, use_kpi)
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           aggregate_geos=aggregate_geos,
@@ -1559,8 +1559,8 @@ class Analyzer:
     if new_data.controls is not None:
       warnings.warn(
           "A `controls` value was passed in the `new_data` argument to the"
-          " `incremental_impact()` method. This has no effect on the output and"
-          " will be ignored."
+          " `incremental_outcome()` method. This has no effect on the output"
+          " and will be ignored."
       )
     new_media_params = [new_data.media, new_data.reach, new_data.frequency]
     next_data = next((d for d in new_media_params if d is not None), None)
@@ -1794,7 +1794,7 @@ class Analyzer:
         include_non_paid_channels=include_non_paid_channels,
     )
 
-    # Calculate incremental impact in batches.
+    # Calculate incremental outcome in batches.
     params = (
         self._meridian.inference_data.posterior
         if use_posterior
@@ -1805,15 +1805,15 @@ class Analyzer:
     param_list = self._get_causal_param_names(
         include_non_paid_channels=include_non_paid_channels
     )
-    incremental_impact_temps = [None] * len(batch_starting_indices)
+    incremental_outcome_temps = [None] * len(batch_starting_indices)
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    incremental_revenue_kwargs = {
-        "inverse_transform_impact": inverse_transform_impact,
+    incremental_outcome_kwargs = {
+        "inverse_transform_outcome": inverse_transform_outcome,
         "use_kpi": use_kpi,
         "non_media_baseline_values": non_media_baseline_values,
     }
@@ -1824,21 +1824,21 @@ class Analyzer:
           for k in param_list
       }
       dist_tensors = DistributionTensors(**batch_dists)
-      incremental_impact_temps[i] = self._incremental_impact_impl(
+      incremental_outcome_temps[i] = self._incremental_outcome_impl(
           data_tensors=data_tensors1,
           dist_tensors=dist_tensors,
           **dim_kwargs,
-          **incremental_revenue_kwargs,
+          **incremental_outcome_kwargs,
       )
-      # Calculate incremental impact under counterfactual scenario "Media_0".
+      # Calculate incremental outcome under counterfactual scenario "Media_0".
       if scaling_factor0 != 0 or not all(media_selected_times):
-        incremental_impact_temps[i] -= self._incremental_impact_impl(
+        incremental_outcome_temps[i] -= self._incremental_outcome_impl(
             data_tensors=data_tensors0,
             dist_tensors=dist_tensors,
             **dim_kwargs,
-            **incremental_revenue_kwargs,
+            **incremental_outcome_kwargs,
         )
-    return tf.concat(incremental_impact_temps, axis=1)
+    return tf.concat(incremental_outcome_temps, axis=1)
 
   # TODO Unify usage of DataTensors and PerformanceData.
   @dataclasses.dataclass(frozen=True)
@@ -2101,8 +2101,8 @@ class Analyzer:
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    incremental_revenue_kwargs = {
-        "inverse_transform_impact": True,
+    incremental_outcome_kwargs = {
+        "inverse_transform_outcome": True,
         "use_posterior": use_posterior,
         "use_kpi": use_kpi,
         "batch_size": batch_size,
@@ -2116,13 +2116,13 @@ class Analyzer:
         new_rf_spend,
         **dim_kwargs,
     )
-    incremental_revenue = self.incremental_impact(
+    incremental_outcome = self.incremental_outcome(
         new_data=DataTensors(
             media=performance_tensors.media,
             reach=performance_tensors.reach,
             frequency=performance_tensors.frequency,
         ),
-        **incremental_revenue_kwargs,
+        **incremental_outcome_kwargs,
         **dim_kwargs,
     )
     # TODO: Organize the tensor passed between the methods
@@ -2151,10 +2151,10 @@ class Analyzer:
             else None
         ),
     )
-    incremental_impact_with_multiplier = self.incremental_impact(
-        new_data=new_data, **dim_kwargs, **incremental_revenue_kwargs
+    incremental_outcome_with_multiplier = self.incremental_outcome(
+        new_data=new_data, **dim_kwargs, **incremental_outcome_kwargs
     )
-    numerator = incremental_impact_with_multiplier - incremental_revenue
+    numerator = incremental_outcome_with_multiplier - incremental_outcome
     spend_inc = performance_tensors.total_spend() * incremental_increase
     if spend_inc is not None and spend_inc.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
@@ -2235,8 +2235,8 @@ class Analyzer:
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    incremental_impact_kwargs = {
-        "inverse_transform_impact": True,
+    incremental_outcome_kwargs = {
+        "inverse_transform_outcome": True,
         "use_posterior": use_posterior,
         "use_kpi": use_kpi,
         "batch_size": batch_size,
@@ -2252,13 +2252,13 @@ class Analyzer:
         new_rf_spend,
         **dim_kwargs,
     )
-    incremental_revenue = self.incremental_impact(
+    incremental_outcome = self.incremental_outcome(
         new_data=DataTensors(
             media=performance_tensors.media,
             reach=performance_tensors.reach,
             frequency=performance_tensors.frequency,
         ),
-        **incremental_impact_kwargs,
+        **incremental_outcome_kwargs,
         **dim_kwargs,
     )
 
@@ -2269,7 +2269,7 @@ class Analyzer:
       )
     else:
       denominator = spend
-    return tf.math.divide_no_nan(incremental_revenue, denominator)
+    return tf.math.divide_no_nan(incremental_outcome, denominator)
 
   # TODO: Organize the arguments with DataTensors.
   def cpik(
@@ -2326,8 +2326,8 @@ class Analyzer:
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    incremental_impact_kwargs = {
-        "inverse_transform_impact": True,
+    incremental_outcome_kwargs = {
+        "inverse_transform_outcome": True,
         "use_kpi": True,
         "use_posterior": use_posterior,
         "batch_size": batch_size,
@@ -2343,13 +2343,13 @@ class Analyzer:
         new_rf_spend,
         **dim_kwargs,
     )
-    incremental_kpi = self.incremental_impact(
+    incremental_kpi = self.incremental_outcome(
         new_data=DataTensors(
             media=tensors.media,
             reach=tensors.reach,
             frequency=tensors.frequency,
         ),
-        **incremental_impact_kwargs,
+        **incremental_outcome_kwargs,
         **dim_kwargs,
     )
 
@@ -2557,7 +2557,7 @@ class Analyzer:
         channel.
       **expected_outcome_kwargs: kwargs to pass to `expected_outcome`, which
         could contain use_posterior, selected_geos, selected_times,
-        aggregate_geos, aggregate_times, inverse_transform_impact, use_kpi,
+        aggregate_geos, aggregate_times, inverse_transform_outcome, use_kpi,
         batch_size.
 
     Returns:
@@ -2605,7 +2605,7 @@ class Analyzer:
     )
     return self.expected_outcome(new_data=new_data, **expected_outcome_kwargs)
 
-  def _compute_incremental_impact_aggregate(
+  def _compute_incremental_outcome_aggregate(
       self,
       use_posterior: bool,
       use_kpi: bool | None = None,
@@ -2613,21 +2613,21 @@ class Analyzer:
       non_media_baseline_values: Sequence[str | float] | None = None,
       **roi_kwargs,
   ):
-    """Aggregates incremental impacts for MediaSummary metrics."""
+    """Aggregates incremental outcomes for MediaSummary metrics."""
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
-    incremental_impact_m = self.incremental_impact(
+    incremental_outcome_m = self.incremental_outcome(
         use_posterior=use_posterior,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         non_media_baseline_values=non_media_baseline_values,
         **roi_kwargs,
     )
-    incremental_impact_total = tf.reduce_sum(
-        incremental_impact_m, axis=-1, keepdims=True
+    incremental_outcome_total = tf.reduce_sum(
+        incremental_outcome_m, axis=-1, keepdims=True
     )
 
     return tf.concat(
-        [incremental_impact_m, incremental_impact_total],
+        [incremental_outcome_m, incremental_outcome_total],
         axis=-1,
     )
 
@@ -2691,7 +2691,7 @@ class Analyzer:
     Returns:
       An `xr.Dataset` with coordinates: `channel`, `metric` (`mean`, `median`,
       `ci_low`, `ci_high`), `distribution` (prior, posterior) and contains the
-      following non-paid data variables: `incremental_impact`,
+      following non-paid data variables: `incremental_outcome`,
       `pct_of_contribution`, `effectiveness`, and the following paid
       data variables: `impressions`, `pct_of_impressions`, `spend`,
       `pct_of_spend`, `CPM`, `roi`, `mroi`, `cpik`. The paid data variables are
@@ -2717,13 +2717,13 @@ class Analyzer:
         axis=-1,
     )
 
-    incremental_impact_prior = self._compute_incremental_impact_aggregate(
+    incremental_outcome_prior = self._compute_incremental_outcome_aggregate(
         use_posterior=False,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         **batched_kwargs,
     )
-    incremental_impact_posterior = self._compute_incremental_impact_aggregate(
+    incremental_outcome_posterior = self._compute_incremental_outcome_aggregate(
         use_posterior=True,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
@@ -2790,18 +2790,18 @@ class Analyzer:
         ),
         **xr_coords,
     }
-    incremental_impact = _central_tendency_and_ci_by_prior_and_posterior(
-        prior=incremental_impact_prior,
-        posterior=incremental_impact_posterior,
-        metric_name=constants.INCREMENTAL_IMPACT,
+    incremental_outcome = _central_tendency_and_ci_by_prior_and_posterior(
+        prior=incremental_outcome_prior,
+        posterior=incremental_outcome_posterior,
+        metric_name=constants.INCREMENTAL_OUTCOME,
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
         include_median=True,
     )
     pct_of_contribution = self._compute_pct_of_contribution(
-        incremental_impact_prior=incremental_impact_prior,
-        incremental_impact_posterior=incremental_impact_posterior,
+        incremental_outcome_prior=incremental_outcome_prior,
+        incremental_outcome_posterior=incremental_outcome_posterior,
         expected_outcome_prior=expected_outcome_prior,
         expected_outcome_posterior=expected_outcome_posterior,
         xr_dims=xr_dims_with_ci_and_distribution,
@@ -2809,8 +2809,8 @@ class Analyzer:
         confidence_level=confidence_level,
     )
     effectiveness = self._compute_effectiveness_aggregate(
-        incremental_impact_prior=incremental_impact_prior,
-        incremental_impact_posterior=incremental_impact_posterior,
+        incremental_outcome_prior=incremental_outcome_prior,
+        incremental_outcome_posterior=incremental_outcome_posterior,
         impressions_with_total=impressions_with_total,
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
@@ -2825,9 +2825,10 @@ class Analyzer:
     if include_non_paid_channels:
       # If non-paid channels are included, return only the non-paid metrics.
       if not aggregate_times:
-        # Impact metrics should not be normalized by weekly media metrics, which
-        # do not have a clear interpretation due to lagged effects. Therefore,
-        # NaN values are returned for certain metrics if aggregate_times=False.
+        # Outcome metrics should not be normalized by weekly media metrics,
+        # which do not have a clear interpretation due to lagged effects.
+        # Therefore, NaN values are returned for certain metrics if
+        # aggregate_times=False.
         warning = (
             "Effectiveness is not reported because it does not have a clear"
             " interpretation by time period."
@@ -2835,7 +2836,7 @@ class Analyzer:
         effectiveness *= np.nan
         warnings.warn(warning)
       return xr.merge([
-          incremental_impact,
+          incremental_outcome,
           pct_of_contribution,
           effectiveness,
       ])
@@ -2863,8 +2864,8 @@ class Analyzer:
         xr_coords=xr_coords,
     )
     roi = self._compute_roi_aggregate(
-        incremental_revenue_prior=incremental_impact_prior,
-        incremental_revenue_posterior=incremental_impact_posterior,
+        incremental_outcome_prior=incremental_outcome_prior,
+        incremental_outcome_posterior=incremental_outcome_posterior,
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
@@ -2889,13 +2890,13 @@ class Analyzer:
         # usefulness, anyway.
     ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
     cpik = self._compute_cpik_aggregate(
-        incremental_kpi_prior=self._compute_incremental_impact_aggregate(
+        incremental_kpi_prior=self._compute_incremental_outcome_aggregate(
             use_posterior=False,
             use_kpi=True,
             include_non_paid_channels=False,
             **batched_kwargs,
         ),
-        incremental_kpi_posterior=self._compute_incremental_impact_aggregate(
+        incremental_kpi_posterior=self._compute_incremental_outcome_aggregate(
             use_posterior=True,
             use_kpi=True,
             include_non_paid_channels=False,
@@ -2908,7 +2909,7 @@ class Analyzer:
     )
 
     if not aggregate_times:
-      # Impact metrics should not be normalized by weekly media metrics, which
+      # Outcome metrics should not be normalized by weekly media metrics, which
       # do not have a clear interpretation due to lagged effects. Therefore, NaN
       # values are returned for certain metrics if aggregate_times=False.
       warning = (
@@ -2922,7 +2923,7 @@ class Analyzer:
       warnings.warn(warning)
     return xr.merge([
         spend_data,
-        incremental_impact,
+        incremental_outcome,
         pct_of_contribution,
         roi,
         effectiveness,
@@ -3031,9 +3032,9 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
-      aggregate_geos: Boolean. If `True`, the expected impact is summed over all
-        of the regions.
-      aggregate_times: Boolean. If `True`, the expected impact is summed over
+      aggregate_geos: Boolean. If `True`, the expected outcome is summed over
+        all of the regions.
+      aggregate_times: Boolean. If `True`, the expected outcome is summed over
         all of the time periods.
       confidence_level: Confidence level for media summary metrics credible
         intervals, represented as a value between zero and one.
@@ -3045,7 +3046,7 @@ class Analyzer:
     Returns:
       An `xr.Dataset` with coordinates: `metric` (`mean`, `median`,
       `ci_low`,`ci_high`),`distribution` (prior, posterior) and contains the
-      following data variables: `baseline_impact`, `pct_of_contribution`.
+      following data variables: `baseline_outcome`, `pct_of_contribution`.
     """
     # TODO: Change "pct_of_contribution" to a more accurate term.
 
@@ -3056,7 +3057,7 @@ class Analyzer:
         "aggregate_geos": aggregate_geos,
         "aggregate_times": aggregate_times,
     }
-    impact_kwargs = {"batch_size": batch_size, **dim_kwargs}
+    outcome_kwargs = {"batch_size": batch_size, **dim_kwargs}
 
     xr_dims = (
         ((constants.GEO,) if not aggregate_geos else ())
@@ -3102,29 +3103,29 @@ class Analyzer:
     }
 
     expected_outcome_prior = self.expected_outcome(
-        use_posterior=False, use_kpi=use_kpi, **impact_kwargs
+        use_posterior=False, use_kpi=use_kpi, **outcome_kwargs
     )
     expected_outcome_posterior = self.expected_outcome(
-        use_posterior=True, use_kpi=use_kpi, **impact_kwargs
+        use_posterior=True, use_kpi=use_kpi, **outcome_kwargs
     )
 
     baseline_expected_outcome_prior = tf.expand_dims(
         self._calculate_baseline_expected_outcome(
-            use_posterior=False, use_kpi=use_kpi, **impact_kwargs
+            use_posterior=False, use_kpi=use_kpi, **outcome_kwargs
         ),
         axis=-1,
     )
     baseline_expected_outcome_posterior = tf.expand_dims(
         self._calculate_baseline_expected_outcome(
-            use_posterior=True, use_kpi=use_kpi, **impact_kwargs
+            use_posterior=True, use_kpi=use_kpi, **outcome_kwargs
         ),
         axis=-1,
     )
 
-    baseline_impact = _central_tendency_and_ci_by_prior_and_posterior(
+    baseline_outcome = _central_tendency_and_ci_by_prior_and_posterior(
         prior=baseline_expected_outcome_prior,
         posterior=baseline_expected_outcome_posterior,
-        metric_name=constants.BASELINE_IMPACT,
+        metric_name=constants.BASELINE_OUTCOME,
         xr_dims=xr_dims_with_ci_and_distribution,
         xr_coords=xr_coords_with_ci_and_distribution,
         confidence_level=confidence_level,
@@ -3132,8 +3133,8 @@ class Analyzer:
     ).sel(channel=constants.BASELINE)
 
     baseline_pct_of_contribution = self._compute_pct_of_contribution(
-        incremental_impact_prior=baseline_expected_outcome_prior,
-        incremental_impact_posterior=baseline_expected_outcome_posterior,
+        incremental_outcome_prior=baseline_expected_outcome_prior,
+        incremental_outcome_posterior=baseline_expected_outcome_posterior,
         expected_outcome_prior=expected_outcome_prior,
         expected_outcome_posterior=expected_outcome_posterior,
         xr_dims=xr_dims_with_ci_and_distribution,
@@ -3142,7 +3143,7 @@ class Analyzer:
     ).sel(channel=constants.BASELINE)
 
     return xr.merge([
-        baseline_impact,
+        baseline_outcome,
         baseline_pct_of_contribution,
     ])
 
@@ -3211,7 +3212,7 @@ class Analyzer:
       * Data variables:
         * `spend`: The spend for each channel.
         * `pct_of_spend`: The percentage of spend for each channel.
-        * `incremental_impact`: The incremental impact for each channel.
+        * `incremental_outcome`: The incremental outcome for each channel.
         * `pct_of_contribution`: The contribution percentage for each channel.
         * `roi`: The ROI for each channel.
         * `effectiveness`: The effectiveness for each channel.
@@ -3259,7 +3260,7 @@ class Analyzer:
 
     # _counterfactual_metric_dataset() is called only from `optimal_freq()`
     # and uses only paid channels.
-    incremental_impact_tensor = self.incremental_impact(
+    incremental_outcome_tensor = self.incremental_outcome(
         new_data=new_data,
         include_non_paid_channels=False,
         **dim_kwargs,
@@ -3276,18 +3277,20 @@ class Analyzer:
     )
 
     # Calculate the mean, median, and confidence intervals for each metric.
-    incremental_impact = get_central_tendency_and_ci(
-        data=incremental_impact_tensor,
+    incremental_outcome = get_central_tendency_and_ci(
+        data=incremental_outcome_tensor,
         confidence_level=confidence_level,
         include_median=True,
     )
     pct_of_contribution = get_central_tendency_and_ci(
-        data=incremental_impact_tensor / mean_expected_outcome[..., None] * 100,
+        data=incremental_outcome_tensor
+        / mean_expected_outcome[..., None]
+        * 100,
         confidence_level=confidence_level,
         include_median=True,
     )
     roi = get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(incremental_impact_tensor, spend),
+        data=tf.math.divide_no_nan(incremental_outcome_tensor, spend),
         confidence_level=confidence_level,
         include_median=True,
     )
@@ -3303,7 +3306,7 @@ class Analyzer:
         include_median=True,
     )
     effectiveness = get_central_tendency_and_ci(
-        data=incremental_impact_tensor
+        data=incremental_outcome_tensor
         / self.get_aggregated_impressions(
             **dim_kwargs,
             optimal_frequency=performance_data.frequency,
@@ -3313,7 +3316,7 @@ class Analyzer:
         include_median=True,
     )
     cpik = get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(spend, incremental_impact_tensor),
+        data=tf.math.divide_no_nan(spend, incremental_outcome_tensor),
         confidence_level=confidence_level,
         include_median=True,
     )
@@ -3323,7 +3326,7 @@ class Analyzer:
     data_vars = {
         constants.SPEND: ([constants.CHANNEL], spend),
         constants.PCT_OF_SPEND: ([constants.CHANNEL], spend / budget),
-        constants.INCREMENTAL_IMPACT: (dims, incremental_impact),
+        constants.INCREMENTAL_OUTCOME: (dims, incremental_outcome),
         constants.PCT_OF_CONTRIBUTION: (dims, pct_of_contribution),
         constants.ROI: (dims, roi),
         constants.MROI: (dims, mroi),
@@ -3392,7 +3395,7 @@ class Analyzer:
         * `optimal_frequency`: The frequency that optimizes the posterior mean
             of ROI.
         * `roi`: The ROI for each frequency value in `freq_grid`.
-        * `optimized_incremental_impact`: The incremental impact based on the
+        * `optimized_incremental_outcome`: The incremental outcome based on the
             optimal frequency.
         * `optimized_pct_of_contribution`: The contribution percentage based on
             the optimal frequency.
@@ -3499,9 +3502,9 @@ class Analyzer:
             [constants.RF_CHANNEL],
             optimal_frequency,
         ),
-        constants.OPTIMIZED_INCREMENTAL_IMPACT: (
+        constants.OPTIMIZED_INCREMENTAL_OUTCOME: (
             [constants.RF_CHANNEL, constants.METRIC],
-            optimized_metrics_by_reach.incremental_impact.data,
+            optimized_metrics_by_reach.incremental_outcome.data,
         ),
         constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
             [constants.RF_CHANNEL, constants.METRIC],
@@ -3562,7 +3565,7 @@ class Analyzer:
     absolute percentage error) are calculated on the revenue scale
     (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or the KPI
     scale when `revenue_per_kpi = None`. This is the same scale as what is used
-    in the ROI numerator (incremental revenue).
+    in the ROI numerator (incremental outcome).
 
     Prediction errors in `wMAPE` are weighted by the actual revenue
     (`KPI * revenue_per_kpi`) when `revenue_per_kpi` is specified, or weighted
@@ -3895,14 +3898,14 @@ class Analyzer:
       reach = self._meridian.rf_tensors.reach
     if spend_multipliers is None:
       spend_multipliers = list(np.arange(0, 2.2, 0.2))
-    incremental_impact = np.zeros((
+    incremental_outcome = np.zeros((
         len(spend_multipliers),
         len(self._meridian.input_data.get_all_paid_channels()),
         3,
     ))
     for i, multiplier in enumerate(spend_multipliers):
       if multiplier == 0:
-        incremental_impact[i, :, :] = tf.zeros(
+        incremental_outcome[i, :, :] = tf.zeros(
             (len(self._meridian.input_data.get_all_paid_channels()), 3)
         )  # Last dimension = 3 for the mean, ci_lo and ci_hi.
         continue
@@ -3930,17 +3933,17 @@ class Analyzer:
               else None
           ),
       )
-      inc_impact_temp = self.incremental_impact(
+      inc_outcome_temp = self.incremental_outcome(
           use_posterior=use_posterior,
           new_data=new_data,
-          inverse_transform_impact=True,
+          inverse_transform_outcome=True,
           batch_size=batch_size,
           use_kpi=use_kpi,
           include_non_paid_channels=False,
           **dim_kwargs,
       )
-      incremental_impact[i, :] = get_central_tendency_and_ci(
-          inc_impact_temp, confidence_level
+      incremental_outcome[i, :] = get_central_tendency_and_ci(
+          inc_outcome_temp, confidence_level
       )
 
     if self._meridian.n_media_channels > 0 and self._meridian.n_rf_channels > 0:
@@ -3985,9 +3988,9 @@ class Analyzer:
             [constants.SPEND_MULTIPLIER, constants.CHANNEL],
             spend_einsum,
         ),
-        constants.INCREMENTAL_IMPACT: (
+        constants.INCREMENTAL_OUTCOME: (
             [constants.SPEND_MULTIPLIER, constants.CHANNEL, constants.METRIC],
-            incremental_impact,
+            incremental_outcome,
         ),
     }
     attrs = {constants.CONFIDENCE_LEVEL: confidence_level}
@@ -4398,8 +4401,8 @@ class Analyzer:
 
   def _compute_roi_aggregate(
       self,
-      incremental_revenue_prior: tf.Tensor,
-      incremental_revenue_posterior: tf.Tensor,
+      incremental_outcome_prior: tf.Tensor,
+      incremental_outcome_posterior: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       spend_with_total: tf.Tensor,
@@ -4407,8 +4410,8 @@ class Analyzer:
   ) -> xr.Dataset:
     # TODO: Support calibration_period_bool.
     return _central_tendency_and_ci_by_prior_and_posterior(
-        prior=incremental_revenue_prior / spend_with_total,
-        posterior=incremental_revenue_posterior / spend_with_total,
+        prior=incremental_outcome_prior / spend_with_total,
+        posterior=incremental_outcome_posterior / spend_with_total,
         metric_name=constants.ROI,
         xr_dims=xr_dims,
         xr_coords=xr_coords,
@@ -4543,16 +4546,16 @@ class Analyzer:
 
   def _compute_effectiveness_aggregate(
       self,
-      incremental_impact_prior: tf.Tensor,
-      incremental_impact_posterior: tf.Tensor,
+      incremental_outcome_prior: tf.Tensor,
+      incremental_outcome_posterior: tf.Tensor,
       impressions_with_total: tf.Tensor,
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     return _central_tendency_and_ci_by_prior_and_posterior(
-        prior=incremental_impact_prior / impressions_with_total,
-        posterior=incremental_impact_posterior / impressions_with_total,
+        prior=incremental_outcome_prior / impressions_with_total,
+        posterior=incremental_outcome_posterior / impressions_with_total,
         metric_name=constants.EFFECTIVENESS,
         xr_dims=xr_dims,
         xr_coords=xr_coords,
@@ -4581,8 +4584,8 @@ class Analyzer:
 
   def _compute_pct_of_contribution(
       self,
-      incremental_impact_prior: tf.Tensor,
-      incremental_impact_posterior: tf.Tensor,
+      incremental_outcome_prior: tf.Tensor,
+      incremental_outcome_posterior: tf.Tensor,
       expected_outcome_prior: tf.Tensor,
       expected_outcome_posterior: tf.Tensor,
       xr_dims: Sequence[str],
@@ -4597,12 +4600,12 @@ class Analyzer:
 
     return _central_tendency_and_ci_by_prior_and_posterior(
         prior=(
-            incremental_impact_prior
+            incremental_outcome_prior
             / mean_expected_outcome_prior[..., None]
             * 100
         ),
         posterior=(
-            incremental_impact_posterior
+            incremental_outcome_posterior
             / mean_expected_outcome_posterior[..., None]
             * 100
         ),

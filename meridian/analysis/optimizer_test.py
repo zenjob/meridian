@@ -64,13 +64,13 @@ _TEST_DATA_DIR = os.path.join(
 # For mocking computed aggregated impressions (per channel).
 _AGGREGATED_IMPRESSIONS = np.array([1000, 2000, 3000, 2500, 1500])
 
-# Expected incremental revenue under the actual historical budget scenario,
+# Expected incremental outcome under the actual historical budget scenario,
 # where the model contains both R&F and non-R&F channels. The name
 # "nonoptimized" refers to an attribute name of the Optimizer class.
-_NONOPTIMIZED_INCREMENTAL_IMPACT = np.array(
+_NONOPTIMIZED_INCREMENTAL_OUTCOME = np.array(
     [335.65, 531.11, 791.67, 580.1, 242.4]
 )
-_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
+_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI = np.array([
     [335.65, 335.65, 335.65, 335.65],
     [531.11, 531.11, 531.11, 531.11],
     [791.67, 791.67, 791.67, 791.67],
@@ -95,10 +95,10 @@ _NONOPTIMIZED_EFFECTIVENESS_WITH_CI = np.array([
 # Actual historical spend. The name "nonoptimized" refers to an attribute name
 # of the Optimizer class.
 _NONOPTIMIZED_SPEND = np.array([294.0, 279.0, 256.0, 272.0, 288.0])
-# Correct incremental impact for a fixed budget scenario, where the model
+# Correct incremental outcome for a fixed budget scenario, where the model
 # contains both R&F and non-R&F channels.
-_OPTIMIZED_INCREMENTAL_IMPACT = np.array([528.7, 648.4, 427.4, 1178.6, 889.0])
-_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI = np.array([
+_OPTIMIZED_INCREMENTAL_OUTCOME = np.array([528.7, 648.4, 427.4, 1178.6, 889.0])
+_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI = np.array([
     [528.7, 528.7, 528.7, 528.7],
     [648.4, 648.4, 648.4, 648.4],
     [427.4, 427.4, 427.4, 427.4],
@@ -135,7 +135,7 @@ _TARGET_MROI_SPEND = np.array([0.0, 0.0, 0.0, 544.0, 576.0])
 # Correct optimal spend allocation for a flexible budget optimization scenario
 # using a target ROI value.
 _TARGET_ROI_SPEND = np.array([588.0, 558.0, 512.0, 544.0, 576.0])
-# Currently zero due to numerator being zero with mocked constant inc_impact
+# Currently zero due to numerator being zero with mocked constant inc_outcome
 _BUDGET_MROI_WITH_CI = np.array(
     [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 )
@@ -155,7 +155,7 @@ _N_DRAWS = 1
 
 def _create_budget_data(
     spend: np.ndarray,
-    inc_impact: np.ndarray,
+    inc_outcome: np.ndarray,
     pct_contrib: np.ndarray,
     effectiveness: np.ndarray,
     mroi: np.ndarray | None = None,
@@ -171,12 +171,12 @@ def _create_budget_data(
   data_vars = {
       c.SPEND: ([c.CHANNEL], spend),
       c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
-      c.INCREMENTAL_IMPACT: ([c.CHANNEL, c.METRIC], inc_impact),
+      c.INCREMENTAL_OUTCOME: ([c.CHANNEL, c.METRIC], inc_outcome),
       c.PCT_OF_CONTRIBUTION: ([c.CHANNEL, c.METRIC], pct_contrib),
       c.EFFECTIVENESS: ([c.CHANNEL, c.METRIC], effectiveness),
       c.ROI: (
           [c.CHANNEL, c.METRIC],
-          tf.transpose(tf.math.divide_no_nan(tf.transpose(inc_impact), spend)),
+          tf.transpose(tf.math.divide_no_nan(tf.transpose(inc_outcome), spend)),
       ),
       c.MROI: ([c.CHANNEL, c.METRIC], mroi),
   }
@@ -186,17 +186,17 @@ def _create_budget_data(
   else:
     data_vars[c.CPIK] = (
         [c.CHANNEL, c.METRIC],
-        tf.transpose(tf.math.divide_no_nan(spend, tf.transpose(inc_impact))),
+        tf.transpose(tf.math.divide_no_nan(spend, tf.transpose(inc_outcome))),
     )
 
   attributes = {
       c.START_DATE: '2020-01-05',
       c.END_DATE: '2020-06-28',
       c.BUDGET: sum(spend),
-      c.PROFIT: sum(inc_impact[:, 0]) - sum(spend),
-      c.TOTAL_INCREMENTAL_IMPACT: sum(inc_impact[:, 0]),
-      c.TOTAL_CPIK: sum(spend) / sum(inc_impact[:, 0]),
-      c.TOTAL_ROI: sum(inc_impact[:, 0]) / sum(spend),
+      c.PROFIT: sum(inc_outcome[:, 0]) - sum(spend),
+      c.TOTAL_INCREMENTAL_OUTCOME: sum(inc_outcome[:, 0]),
+      c.TOTAL_CPIK: sum(spend) / sum(inc_outcome[:, 0]),
+      c.TOTAL_ROI: sum(inc_outcome[:, 0]) / sum(spend),
       c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL,
       c.USE_HISTORICAL_BUDGET: True,
   }
@@ -218,8 +218,8 @@ def _verify_actual_vs_expected_budget_data(
   np.testing.assert_allclose(actual_data.budget, expected_data.budget, atol=0.1)
   np.testing.assert_allclose(actual_data.profit, expected_data.profit, atol=0.1)
   np.testing.assert_allclose(
-      actual_data.total_incremental_impact,
-      expected_data.total_incremental_impact,
+      actual_data.total_incremental_outcome,
+      expected_data.total_incremental_outcome,
       atol=0.1,
   )
   np.testing.assert_allclose(
@@ -237,7 +237,7 @@ def _verify_actual_vs_expected_budget_data(
 
 _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([200, 100, 300]),
-    inc_impact=np.array(
+    inc_outcome=np.array(
         [[280, 280, 280, 280], [150, 150, 150, 150], [330, 330, 330, 330]]
     ),
     pct_contrib=np.array([
@@ -257,7 +257,7 @@ _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
 )
 _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
     spend=np.array([220, 140, 240]),
-    inc_impact=np.array(
+    inc_outcome=np.array(
         [[350, 350, 349, 351], [210, 210, 209, 211], [270, 270, 269, 271]]
     ),
     pct_contrib=np.array([
@@ -280,7 +280,7 @@ _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
 )
 _SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([200, 100, 300]),
-    inc_impact=np.array(
+    inc_outcome=np.array(
         [[280, 280, 279, 281], [150, 150, 149, 151], [330, 330, 329, 331]]
     ),
     pct_contrib=np.array([
@@ -300,7 +300,7 @@ _SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
 )
 _SAMPLE_OPTIMIZED_DATA_KPI = _create_budget_data(
     spend=np.array([220, 140, 240]),
-    inc_impact=np.array(
+    inc_outcome=np.array(
         [[350, 350, 349, 351], [210, 210, 209, 211], [270, 270, 269, 271]]
     ),
     pct_contrib=np.array([
@@ -567,12 +567,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     ):
       self.budget_optimizer_media_and_rf.optimize(spend_constraint_upper=-0.3)
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_default_selected_times_all_times(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
   ):
-    mock_incremental_impact.return_value = tf.ones((
+    mock_incremental_outcome.return_value = tf.ones((
         _N_CHAINS,
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
@@ -589,12 +589,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimization_results.optimized_data.end_date,
         expected_times[-1],
     )
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertIsNone(mock_kwargs['selected_times'])
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
-  def test_selected_times_all_times(self, mock_incremental_impact):
-    mock_incremental_impact.return_value = tf.ones((
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
+  def test_selected_times_all_times(self, mock_incremental_outcome):
+    mock_incremental_outcome.return_value = tf.ones((
         _N_CHAINS,
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
@@ -613,7 +613,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         optimization_results.optimized_data.end_date,
         expected_times[-1],
     )
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertIsNone(mock_kwargs['selected_times'])
 
   @parameterized.named_parameters(
@@ -657,11 +657,11 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           'expected_times': None,
       },
   )
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_selected_times_used_correctly(
-      self, mock_incremental_impact, selected_times_arg, expected_times
+      self, mock_incremental_outcome, selected_times_arg, expected_times
   ):
-    mock_incremental_impact.return_value = tf.ones((
+    mock_incremental_outcome.return_value = tf.ones((
         _N_CHAINS,
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
@@ -671,7 +671,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         selected_times=selected_times_arg
     )
 
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertEqual(mock_kwargs['selected_times'], expected_times)
 
   def test_default_hist_spend_with_time_geo_dims(self):
@@ -703,11 +703,11 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(
             analyzer.Analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             spec_set=True,
             return_value=tf.convert_to_tensor(
-                [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+                [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
             ),
         )
     )
@@ -748,11 +748,11 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         np.sum(expected_spend),
     )
 
-  def test_incremental_impact_tensors(self):
+  def test_incremental_outcome_tensors(self):
     spend = np.array([100, 200, 300, 400, 500], dtype=np.float32)
     hist_spend = np.array([350, 400, 200, 50, 500], dtype=np.float32)
     (new_media, new_media_spend, new_reach, new_frequency, new_rf_spend) = (
-        self.budget_optimizer_media_and_rf._get_incremental_impact_tensors(
+        self.budget_optimizer_media_and_rf._get_incremental_outcome_tensors(
             hist_spend, spend
         )
     )
@@ -773,12 +773,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     np.testing.assert_allclose(new_frequency, expected_frequency)
     np.testing.assert_allclose(new_rf_spend, expected_rf_spend)
 
-  def test_incremental_impact_tensors_with_optimal_frequency(self):
+  def test_incremental_outcome_tensors_with_optimal_frequency(self):
     spend = np.array([100, 200, 300, 400, 500], dtype=np.float32)
     hist_spend = np.array([350, 400, 200, 50, 500], dtype=np.float32)
     optimal_frequency = np.array([2, 2], dtype=np.float32)
     (new_media, new_media_spend, new_reach, new_frequency, new_rf_spend) = (
-        self.budget_optimizer_media_and_rf._get_incremental_impact_tensors(
+        self.budget_optimizer_media_and_rf._get_incremental_outcome_tensors(
             hist_spend=hist_spend,
             spend=spend,
             optimal_frequency=optimal_frequency,
@@ -825,7 +825,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan, np.nan, np.nan, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [1.0, 1.0, 1.0, 0.66666667, 0.81818182],
             [1.0, 1.0, 1.0, 0.83333333, 1.0],
@@ -837,7 +837,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     mock_create_grids.return_value = [
         expected_spend_grid,
-        expected_incremental_impact_grid,
+        expected_incremental_outcome_grid,
     ]
     # This should correspond to a computed (spend) step size of 100.
     mock_get_round_factor.return_value = -int(math.log10(20)) - 1
@@ -848,9 +848,9 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
                 [c.GRID_SPEND_INDEX, c.CHANNEL],
                 expected_spend_grid,
             ),
-            c.INCREMENTAL_IMPACT_GRID: (
+            c.INCREMENTAL_OUTCOME_GRID: (
                 [c.GRID_SPEND_INDEX, c.CHANNEL],
-                expected_incremental_impact_grid,
+                expected_incremental_outcome_grid,
             ),
         },
         coords={
@@ -875,15 +875,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_media_and_rf(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
@@ -894,7 +894,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND,
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
         pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
@@ -909,15 +909,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_media_only(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
@@ -928,7 +928,9 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[:_N_MEDIA_CHANNELS],
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[
+            :_N_MEDIA_CHANNELS
+        ],
         pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
@@ -943,15 +945,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_rf_only(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
@@ -962,7 +964,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[-_N_RF_CHANNELS:],
-        inc_impact=_NONOPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[-_N_RF_CHANNELS:],
         pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-_N_RF_CHANNELS:],
@@ -977,15 +979,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_media_and_rf(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
@@ -995,7 +997,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
         pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
@@ -1015,15 +1017,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_media_only(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT[:_N_MEDIA_CHANNELS]]],
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME[:_N_MEDIA_CHANNELS]]],
         tf.float32,
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
@@ -1034,7 +1036,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_MEDIA_ONLY_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[:_N_MEDIA_CHANNELS],
+        inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[:_N_MEDIA_CHANNELS],
         pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
@@ -1055,15 +1057,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_rf_only(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT[-_N_RF_CHANNELS:]]],
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME[-_N_RF_CHANNELS:]]],
         tf.float32,
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
@@ -1074,7 +1076,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_RF_ONLY_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI[-_N_RF_CHANNELS:],
+        inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[-_N_RF_CHANNELS:],
         pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-self.meridian_rf_only.n_rf_channels :],
@@ -1095,15 +1097,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_target_mroi(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
@@ -1113,7 +1115,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_TARGET_MROI_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
         pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
@@ -1132,15 +1134,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
   @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_target_roi(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     mock_expected_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
@@ -1150,7 +1152,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_data = _create_budget_data(
         spend=_TARGET_ROI_SPEND,
-        inc_impact=_OPTIMIZED_INCREMENTAL_IMPACT_WITH_CI,
+        inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
         pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
@@ -1170,7 +1172,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           testcase_name='optimal_frequency',
           use_optimal_frequency=True,
           expected_spend=np.array([206.0, 276.0, 179.0, 354.0, 374.0]),
-          expected_incremental_impact=np.array([
+          expected_incremental_outcome=np.array([
               [236.0762, 231.97923, 58.01262, 424.9303],
               [410.90778, 402.0758, 163.52602, 672.65576],
               [86.25695, 85.316986, 42.073544, 133.43192],
@@ -1210,7 +1212,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           testcase_name='historical_frequency',
           use_optimal_frequency=False,
           expected_spend=np.array([206.0, 307.0, 179.0, 323.0, 374.0]),
-          expected_incremental_impact=np.array([
+          expected_incremental_outcome=np.array([
               [236.0762, 231.97923, 58.01262, 424.9303],
               [446.08163, 436.3723, 172.97798, 734.9176],
               [86.25695, 85.316986, 42.073544, 133.43192],
@@ -1251,7 +1253,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       self,
       use_optimal_frequency,
       expected_spend,
-      expected_incremental_impact,
+      expected_incremental_outcome,
       expected_pct_contrib,
       expected_effectiveness,
       expected_mroi,
@@ -1259,7 +1261,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   ):
     expected_data = _create_budget_data(
         spend=expected_spend,
-        inc_impact=expected_incremental_impact,
+        inc_outcome=expected_incremental_outcome,
         pct_contrib=expected_pct_contrib,
         effectiveness=expected_effectiveness,
         mroi=expected_mroi,
@@ -1309,10 +1311,10 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
 
   def test_create_grids_media_and_rf_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((
                 _N_CHAINS,
@@ -1329,7 +1331,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     spend_bound_upper = np.array([1500, 1400, 1300, 1200, 1100])
     step_size = 200
     selected_times = ('2021-01-25', '2021-02-01')
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_media_and_rf._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1348,7 +1350,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan, np.nan, np.nan, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [1.0, 1.0, 1.0, 0.66666667, 0.81818182],
             [1.0, 1.0, 1.0, 0.83333333, 1.0],
@@ -1358,7 +1360,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1.0, 1.0, 1.0, np.nan, np.nan],
         ],
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1367,24 +1369,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     np.testing.assert_allclose(
         mock_kwargs['new_data'].frequency,
         self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
 
   def test_create_grids_media_only_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_only._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((_N_CHAINS, _N_DRAWS, _N_MEDIA_CHANNELS)),
         )
@@ -1397,7 +1399,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     spend_bound_upper = np.array([1500, 1400, 1300])
     step_size = 200
     selected_times = ('2021-01-25', '2021-02-01')
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_media_only._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1416,7 +1418,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [1.0, 1.0, 1.0],
             [1.0, 1.0, 1.0],
@@ -1426,7 +1428,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1.0, 1.0, 1.0],
         ],
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1436,17 +1438,17 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
 
   def test_create_grids_rf_only_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_rf_only._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((
                 _N_CHAINS,
@@ -1463,7 +1465,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     spend_bound_upper = np.array([1500, 1400])
     step_size = 200
     selected_times = ('2021-01-25', '2021-02-01')
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_rf_only._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1482,7 +1484,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [0.33333333, 0.42857143],
             [0.46666667, 0.57142857],
@@ -1492,7 +1494,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1.0, np.nan],
         ],
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1501,24 +1503,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     np.testing.assert_allclose(
         mock_kwargs['new_data'].frequency,
         self.meridian_media_and_rf.rf_tensors.frequency,
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
 
   def test_create_grids_with_optimal_frequency_media_and_rf_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((
                 _N_CHAINS,
@@ -1533,7 +1535,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     step_size = 200
     selected_times = ('2021-01-25', '2021-02-01')
     optimal_frequency = xr.DataArray(data=[2.5, 3.1])
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_media_and_rf._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1553,7 +1555,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan, np.nan, np.nan, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [1.0, 1.0, 1.0, 0.66666667, 0.81818182],
             [1.0, 1.0, 1.0, 0.83333333, 1.0],
@@ -1567,7 +1569,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         tf.ones_like(self.meridian_media_and_rf.rf_tensors.frequency)
         * optimal_frequency
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1576,21 +1578,21 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     np.testing.assert_allclose(mock_kwargs['new_data'].frequency, new_frequency)
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
 
   def test_create_grids_with_optimal_frequency_media_only_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_only._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((_N_CHAINS, _N_DRAWS, _N_MEDIA_CHANNELS)),
         )
@@ -1605,7 +1607,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     selected_times = ('2021-01-25', '2021-02-01')
     optimal_frequency = xr.DataArray(data=[2.5, 3.1])
 
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_media_only._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1625,7 +1627,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [1, 1, 1],
             [1, 1, 1],
@@ -1635,7 +1637,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1, 1, 1],
         ],
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1645,17 +1647,17 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
 
   def test_create_grids_with_optimal_frequency_rf_only_correct(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_rf_only._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((_N_CHAINS, _N_DRAWS, _N_RF_CHANNELS)),
         )
@@ -1669,7 +1671,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     step_size = 200
     selected_times = ('2021-01-25', '2021-02-01')
     optimal_frequency = xr.DataArray(data=[2.5, 3.1])
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_rf_only._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1689,7 +1691,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             [1500.0, np.nan],
         ],
     )
-    expected_incremental_impact_grid = np.array(
+    expected_incremental_outcome_grid = np.array(
         [
             [0.33333333, 0.42857143],
             [0.46666667, 0.57142857],
@@ -1703,7 +1705,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         tf.ones_like(self.meridian_media_and_rf.rf_tensors.frequency)
         * optimal_frequency
     )
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
         selected_times=selected_times,
@@ -1712,12 +1714,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         include_non_paid_channels=False,
     )
     # Using `assert_called_with` doesn't work with array comparison.
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     np.testing.assert_allclose(mock_kwargs['new_data'].frequency, new_frequency)
     np.testing.assert_allclose(spend_grid, expected_spend_grid, equal_nan=True)
     np.testing.assert_allclose(
-        incremental_impact_grid,
-        expected_incremental_impact_grid,
+        incremental_outcome_grid,
+        expected_incremental_outcome_grid,
         equal_nan=True,
         atol=0.01,
     )
@@ -1745,16 +1747,16 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           'expected_optimal_spend': np.array([500, 600, 700, 800, 900]),
       },
   )
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_grid_search_correct(
       self,
-      mock_incremental_impact,
+      mock_incremental_outcome,
       fixed_budget,
       target_roi,
       target_mroi,
       expected_optimal_spend,
   ):
-    mock_incremental_impact.return_value = tf.ones((
+    mock_incremental_outcome.return_value = tf.ones((
         _N_CHAINS,
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
@@ -1767,7 +1769,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     selected_times = (
         self.budget_optimizer_media_and_rf._meridian.expand_selected_time_dims()
     )
-    (spend_grid, incremental_impact_grid) = (
+    (spend_grid, incremental_outcome_grid) = (
         self.budget_optimizer_media_and_rf._create_grids(
             spend=spend,
             spend_bound_lower=spend_bound_lower,
@@ -1778,7 +1780,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     optimal_spend = self.budget_optimizer_media_and_rf._grid_search(
         spend_grid=spend_grid,
-        incremental_impact_grid=incremental_impact_grid,
+        incremental_outcome_grid=incremental_outcome_grid,
         budget=np.sum(spend),
         fixed_budget=fixed_budget,
         target_roi=target_roi,
@@ -1786,12 +1788,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     np.testing.assert_array_equal(optimal_spend, expected_optimal_spend)
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimizer_budget_with_specified_budget(
-      self, mock_incremental_impact
+      self, mock_incremental_outcome
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     budget = 2000
 
@@ -1808,12 +1810,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         budget,
     )
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_budget_data_with_specified_pct_of_spend(
-      self, mock_incremental_impact
+      self, mock_incremental_outcome
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     expected_pct_of_spend = [0.1, 0.2, 0.3, 0.3, 0.1]
 
@@ -1838,12 +1840,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         decimal=7,
     )
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_budget_data_with_specified_pct_of_spend_size_incorrect(
-      self, mock_incremental_impact
+      self, mock_incremental_outcome
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     with self.assertRaisesWithLiteralMatch(
         ValueError,
@@ -1854,12 +1856,12 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           pct_of_spend=pct_of_spend, fixed_budget=True
       )
 
-  @mock.patch.object(analyzer.Analyzer, 'incremental_impact', autospec=True)
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_budget_data_with_specified_pct_of_spend_value_incorrect(
-      self, mock_incremental_impact
+      self, mock_incremental_outcome
   ):
-    mock_incremental_impact.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
     )
     with self.assertRaisesWithLiteralMatch(
         ValueError,
@@ -1872,18 +1874,18 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
   def test_batch_size(self):
     batch_size = 500
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.convert_to_tensor(
-                [[_NONOPTIMIZED_INCREMENTAL_IMPACT]], tf.float32
+                [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
             ),
         )
     )
     self.budget_optimizer_media_and_rf.optimize(batch_size=batch_size)
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertEqual(mock_kwargs['batch_size'], batch_size)
 
   def test_optimize_with_non_paid_channels_returns_correct_shape(self):
@@ -1891,9 +1893,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         mock.patch.object(
             model.Meridian,
             'inference_data',
-            new=property(
-                lambda unused_self: self.inference_data_all_channels
-            ),
+            new=property(lambda unused_self: self.inference_data_all_channels),
         )
     )
     optimization_results = self.budget_optimizer_all_channels.optimize()
@@ -1951,17 +1951,17 @@ class OptimizerPlotsTest(absltest.TestCase):
         )
     )
 
-  def test_impact_waterfall_chart_data_correct(self):
-    plot = self.optimization_results.plot_incremental_impact_delta()
+  def test_outcome_waterfall_chart_data_correct(self):
+    plot = self.optimization_results.plot_incremental_outcome_delta()
     df = plot.data
-    self.assertEqual(list(df.columns), [c.CHANNEL, c.INCREMENTAL_IMPACT])
+    self.assertEqual(list(df.columns), [c.CHANNEL, c.INCREMENTAL_OUTCOME])
     self.assertEqual(
         list(df.channel),
         ['non_optimized', 'channel 2', 'channel 0', 'channel 1', 'optimized'],
     )
 
-  def test_impact_waterfall_chart_correct_config(self):
-    plot = self.optimization_results.plot_incremental_impact_delta()
+  def test_outcome_waterfall_chart_correct_config(self):
+    plot = self.optimization_results.plot_incremental_outcome_delta()
     config = plot.config.to_dict()
     self.assertEqual(
         config['axis'],
@@ -1977,8 +1977,8 @@ class OptimizerPlotsTest(absltest.TestCase):
     )
     self.assertEqual(config['view'], {'strokeOpacity': 0})
 
-  def test_impact_waterfall_chart_correct_mark(self):
-    plot = self.optimization_results.plot_incremental_impact_delta()
+  def test_outcome_waterfall_chart_correct_mark(self):
+    plot = self.optimization_results.plot_incremental_outcome_delta()
     self.assertEqual(
         plot.layer[0].mark.to_dict(),
         {
@@ -1999,8 +1999,8 @@ class OptimizerPlotsTest(absltest.TestCase):
         },
     )
 
-  def test_impact_waterfall_chart_correct_bar_encoding(self):
-    plot = self.optimization_results.plot_incremental_impact_delta()
+  def test_outcome_waterfall_chart_correct_bar_encoding(self):
+    plot = self.optimization_results.plot_incremental_outcome_delta()
     encoding = plot.layer[0].encoding.to_dict()
     self.assertEqual(
         encoding['color'],
@@ -2013,7 +2013,7 @@ class OptimizerPlotsTest(absltest.TestCase):
                         f" datum.channel === '{c.OPTIMIZED}'"
                     ),
                 },
-                {'value': c.RED_300, 'test': 'datum.incremental_impact < 0'},
+                {'value': c.RED_300, 'test': 'datum.incremental_outcome < 0'},
             ],
             'value': c.CYAN_400,
         },
@@ -2037,21 +2037,21 @@ class OptimizerPlotsTest(absltest.TestCase):
             'type': 'quantitative',
         },
     )
-    self.assertEqual(encoding['y2'], {'field': 'sum_impact'})
+    self.assertEqual(encoding['y2'], {'field': 'sum_outcome'})
     self.assertEqual(
         encoding['tooltip'],
         [
             {'field': c.CHANNEL, 'type': 'nominal'},
-            {'field': c.INCREMENTAL_IMPACT, 'type': 'quantitative'},
+            {'field': c.INCREMENTAL_OUTCOME, 'type': 'quantitative'},
         ],
     )
     self.assertEqual(
         plot.title.text,
-        summary_text.IMPACT_DELTA_CHART_TITLE.format(impact=c.REVENUE),
+        summary_text.OUTCOME_DELTA_CHART_TITLE.format(outcome=c.REVENUE),
     )
 
-  def test_impact_waterfall_chart_correct_text_encoding(self):
-    plot = self.optimization_results.plot_incremental_impact_delta()
+  def test_outcome_waterfall_chart_correct_text_encoding(self):
+    plot = self.optimization_results.plot_incremental_outcome_delta()
     encoding = plot.layer[1].encoding.to_dict()
     text = encoding['text']
     self.assertEqual(
@@ -2225,7 +2225,7 @@ class OptimizerPlotsTest(absltest.TestCase):
             c.CHANNEL,
             c.METRIC,
             c.SPEND,
-            c.INCREMENTAL_IMPACT,
+            c.INCREMENTAL_OUTCOME,
         ],
     )
 
@@ -2561,10 +2561,10 @@ class OptimizerOutputTest(parameterized.TestCase):
             return_value=self._mock_chart(),
         )
     )
-    self.mock_impact_delta = self.enter_context(
+    self.mock_outcome_delta = self.enter_context(
         mock.patch.object(
             optimizer.OptimizationResults,
-            'plot_incremental_impact_delta',
+            'plot_incremental_outcome_delta',
             return_value=self._mock_chart(),
         )
     )
@@ -2856,16 +2856,18 @@ class OptimizerOutputTest(parameterized.TestCase):
       ),
       ('optimized_roi', 3, summary_text.OPTIMIZED_ROI_LABEL, '1.4', '+0.1'),
       (
-          'non_optimized_inc_revenue',
+          'non_optimized_inc_outcome',
           4,
-          summary_text.NON_OPTIMIZED_INC_IMPACT_LABEL.format(impact=c.REVENUE),
+          summary_text.NON_OPTIMIZED_INC_OUTCOME_LABEL.format(
+              outcome=c.REVENUE
+          ),
           '$760',
           None,
       ),
       (
-          'optimized_inc_revenue',
+          'optimized_inc_outcome',
           5,
-          summary_text.OPTIMIZED_INC_IMPACT_LABEL.format(impact=c.REVENUE),
+          summary_text.OPTIMIZED_INC_OUTCOME_LABEL.format(outcome=c.REVENUE),
           '$830',
           '+$70',
       ),
@@ -2929,7 +2931,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
     self.mock_spend_delta.assert_called_once()
     self.mock_budget_allocation.assert_called_once()
-    self.mock_impact_delta.assert_called_once()
+    self.mock_outcome_delta.assert_called_once()
 
     card = analysis_test_utils.get_child_element(
         summary_html_dom,
@@ -2948,14 +2950,14 @@ class OptimizerOutputTest(parameterized.TestCase):
         summary_text.SPEND_DELTA_CHART_INSIGHTS,
     )
 
-    impact_delta_description_text = analysis_test_utils.get_child_element(
+    outcome_delta_description_text = analysis_test_utils.get_child_element(
         charts[2], 'chart-description'
     ).text
-    self.assertIsNotNone(impact_delta_description_text)
+    self.assertIsNotNone(outcome_delta_description_text)
     self.assertEqual(
-        impact_delta_description_text.strip(),
-        summary_text.IMPACT_DELTA_CHART_INSIGHTS_FORMAT.format(
-            impact=c.REVENUE
+        outcome_delta_description_text.strip(),
+        summary_text.OUTCOME_DELTA_CHART_INSIGHTS_FORMAT.format(
+            outcome=c.REVENUE
         ),
     )
 
@@ -3028,7 +3030,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertEqual(
         insights_text.strip(),
         summary_text.OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT.format(
-            impact=c.REVENUE
+            outcome=c.REVENUE
         ),
     )
 
@@ -3132,7 +3134,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': True,
           'budget': 1_000.0,
           'spend': np.array([100, 100]),
-          'incremental_impact': np.array([100, 100]),
+          'incremental_outcome': np.array([100, 100]),
           'roi_grid_point': 0.0,
           'target_mroi': None,
           'target_roi': None,
@@ -3143,7 +3145,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': True,
           'budget': 1_000.0,
           'spend': np.array([500, 600]),
-          'incremental_impact': np.array([100, 100]),
+          'incremental_outcome': np.array([100, 100]),
           'roi_grid_point': 0.0,
           'target_mroi': None,
           'target_roi': None,
@@ -3154,7 +3156,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': False,
           'budget': 1_000.0,
           'spend': np.array([500, 500]),
-          'incremental_impact': np.array([100, 100]),
+          'incremental_outcome': np.array([100, 100]),
           'roi_grid_point': 0.0,
           'target_mroi': None,
           'target_roi': 2.0,
@@ -3165,7 +3167,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': False,
           'budget': 1_000.0,
           'spend': np.array([500, 500]),
-          'incremental_impact': np.array([1_000, 1_000]),
+          'incremental_outcome': np.array([1_000, 1_000]),
           'roi_grid_point': 0.0,
           'target_mroi': None,
           'target_roi': 2.0,
@@ -3176,7 +3178,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': False,
           'budget': 1_000.0,
           'spend': np.array([500, 500]),
-          'incremental_impact': np.array([1_000, 1_000]),
+          'incremental_outcome': np.array([1_000, 1_000]),
           'roi_grid_point': 1.8,
           'target_mroi': 2.0,
           'target_roi': None,
@@ -3187,7 +3189,7 @@ class OptimizerHelperTest(parameterized.TestCase):
           'fixed_budget': False,
           'budget': 1_000.0,
           'spend': np.array([500, 500]),
-          'incremental_impact': np.array([1_000, 1_000]),
+          'incremental_outcome': np.array([1_000, 1_000]),
           'roi_grid_point': 2.1,
           'target_mroi': 2.0,
           'target_roi': None,
@@ -3199,7 +3201,7 @@ class OptimizerHelperTest(parameterized.TestCase):
       fixed_budget,
       budget,
       spend,
-      incremental_impact,
+      incremental_outcome,
       roi_grid_point,
       target_mroi,
       target_roi,
@@ -3209,7 +3211,7 @@ class OptimizerHelperTest(parameterized.TestCase):
         fixed_budget,
         budget,
         spend,
-        incremental_impact,
+        incremental_outcome,
         roi_grid_point,
         target_mroi,
         target_roi,
@@ -3273,13 +3275,13 @@ class OptimizerKPITest(parameterized.TestCase):
     )
 
   @parameterized.parameters([True, False])
-  def test_incremental_impact_called_correct_optimize(
+  def test_incremental_outcome_called_correct_optimize(
       self, use_posterior: bool
   ):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf_kpi._analyzer,
-            'incremental_impact',
+            'incremental_outcome',
             autospec=True,
             return_value=tf.ones((
                 _N_CHAINS,
@@ -3291,16 +3293,16 @@ class OptimizerKPITest(parameterized.TestCase):
 
     self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
 
-    mock_incremental_impact.assert_called_with(
+    mock_incremental_outcome.assert_called_with(
         # marginal roi computation in the analyzer transitively calls
-        # incremental_impact() with the following arguments.
+        # incremental_outcome() with the following arguments.
         selected_geos=None,
         selected_times=None,
         aggregate_geos=True,
         aggregate_times=True,
-        inverse_transform_impact=True,
+        inverse_transform_outcome=True,
         # Note that the above arguments also happen to be their default values.
-        # All other direct incremental_impact() calls use the following args.
+        # All other direct incremental_outcome() calls use the following args.
         use_kpi=True,
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_posterior=use_posterior,

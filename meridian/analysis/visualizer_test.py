@@ -989,7 +989,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
     self.assertEqual(
         plot_revenue_revenue_label.layer[0].encoding.y.title,
-        summary_text.INC_REVENUE_LABEL,
+        summary_text.INC_OUTCOME_LABEL,
     )
     self.assertEqual(
         plot_non_revenue_kpi_label.layer[0].encoding.y.title,
@@ -997,7 +997,7 @@ class MediaEffectsTest(parameterized.TestCase):
     )
     self.assertEqual(
         plot_non_revenue_revenue_label.layer[0].encoding.y.title,
-        summary_text.INC_REVENUE_LABEL,
+        summary_text.INC_OUTCOME_LABEL,
     )
 
   def test_media_effects_caching_done_correctly(self):
@@ -1533,11 +1533,11 @@ class MediaSummaryTest(parameterized.TestCase):
     plot_kpi = self.media_summary_kpi.plot_spend_vs_contribution()
     self.assertEqual(
         plot_revenue.title.text,
-        summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=c.REVENUE),
+        summary_text.SPEND_OUTCOME_CHART_TITLE.format(outcome=c.REVENUE),
     )
     self.assertEqual(
         plot_kpi.title.text,
-        summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=c.KPI.upper()),
+        summary_text.SPEND_OUTCOME_CHART_TITLE.format(outcome=c.KPI.upper()),
     )
     self.assertEqual(
         plot_revenue.spec.layer[0].encoding.color.scale.domain,
@@ -1583,7 +1583,7 @@ class MediaSummaryTest(parameterized.TestCase):
             c.SPEND,
             summary_text.PCT_SPEND_COL,
             c.CPM,
-            summary_text.INC_REVENUE_COL,
+            summary_text.INC_OUTCOME_COL,
             summary_text.PCT_CONTRIBUTION_COL,
             c.ROI,
             c.EFFECTIVENESS,
@@ -1632,18 +1632,18 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_summary_table_format_monetary(self):
     df = self.media_summary_revenue.summary_table()
     self.assertTrue(all("$" in dollar for dollar in df[c.SPEND]))
-    self.assertTrue(all("$" in pct for pct in df[summary_text.INC_REVENUE_COL]))
+    self.assertTrue(all("$" in pct for pct in df[summary_text.INC_OUTCOME_COL]))
 
   def test_media_summary_summary_table_format_credible_interval(self):
     df = self.media_summary_revenue.summary_table()
-    inc_rev = self.mock_paid_media_metrics.incremental_impact
+    inc_rev = self.mock_paid_media_metrics.incremental_outcome
     expected_mean = inc_rev.sel(metric="mean", distribution="prior").values[0]
     expected_ci_lo = inc_rev.sel(metric="ci_lo", distribution="prior").values[0]
     expected_ci_hi = inc_rev.sel(metric="ci_hi", distribution="prior").values[0]
     mean = "${0:,.0f}".format(expected_mean)
     ci_lo = "${0:,.0f}".format(expected_ci_lo)
     ci_hi = "${0:,.0f}".format(expected_ci_hi)
-    actual_inc_rev = df[summary_text.INC_REVENUE_COL][0]
+    actual_inc_rev = df[summary_text.INC_OUTCOME_COL][0]
     self.assertEqual(actual_inc_rev, f"{mean} ({ci_lo}, {ci_hi})")
     self.assertContainsInOrder(
         ["(", ",", ")"], df[summary_text.PCT_CONTRIBUTION_COL][0]
@@ -1782,7 +1782,7 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_plot_waterfall_chart_correct_data(self):
     summary_metrics = xr.Dataset(
         data_vars={
-            c.INCREMENTAL_IMPACT: (
+            c.INCREMENTAL_OUTCOME: (
                 [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
                 [[[500]], [[2000]], [[1500]], [[4000]]],
             ),
@@ -1809,9 +1809,9 @@ class MediaSummaryTest(parameterized.TestCase):
         list(df.columns),
         [
             c.CHANNEL,
-            c.INCREMENTAL_IMPACT,
+            c.INCREMENTAL_OUTCOME,
             c.PCT_OF_CONTRIBUTION,
-            "impact_text",
+            "outcome_text",
         ],
     )
     self.assertIn(c.BASELINE.upper(), list(df.channel))
@@ -1824,15 +1824,15 @@ class MediaSummaryTest(parameterized.TestCase):
     baseline_pct = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
         c.PCT_OF_CONTRIBUTION
     ].item()
-    baseline_impact = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
-        c.INCREMENTAL_IMPACT
+    baseline_outcome = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
+        c.INCREMENTAL_OUTCOME
     ].item()
-    baseline_impact_text = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
-        "impact_text"
+    baseline_outcome_text = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
+        "outcome_text"
     ].item()
     self.assertEqual(baseline_pct, 0.6)
-    self.assertEqual(baseline_impact, 6000.0)
-    self.assertEqual(baseline_impact_text, "60.0% (6k)")
+    self.assertEqual(baseline_outcome, 6000.0)
+    self.assertEqual(baseline_outcome_text, "60.0% (6k)")
 
   @parameterized.named_parameters(
       ("no_suffix", 40, 400, "60.0% (600)"),
@@ -1842,7 +1842,7 @@ class MediaSummaryTest(parameterized.TestCase):
       ("beyond_t", 40, 4e15, "60.0% (6000T)"),
   )
   def test_media_summary_plot_waterfall_chart_correct_formatted_text(
-      self, pct, impact, expected_text
+      self, pct, outcome, expected_text
   ):
     summary_metrics = test_utils.generate_all_summary_metrics()
     total_media_dict = {
@@ -1850,7 +1850,7 @@ class MediaSummaryTest(parameterized.TestCase):
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
     }
-    summary_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = impact
+    summary_metrics[c.INCREMENTAL_OUTCOME].loc[total_media_dict] = outcome
     summary_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = pct
     with mock.patch.object(
         visualizer.MediaSummary,
@@ -1859,10 +1859,10 @@ class MediaSummaryTest(parameterized.TestCase):
     ):
       plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     df = plot.data
-    baseline_impact_text = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
-        "impact_text"
+    baseline_outcome_text = df.loc[df[c.CHANNEL] == c.BASELINE.upper()][
+        "outcome_text"
     ].item()
-    self.assertEqual(baseline_impact_text, expected_text)
+    self.assertEqual(baseline_outcome_text, expected_text)
 
   def test_media_summary_plot_waterfall_chart_correct_marks(self):
     plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
@@ -1874,7 +1874,7 @@ class MediaSummaryTest(parameterized.TestCase):
     encoding = plot.layer[0].encoding
     self.assertEqual(encoding.x.shorthand, "prev_sum:Q")
     self.assertEqual(encoding.x.title, "% Revenue")
-    self.assertEqual(encoding.x2.shorthand, "sum_impact:Q")
+    self.assertEqual(encoding.x2.shorthand, "sum_outcome:Q")
     self.assertEqual(encoding.y.shorthand, f"{c.CHANNEL}:N")
     self.assertIsNotNone(encoding.color)
     self.assertIsNotNone(encoding.x.axis)
@@ -1894,7 +1894,7 @@ class MediaSummaryTest(parameterized.TestCase):
   def test_media_summary_plot_waterfall_chart_correct_text_encoding(self):
     plot = self.media_summary_revenue.plot_contribution_waterfall_chart()
     encoding = plot.layer[1].encoding
-    self.assertEqual(encoding.text.shorthand, "impact_text")
+    self.assertEqual(encoding.text.shorthand, "outcome_text")
     self.assertEqual(encoding.x.shorthand, "text_x:Q")
     self.assertEqual(encoding.y.shorthand, f"{c.CHANNEL}:N")
     self.assertIsNotNone(encoding.y.axis)
@@ -1996,7 +1996,7 @@ class MediaSummaryTest(parameterized.TestCase):
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
     }
-    media_metrics[c.INCREMENTAL_IMPACT].loc[total_media_dict] = 200000
+    media_metrics[c.INCREMENTAL_OUTCOME].loc[total_media_dict] = 200000
     media_metrics[c.PCT_OF_CONTRIBUTION].loc[total_media_dict] = 60
     with mock.patch.object(
         visualizer.MediaSummary,
@@ -2047,7 +2047,7 @@ class MediaSummaryTest(parameterized.TestCase):
     )
     self.assertEqual(
         plot.title.text,
-        summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=c.REVENUE),
+        summary_text.SPEND_OUTCOME_CHART_TITLE.format(outcome=c.REVENUE),
     )
 
   def test_media_summary_plot_spend_vs_contribution_roi_marker(self):

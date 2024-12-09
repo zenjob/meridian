@@ -180,7 +180,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def _get_output_model_results_summary_html_dom(
       self,
-      summarizer_impact: summarizer.Summarizer,
+      summarizer_outcome: summarizer.Summarizer,
       start_date: dt.datetime | None = _EARLIEST_DATE,
       end_date: dt.datetime | None = _LATEST_DATE,
   ) -> ET.Element:
@@ -189,7 +189,7 @@ class SummarizerTest(parameterized.TestCase):
     fpath = os.path.join(outfile_path, outfile_name)
 
     try:
-      summarizer_impact.output_model_results_summary(
+      summarizer_outcome.output_model_results_summary(
           filename=outfile_name,
           filepath=outfile_path,
           start_date=start_date.strftime(c.DATE_FORMAT) if start_date else None,
@@ -228,14 +228,14 @@ class SummarizerTest(parameterized.TestCase):
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, expected_error_message):
       self._get_output_model_results_summary_html_dom(
-          summarizer_impact=self.summarizer_revenue,
+          summarizer_outcome=self.summarizer_revenue,
           start_date=start_date,
           end_date=end_date,
       )
 
   def test_output_html_title(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     title = summary_html_dom.find('head/title')
 
@@ -246,7 +246,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_output_header_section(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     header_div = test_utils.get_child_element(
         summary_html_dom, 'body/div', {'class': 'header'}
@@ -264,7 +264,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_output_chips(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     chips_node = summary_html_dom.find('body/chips')
     self.assertIsNotNone(chips_node)
@@ -280,7 +280,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_output_no_date_range(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
         start_date=None,
         end_date=None,
     )
@@ -295,7 +295,7 @@ class SummarizerTest(parameterized.TestCase):
 
   def test_output_card_structure(self):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     cards_node = test_utils.get_child_element(summary_html_dom, 'body/cards')
 
@@ -319,7 +319,7 @@ class SummarizerTest(parameterized.TestCase):
   )
   def test_output_card_static_chart_spec(self, card_spec):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     card = test_utils.get_child_element(
         summary_html_dom, 'body/cards/card', attribs={'id': card_spec.id}
@@ -333,9 +333,9 @@ class SummarizerTest(parameterized.TestCase):
           summary_text.MODEL_FIT_CARD_ID,
           [
               (
-                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_ID,
-                  summary_text.EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION_FORMAT.format(
-                      impact=c.REVENUE
+                  summary_text.EXPECTED_ACTUAL_OUTCOME_CHART_ID,
+                  summary_text.EXPECTED_ACTUAL_OUTCOME_CHART_DESCRIPTION_FORMAT.format(
+                      outcome=c.REVENUE
                   ),
               ),
           ],
@@ -346,19 +346,19 @@ class SummarizerTest(parameterized.TestCase):
               (
                   summary_text.CHANNEL_DRIVERS_CHART_ID,
                   summary_text.CHANNEL_DRIVERS_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
+                      outcome=c.REVENUE
                   ),
               ),
               (
-                  summary_text.SPEND_IMPACT_CHART_ID,
-                  summary_text.SPEND_IMPACT_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
+                  summary_text.SPEND_OUTCOME_CHART_ID,
+                  summary_text.SPEND_OUTCOME_CHART_DESCRIPTION.format(
+                      outcome=c.REVENUE
                   ),
               ),
               (
-                  summary_text.IMPACT_CONTRIBUTION_CHART_ID,
-                  summary_text.IMPACT_CONTRIBUTION_CHART_DESCRIPTION.format(
-                      impact=c.REVENUE
+                  summary_text.OUTCOME_CONTRIBUTION_CHART_ID,
+                  summary_text.OUTCOME_CONTRIBUTION_CHART_DESCRIPTION.format(
+                      outcome=c.REVENUE
                   ),
               ),
           ],
@@ -387,7 +387,7 @@ class SummarizerTest(parameterized.TestCase):
               (
                   summary_text.RESPONSE_CURVES_CHART_ID,
                   summary_text.RESPONSE_CURVES_CHART_DESCRIPTION_FORMAT.format(
-                      impact=c.REVENUE
+                      outcome=c.REVENUE
                   ),
               ),
               (
@@ -399,7 +399,7 @@ class SummarizerTest(parameterized.TestCase):
   ])
   def test_card_chart_info(self, card_id, expected_chart_tuples):
     summary_html_dom = self._get_output_model_results_summary_html_dom(
-        summarizer_impact=self.summarizer_revenue,
+        summarizer_outcome=self.summarizer_revenue,
     )
     card = test_utils.get_child_element(
         summary_html_dom, 'body/cards/card', attribs={'id': card_id}
@@ -516,7 +516,7 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertEqual(
         title_text,
-        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(impact=c.REVENUE),
+        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(outcome=c.REVENUE),
     )
     description_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-description'}
@@ -524,7 +524,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertEqual(
         description_text,
         summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION.format(
-            impact=c.REVENUE
+            outcome=c.REVENUE
         ),
     )
 
@@ -579,7 +579,7 @@ class SummarizerTest(parameterized.TestCase):
     ).text
     self.assertEqual(
         title_text,
-        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(impact=c.REVENUE),
+        summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE.format(outcome=c.REVENUE),
     )
     description_text = test_utils.get_child_element(
         chart_table, 'div', attribs={'class': 'chart-table-description'}
@@ -587,7 +587,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertEqual(
         description_text,
         summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION.format(
-            impact=c.REVENUE
+            outcome=c.REVENUE
         ),
     )
 
@@ -795,16 +795,16 @@ class SummarizerTest(parameterized.TestCase):
     )
 
   def test_channel_contrib_card_insights(self):
-    self.media_metrics[c.INCREMENTAL_IMPACT].loc[{
+    self.media_metrics[c.INCREMENTAL_OUTCOME].loc[{
         c.CHANNEL: 'rf_ch_1',
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
-    }] = 999999  # largest impact
-    self.media_metrics[c.INCREMENTAL_IMPACT].loc[{
+    }] = 999999  # largest outcome
+    self.media_metrics[c.INCREMENTAL_OUTCOME].loc[{
         c.CHANNEL: 'ch_0',
         c.DISTRIBUTION: c.POSTERIOR,
         c.METRIC: c.MEAN,
-    }] = 888888  # 2nd largest impact
+    }] = 888888  # 2nd largest outcome
 
     summary_html_dom = self._get_output_model_results_summary_html_dom(
         self.summarizer_revenue,
@@ -1034,7 +1034,7 @@ class SummarizerTest(parameterized.TestCase):
         card, 'card-insights/p', {'class': 'insights-text'}
     ).text
     self.assertIn(
-        summary_text.RESPONSE_CURVES_INSIGHTS_FORMAT.format(impact=c.REVENUE),
+        summary_text.RESPONSE_CURVES_INSIGHTS_FORMAT.format(outcome=c.REVENUE),
         insights_text,
     )
 

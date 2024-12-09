@@ -14,7 +14,6 @@
 
 """Defines text string constants used in the model outputs."""
 
-
 # Model results text.
 MODEL_RESULTS_TITLE = 'Marketing Mix Modeling Report'
 
@@ -23,10 +22,10 @@ MODEL_FIT_CARD_TITLE = 'Model fit'
 MODEL_FIT_INSIGHTS_FORMAT = """Model fit is a measure of how well your MMM fits
 your current data used to train the model."""
 
-EXPECTED_ACTUAL_IMPACT_CHART_ID = 'expected-actual-impact-chart'
-EXPECTED_ACTUAL_IMPACT_CHART_TITLE = 'Expected {impact} vs. actual {impact}'
-EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION_FORMAT = """Note: The baseline represents the
-expected {impact} without any media execution. The shaded blue area represents
+EXPECTED_ACTUAL_OUTCOME_CHART_ID = 'expected-actual-outcome-chart'
+EXPECTED_ACTUAL_OUTCOME_CHART_TITLE = 'Expected {outcome} vs. actual {outcome}'
+EXPECTED_ACTUAL_OUTCOME_CHART_DESCRIPTION_FORMAT = """Note: The baseline represents the
+expected {outcome} without any media execution. The shaded blue area represents
 the 90% credible interval."""
 
 PREDICTIVE_ACCURACY_TABLE_ID = 'model-fit-statistics-table-chart'
@@ -35,31 +34,31 @@ PREDICTIVE_ACCURACY_TABLE_DESCRIPTION = """Note: R-squared measures the amount
 of variation in the data that is explained by the model. The closer it is to 1,
 the better the model fit. MAPE measures the mean absolute percentage difference
 between the expected and the actual. The closer it is to 0, the better the
-model fit. wMAPE is MAPE weighted by the actual {impact}."""
+model fit. wMAPE is MAPE weighted by the actual {outcome}."""
 
 CHANNEL_CONTRIB_CARD_ID = 'channel-contrib'
 CHANNEL_CONTRIB_CARD_TITLE = 'Channel contribution'
 CHANNEL_CONTRIB_INSIGHTS_FORMAT = """Your channel contributions help you
-understand what drove your {impact}. {lead_channels} drove the most overall
-{impact}."""
+understand what drove your {outcome}. {lead_channels} drove the most overall
+{outcome}."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'
 CHANNEL_DRIVERS_CHART_DESCRIPTION = """Note: This graphic encompasses all of
-your {impact} drivers, but breaks down your marketing {impact} by the baseline
+your {outcome} drivers, but breaks down your marketing {outcome} by the baseline
 and all channels."""
 
-SPEND_IMPACT_CHART_ID = 'spend-impact-chart'
-SPEND_IMPACT_CHART_TITLE = (
-    'Spend and {impact} contribution by marketing channel'
+SPEND_OUTCOME_CHART_ID = 'spend-outcome-chart'
+SPEND_OUTCOME_CHART_TITLE = (
+    'Spend and {outcome} contribution by marketing channel'
 )
-SPEND_IMPACT_CHART_DESCRIPTION = """Note: Return on investment is calculated by
-dividing the {impact} attributed to a channel by marketing costs."""
+SPEND_OUTCOME_CHART_DESCRIPTION = """Note: Return on investment is calculated by
+dividing the {outcome} attributed to a channel by marketing costs."""
 
-IMPACT_CONTRIBUTION_CHART_ID = 'impact-contribution-chart'
+OUTCOME_CONTRIBUTION_CHART_ID = 'outcome-contribution-chart'
 CONTRIBUTION_CHART_TITLE = 'Contribution by baseline and marketing channels'
-IMPACT_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage breakdown
-of all your {impact}."""
+OUTCOME_CONTRIBUTION_CHART_DESCRIPTION = """Note: This is a percentage breakdown
+of all your {outcome}."""
 
 PERFORMANCE_BREAKDOWN_CARD_ID = 'performance-breakdown'
 PERFORMANCE_BREAKDOWN_CARD_TITLE = 'Return on investment'
@@ -68,7 +67,7 @@ you understand how your marketing activities impacted your business objectives.
 {lead_roi_channel} drove the highest ROI at {lead_roi_ratio:.1f}. For every $1
 you spent on {lead_roi_channel}, you saw ${lead_roi_ratio:.2f} in revenue.
 {lead_effectiveness_channel} had the highest effectiveness, which is your
-incremental revenue per media unit. {lead_mroi_channel} had the highest marginal
+incremental outcome per media unit. {lead_mroi_channel} had the highest marginal
 ROI at {lead_mroi_channel_value:.2f}. {lead_cpik_channel} drove the lowest CPIK
 at ${lead_cpik_ratio:.2f}. For every KPI unit, you spent ${lead_cpik_ratio:.2f}.
 """
@@ -76,7 +75,7 @@ at ${lead_cpik_ratio:.2f}. For every KPI unit, you spent ${lead_cpik_ratio:.2f}.
 ROI_EFFECTIVENESS_CHART_ID = 'roi-effectiveness-chart'
 ROI_EFFECTIVENESS_CHART_TITLE = 'ROI vs. effectiveness'
 ROI_EFFECTIVENESS_CHART_DESCRIPTION = """Note: Effectiveness measures the
-incremental revenue generated per impression. A low ROI does not necessarily
+incremental outcome generated per impression. A low ROI does not necessarily
 imply low media effectiveness; it may result from high media cost, as positioned
 in the upper-left corner of the chart. Conversely, a high ROI can coexist with
 low media effectiveness and low media costs, as indicated in the bottom-right
@@ -107,7 +106,7 @@ determined by the posterior mean."""
 RESPONSE_CURVES_CARD_ID = 'response-curves'
 RESPONSE_CURVES_CARD_TITLE = 'Response curves'
 RESPONSE_CURVES_INSIGHTS_FORMAT = """Your response curves depict the
-relationship between marketing spend and the resulting incremental {impact}."""
+relationship between marketing spend and the resulting incremental {outcome}."""
 OPTIMAL_FREQUENCY_INSIGHTS_FORMAT = """Your optimal weekly frequency for
 {rf_channel} is {opt_freq} to maximize ROI."""
 
@@ -117,7 +116,7 @@ RESPONSE_CURVES_CHART_TITLE = (
 )
 RESPONSE_CURVES_CHART_DESCRIPTION_FORMAT = """Note: The response curves are
 constructed based on the historical flighting pattern and present the cumulative
-incremental {impact} from the total media spend over the selected time
+incremental {outcome} from the total media spend over the selected time
 period."""
 
 OPTIMAL_FREQUENCY_CHART_ID = 'optimal-frequency-chart'
@@ -157,8 +156,8 @@ NON_OPTIMIZED_ROI_LABEL = 'Non-optimized ROI'
 OPTIMIZED_ROI_LABEL = 'Optimized ROI'
 NON_OPTIMIZED_CPIK_LABEL = 'Non-optimized CPIK'
 OPTIMIZED_CPIK_LABEL = 'Optimized CPIK'
-NON_OPTIMIZED_INC_IMPACT_LABEL = 'Non-optimized incremental {impact}'
-OPTIMIZED_INC_IMPACT_LABEL = 'Optimized incremental {impact}'
+NON_OPTIMIZED_INC_OUTCOME_LABEL = 'Non-optimized incremental {outcome}'
+OPTIMIZED_INC_OUTCOME_LABEL = 'Optimized incremental {outcome}'
 
 BUDGET_ALLOCATION_CARD_ID = 'budget-allocation'
 BUDGET_ALLOCATION_CARD_TITLE = 'Recommended budget allocation'
@@ -174,12 +173,14 @@ while positive values indicate an increase from your non-optimized spend."""
 SPEND_ALLOCATION_CHART_ID = 'spend-allocation-chart'
 SPEND_ALLOCATION_CHART_TITLE = 'Optimized budget allocation'
 
-IMPACT_DELTA_CHART_ID = 'impact-delta-chart'
-IMPACT_DELTA_CHART_TITLE = 'Optimized incremental {impact} across all channels'
-IMPACT_DELTA_CHART_INSIGHTS_FORMAT = """Note: The "non_optimized" bar presents the
-incremental {impact} before optimization, and the subsequent bars represent the
-change in incremental {impact} for each channel based on the optimal spend
-level. The final bar labeled "optimized" shows the total incremental {impact}
+OUTCOME_DELTA_CHART_ID = 'outcome-delta-chart'
+OUTCOME_DELTA_CHART_TITLE = (
+    'Optimized incremental {outcome} across all channels'
+)
+OUTCOME_DELTA_CHART_INSIGHTS_FORMAT = """Note: The "non_optimized" bar presents the
+incremental {outcome} before optimization, and the subsequent bars represent the
+change in incremental {outcome} for each channel based on the optimal spend
+level. The final bar labeled "optimized" shows the total incremental {outcome}
 after optimization."""
 
 SPEND_ALLOCATION_TABLE_ID = 'spend-allocation-table'
@@ -187,9 +188,9 @@ SPEND_ALLOCATION_TABLE_ID = 'spend-allocation-table'
 OPTIMIZED_RESPONSE_CURVES_CARD_ID = 'optimized-response-curves'
 OPTIMIZED_RESPONSE_CURVES_CARD_TITLE = 'Response curves with optimized spend'
 OPTIMIZED_RESPONSE_CURVES_INSIGHTS_FORMAT = """These response curves depict the
-relationship between marketing spend and the resulting incremental {impact} and
+relationship between marketing spend and the resulting incremental {outcome} and
 show the optimal spend amount for each channel that maximizes the total
-incremental {impact} while staying within the channel-level spend
+incremental {outcome} while staying within the channel-level spend
 constraints."""
 
 OPTIMIZED_RESPONSE_CURVES_CHART_ID = 'optimized-response-curves-chart'
@@ -211,6 +212,7 @@ CPIK_LABEL = 'CPIK'
 KPI_LABEL = 'KPI'
 REVENUE_LABEL = 'Revenue'
 INC_REVENUE_LABEL = 'Incremental revenue'
+INC_OUTCOME_LABEL = 'Incremental outcome'
 INC_KPI_LABEL = 'Incremental KPI'
 OPTIMIZED_SPEND_LABEL = 'Optimized spend'
 NONOPTIMIZED_SPEND_LABEL = 'Non-optimized spend'
@@ -239,5 +241,5 @@ ALL_DATA_LABEL = 'All Data'
 PCT_IMPRESSIONS_COL = '% impressions'
 PCT_SPEND_COL = '% spend'
 PCT_CONTRIBUTION_COL = '% contribution'
-INC_REVENUE_COL = 'incremental revenue'
+INC_OUTCOME_COL = 'incremental outcome'
 INC_KPI_COL = 'incremental KPI'

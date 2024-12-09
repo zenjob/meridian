@@ -745,7 +745,7 @@ def random_kpi_da(
       axis=2,
   )
 
-  # Simulates impact which is the dependent variable. Typically this is the
+  # Simulates outcome which is the dependent variable. Typically this is the
   # number of units sold, but it can be any metric (e.g. revenue).
   media_portion = np.random.normal(media_common, media_geo_sd).sum(axis=2)
   control_portion = np.random.normal(controls, control_geo_sd).sum(axis=2)

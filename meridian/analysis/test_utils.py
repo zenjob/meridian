@@ -32,7 +32,7 @@ import xarray as xr
 __all__ = []
 
 
-INC_IMPACT_MEDIA_AND_RF_USE_PRIOR = np.array([[
+INC_OUTCOME_MEDIA_AND_RF_USE_PRIOR = np.array([[
     [250.93, 914.95, 1488.56, 2499.96, 194.59],
     [323.77, 766.39, 499.36, 218.52, 536.27],
     [454.30, 381.87, 274.42, 812.97, 316.66],
@@ -44,7 +44,7 @@ INC_IMPACT_MEDIA_AND_RF_USE_PRIOR = np.array([[
     [194.41, 55.73, 432.67, 126.29, 162.53],
     [252.09, 52.38, 297.78, 125.89, 226.06],
 ]])
-INC_IMPACT_MEDIA_AND_RF_USE_POSTERIOR = np.array([
+INC_OUTCOME_MEDIA_AND_RF_USE_POSTERIOR = np.array([
     [
         [582.06, 636.00, 170.72, 131.45, 747.25],
         [576.95, 628.67, 171.09, 131.47, 761.42],
@@ -70,7 +70,7 @@ INC_IMPACT_MEDIA_AND_RF_USE_POSTERIOR = np.array([
         [79.84, 164.81, 53.60, 495.19, 161.18],
     ],
 ])
-INC_IMPACT_MEDIA_AND_RF_NEW_PARAMS = np.array([
+INC_OUTCOME_MEDIA_AND_RF_NEW_PARAMS = np.array([
     [
         [105.49, 92.62, 30.55, 26.51, 124.33],
         [104.7, 91.55, 30.6, 26.54, 126.78],
@@ -96,7 +96,7 @@ INC_IMPACT_MEDIA_AND_RF_NEW_PARAMS = np.array([
         [14.91, 30.33, 9.8, 96.9, 27.78],
     ],
 ])
-INC_IMPACT_MEDIA_ONLY_NEW_PARAMS = np.array([
+INC_OUTCOME_MEDIA_ONLY_NEW_PARAMS = np.array([
     [
         [70.79386, 887.3538, 206.95084],
         [12.432843, 1498.6337, 13.650631],
@@ -122,7 +122,7 @@ INC_IMPACT_MEDIA_ONLY_NEW_PARAMS = np.array([
         [16.897263, 297.91827, 16.419819],
     ],
 ])
-INC_IMPACT_RF_ONLY_NEW_PARAMS = np.array([
+INC_OUTCOME_RF_ONLY_NEW_PARAMS = np.array([
     [
         [91.34808, 205.88185],
         [91.18264, 206.20079],
@@ -148,7 +148,7 @@ INC_IMPACT_RF_ONLY_NEW_PARAMS = np.array([
         [493.76462, 66.86809],
     ],
 ])
-INC_IMPACT_MEDIA_ONLY_USE_PRIOR = np.array([[
+INC_OUTCOME_MEDIA_ONLY_USE_PRIOR = np.array([[
     [551.34, 1071.77, 600.61],
     [416.56, 220.16, 302.47],
     [328.12, 191.68, 108.85],
@@ -160,7 +160,7 @@ INC_IMPACT_MEDIA_ONLY_USE_PRIOR = np.array([[
     [1335.38, 513.54, 181.51],
     [147.56, 426.27, 354.36],
 ]])
-INC_IMPACT_MEDIA_ONLY_USE_POSTERIOR = np.array([
+INC_OUTCOME_MEDIA_ONLY_USE_POSTERIOR = np.array([
     [
         [341.47, 4323.64, 1198.80],
         [70.05, 7476.11, 69.56],
@@ -186,7 +186,7 @@ INC_IMPACT_MEDIA_ONLY_USE_POSTERIOR = np.array([
         [87.72, 1696.20, 100.65],
     ],
 ])
-INC_IMPACT_RF_ONLY_USE_PRIOR = np.array([[
+INC_OUTCOME_RF_ONLY_USE_PRIOR = np.array([[
     [646.24, 318.49],
     [441.57, 256.74],
     [1331.16, 97.92],
@@ -198,7 +198,7 @@ INC_IMPACT_RF_ONLY_USE_PRIOR = np.array([[
     [257.95, 871.77],
     [162.43, 675.57],
 ]])
-INC_IMPACT_RF_ONLY_USE_POSTERIOR = np.array([
+INC_OUTCOME_RF_ONLY_USE_POSTERIOR = np.array([
     [
         [386.06, 1037.53],
         [385.36, 1039.23],
@@ -225,7 +225,7 @@ INC_IMPACT_RF_ONLY_USE_POSTERIOR = np.array([
     ],
 ])
 
-INC_IMPACT_NON_MEDIA_USE_PRIOR = np.array([[
+INC_OUTCOME_NON_MEDIA_USE_PRIOR = np.array([[
     [
         5.297e02,
         2.930e02,
@@ -337,7 +337,7 @@ INC_IMPACT_NON_MEDIA_USE_PRIOR = np.array([[
         2.224e05,
     ],
 ]])
-INC_IMPACT_NON_MEDIA_USE_POSTERIOR = np.array([
+INC_OUTCOME_NON_MEDIA_USE_POSTERIOR = np.array([
     [
         [
             1.991e02,
@@ -564,7 +564,7 @@ INC_IMPACT_NON_MEDIA_USE_POSTERIOR = np.array([
     ],
 ])
 
-INC_IMPACT_NON_PAID_USE_PRIOR = np.array([[
+INC_OUTCOME_NON_PAID_USE_PRIOR = np.array([[
     [
         5.297e02,
         2.930e02,
@@ -728,7 +728,7 @@ INC_IMPACT_NON_PAID_USE_PRIOR = np.array([[
 ]])
 
 
-INC_IMPACT_NON_PAID_USE_POSTERIOR = np.array([
+INC_OUTCOME_NON_PAID_USE_POSTERIOR = np.array([
     [
         [
             1.991e02,
@@ -1056,7 +1056,7 @@ INC_IMPACT_NON_PAID_USE_POSTERIOR = np.array([
 ])
 
 
-INC_IMPACT_NON_MEDIA_MAX = np.array([
+INC_OUTCOME_NON_MEDIA_MAX = np.array([
     [
         [
             1.991e02,
@@ -1283,7 +1283,7 @@ INC_IMPACT_NON_MEDIA_MAX = np.array([
     ],
 ])
 
-INC_IMPACT_NON_MEDIA_MIX = np.array([
+INC_OUTCOME_NON_MEDIA_MIX = np.array([
     [
         [
             1.991e02,
@@ -1510,7 +1510,7 @@ INC_IMPACT_NON_MEDIA_MIX = np.array([
     ],
 ])
 
-INC_IMPACT_NON_MEDIA_FIXED = np.array([
+INC_OUTCOME_NON_MEDIA_FIXED = np.array([
     [
         [
             1.991e02,
@@ -2190,7 +2190,7 @@ SAMPLE_EFFECTIVENESS_KPI = np.array([
 ])
 SAMPLE_SPEND = np.array([293.807, 278.854, 255.744, 272.165, 287.876, 1388.448])
 SAMPLE_PCT_OF_SPEND = np.array([21.160, 20.083, 18.419, 19.602, 20.733, 100.0])
-SAMPLE_INCREMENTAL_IMPACT = np.array([
+SAMPLE_INCREMENTAL_OUTCOME = np.array([
     [
         [449.3971, 321.6781],
         [301.5584, 316.0848],
@@ -2228,7 +2228,7 @@ SAMPLE_INCREMENTAL_IMPACT = np.array([
         [5827.7158, 2270.1303],
     ],
 ])
-SAMPLE_INC_IMPACT_KPI = np.array([
+SAMPLE_INC_OUTCOME_KPI = np.array([
     [
         [144.15034485, 102.45450592],
         [96.44513, 100.672745],
@@ -2266,7 +2266,7 @@ SAMPLE_INC_IMPACT_KPI = np.array([
         [1863.14417725, 729.96096191],
     ],
 ])
-SAMPLE_BASELINE_EXPECTED_IMPACT = np.array([
+SAMPLE_BASELINE_EXPECTED_OUTCOME = np.array([
     [11180.9931, 20127.6386],
     [-919.524719, 20048.3613],
     [-24876.6487, 13877.7523],
@@ -2510,7 +2510,7 @@ def generate_paid_summary_metrics() -> xr.Dataset:
   roi = np.random.lognormal(1, 1, size=shape)
   mroi = np.random.lognormal(0, 1, size=shape)
   cpik = np.random.lognormal(0, 1, size=shape)
-  incremental_impact = np.random.lognormal(10, 1, size=shape)
+  incremental_outcome = np.random.lognormal(10, 1, size=shape)
   effectiveness = np.random.lognormal(1, 1, size=shape)
   pct_of_contribution = np.random.randint(low=0, high=50, size=shape)
   pct_of_impressions = np.random.randint(low=0, high=100, size=len(channel))
@@ -2522,9 +2522,9 @@ def generate_paid_summary_metrics() -> xr.Dataset:
           c.SPEND: ([c.CHANNEL], spend),
           c.PCT_OF_SPEND: ([c.CHANNEL], pct_of_spend),
           c.CPM: ([c.CHANNEL], cpm),
-          c.INCREMENTAL_IMPACT: (
+          c.INCREMENTAL_OUTCOME: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              incremental_impact,
+              incremental_outcome,
           ),
           c.PCT_OF_CONTRIBUTION: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
@@ -2571,15 +2571,15 @@ def generate_all_summary_metrics() -> xr.Dataset:
 
   np.random.seed(0)
   shape = (len(channel), len(metric), len(distribution))
-  incremental_impact = np.random.lognormal(10, 1, size=shape)
+  incremental_outcome = np.random.lognormal(10, 1, size=shape)
   effectiveness = np.random.lognormal(1, 1, size=shape)
   pct_of_contribution = np.random.randint(low=0, high=50, size=shape)
 
   return xr.Dataset(
       data_vars={
-          c.INCREMENTAL_IMPACT: (
+          c.INCREMENTAL_OUTCOME: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              incremental_impact,
+              incremental_outcome,
           ),
           c.PCT_OF_CONTRIBUTION: (
               [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
@@ -2620,7 +2620,7 @@ def generate_response_curve_data(
   spend = np.random.lognormal(
       25, 1, size=(len(spend_multiplier), len(channels))
   )
-  incremental_impact = np.random.lognormal(10, 1, size=shape)
+  incremental_outcome = np.random.lognormal(10, 1, size=shape)
 
   xarray = xr.Dataset(
       data_vars={
@@ -2628,9 +2628,9 @@ def generate_response_curve_data(
               [c.SPEND_MULTIPLIER, c.CHANNEL],
               spend,
           ),
-          c.INCREMENTAL_IMPACT: (
+          c.INCREMENTAL_OUTCOME: (
               [c.SPEND_MULTIPLIER, c.CHANNEL, c.METRIC],
-              incremental_impact,
+              incremental_outcome,
           ),
       },
       coords={
@@ -2709,7 +2709,7 @@ def generate_optimal_frequency_data(
   optimized_effectiveness = np.random.lognormal(
       1, 1, size=(len(rf_channel), len(metric))
   )
-  optimized_incremental_impact = np.random.lognormal(
+  optimized_incremental_outcome = np.random.lognormal(
       1, 1, size=(len(rf_channel), len(metric))
   )
   optimized_pct_of_contribution = np.random.lognormal(
@@ -2740,9 +2740,9 @@ def generate_optimal_frequency_data(
           [c.RF_CHANNEL, c.METRIC],
           optimized_effectiveness,
       ),
-      c.OPTIMIZED_INCREMENTAL_IMPACT: (
+      c.OPTIMIZED_INCREMENTAL_OUTCOME: (
           [c.RF_CHANNEL, c.METRIC],
-          optimized_incremental_impact,
+          optimized_incremental_outcome,
       ),
       c.OPTIMIZED_PCT_OF_CONTRIBUTION: (
           [c.RF_CHANNEL, c.METRIC],

@@ -1325,12 +1325,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     par_structtuple = meridian._get_joint_dist_unpinned().sample(1)
     par = par_structtuple._asdict()
 
-    # Note that "y" is a draw from the prior predictive (transformed) impact
+    # Note that "y" is a draw from the prior predictive (transformed) outcome
     # distribution. We drop it because "y" is already "pinned" in
     # meridian._get_joint_dist() and is not actually a parameter.
     del par["y"]
 
-    # Note that the actual (transformed) impact data is "pinned" as "y".
+    # Note that the actual (transformed) outcome data is "pinned" as "y".
     log_prob_parts_structtuple = meridian._get_joint_dist().log_prob_parts(par)
     log_prob_parts = {
         k: v._asdict() for k, v in log_prob_parts_structtuple._asdict().items()
@@ -1452,12 +1452,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     par_structtuple = meridian._get_joint_dist_unpinned().sample(1)
     par = par_structtuple._asdict()
 
-    # Note that "y" is a draw from the prior predictive (transformed) impact
+    # Note that "y" is a draw from the prior predictive (transformed) outcome
     # distribution. We drop it because "y" is already "pinned" in
     # meridian._get_joint_dist() and is not actually a parameter.
     del par["y"]
 
-    # Note that the actual (transformed) impact data is "pinned" as "y".
+    # Note that the actual (transformed) outcome data is "pinned" as "y".
     log_prob_parts_structtuple = meridian._get_joint_dist().log_prob_parts(par)
     log_prob_parts = {
         k: v._asdict() for k, v in log_prob_parts_structtuple._asdict().items()
@@ -1581,12 +1581,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     par_structtuple = meridian._get_joint_dist_unpinned().sample(1)
     par = par_structtuple._asdict()
 
-    # Note that "y" is a draw from the prior predictive (transformed) impact
+    # Note that "y" is a draw from the prior predictive (transformed) outcome
     # distribution. We drop it because "y" is already "pinned" in
     # meridian._get_joint_dist() and is not actually a parameter.
     del par["y"]
 
-    # Note that the actual (transformed) impact data is "pinned" as "y".
+    # Note that the actual (transformed) outcome data is "pinned" as "y".
     log_prob_parts_structtuple = meridian._get_joint_dist().log_prob_parts(par)
     log_prob_parts = {
         k: v._asdict() for k, v in log_prob_parts_structtuple._asdict().items()
@@ -2932,12 +2932,12 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
     par_structtuple = meridian._get_joint_dist_unpinned().sample(1)
     par = par_structtuple._asdict()
 
-    # Note that "y" is a draw from the prior predictive (transformed) impact
+    # Note that "y" is a draw from the prior predictive (transformed) outcome
     # distribution. We drop it because "y" is already "pinned" in
     # meridian._get_joint_dist() and is not actually a parameter.
     del par["y"]
 
-    # Note that the actual (transformed) impact data is "pinned" as "y".
+    # Note that the actual (transformed) outcome data is "pinned" as "y".
     log_prob_parts_structtuple = meridian._get_joint_dist().log_prob_parts(par)
     log_prob_parts = {
         k: v._asdict() for k, v in log_prob_parts_structtuple._asdict().items()

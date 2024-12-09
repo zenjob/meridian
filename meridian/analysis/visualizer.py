@@ -356,7 +356,7 @@ class ModelDiagnostics:
 class ModelFit:
   """Generates model fit plots from the Meridian model fitting.
 
-  Calculates the expected versus actual impact with the confidence level over
+  Calculates the expected versus actual outcome with the confidence level over
   time, and plots graphs to compare the values.
   """
 
@@ -369,7 +369,7 @@ class ModelFit:
 
     Args:
       meridian: Media mix model with the raw data from the model fitting.
-      confidence_level: Confidence level for expected impact credible intervals
+      confidence_level: Confidence level for expected outcome credible intervals
         represented as a value between zero and one. Default is `0.9`.
     """
     self._meridian = meridian
@@ -380,12 +380,12 @@ class ModelFit:
 
   @property
   def model_fit_data(self) -> xr.Dataset:
-    """Dataset holding the expected, actual, and baseline impact over time.
+    """Dataset holding the expected, actual, and baseline outcome over time.
 
     The dataset contains the following:
 
     - **Coordinates:** `geo`, `time`, `metric` (`mean`, `ci_hi`, `ci_lo`)
-    - **Data variables:** `expected`, `baseline`, `actual` (impact)
+    - **Data variables:** `expected`, `baseline`, `actual` (outcome)
     """
     return self._model_fit_data
 
@@ -403,7 +403,7 @@ class ModelFit:
       include_baseline: bool = True,
       include_ci: bool = True,
   ) -> alt.Chart:
-    """Plots the expected versus actual impact over time.
+    """Plots the expected versus actual outcome over time.
 
     Args:
       selected_times: Optional list of a subset of time dimensions to include.
@@ -419,15 +419,15 @@ class ModelFit:
       show_geo_level: If `True`, plots at the geo-level instead of one national
         level plot. Only available if `selected_geos` or `n_top_largest_geos` is
         provided.
-      include_baseline: If `True`, shows the expected baseline impact without
+      include_baseline: If `True`, shows the expected baseline outcome without
         any media execution.
       include_ci: If `True`, shows the credible intervals for the expected
-        impact.
+        outcome.
 
     Returns:
       An Altair plot showing the model fit.
     """
-    impact = (
+    outcome = (
         c.REVENUE
         if self._meridian.input_data.revenue_per_kpi is not None
         else c.KPI.upper()
@@ -453,8 +453,8 @@ class ModelFit:
       domain.append(c.BASELINE)
       colors.append(c.YELLOW_600)
 
-    title = summary_text.EXPECTED_ACTUAL_IMPACT_CHART_TITLE.format(
-        impact=impact
+    title = summary_text.EXPECTED_ACTUAL_OUTCOME_CHART_TITLE.format(
+        outcome=outcome
     )
     if self._meridian.input_data.revenue_per_kpi is not None:
       y_axis_label = summary_text.REVENUE_LABEL
@@ -583,7 +583,7 @@ class ModelFit:
       selected_times: Optional list of a subset of time dimensions to filter by.
       selected_geos: Optional list of a subset of geo dimensions to filter by.
       show_geo_level: If False, aggregates the geo-level data to national level.
-      include_baseline: If False, removes the expected baseline impact without
+      include_baseline: If False, removes the expected baseline outcome without
         any media execution.
 
     Returns:
@@ -603,12 +603,12 @@ class ModelFit:
                 c.ACTUAL,
             ],
             var_name=c.TYPE,
-            value_name=c.IMPACT,
+            value_name=c.OUTCOME,
         )
         .pivot(
             index=[c.GEO, c.TIME, c.TYPE],
             columns=c.METRIC,
-            values=c.IMPACT,
+            values=c.OUTCOME,
         )
         .reset_index()
     )
@@ -821,7 +821,7 @@ class ReachAndFrequency:
 class MediaEffects:
   """Generates media effects plots for the Meridian model.
 
-  Plots the effects of incremental impact and effectiveness for all channels.
+  Plots incremental outcome and effectiveness for all channels.
   """
 
   def __init__(
@@ -854,7 +854,7 @@ class MediaEffects:
 
     - **Coordinates:** `media`, `metric` (`mean`, `ci_hi`, `ci_lo`),
       `spend_multiplier`
-    - **Data variables:** `spend`, `incremental_impact`, `roi`
+    - **Data variables:** `spend`, `incremental_outcome`, `roi`
 
     Args:
       confidence_level: Confidence level for modeled response credible
@@ -976,7 +976,7 @@ class MediaEffects:
         by_reach=by_reach,
     )
     if self._meridian.input_data.revenue_per_kpi is not None:
-      y_axis_label = summary_text.INC_REVENUE_LABEL
+      y_axis_label = summary_text.INC_OUTCOME_LABEL
     else:
       y_axis_label = summary_text.INC_KPI_LABEL
     base = (
@@ -1296,7 +1296,7 @@ class MediaEffects:
     Returns:
       A DataFrame containing the top chosen channels
       num_channels, ordered by the spend, with the columns being
-      channel, spend, spend_multiplier, ci_hi, ci_lo and incremental_impact
+      channel, spend, spend_multiplier, ci_hi, ci_lo and incremental_outcome
     """
     data = self.response_curves_data(
         confidence_level=confidence_level,
@@ -1310,7 +1310,7 @@ class MediaEffects:
     )
 
     df = (
-        data[[c.SPEND, c.INCREMENTAL_IMPACT]]
+        data[[c.SPEND, c.INCREMENTAL_OUTCOME]]
         .sel(channel=list_sorted_channels_cost[:num_channels])
         .to_dataframe()
         .reset_index()
@@ -1321,7 +1321,7 @@ class MediaEffects:
                 c.SPEND_MULTIPLIER,
             ],
             columns=c.METRIC,
-            values=c.INCREMENTAL_IMPACT,
+            values=c.INCREMENTAL_OUTCOME,
         )
         .reset_index()
     )
@@ -1336,10 +1336,10 @@ class MediaEffects:
 class MediaSummary:
   """Generates media summary metrics plots for the Meridian model.
 
-  Calculates the mean and credible intervals (CI) for each channel's impact
-  metrics (impact, contribution, ROI, mROI, effectiveness) and media summary
-  metrics (impressions, spend). Metrics are calculated at the national-level.
-  These are used for various plots displaying these metrics.
+  Calculates the mean and credible intervals (CI) for each channel's outcome
+  metrics (incremental outcome, contribution, ROI, mROI, effectiveness) and
+  media summary metrics (impressions, spend). Metrics are calculated at the
+  national-level. These are used for various plots displaying these metrics.
   """
 
   def __init__(
@@ -1378,7 +1378,8 @@ class MediaSummary:
     - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`),
       `distribution` (`prior`, `posterior`)
     - **Data variables:** `impressions`, `pct_of_impressions`, `spend`,
-      `pct_of_spend`, `CPM`, `incremental_impact`, `pct_of_contribution`, `roi`,
+      `pct_of_spend`, `CPM`, `incremental_outcome`, `pct_of_contribution`,
+      `roi`,
       `effectiveness`, `mroi`.
     """
     return self._analyzer.summary_metrics(
@@ -1397,7 +1398,7 @@ class MediaSummary:
 
     - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`),
       `distribution` (`prior`, `posterior`)
-    - **Data variables:** `incremental_impact`, `pct_of_contribution`,
+    - **Data variables:** `incremental_outcome`, `pct_of_contribution`,
       `effectiveness`.
     """
     return self._analyzer.summary_metrics(
@@ -1444,12 +1445,12 @@ class MediaSummary:
         c.PCT_OF_CONTRIBUTION,
     ]
     if include_non_paid_channels:
-      monetary_metrics = [c.INCREMENTAL_IMPACT] * use_revenue
+      monetary_metrics = [c.INCREMENTAL_OUTCOME] * use_revenue
       summary_metrics = self.all_summary_metrics
       columns_rename_dict = {
           c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
-          c.INCREMENTAL_IMPACT: (
-              summary_text.INC_REVENUE_COL
+          c.INCREMENTAL_OUTCOME: (
+              summary_text.INC_OUTCOME_COL
               if use_revenue
               else summary_text.INC_KPI_COL
           ),
@@ -1467,15 +1468,15 @@ class MediaSummary:
       ])
       monetary_metrics = [c.CPM, c.CPIK] + [
           c.SPEND,
-          c.INCREMENTAL_IMPACT,
+          c.INCREMENTAL_OUTCOME,
       ] * use_revenue
       summary_metrics = self.paid_summary_metrics
       columns_rename_dict = {
           c.PCT_OF_IMPRESSIONS: summary_text.PCT_IMPRESSIONS_COL,
           c.PCT_OF_SPEND: summary_text.PCT_SPEND_COL,
           c.PCT_OF_CONTRIBUTION: summary_text.PCT_CONTRIBUTION_COL,
-          c.INCREMENTAL_IMPACT: (
-              summary_text.INC_REVENUE_COL
+          c.INCREMENTAL_OUTCOME: (
+              summary_text.INC_OUTCOME_COL
               if use_revenue
               else summary_text.INC_KPI_COL
           ),
@@ -1561,35 +1562,35 @@ class MediaSummary:
     """Plots a waterfall chart of the contribution share per channel.
 
     Returns:
-      An Altair plot showing the impact contributions per channel.
+      An Altair plot showing the contributions per channel.
     """
-    impact = (
+    outcome = (
         c.REVENUE.title()
         if self._meridian.input_data.revenue_per_kpi is not None
         else c.KPI.upper()
     )
-    impact_df = self._transform_contribution_metrics(include_non_paid=True)
+    outcome_df = self._transform_contribution_metrics(include_non_paid=True)
     pct = c.PCT_OF_CONTRIBUTION
-    value = c.INCREMENTAL_IMPACT
-    impact_df['impact_text'] = impact_df.apply(
+    value = c.INCREMENTAL_OUTCOME
+    outcome_df['outcome_text'] = outcome_df.apply(
         lambda x: formatter.format_number_text(x[pct], x[value]),
         axis=1,
     )
-    impact_df[c.CHANNEL] = impact_df[c.CHANNEL].str.upper()
+    outcome_df[c.CHANNEL] = outcome_df[c.CHANNEL].str.upper()
 
-    num_channels = len(impact_df[c.CHANNEL])
+    num_channels = len(outcome_df[c.CHANNEL])
 
     base = (
-        alt.Chart(impact_df)
+        alt.Chart(outcome_df)
         .transform_window(
-            sum_impact=f'sum({c.PCT_OF_CONTRIBUTION})',
+            sum_outcome=f'sum({c.PCT_OF_CONTRIBUTION})',
             kwargs=f'lead({c.CHANNEL})',
         )
         .transform_calculate(
-            prev_sum=f'datum.sum_impact - datum.{c.PCT_OF_CONTRIBUTION}',
+            prev_sum=f'datum.sum_outcome - datum.{c.PCT_OF_CONTRIBUTION}',
             text_x=(
-                'datum.incremental_impact < 0 ? datum.prev_sum :'
-                ' datum.sum_impact'
+                'datum.incremental_outcome < 0 ? datum.prev_sum :'
+                ' datum.sum_outcome'
             ),
         )
         .encode(
@@ -1604,7 +1605,7 @@ class MediaSummary:
             )
         )
     )
-    x_axis_label = f'% {impact}'
+    x_axis_label = f'% {outcome}'
     bar = base.mark_bar(size=c.BAR_SIZE).encode(
         x=alt.X(
             'prev_sum:Q',
@@ -1617,7 +1618,7 @@ class MediaSummary:
                 labelPadding=c.PADDING_10,
             ),
         ),
-        x2='sum_impact:Q',
+        x2='sum_outcome:Q',
         color=alt.condition(
             alt.datum.channel == c.BASELINE.upper(),
             alt.value(c.YELLOW_600),
@@ -1630,7 +1631,7 @@ class MediaSummary:
         fontSize=c.TEXT_FONT_SIZE,
         color=c.GREY_700,
     ).encode(
-        text='impact_text',
+        text='outcome_text',
         x='text_x:Q',
     )
     return (
@@ -1648,18 +1649,18 @@ class MediaSummary:
     )
 
   def plot_contribution_pie_chart(self) -> alt.Chart:
-    """Plots a pie chart of the total impact contributions from channels.
+    """Plots a pie chart of the total contributions from channels.
 
     Returns:
       An Altair plot showing the contributions for all channels.
     """
-    impact_df = self._transform_contribution_metrics(
+    outcome_df = self._transform_contribution_metrics(
         [c.ALL_CHANNELS], include_non_paid=True
     )
 
     domain = [c.BASELINE, c.ALL_CHANNELS]
     colors = [c.YELLOW_600, c.BLUE_700]
-    base = alt.Chart(impact_df).encode(
+    base = alt.Chart(outcome_df).encode(
         alt.Theta(f'{c.PCT_OF_CONTRIBUTION}:Q', stack=True),
         alt.Color(
             f'{c.CHANNEL}:N',
@@ -1683,7 +1684,7 @@ class MediaSummary:
         font=c.FONT_ROBOTO,
     ).encode(text=alt.Text(f'{c.PCT_OF_CONTRIBUTION}:Q', format='.0%'))
     return (
-        alt.layer(pie, text, data=impact_df)
+        alt.layer(pie, text, data=outcome_df)
         .configure_view(stroke=None)
         .properties(
             title=formatter.custom_title_params(
@@ -1697,26 +1698,26 @@ class MediaSummary:
 
     This compares the spend and contribution percentages for each channel, and
     the ROI per channel. The contribution percentages are out of the total
-    media-driven impact amount.
+    media-driven outcome amount.
 
     Returns:
-      An Altair plot showing the spend versus impact percentages per channel.
+      An Altair plot showing the spend versus outcome percentages per channel.
     """
-    impact = (
+    outcome = (
         c.REVENUE
         if self._meridian.input_data.revenue_per_kpi is not None
         else c.KPI.upper()
     )
     df = self._transform_contribution_spend_metrics()
     domain = [
-        f'% {impact.title() if impact == c.REVENUE else impact}',
+        f'% {outcome.title() if outcome == c.REVENUE else outcome}',
         '% Spend',
     ]
-    title = summary_text.SPEND_IMPACT_CHART_TITLE.format(impact=impact)
+    title = summary_text.SPEND_OUTCOME_CHART_TITLE.format(outcome=outcome)
     colors = [c.BLUE_400, c.BLUE_200]
     domain.append('Return on Investment')
     colors.append(c.GREEN_700)
-    spend_impact = (
+    spend_outcome = (
         alt.Chart()
         .mark_bar(cornerRadiusEnd=2, tooltip=True)
         .encode(
@@ -1773,9 +1774,9 @@ class MediaSummary:
             y=f'{c.ROI_SCALED}:Q',
         )
     )
-    layer = alt.layer(spend_impact, roi_marker, roi_text, data=df)
+    layer = alt.layer(spend_outcome, roi_marker, roi_text, data=df)
 
-    # To group the impact and spend bar plot with the ROI markers, facet the
+    # To group the outcome and spend bar plot with the ROI markers, facet the
     # layered plot by channel. This creates separate plots per channel.
     # To appear as 1 plot, remove the spacing between the facets and remove the
     # border outlines.
@@ -2077,8 +2078,8 @@ class MediaSummary:
   ) -> pd.DataFrame:
     """Transforms the media metrics for the contribution plot.
 
-    This adds the calculations for incremental impact and percentages of the
-    expected impact for the baseline, where there is no media effects. It also
+    This adds the calculations for incremental outcome and percentages of the
+    expected outcome for the baseline, where there is no media effects. It also
     transforms the percentages to values between 0 and 1 for Altair to format
     when plotting.
 
@@ -2088,7 +2089,7 @@ class MediaSummary:
         non-media channels in the contribution plot. Defaults to `False`.
 
     Returns:
-      A dataframe with impact contributions per channel.
+      A dataframe with contributions per channel.
     """
     total_media_criteria = {
         c.DISTRIBUTION: c.POSTERIOR,
@@ -2100,58 +2101,60 @@ class MediaSummary:
         if include_non_paid
         else self.paid_summary_metrics
     )
-    total_media_impact = (
-        summary_metrics[c.INCREMENTAL_IMPACT].sel(total_media_criteria).item()
+    total_media_outcome = (
+        summary_metrics[c.INCREMENTAL_OUTCOME].sel(total_media_criteria).item()
     )
     total_media_pct = (
         summary_metrics[c.PCT_OF_CONTRIBUTION].sel(total_media_criteria).item()
         / 100
     )
-    total_impact = total_media_impact / total_media_pct
+    total_outcome = total_media_outcome / total_media_pct
     baseline_pct = 1 - total_media_pct
-    baseline_impact = total_impact * baseline_pct
+    baseline_outcome = total_outcome * baseline_pct
 
     baseline_df = pd.DataFrame(
         {
             c.CHANNEL: c.BASELINE,
-            c.INCREMENTAL_IMPACT: baseline_impact,
+            c.INCREMENTAL_OUTCOME: baseline_outcome,
             c.PCT_OF_CONTRIBUTION: baseline_pct,
         },
         index=[0],
     )
-    impact_df = self._summary_metrics_to_mean_df(
+    outcome_df = self._summary_metrics_to_mean_df(
         metrics=[
-            c.INCREMENTAL_IMPACT,
+            c.INCREMENTAL_OUTCOME,
             c.PCT_OF_CONTRIBUTION,
         ],
         selected_channels=selected_channels,
         include_non_paid=include_non_paid,
     )
     # Convert to percentage values between 0-1.
-    impact_df[c.PCT_OF_CONTRIBUTION] = impact_df[c.PCT_OF_CONTRIBUTION].div(100)
-    impact_df = pd.concat([baseline_df, impact_df]).reset_index(drop=True)
-    impact_df.sort_values(
-        by=c.INCREMENTAL_IMPACT, ascending=False, inplace=True
+    outcome_df[c.PCT_OF_CONTRIBUTION] = outcome_df[c.PCT_OF_CONTRIBUTION].div(
+        100
     )
-    return impact_df
+    outcome_df = pd.concat([baseline_df, outcome_df]).reset_index(drop=True)
+    outcome_df.sort_values(
+        by=c.INCREMENTAL_OUTCOME, ascending=False, inplace=True
+    )
+    return outcome_df
 
   def _transform_contribution_spend_metrics(self) -> pd.DataFrame:
     """Transforms the media metrics for the spend vs contribution plot.
 
     The dataframe holds the percentages spent on each channel and then
-    percentage of incremental impact attributed to each channel out of the
-    total media-driven impact. It combines these percentages with the ROI per
+    percentage of incremental outcome attributed to each channel out of the
+    total media-driven outcome. It combines these percentages with the ROI per
     channel and scales the ROI to fit the percentage data.
 
     Returns:
-      A dataframe of spend and impact percentages and ROI per channel.
+      A dataframe of spend and outcome percentages and ROI per channel.
     """
     if self._meridian.input_data.revenue_per_kpi is not None:
-      impact = summary_text.REVENUE_LABEL
+      outcome = summary_text.REVENUE_LABEL
     else:
-      impact = summary_text.KPI_LABEL
-    total_media_impact = (
-        self.paid_summary_metrics[c.INCREMENTAL_IMPACT]
+      outcome = summary_text.KPI_LABEL
+    total_media_outcome = (
+        self.paid_summary_metrics[c.INCREMENTAL_OUTCOME]
         .sel(
             distribution=c.POSTERIOR,
             metric=c.MEAN,
@@ -2159,14 +2162,14 @@ class MediaSummary:
         )
         .item()
     )
-    impact_pct_df = self._summary_metrics_to_mean_df(
-        metrics=[c.INCREMENTAL_IMPACT]
+    outcome_pct_df = self._summary_metrics_to_mean_df(
+        metrics=[c.INCREMENTAL_OUTCOME]
     )
-    impact_pct_df[c.PCT] = impact_pct_df[c.INCREMENTAL_IMPACT].div(
-        total_media_impact
+    outcome_pct_df[c.PCT] = outcome_pct_df[c.INCREMENTAL_OUTCOME].div(
+        total_media_outcome
     )
-    impact_pct_df.drop(columns=[c.INCREMENTAL_IMPACT], inplace=True)
-    impact_pct_df['label'] = f'% {impact}'
+    outcome_pct_df.drop(columns=[c.INCREMENTAL_OUTCOME], inplace=True)
+    outcome_pct_df['label'] = f'% {outcome}'
     spend_pct_df = (
         self.paid_summary_metrics[c.PCT_OF_SPEND]
         .drop_sel(channel=[c.ALL_CHANNELS])
@@ -2177,7 +2180,7 @@ class MediaSummary:
     spend_pct_df[c.PCT] = spend_pct_df[c.PCT].div(100)
     spend_pct_df['label'] = '% Spend'
 
-    pct_df = pd.concat([impact_pct_df, spend_pct_df])
+    pct_df = pd.concat([outcome_pct_df, spend_pct_df])
     roi_df = self._summary_metrics_to_mean_df(metrics=[c.ROI])
     plot_df = pct_df.merge(roi_df, on=c.CHANNEL)
     scale_factor = plot_df[c.PCT].max() / plot_df[c.ROI].max()

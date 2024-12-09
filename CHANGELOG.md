@@ -23,6 +23,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [0.12.0] - 2024-12-09
+* Rename `incremental_impact` to `incremental_outcome`.
+* Rename `plot_incremental_impact_delta` to `plot_incremental_outcome_delta`.
+
 ## [0.11.2] - 2024-11-27
 * Remove deprecated `all_channel_names` property from `Meridian` class.
 
@@ -120,5 +124,6 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.11.0]: https://github.com/google/meridian/releases/tag/v0.11.0
 [0.11.1]: https://github.com/google/meridian/releases/tag/v0.11.1
 [0.11.2]: https://github.com/google/meridian/releases/tag/v0.11.2
-[Unreleased]: https://github.com/google/meridian/compare/v0.11.2...HEAD
+[0.12.0]: https://github.com/google/meridian/releases/tag/v0.12.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.12.0...HEAD
 

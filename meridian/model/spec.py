@@ -103,11 +103,11 @@ class ModelSpec:
     holdout_id: Optional boolean tensor of dimensions `(n_geos, n_times)` for a
       geo-level model or `(n_times,)` for a national model, indicating which
       observations are part of the holdout sample, which are excluded from the
-      training sample. Only KPI or revenue (impact) data is excluded from the
-      training sample. Media data is still included as it can affect Adstock for
-      subsequent weeks. If "ROI priors" are used, such as `use_roi_prior=True`,
-      then the `roi_m` parameters correspond to the ROI of all geos and times,
-      even those in the holdout sample.
+      training sample. Only KPI data is excluded from the training sample. Media
+      data is still included as it can affect Adstock for subsequent weeks. If
+      "ROI priors" are used, such as `use_roi_prior=True`, then the `roi_m`
+      parameters correspond to the ROI of all geos and times, even those in the
+      holdout sample.
     control_population_scaling_id: An optional boolean tensor of dimension
       `(n_controls,)` indicating the control variables for which the control
       value will be scaled by population. If `None`, no control variables are

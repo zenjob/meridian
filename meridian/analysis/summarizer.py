@@ -163,7 +163,7 @@ class Summarizer:
         self._create_model_fit_card_html(
             template_env, selected_times=selected_times
         ),
-        self._create_impact_contrib_card_html(template_env, media_summary),
+        self._create_outcome_contrib_card_html(template_env, media_summary),
         self._create_performance_breakdown_card_html(
             template_env, media_summary
         ),
@@ -182,11 +182,11 @@ class Summarizer:
   ) -> str:
     """Creates the HTML snippet for the Model Fit card."""
     model_fit = self._model_fit
-    impact = self._kpi_or_revenue()
-    expected_actual_impact_chart = formatter.ChartSpec(
-        id=summary_text.EXPECTED_ACTUAL_IMPACT_CHART_ID,
-        description=summary_text.EXPECTED_ACTUAL_IMPACT_CHART_DESCRIPTION_FORMAT.format(
-            impact=impact
+    outcome = self._kpi_or_revenue()
+    expected_actual_outcome_chart = formatter.ChartSpec(
+        id=summary_text.EXPECTED_ACTUAL_OUTCOME_CHART_ID,
+        description=summary_text.EXPECTED_ACTUAL_OUTCOME_CHART_DESCRIPTION_FORMAT.format(
+            outcome=outcome
         ),
         chart_json=model_fit.plot_model_fit(**kwargs).to_json(),
     )
@@ -198,12 +198,12 @@ class Summarizer:
         template_env,
         MODEL_FIT_CARD_SPEC,
         insights,
-        [expected_actual_impact_chart, predictive_accuracy_table],
+        [expected_actual_outcome_chart, predictive_accuracy_table],
     )
 
   def _predictive_accuracy_table_spec(self, **kwargs) -> formatter.TableSpec:
     """Creates the HTML snippet for the predictive accuracy table."""
-    impact = self._kpi_or_revenue()
+    outcome = self._kpi_or_revenue()
     model_diag = self._model_diagnostics
     table = model_diag.predictive_accuracy_table(column_var=c.METRIC, **kwargs)
 
@@ -253,54 +253,58 @@ class Summarizer:
         id=summary_text.PREDICTIVE_ACCURACY_TABLE_ID,
         title=summary_text.PREDICTIVE_ACCURACY_TABLE_TITLE,
         description=summary_text.PREDICTIVE_ACCURACY_TABLE_DESCRIPTION.format(
-            impact=impact
+            outcome=outcome
         ),
         column_headers=column_names,
         row_values=row_values,
     )
 
-  def _create_impact_contrib_card_html(
+  def _create_outcome_contrib_card_html(
       self,
       template_env: jinja2.Environment,
       media_summary: visualizer.MediaSummary,
   ) -> str:
-    """Creates the HTML snippet for the Impact Contrib card."""
-    impact = self._kpi_or_revenue()
+    """Creates the HTML snippet for the Outcome Contrib card."""
+    outcome = self._kpi_or_revenue()
     channel_drivers_chart = formatter.ChartSpec(
         id=summary_text.CHANNEL_DRIVERS_CHART_ID,
         description=summary_text.CHANNEL_DRIVERS_CHART_DESCRIPTION.format(
-            impact=impact
+            outcome=outcome
         ),
         chart_json=media_summary.plot_contribution_waterfall_chart().to_json(),
     )
     lead_channels = self._get_sorted_posterior_mean_metrics_df(
-        media_summary, [c.INCREMENTAL_IMPACT]
+        media_summary, [c.INCREMENTAL_OUTCOME]
     )[c.CHANNEL][:2]
     formatted_channels = [channel.title() for channel in lead_channels]
 
-    spend_impact_chart = formatter.ChartSpec(
-        id=summary_text.SPEND_IMPACT_CHART_ID,
-        description=summary_text.SPEND_IMPACT_CHART_DESCRIPTION.format(
-            impact=impact
+    spend_outcome_chart = formatter.ChartSpec(
+        id=summary_text.SPEND_OUTCOME_CHART_ID,
+        description=summary_text.SPEND_OUTCOME_CHART_DESCRIPTION.format(
+            outcome=outcome
         ),
         chart_json=media_summary.plot_spend_vs_contribution().to_json(),
     )
-    impact_contribution_chart = formatter.ChartSpec(
-        id=summary_text.IMPACT_CONTRIBUTION_CHART_ID,
-        description=summary_text.IMPACT_CONTRIBUTION_CHART_DESCRIPTION.format(
-            impact=impact
+    outcome_contribution_chart = formatter.ChartSpec(
+        id=summary_text.OUTCOME_CONTRIBUTION_CHART_ID,
+        description=summary_text.OUTCOME_CONTRIBUTION_CHART_DESCRIPTION.format(
+            outcome=outcome
         ),
         chart_json=media_summary.plot_contribution_pie_chart().to_json(),
     )
     insights = summary_text.CHANNEL_CONTRIB_INSIGHTS_FORMAT.format(
-        impact=impact,
+        outcome=outcome,
         lead_channels=' and '.join(formatted_channels),
     )
     return formatter.create_card_html(
         template_env,
         CHANNEL_CONTRIB_CARD_SPEC,
         insights,
-        [channel_drivers_chart, spend_impact_chart, impact_contribution_chart],
+        [
+            channel_drivers_chart,
+            spend_outcome_chart,
+            outcome_contribution_chart,
+        ],
     )
 
   def _get_sorted_posterior_mean_metrics_df(
@@ -400,13 +404,13 @@ class Summarizer:
       reach_frequency: visualizer.ReachAndFrequency | None,
   ) -> str:
     """Creates the HTML snippet for the Optimal Analyst card."""
-    impact = self._kpi_or_revenue()
+    outcome = self._kpi_or_revenue()
     charts = []
     charts.append(
         formatter.ChartSpec(
             id=summary_text.RESPONSE_CURVES_CHART_ID,
             description=summary_text.RESPONSE_CURVES_CHART_DESCRIPTION_FORMAT.format(
-                impact=impact
+                outcome=outcome
             ),
             chart_json=media_effects.plot_response_curves(
                 confidence_level=c.DEFAULT_CONFIDENCE_LEVEL,
@@ -421,7 +425,7 @@ class Summarizer:
     )
 
     insights = summary_text.RESPONSE_CURVES_INSIGHTS_FORMAT.format(
-        impact=impact
+        outcome=outcome
     )
     if reach_frequency is not None:
       assert self._meridian.n_rf_channels > 0
@@ -482,7 +486,7 @@ class Summarizer:
 
   def _kpi_or_revenue(self) -> str:
     if self._meridian.input_data.revenue_per_kpi is not None:
-      impact_str = c.REVENUE
+      outcome_str = c.REVENUE
     else:
-      impact_str = c.KPI.upper()
-    return impact_str
+      outcome_str = c.KPI.upper()
+    return outcome_str

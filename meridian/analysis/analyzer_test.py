@@ -271,9 +271,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       )
     self.assertEqual(outcome.shape, expected_shape)
 
-  def test_incremental_impact_new_controls_raises_warning(self):
+  def test_incremental_outcome_new_controls_raises_warning(self):
     with warnings.catch_warnings(record=True) as w:
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(
               controls=self.meridian_media_and_rf.controls
           ),
@@ -283,8 +283,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertTrue(issubclass(w[0].category, UserWarning))
       self.assertIn(
           "A `controls` value was passed in the `new_data` argument to the"
-          " `incremental_impact()` method. This has no effect on the output and"
-          " will be ignored.",
+          " `incremental_outcome()` method. This has no effect on the output"
+          " and will be ignored.",
           str(w[0].message),
       )
 
@@ -310,13 +310,13 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           "new_revenue_per_kpi must have 2 dimension(s). Found 1 dimension(s).",
       ),
   )
-  def test_incremental_impact_wrong_media_param_dims_raises_exception(
+  def test_incremental_outcome_wrong_media_param_dims_raises_exception(
       self,
       new_param: analyzer.DataTensors,
       expected_error_message: str,
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, expected_error_message):
-      self.analyzer_media_and_rf.incremental_impact(new_data=new_param)
+      self.analyzer_media_and_rf.incremental_outcome(new_data=new_param)
 
   @parameterized.named_parameters(
       ("missing_media", "media"),
@@ -324,7 +324,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       ("missing_frequency", "frequency"),
       ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
-  def test_incremental_impact_missing_new_param_raises_exception(
+  def test_incremental_outcome_missing_new_param_raises_exception(
       self, missing_param: str
   ):
     new_data_dict = {
@@ -342,34 +342,34 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(**new_data_dict)
       )
 
-  def test_incremental_impact_negative_scaling_factor0(self):
+  def test_incremental_outcome_negative_scaling_factor0(self):
     with self.assertRaisesRegex(
         ValueError,
         "scaling_factor0 must be non-negative.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(scaling_factor0=-0.01)
+      self.analyzer_media_and_rf.incremental_outcome(scaling_factor0=-0.01)
 
-  def test_incremental_impact_negative_scaling_factor1(self):
+  def test_incremental_outcome_negative_scaling_factor1(self):
     with self.assertRaisesRegex(
         ValueError, "scaling_factor1 must be non-negative."
     ):
-      self.analyzer_media_and_rf.incremental_impact(scaling_factor1=-0.01)
+      self.analyzer_media_and_rf.incremental_outcome(scaling_factor1=-0.01)
 
-  def test_incremental_impact_scaling_factor1_less_than_scaling_factor0(self):
+  def test_incremental_outcome_scaling_factor1_less_than_scaling_factor0(self):
     with self.assertRaisesRegex(
         ValueError,
         "scaling_factor1 must be greater than scaling_factor0. Got"
         " scaling_factor1=1.0 and scaling_factor0=1.1.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           scaling_factor0=1.1, scaling_factor1=1.0
       )
 
-  def test_incremental_impact_flexible_times_selected_times_wrong_type(self):
+  def test_incremental_outcome_flexible_times_selected_times_wrong_type(self):
     with self.assertRaisesRegex(
         ValueError,
         "If new_media, new_reach, new_frequency, new_organic_media,"
@@ -379,7 +379,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         " booleans with length equal to the number of time periods in the new"
         " data.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(
               media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
               reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
@@ -389,7 +389,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
       )
 
-  def test_incremental_impact_flexible_times_media_selected_times_wrong_type(
+  def test_incremental_outcome_flexible_times_media_selected_times_wrong_type(
       self,
   ):
     with self.assertRaisesRegex(
@@ -401,7 +401,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         " booleans with length equal to the number of time periods in the new"
         " data.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(
               media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
               reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
@@ -411,43 +411,43 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           media_selected_times=["2021-04-19", "2021-09-13", "2021-12-13"],
       )
 
-  def test_incremental_impact_media_selected_times_wrong_length(self):
+  def test_incremental_outcome_media_selected_times_wrong_length(self):
     with self.assertRaisesRegex(
         ValueError,
         "Boolean `media_selected_times` must have the same number of elements "
         "as there are time period coordinates in the media tensors.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           media_selected_times=[False] * (_N_MEDIA_TIMES - 10) + [True],
       )
 
-  def test_incremental_impact_media_selected_times_wrong_time_dim_names(self):
+  def test_incremental_outcome_media_selected_times_wrong_time_dim_names(self):
     with self.assertRaisesRegex(
         ValueError,
         "`media_selected_times` must match the time dimension names from "
         "meridian.InputData.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           media_selected_times=["random_time"],
       )
 
-  def test_incremental_impact_incorrect_media_selected_times_type(self):
+  def test_incremental_outcome_incorrect_media_selected_times_type(self):
     with self.assertRaisesRegex(
         ValueError,
         "`media_selected_times` must be a list of strings or a list of"
         " booleans.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           media_selected_times=["random_time", False, True],
       )
 
-  def test_incremental_impact_new_params_diff_time_dims_raises_exception(self):
+  def test_incremental_outcome_new_params_diff_time_dims_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_revenue_per_kpi must have the same number of time periods as the "
         "other media tensor arguments.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(
               media=tf.ones((_N_GEOS, 10, _N_MEDIA_CHANNELS)),
               reach=tf.ones((_N_GEOS, 10, _N_RF_CHANNELS)),
@@ -456,69 +456,73 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           )
       )
 
-  def test_incremental_impact_wrong_new_param_n_geos_raises_exception(self):
+  def test_incremental_outcome_wrong_new_param_n_geos_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_media is expected to have 5 geos. Found 4 geos.",
     ):
       shape = (_N_GEOS - 1, _N_MEDIA_TIMES, _N_MEDIA_CHANNELS)
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(media=tf.ones(shape))
       )
 
-  def test_incremental_impact_wrong_n_channels_raises_exception(self):
+  def test_incremental_outcome_wrong_n_channels_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_reach is expected to have third dimension of size 2. Actual size "
         "is 1.",
     ):
       shape = (_N_GEOS, _N_MEDIA_TIMES, _N_RF_CHANNELS - 1)
-      self.analyzer_media_and_rf.incremental_impact(
+      self.analyzer_media_and_rf.incremental_outcome(
           new_data=analyzer.DataTensors(reach=tf.ones(shape))
       )
 
-  def test_incremental_impact_wrong_kpi_transformation(self):
+  def test_incremental_outcome_wrong_kpi_transformation(self):
     with self.assertRaisesRegex(
         ValueError,
         "use_kpi=False is only supported when inverse_transform_outcome=True.",
     ):
-      self.analyzer_media_and_rf.incremental_impact(
-          inverse_transform_impact=False, use_kpi=False
+      self.analyzer_media_and_rf.incremental_outcome(
+          inverse_transform_outcome=False, use_kpi=False
       )
 
-  def test_incremental_impact_new_revenue_per_kpi_correct_shape(self):
-    impact = self.analyzer_media_and_rf.incremental_impact(
+  def test_incremental_outcome_new_revenue_per_kpi_correct_shape(self):
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         new_data=analyzer.DataTensors(
             revenue_per_kpi=tf.ones((_N_GEOS, _N_TIMES))
         ),
     )
     self.assertEqual(
-        impact.shape, (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + _N_RF_CHANNELS)
+        outcome.shape, (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + _N_RF_CHANNELS)
     )
 
-  def test_incremental_impact_media_selected_times_all_false_returns_zero(self):
-    no_media_times = self.analyzer_media_and_rf.incremental_impact(
+  def test_incremental_outcome_media_selected_times_all_false_returns_zero(
+      self,
+  ):
+    no_media_times = self.analyzer_media_and_rf.incremental_outcome(
         media_selected_times=[False] * _N_MEDIA_TIMES
     )
     self.assertAllEqual(no_media_times, tf.zeros_like(no_media_times))
 
-  def test_incremental_impact_no_overlap_between_media_and_selected_times(self):
+  def test_incremental_outcome_no_overlap_between_media_and_selected_times(
+      self,
+  ):
     # If for any time period where media_selected_times is True, selected_times
     # is False for this time period and the following `max_lag` time periods,
-    # then the incremental impact should be zero.
+    # then the incremental outcome should be zero.
     max_lag = self.meridian_media_and_rf.model_spec.max_lag
     media_selected_times = [
         self.meridian_media_and_rf.input_data.media_time.values[0]
     ]
     selected_times = [False] * (max_lag + 1) + [True] * (_N_TIMES - max_lag - 1)
-    impact = self.analyzer_media_and_rf.incremental_impact(
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         selected_times=selected_times,
         media_selected_times=media_selected_times,
     )
-    self.assertAllEqual(impact, tf.zeros_like(impact))
+    self.assertAllEqual(outcome, tf.zeros_like(outcome))
 
-  def test_incremental_impact_media_and_selected_times_overlap_non_zero(self):
-    # Incremental impact should be non-zero when there is at least one time
+  def test_incremental_outcome_media_and_selected_times_overlap_non_zero(self):
+    # Incremental outcome should be non-zero when there is at least one time
     # period of overlap between media_selected_times and selected_times. In this
     # case, media_selected_times is True for week 1 and selected_times is True
     # for week `max_lag+1` and the following weeks.
@@ -528,12 +532,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     selected_times = [False] * (max_lag - excess_times) + [True] * (
         _N_TIMES - max_lag + excess_times
     )
-    impact = self.analyzer_media_and_rf.incremental_impact(
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         selected_times=selected_times,
         media_selected_times=media_selected_times,
     )
-    mean_inc_impact = tf.reduce_mean(impact, axis=(0, 1))
-    self.assertNotAllEqual(mean_inc_impact, tf.zeros_like(mean_inc_impact))
+    mean_inc_outcome = tf.reduce_mean(outcome, axis=(0, 1))
+    self.assertNotAllEqual(mean_inc_outcome, tf.zeros_like(mean_inc_outcome))
 
   @parameterized.product(
       use_posterior=[False, True],
@@ -546,7 +550,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           [False] * (_N_TIMES - 3) + [True] * 3,
       ],
   )
-  def test_incremental_impact_media_and_rf_returns_correct_shape(
+  def test_incremental_outcome_media_and_rf_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -554,7 +558,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
-    impact = self.analyzer_media_and_rf.incremental_impact(
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -576,22 +580,22 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         n_times = _N_TIMES
       expected_shape += (n_times,)
     expected_shape += (_N_MEDIA_CHANNELS + _N_RF_CHANNELS,)
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   # The purpose of this test is to prevent accidental logic change.
   @parameterized.named_parameters(
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_outcome=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_PRIOR,
+          expected_outcome=test_utils.INC_OUTCOME_MEDIA_AND_RF_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_outcome=test_utils.INC_IMPACT_MEDIA_AND_RF_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_OUTCOME_MEDIA_AND_RF_USE_POSTERIOR,
       ),
   )
-  def test_incremental_impact_media_and_rf(
+  def test_incremental_outcome_media_and_rf(
       self,
       use_posterior: bool,
       expected_outcome: np.ndarray,
@@ -599,22 +603,22 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    impact = self.analyzer_media_and_rf.incremental_impact(
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
-        impact,
+        outcome,
         tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
 
   # The purpose of this test is to prevent accidental logic change.
-  def test_incremental_impact_media_and_rf_new_params(self):
+  def test_incremental_outcome_media_and_rf_new_params(self):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    impact = self.analyzer_media_and_rf.incremental_impact(
+    outcome = self.analyzer_media_and_rf.incremental_outcome(
         new_data=analyzer.DataTensors(
             media=self.meridian_media_and_rf.media_tensors.media[..., -10:, :],
             reach=self.meridian_media_and_rf.rf_tensors.reach[..., -10:, :],
@@ -627,8 +631,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         ),
     )
     self.assertAllClose(
-        impact,
-        tf.convert_to_tensor(test_utils.INC_IMPACT_MEDIA_AND_RF_NEW_PARAMS),
+        outcome,
+        tf.convert_to_tensor(test_utils.INC_OUTCOME_MEDIA_AND_RF_NEW_PARAMS),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -806,7 +810,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             self.meridian_media_and_rf.total_spend
         )
     )
-    expected_roi = self.analyzer_media_and_rf.incremental_impact() / total_spend
+    expected_roi = (
+        self.analyzer_media_and_rf.incremental_outcome() / total_spend
+    )
     self.assertAllClose(expected_roi, roi)
 
   @parameterized.product(
@@ -850,8 +856,9 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             self.meridian_media_and_rf.total_spend
         )
     )
-    expected_cpik = total_spend / self.analyzer_media_and_rf.incremental_impact(
-        use_kpi=True
+    expected_cpik = (
+        total_spend
+        / self.analyzer_media_and_rf.incremental_outcome(use_kpi=True)
     )
     self.assertAllClose(expected_cpik, cpik)
 
@@ -964,7 +971,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             constants.SPEND,
             constants.PCT_OF_SPEND,
             constants.CPM,
-            constants.INCREMENTAL_IMPACT,
+            constants.INCREMENTAL_OUTCOME,
             constants.PCT_OF_CONTRIBUTION,
             constants.ROI,
             constants.EFFECTIVENESS,
@@ -992,8 +999,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         test_utils.SAMPLE_CPM,
     )
     self.assertAllClose(
-        media_summary.incremental_impact,
-        test_utils.SAMPLE_INCREMENTAL_IMPACT,
+        media_summary.incremental_outcome,
+        test_utils.SAMPLE_INCREMENTAL_OUTCOME,
         atol=1e-2,
         rtol=1e-2,
     )
@@ -1027,11 +1034,11 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         selected_geos=None,
         selected_times=None,
     )
-    self.assertIsNotNone(baseline_summary.baseline_impact)
+    self.assertIsNotNone(baseline_summary.baseline_outcome)
     self.assertIsNotNone(baseline_summary.pct_of_contribution)
     self.assertAllClose(
-        baseline_summary.baseline_impact,
-        test_utils.SAMPLE_BASELINE_EXPECTED_IMPACT,
+        baseline_summary.baseline_outcome,
+        test_utils.SAMPLE_BASELINE_EXPECTED_OUTCOME,
         atol=1e-2,
         rtol=1e-2,
     )
@@ -1090,7 +1097,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.pct_of_spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
-    self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
+    self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
@@ -1134,7 +1141,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         4,
         2,
     )
-    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.baseline_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
   def test_optimal_frequency_data_media_and_rf_correct(self):
@@ -1179,7 +1186,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
-            constants.OPTIMIZED_INCREMENTAL_IMPACT: (
+            constants.OPTIMIZED_INCREMENTAL_OUTCOME: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
                     [1244.8, 1249.58, 436.19, 2047.89],
@@ -1232,8 +1239,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
-        actual.optimized_incremental_impact,
-        expected.optimized_incremental_impact,
+        actual.optimized_incremental_outcome,
+        expected.optimized_incremental_outcome,
         atol=0.1,
     )
     xr.testing.assert_allclose(
@@ -1646,7 +1653,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     np.testing.assert_array_less(ds.baseline, ds.expected)
 
-    # Test the math for a sample of the actual impact metrics.
+    # Test the math for a sample of the actual outcome metrics.
     self.assertAllClose(
         ds.actual.values,
         expected_actual_values,
@@ -2021,7 +2028,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_media_only.expected_outcome(
+    outcome = self.analyzer_media_only.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -2039,13 +2046,13 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
           if times_to_include is not None
           else (_N_TIMES,)
       )
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   @parameterized.named_parameters(
       ("missing_media", "media"),
       ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
-  def test_incremental_impact_media_only_missing_new_param_raises_exception(
+  def test_incremental_outcome_media_only_missing_new_param_raises_exception(
       self, missing_param: str
   ):
     new_data_dict = {
@@ -2062,7 +2069,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
-      self.analyzer_media_only.incremental_impact(
+      self.analyzer_media_only.incremental_outcome(
           new_data=analyzer.DataTensors(**new_data_dict)
       )
 
@@ -2073,7 +2080,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
-  def test_incremental_impact_media_only_returns_correct_shape(
+  def test_incremental_outcome_media_only_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -2081,7 +2088,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
-    impact = self.analyzer_media_only.incremental_impact(
+    outcome = self.analyzer_media_only.incremental_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -2098,50 +2105,50 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS,)
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   # The purpose of this test is to prevent accidental logic change.
   @parameterized.named_parameters(
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_outcome=test_utils.INC_IMPACT_MEDIA_ONLY_USE_PRIOR,
+          expected_outcome=test_utils.INC_OUTCOME_MEDIA_ONLY_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_outcome=test_utils.INC_IMPACT_MEDIA_ONLY_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_OUTCOME_MEDIA_ONLY_USE_POSTERIOR,
       ),
   )
-  def test_incremental_impact_media_only(
+  def test_incremental_outcome_media_only(
       self,
       use_posterior: bool,
       expected_outcome: tuple[float, ...],
   ):
-    impact = self.analyzer_media_only.incremental_impact(
+    outcome = self.analyzer_media_only.incremental_outcome(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
-        impact,
+        outcome,
         tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
 
   # The purpose of this test is to prevent accidental logic change.
-  def test_incremental_impact_media_only_new_params(self):
+  def test_incremental_outcome_media_only_new_params(self):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_only
     )
-    impact = self.analyzer_media_only.incremental_impact(
+    outcome = self.analyzer_media_only.incremental_outcome(
         new_data=analyzer.DataTensors(
             media=self.meridian_media_only.media_tensors.media[..., -10:, :],
             revenue_per_kpi=self.meridian_media_only.revenue_per_kpi[..., -10:],
         ),
     )
     self.assertAllClose(
-        impact,
-        tf.convert_to_tensor(test_utils.INC_IMPACT_MEDIA_ONLY_NEW_PARAMS),
+        outcome,
+        tf.convert_to_tensor(test_utils.INC_OUTCOME_MEDIA_ONLY_NEW_PARAMS),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -2263,7 +2270,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         self.meridian_media_only.media_tensors.media_spend
     )
     roi = self.analyzer_media_only.roi(new_media_spend=total_spend)
-    expected_roi = self.analyzer_media_only.incremental_impact() / total_spend
+    expected_roi = self.analyzer_media_only.incremental_outcome() / total_spend
     self.assertAllClose(roi, expected_roi)
 
   def test_roi_media_only_default_returns_correct_value(self):
@@ -2271,7 +2278,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     total_spend = self.analyzer_media_only.filter_and_aggregate_geos_and_times(
         self.meridian_media_only.media_tensors.media_spend
     )
-    expected_roi = self.analyzer_media_only.incremental_impact() / total_spend
+    expected_roi = self.analyzer_media_only.incremental_outcome() / total_spend
     self.assertAllClose(expected_roi, roi)
 
   def test_roi_zero_media_returns_zero(self):
@@ -2314,10 +2321,10 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(
         list(response_curve_data.data_vars.keys()),
-        [constants.SPEND, constants.INCREMENTAL_IMPACT],
+        [constants.SPEND, constants.INCREMENTAL_OUTCOME],
     )
     response_curves_df = (
-        response_curve_data[[constants.SPEND, constants.INCREMENTAL_IMPACT]]
+        response_curve_data[[constants.SPEND, constants.INCREMENTAL_OUTCOME]]
         .to_dataframe()
         .reset_index()
         .pivot(
@@ -2327,7 +2334,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
                 constants.SPEND_MULTIPLIER,
             ],
             columns=constants.METRIC,
-            values=constants.INCREMENTAL_IMPACT,
+            values=constants.INCREMENTAL_OUTCOME,
         )
     ).reset_index()
     self.assertAllInSet(
@@ -2387,7 +2394,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.pct_of_spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
-    self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
+    self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
@@ -2431,7 +2438,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
         4,
         2,
     )
-    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.baseline_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
 
@@ -2486,7 +2493,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_rf_only.expected_outcome(
+    outcome = self.analyzer_rf_only.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -2504,14 +2511,14 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           if times_to_include is not None
           else (_N_TIMES,)
       )
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   @parameterized.named_parameters(
       ("missing_reach", "reach"),
       ("missing_frequency", "frequency"),
       ("missing_revenue_per_kpi", "revenue_per_kpi"),
   )
-  def test_incremental_impact_rf_only_missing_new_param_raises_exception(
+  def test_incremental_outcome_rf_only_missing_new_param_raises_exception(
       self, missing_param: str
   ):
     new_data_dict = {
@@ -2528,7 +2535,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         " with the same number of time periods.",
     ):
       new_data_dict.pop(missing_param)
-      self.analyzer_rf_only.incremental_impact(
+      self.analyzer_rf_only.incremental_outcome(
           new_data=analyzer.DataTensors(**new_data_dict)
       )
 
@@ -2539,7 +2546,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
-  def test_incremental_impact_rf_only_returns_correct_shape(
+  def test_incremental_outcome_rf_only_returns_correct_shape(
       self,
       use_posterior: bool,
       aggregate_geos: bool,
@@ -2547,7 +2554,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
-    impact = self.analyzer_rf_only.incremental_impact(
+    outcome = self.analyzer_rf_only.incremental_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -2564,42 +2571,42 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_RF_CHANNELS,)
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   # The purpose of this test is to prevent accidental logic change.
   @parameterized.named_parameters(
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_outcome=test_utils.INC_IMPACT_RF_ONLY_USE_PRIOR,
+          expected_outcome=test_utils.INC_OUTCOME_RF_ONLY_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_outcome=test_utils.INC_IMPACT_RF_ONLY_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_OUTCOME_RF_ONLY_USE_POSTERIOR,
       ),
   )
-  def test_incremental_impact_rf_only(
+  def test_incremental_outcome_rf_only(
       self,
       use_posterior: bool,
       expected_outcome: tuple[float, ...],
   ):
-    impact = self.analyzer_rf_only.incremental_impact(
+    outcome = self.analyzer_rf_only.incremental_outcome(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
-        impact,
+        outcome,
         tf.convert_to_tensor(expected_outcome),
         rtol=1e-3,
         atol=1e-3,
     )
 
   # The purpose of this test is to prevent accidental logic change.
-  def test_incremental_impact_rf_only_new_params(self):
+  def test_incremental_outcome_rf_only_new_params(self):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_rf_only
     )
-    impact = self.analyzer_rf_only.incremental_impact(
+    outcome = self.analyzer_rf_only.incremental_outcome(
         new_data=analyzer.DataTensors(
             reach=self.meridian_rf_only.rf_tensors.reach[..., -10:, :],
             frequency=self.meridian_rf_only.rf_tensors.frequency[..., -10:, :],
@@ -2607,8 +2614,8 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     self.assertAllClose(
-        impact,
-        tf.convert_to_tensor(test_utils.INC_IMPACT_RF_ONLY_NEW_PARAMS),
+        outcome,
+        tf.convert_to_tensor(test_utils.INC_OUTCOME_RF_ONLY_NEW_PARAMS),
         rtol=1e-3,
         atol=1e-3,
     )
@@ -2733,7 +2740,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     total_spend = self.analyzer_rf_only.filter_and_aggregate_geos_and_times(
         self.meridian_rf_only.rf_tensors.rf_spend
     )
-    expeted_roi = self.analyzer_rf_only.incremental_impact() / total_spend
+    expeted_roi = self.analyzer_rf_only.incremental_outcome() / total_spend
     self.assertAllClose(expeted_roi, roi)
 
   def test_by_reach_returns_correct_values(self):
@@ -2824,7 +2831,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [3.0, 1.0]),
-            constants.OPTIMIZED_INCREMENTAL_IMPACT: (
+            constants.OPTIMIZED_INCREMENTAL_OUTCOME: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
                     [1326.76, 1008.16, 320.44, 2614.4],
@@ -2880,8 +2887,8 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
-        actual.optimized_incremental_impact,
-        expected.optimized_incremental_impact,
+        actual.optimized_incremental_outcome,
+        expected.optimized_incremental_outcome,
         atol=0.1,
     )
     xr.testing.assert_allclose(
@@ -3035,7 +3042,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.pct_of_spend.shape, expected_channel_shape)
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
-    self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
+    self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
     self.assertEqual(media_summary.roi.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
@@ -3079,7 +3086,7 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         4,
         2,
     )
-    self.assertEqual(media_summary.baseline_impact.shape, expected_shape)
+    self.assertEqual(media_summary.baseline_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
 
@@ -3169,7 +3176,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.SPEND,
             constants.PCT_OF_SPEND,
             constants.CPM,
-            constants.INCREMENTAL_IMPACT,
+            constants.INCREMENTAL_OUTCOME,
             constants.PCT_OF_CONTRIBUTION,
             constants.ROI,
             constants.EFFECTIVENESS,
@@ -3179,8 +3186,8 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     )
     # Check the metrics that differ when `use_kpi=True`.
     self.assertAllClose(
-        media_summary.incremental_impact,
-        test_utils.SAMPLE_INC_IMPACT_KPI,
+        media_summary.incremental_outcome,
+        test_utils.SAMPLE_INC_OUTCOME_KPI,
         atol=1e-2,
         rtol=1e-2,
     )
@@ -3212,10 +3219,10 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
       self.analyzer_kpi.roi(use_kpi=False)
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_response_curves(self):
-    mock_incremental_impact = self.enter_context(
+    mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.analyzer_kpi,
-            "incremental_impact",
+            "incremental_outcome",
             return_value=tf.ones((
                 _N_CHAINS,
                 _N_DRAWS,
@@ -3224,7 +3231,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     self.analyzer_kpi.response_curves()
-    _, mock_kwargs = mock_incremental_impact.call_args
+    _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertEqual(mock_kwargs["use_kpi"], True)
 
   def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_outcome(self):
@@ -3276,7 +3283,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
                 ],
             ),
             constants.OPTIMAL_FREQUENCY: ([constants.RF_CHANNEL], [1.0, 1.0]),
-            constants.OPTIMIZED_INCREMENTAL_IMPACT: (
+            constants.OPTIMIZED_INCREMENTAL_OUTCOME: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
                     [396.44, 397.96, 138.92, 652.21],
@@ -3341,8 +3348,8 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimal_frequency, expected.optimal_frequency
     )
     xr.testing.assert_allclose(
-        actual.optimized_incremental_impact,
-        expected.optimized_incremental_impact,
+        actual.optimized_incremental_outcome,
+        expected.optimized_incremental_outcome,
         atol=0.1,
     )
     xr.testing.assert_allclose(
@@ -3419,47 +3426,47 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_PRIOR,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_USE_PRIOR,
           non_media_baseline_values=None,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_POSTERIOR,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_USE_POSTERIOR,
           non_media_baseline_values=None,
       ),
       dict(
           testcase_name="all_min",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_USE_POSTERIOR,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_USE_POSTERIOR,
           non_media_baseline_values=["min", "min", "min", "min"],
       ),
       dict(
           testcase_name="all_max",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MAX,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MAX,
           non_media_baseline_values=["max", "max", "max", "max"],
       ),
       dict(
           testcase_name="mix",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MIX,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MIX,
           non_media_baseline_values=["min", "max", "max", "min"],
       ),
       dict(
           testcase_name="mix_as_floats",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_MIX,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MIX,
           non_media_baseline_values=["min", 3.630, 2.448, "min"],
       ),
       dict(
           testcase_name="all_fixed",
           use_posterior=True,
-          expected_result=test_utils.INC_IMPACT_NON_MEDIA_FIXED,
+          expected_result=test_utils.INC_OUTCOME_NON_MEDIA_FIXED,
           non_media_baseline_values=[45.2, 1.03, 0.24, 7.77],
       ),
   )
-  def test_incremental_impact_non_media(
+  def test_incremental_outcome_non_media(
       self,
       use_posterior: bool,
       expected_result: np.ndarray,
@@ -3468,47 +3475,49 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_non_media
     )
-    impact = self.analyzer_non_media.incremental_impact(
+    outcome = self.analyzer_non_media.incremental_outcome(
         use_posterior=use_posterior,
         non_media_baseline_values=non_media_baseline_values,
         include_non_paid_channels=True,
     )
     self.assertAllClose(
-        impact,
+        outcome,
         tf.convert_to_tensor(expected_result),
         rtol=1e-2,
         atol=1e-2,
     )
 
-  def test_incremental_impact_wrong_non_media_raises_exception(self):
+  def test_incremental_outcome_wrong_non_media_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
         "new_non_media_treatments.shape must match non_media_treatments.shape",
     ):
-      self.analyzer_non_media.incremental_impact(
+      self.analyzer_non_media.incremental_outcome(
           new_data=analyzer.DataTensors(
               non_media_treatments=self.meridian_non_media.population
           ),
       )
 
-  def test_incremental_impact_wrong_baseline_types_shape_raises_exception(self):
+  def test_incremental_outcome_wrong_baseline_types_shape_raises_exception(
+      self,
+  ):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
         "The number of non-media channels (4) does not match the number of"
         " baseline types (3).",
     ):
-      self.analyzer_non_media.incremental_impact(
+      self.analyzer_non_media.incremental_outcome(
           non_media_baseline_values=["min", "max", "min"],
           include_non_paid_channels=True,
       )
 
-  def test_incremental_impact_wrong_baseline_type_raises_exception(self):
+  def test_incremental_outcome_wrong_baseline_type_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
         "Invalid non_media_baseline_values value: 'wrong'. Only float numbers"
         " and strings 'min' and 'max' are supported.",
     ):
-      self.analyzer_non_media.incremental_impact(
+      self.analyzer_non_media.incremental_outcome(
           non_media_baseline_values=["min", "max", "max", "wrong"],
           include_non_paid_channels=True,
       )
@@ -3728,15 +3737,15 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="use_prior",
           use_posterior=False,
-          expected_outcome=test_utils.INC_IMPACT_NON_PAID_USE_PRIOR,
+          expected_outcome=test_utils.INC_OUTCOME_NON_PAID_USE_PRIOR,
       ),
       dict(
           testcase_name="use_posterior",
           use_posterior=True,
-          expected_outcome=test_utils.INC_IMPACT_NON_PAID_USE_POSTERIOR,
+          expected_outcome=test_utils.INC_OUTCOME_NON_PAID_USE_POSTERIOR,
       ),
   )
-  def test_incremental_impact_organic_media(
+  def test_incremental_outcome_organic_media(
       self,
       use_posterior: bool,
       expected_outcome: np.ndarray,
@@ -3744,11 +3753,11 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_non_paid
     )
-    impact = self.analyzer_non_paid.incremental_impact(
+    outcome = self.analyzer_non_paid.incremental_outcome(
         use_posterior=use_posterior,
     )
     self.assertAllClose(
-        impact,
+        outcome,
         tf.convert_to_tensor(expected_outcome),
         rtol=1e-2,
         atol=1e-2,
@@ -3769,7 +3778,7 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
       geos_to_include: Sequence[str] | None,
       times_to_include: Sequence[str] | None,
   ):
-    impact = self.analyzer_non_paid.expected_outcome(
+    outcome = self.analyzer_non_paid.expected_outcome(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
@@ -3787,7 +3796,7 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
           if times_to_include is not None
           else (_N_TIMES,)
       )
-    self.assertEqual(impact.shape, expected_shape)
+    self.assertEqual(outcome.shape, expected_shape)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -3837,7 +3846,7 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
         4,
         2,
     )
-    self.assertEqual(media_summary.incremental_impact.shape, expected_shape)
+    self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
     self.assertEqual(media_summary.effectiveness.shape, expected_shape)
 
