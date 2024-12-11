@@ -17,6 +17,7 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+from meridian import constants as c
 from meridian.model import media
 from meridian.model import spec
 from meridian.model import transformers
@@ -40,13 +41,39 @@ _ROI_CALIBRATION_PERIOD = np.array([
     [True, False, False],
     [False, False, False],
 ])
-_MEDIA_COUNTERFACTUAL = np.array([
+_MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD = np.array([
     [[0, 0, 0], [0, 0, 6], [0, 8, 9], [10, 11, 12]],
     [[0, 0, 0], [0, 0, 16], [0, 18, 19], [110, 111, 112]],
 ])
-_SPEND_COUNTERFACTUAL = np.array([
+_SPEND_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD = np.array([
     [[0, 0, 30], [0, 50, 60], [70, 80, 90]],
     [[0, 0, 130], [0, 150, 160], [170, 180, 190]],
+])
+_MEDIA_COUNTERFACTUAL_MROI_CALIBRATION_PERIOD = np.array([
+    [
+        [1 * c.MROI_FACTOR, 2 * c.MROI_FACTOR, 3 * c.MROI_FACTOR],
+        [4 * c.MROI_FACTOR, 5 * c.MROI_FACTOR, 6],
+        [7 * c.MROI_FACTOR, 8, 9],
+        [10, 11, 12],
+    ],
+    [
+        [11 * c.MROI_FACTOR, 12 * c.MROI_FACTOR, 13 * c.MROI_FACTOR],
+        [14 * c.MROI_FACTOR, 15 * c.MROI_FACTOR, 16],
+        [17 * c.MROI_FACTOR, 18, 19],
+        [110, 111, 112],
+    ],
+])
+_SPEND_COUNTERFACTUAL_MROI_CALIBRATION_PERIOD = np.array([
+    [
+        [10 * c.MROI_FACTOR, 20 * c.MROI_FACTOR, 30],
+        [40 * c.MROI_FACTOR, 50, 60],
+        [70, 80, 90],
+    ],
+    [
+        [110 * c.MROI_FACTOR, 120 * c.MROI_FACTOR, 130],
+        [140 * c.MROI_FACTOR, 150, 160],
+        [170, 180, 190],
+    ],
 ])
 _INPUT_DATA_WITH_MEDIA_ONLY = mock.MagicMock(
     reach=None,
@@ -120,27 +147,73 @@ class MediaTensorsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       dict(
-          testcase_name="no_calibration_period",
+          testcase_name="no_calibration_period_paid_media_prior_type_roi",
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
+          use_roi_prior=True,
           roi_calibration_period=None,
-          expected_counterfactual=tf.zeros_like(_MEDIA_COUNTERFACTUAL),
-          expected_spend_counterfactual=tf.zeros_like(_SPEND_COUNTERFACTUAL),
+          expected_counterfactual=_MEDIA * 0,
+          expected_spend_counterfactual=_SPEND * 0,
       ),
       dict(
-          testcase_name="with_calibration_period",
+          testcase_name="no_calibration_period_paid_media_prior_type_mroi",
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_MROI,
+          use_roi_prior=False,
+          roi_calibration_period=None,
+          expected_counterfactual=_MEDIA * c.MROI_FACTOR,
+          expected_spend_counterfactual=_SPEND * c.MROI_FACTOR,
+      ),
+      dict(
+          testcase_name="with_calibration_period_paid_media_prior_type_roi",
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
+          use_roi_prior=True,
           roi_calibration_period=_ROI_CALIBRATION_PERIOD,
-          expected_counterfactual=_MEDIA_COUNTERFACTUAL,
-          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
+      ),
+      dict(
+          testcase_name="with_calibration_period_paid_media_prior_type_mroi",
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_MROI,
+          use_roi_prior=False,
+          roi_calibration_period=_ROI_CALIBRATION_PERIOD,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL_MROI_CALIBRATION_PERIOD,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL_MROI_CALIBRATION_PERIOD,
+      ),
+      dict(
+          testcase_name=(
+              "no_calibration_period_paid_media_prior_type_coefficient"
+          ),
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+          use_roi_prior=False,
+          roi_calibration_period=None,
+          expected_counterfactual=_MEDIA * 0,
+          expected_spend_counterfactual=_SPEND * 0,
+      ),
+      dict(
+          testcase_name=(
+              "with_calibration_period_paid_media_prior_type_coefficient"
+          ),
+          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+          use_roi_prior=False,
+          roi_calibration_period=_ROI_CALIBRATION_PERIOD,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
       ),
   )
   def test_media_tensors(
       self,
+      use_roi_prior: bool,
+      paid_media_prior_type: str,
       roi_calibration_period: np.ndarray | None,
       expected_counterfactual: tf.Tensor,
       expected_spend_counterfactual: tf.Tensor,
   ):
     media_tensors = media.build_media_tensors(
         _INPUT_DATA_WITH_MEDIA_ONLY,
-        spec.ModelSpec(roi_calibration_period=roi_calibration_period),
+        spec.ModelSpec(
+            use_roi_prior=use_roi_prior,
+            paid_media_prior_type=paid_media_prior_type,
+            roi_calibration_period=roi_calibration_period,
+        ),
     )
 
     self.assertAllClose(media_tensors.media, _INPUT_DATA_WITH_MEDIA_ONLY.media)
@@ -187,7 +260,9 @@ class OrganicMediaTensorsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNone(organic_media_tensors.organic_media_counterfactual_scaled)
 
   def test_organic_media_tensors(self):
-    expected_counterfactual = tf.zeros_like(_MEDIA_COUNTERFACTUAL)
+    expected_counterfactual = tf.zeros_like(
+        _MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD
+    )
     organic_media_tensors = media.build_organic_media_tensors(
         _INPUT_DATA_WITH_MEDIA_AND_ORGANIC_MEDIA
     )
@@ -242,14 +317,14 @@ class RfTensorsTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="no_calibration_period",
           rf_roi_calibration_period=None,
-          expected_counterfactual=tf.zeros_like(_MEDIA_COUNTERFACTUAL),
-          expected_spend_counterfactual=tf.zeros_like(_SPEND_COUNTERFACTUAL),
+          expected_counterfactual=tf.zeros_like(_MEDIA),
+          expected_spend_counterfactual=tf.zeros_like(_SPEND),
       ),
       dict(
           testcase_name="with_calibration_period",
           rf_roi_calibration_period=_ROI_CALIBRATION_PERIOD,
-          expected_counterfactual=_MEDIA_COUNTERFACTUAL,
-          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL,
+          expected_counterfactual=_MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
+          expected_spend_counterfactual=_SPEND_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD,
       ),
   )
   def test_rf_tensors(
@@ -307,7 +382,9 @@ class OrganicRfTensorsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNone(organic_rf_tensors.organic_reach_counterfactual_scaled)
 
   def test_organic_rf_tensors(self):
-    expected_counterfactual = tf.zeros_like(_MEDIA_COUNTERFACTUAL)
+    expected_counterfactual = tf.zeros_like(
+        _MEDIA_COUNTERFACTUAL_ROI_CALIBRATION_PERIOD
+    )
     organic_rf_tensors = media.build_organic_rf_tensors(
         _INPUT_DATA_WITH_MEDIA_AND_ORGANIC_RF,
     )

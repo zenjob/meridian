@@ -486,10 +486,25 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           self._N_TIMES, knots, is_national
       )
 
-  def test_custom_priors_not_passed_in_ok_without_use_roi_prior(self):
+  def test_validate_paid_media_prior_type(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Custom priors should be set during model creation with mROI prior type"
+        " when KPI is non-revenue and revenue per kpi data is missing.",
+    ):
+      model.Meridian(
+          input_data=self.input_data_non_revenue_no_revenue_per_kpi,
+          model_spec=spec.ModelSpec(
+              paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_MROI
+          ),
+      )
+
+  def test_custom_priors_not_passed_in_ok(self):
     meridian = model.Meridian(
         input_data=self.input_data_non_revenue_no_revenue_per_kpi,
-        model_spec=spec.ModelSpec(use_roi_prior=False),
+        model_spec=spec.ModelSpec(
+            paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT
+        ),
     )
     # Compare input data.
     self.assertEqual(
@@ -497,7 +512,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     # Create sample model spec for comparison
-    sample_spec = spec.ModelSpec(use_roi_prior=False)
+    sample_spec = spec.ModelSpec(
+        paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT
+    )
 
     # Compare model spec.
     self.assertEqual(repr(meridian.model_spec), repr(sample_spec))
@@ -1305,16 +1322,26 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.product(
       use_roi_prior=[False, True],
+      paid_media_prior_type=[
+          constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+      ],
       media_effects_dist=[
           constants.MEDIA_EFFECTS_NORMAL,
           constants.MEDIA_EFFECTS_LOG_NORMAL,
       ],
   )
   def test_get_joint_dist_with_log_prob_media_only(
-      self, use_roi_prior: bool, media_effects_dist: str
+      self,
+      use_roi_prior: bool,
+      paid_media_prior_type: str,
+      media_effects_dist: str,
   ):
     model_spec = spec.ModelSpec(
-        use_roi_prior=use_roi_prior, media_effects_dist=media_effects_dist
+        use_roi_prior=use_roi_prior,
+        paid_media_prior_type=paid_media_prior_type,
+        media_effects_dist=media_effects_dist,
     )
     meridian = model.Meridian(
         model_spec=model_spec,
@@ -1352,7 +1379,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SLOPE_M,
         constants.SIGMA,
     ]
-    if use_roi_prior:
+    use_roi_prior_condition = (
+        use_roi_prior
+        and paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    )
+    if use_roi_prior_condition:
       derived_params.append(constants.BETA_M)
       prior_distribution_params.append(constants.ROI_M)
     else:
@@ -1432,16 +1463,26 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.product(
       use_roi_prior=[False, True],
+      paid_media_prior_type=[
+          constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+      ],
       media_effects_dist=[
           constants.MEDIA_EFFECTS_NORMAL,
           constants.MEDIA_EFFECTS_LOG_NORMAL,
       ],
   )
   def test_get_joint_dist_with_log_prob_rf_only(
-      self, use_roi_prior: bool, media_effects_dist: str
+      self,
+      use_roi_prior: bool,
+      paid_media_prior_type: str,
+      media_effects_dist: str,
   ):
     model_spec = spec.ModelSpec(
-        use_roi_prior=use_roi_prior, media_effects_dist=media_effects_dist
+        use_roi_prior=use_roi_prior,
+        paid_media_prior_type=paid_media_prior_type,
+        media_effects_dist=media_effects_dist,
     )
     meridian = model.Meridian(
         model_spec=model_spec,
@@ -1479,7 +1520,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SLOPE_RF,
         constants.SIGMA,
     ]
-    if use_roi_prior:
+    use_roi_prior_condition = (
+        use_roi_prior
+        and paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    )
+    if use_roi_prior_condition:
       derived_params.append(constants.BETA_RF)
       prior_distribution_params.append(constants.ROI_RF)
     else:
@@ -1561,16 +1606,26 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   # TODO: Add test for holdout_id.
   @parameterized.product(
       use_roi_prior=[False, True],
+      paid_media_prior_type=[
+          constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+          constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+      ],
       media_effects_dist=[
           constants.MEDIA_EFFECTS_NORMAL,
           constants.MEDIA_EFFECTS_LOG_NORMAL,
       ],
   )
   def test_get_joint_dist_with_log_prob_media_and_rf(
-      self, use_roi_prior: bool, media_effects_dist: str
+      self,
+      use_roi_prior: bool,
+      paid_media_prior_type: str,
+      media_effects_dist: str,
   ):
     model_spec = spec.ModelSpec(
-        use_roi_prior=use_roi_prior, media_effects_dist=media_effects_dist
+        use_roi_prior=use_roi_prior,
+        paid_media_prior_type=paid_media_prior_type,
+        media_effects_dist=media_effects_dist,
     )
     meridian = model.Meridian(
         model_spec=model_spec,
@@ -1613,7 +1668,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SLOPE_RF,
         constants.SIGMA,
     ]
-    if use_roi_prior:
+    use_roi_prior_condition = (
+        use_roi_prior
+        and paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    )
+    if use_roi_prior_condition:
       derived_params.append(constants.BETA_M)
       derived_params.append(constants.BETA_RF)
       prior_distribution_params.append(constants.ROI_M)
@@ -3128,6 +3187,7 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
         if dim != constants.SIGMA_DIM:
           self.assertIn(dim, prior_coords)
           self.assertLen(prior_coords[dim], shape_dim)
+
 
 if __name__ == "__main__":
   absltest.main()

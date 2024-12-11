@@ -68,9 +68,21 @@ class ModelSpec:
     unique_sigma_for_each_geo: A boolean indicating whether to use a unique
       residual variance for each geo. If `False`, then a single residual
       variance is used for all geos. Default: `False`.
-    use_roi_prior: A boolean indicating whether to use ROI priors and the prior
-      on `roi_m` in the prior. If `False`, then the prior on `beta_m` in the
-      prior is used. Default: `True`.
+    use_roi_prior: (deprecated, use `paid_media_prior_type` instead) A boolean
+      indicating whether to use ROI priors and the prior on `roi_m` in the
+      prior. If `False`, then the prior on `beta_m` in the prior is used.
+      Default: `True`.
+    paid_media_prior_type: A string to specify the prior type for the media
+      coefficients. Allowed values: `'roi'`, `'mroi'`, `'coefficient'`. Default:
+      `'roi'`. If `paid_media_prior_type` is 'coefficient'`, then the
+      `PriorContainer.beta_m` and `PriorContainer.beta_rf` attributes are used
+      to specify a prior on the coefficient mean parameters (and the
+      `PriorContainer.roi_m` and `PriorContainer.roi_rf` attributes will be
+      ignored). If `paid_media_prior_type' is `'roi'` or `'mroi'`, then the
+      `PriorContainer.roi_m` and `PriorContainer.roi_rf` attributes are used to
+      specify a prior on the ROI or mROI, respectively (and the
+      `PriorContainer.beta_m` and `PriorContainer.beta_rf` attributes will be
+      ignored).
     roi_calibration_period: An optional boolean array of shape `(n_media_times,
       n_media_channels)` indicating the subset of `time` for media ROI
       calibration. If `None`, all times are used for media ROI calibration.
@@ -125,7 +137,9 @@ class ModelSpec:
   hill_before_adstock: bool = False
   max_lag: int | None = 8
   unique_sigma_for_each_geo: bool = False
+  # TODO: Remove deprecated `use_roi_prior`.
   use_roi_prior: bool = True
+  paid_media_prior_type: str = constants.PAID_MEDIA_PRIOR_TYPE_ROI
   roi_calibration_period: np.ndarray | None = None
   rf_roi_calibration_period: np.ndarray | None = None
   knots: int | list[int] | None = None
@@ -141,7 +155,13 @@ class ModelSpec:
           f"The `media_effects_dist` parameter '{self.media_effects_dist}' must"
           f" be one of {sorted(list(constants.MEDIA_EFFECTS_DISTRIBUTIONS))}."
       )
-
+    # Validate roi_prior_type.
+    if self.paid_media_prior_type not in constants.PAID_MEDIA_PRIOR_TYPES:
+      raise ValueError(
+          "The `paid_media_prior_type` parameter"
+          f" '{self.paid_media_prior_type}' must be one of"
+          f" {sorted(list(constants.PAID_MEDIA_PRIOR_TYPES))}."
+      )
     _validate_roi_calibration_period(
         self.roi_calibration_period,
         "roi_calibration_period",
@@ -154,7 +174,7 @@ class ModelSpec:
     )
 
     # Validate knots.
-    if isinstance(self.knots, list) and len(self.knots) == 0:
+    if isinstance(self.knots, list) and not self.knots:
       raise ValueError("The `knots` parameter cannot be an empty list.")
     if isinstance(self.knots, int) and self.knots == 0:
       raise ValueError("The `knots` parameter cannot be zero.")

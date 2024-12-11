@@ -180,6 +180,7 @@ class Meridian:
           unique_sigma_for_each_geo=self.model_spec.unique_sigma_for_each_geo,
       )
 
+    self._validate_paid_media_prior_type()
     self._validate_geo_invariants()
     self._validate_time_invariants()
 
@@ -416,6 +417,8 @@ class Meridian:
         self.input_data.revenue_per_kpi is None
         and self.input_data.kpi_type == constants.NON_REVENUE
         and self.model_spec.use_roi_prior
+        and self.model_spec.paid_media_prior_type
+        == constants.PAID_MEDIA_PRIOR_TYPE_ROI
     )
     total_spend = self.input_data.get_total_spend()
     # Total spend can have 1, 2 or 3 dimensions. Aggregate by channel.
@@ -438,6 +441,7 @@ class Meridian:
         sigma_shape=sigma_shape,
         n_knots=self.knot_info.n_knots,
         is_national=self.is_national,
+        paid_media_prior_type=self.model_spec.paid_media_prior_type,
         set_roi_prior=set_roi_prior,
         kpi=np.sum(self.input_data.kpi.values),
         total_spend=agg_total_spend,
@@ -548,6 +552,33 @@ class Meridian:
           f" {self.model_spec.non_media_population_scaling_id.shape} is"
           " different from `(n_non_media_channels,) ="
           f" ({self.n_non_media_channels},)`."
+      )
+
+  def _validate_paid_media_prior_type(self):
+    """Validates the media prior type."""
+    default_distribution = prior_distribution.PriorDistribution()
+    roi_m_not_set = (
+        self.n_media_channels > 0
+        and prior_distribution.distributions_are_equal(
+            self.model_spec.prior.roi_m, default_distribution.roi_m
+        )
+    )
+    roi_rf_not_set = (
+        self.n_rf_channels > 0
+        and prior_distribution.distributions_are_equal(
+            self.model_spec.prior.roi_rf, default_distribution.roi_rf
+        )
+    )
+    if (
+        self.input_data.revenue_per_kpi is None
+        and self.input_data.kpi_type == constants.NON_REVENUE
+        and self.model_spec.paid_media_prior_type
+        == constants.PAID_MEDIA_PRIOR_TYPE_MROI
+        and (roi_m_not_set or roi_rf_not_set)
+    ):
+      raise ValueError(
+          "Custom priors should be set during model creation with mROI prior"
+          " type when KPI is non-revenue and revenue per kpi data is missing."
       )
 
   def _validate_geo_invariants(self):
@@ -782,6 +813,12 @@ class Meridian:
 
     return rf_out
 
+  def _use_roi_prior(self) -> bool:
+    return self.model_spec.use_roi_prior and (
+        self.model_spec.paid_media_prior_type
+        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    )
+
   def _get_roi_prior_beta_m_value(
       self,
       alpha_m: tf.Tensor,
@@ -793,6 +830,9 @@ class Meridian:
       media_transformed: tf.Tensor,
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_m`."""
+    # The `roi_m` parameter represents either ROI or mROI. For reach & frequency
+    # channels, marginal ROI priors are defined as "mROI by reach", which is
+    # equivalent to ROI.
     media_spend = self.media_tensors.media_spend
     media_spend_counterfactual = self.media_tensors.media_spend_counterfactual
     media_counterfactual_scaled = self.media_tensors.media_counterfactual_scaled
@@ -802,25 +842,36 @@ class Meridian:
     assert media_spend_counterfactual is not None
     assert media_counterfactual_scaled is not None
 
+    # Use absolute value here because this difference will be negative for
+    # marginal ROI priors.
     inc_revenue_m = roi_m * tf.reduce_sum(
-        media_spend - media_spend_counterfactual,
+        tf.abs(media_spend - media_spend_counterfactual),
         range(media_spend.ndim - 1),
     )
-    if self.model_spec.roi_calibration_period is not None:
+
+    if (
+        self.model_spec.roi_calibration_period is None
+        and self.model_spec.paid_media_prior_type
+        == constants.PAID_MEDIA_PRIOR_TYPE_ROI
+    ):
+      # We can skip the adstock/hill computation step in this case.
+      media_counterfactual_transformed = tf.zeros_like(media_transformed)
+    else:
       media_counterfactual_transformed = self.adstock_hill_media(
           media=media_counterfactual_scaled,
           alpha=alpha_m,
           ec=ec_m,
           slope=slope_m,
       )
-    else:
-      media_counterfactual_transformed = tf.zeros_like(media_transformed)
+
     revenue_per_kpi = self.revenue_per_kpi
     if self.input_data.revenue_per_kpi is None:
       revenue_per_kpi = tf.ones([self.n_geos, self.n_times], dtype=tf.float32)
+    # Note: use absolute value here because this difference will be negative for
+    # marginal ROI priors.
     media_contrib_gm = tf.einsum(
         "...gtm,g,,gt->...gm",
-        media_transformed - media_counterfactual_transformed,
+        tf.abs(media_transformed - media_counterfactual_transformed),
         self.population,
         self.kpi_transformer.population_scaled_stdev,
         revenue_per_kpi,
@@ -951,7 +1002,6 @@ class Meridian:
     controls_scaled = self.controls_scaled
     non_media_treatments_scaled = self.non_media_treatments_scaled
     media_effects_dist = self.media_effects_dist
-    model_spec = self.model_spec
     adstock_hill_media_fn = self.adstock_hill_media
     adstock_hill_rf_fn = self.adstock_hill_rf
     get_roi_prior_beta_m_value_fn = self._get_roi_prior_beta_m_value
@@ -1007,7 +1057,7 @@ class Meridian:
             ec=ec_m,
             slope=slope_m,
         )
-        if model_spec.use_roi_prior:
+        if self._use_roi_prior():
           roi_m = yield prior_broadcast.roi_m
           beta_m_value = get_roi_prior_beta_m_value_fn(
               alpha_m,
@@ -1056,7 +1106,7 @@ class Meridian:
             slope=slope_rf,
         )
 
-        if model_spec.use_roi_prior:
+        if self._use_roi_prior():
           roi_rf = yield prior_broadcast.roi_rf
           beta_rf_value = get_roi_prior_beta_rf_value_fn(
               alpha_rf,
@@ -1306,7 +1356,7 @@ class Meridian:
         slope=media_vars[constants.SLOPE_M],
     )
 
-    if self.model_spec.use_roi_prior:
+    if self._use_roi_prior():
       media_vars[constants.ROI_M] = prior.roi_m.sample(**sample_kwargs)
       beta_m_value = self._get_roi_prior_beta_m_value(
           beta_gm_dev=beta_gm_dev,
@@ -1373,7 +1423,7 @@ class Meridian:
         slope=rf_vars[constants.SLOPE_RF],
     )
 
-    if self.model_spec.use_roi_prior:
+    if self._use_roi_prior():
       rf_vars[constants.ROI_RF] = prior.roi_rf.sample(**sample_kwargs)
       beta_rf_value = self._get_roi_prior_beta_rf_value(
           beta_grf_dev=beta_grf_dev,

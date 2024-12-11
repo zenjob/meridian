@@ -15,6 +15,7 @@
 """Structures and functions for manipulating media value data and tensors."""
 
 import dataclasses
+from meridian import constants
 from meridian.data import input_data as data
 from meridian.model import spec
 from meridian.model import transformers
@@ -80,19 +81,32 @@ def build_media_tensors(
       media, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
   )
   media_scaled = media_transformer.forward(media)
-  if model_spec.roi_calibration_period is None:
-    media_counterfactual = tf.zeros_like(media)
-    media_counterfactual_scaled = tf.zeros_like(media_scaled)
-    media_spend_counterfactual = tf.zeros_like(media_spend)
+
+  # Derive counterfactual media tensors depending on whether mroi or roi priors
+  # are used and whether roi_calibration_period is specified.
+  if (
+      model_spec.paid_media_prior_type
+      == constants.PAID_MEDIA_PRIOR_TYPE_MROI
+  ):
+    factor = constants.MROI_FACTOR
   else:
-    media_counterfactual = tf.where(model_spec.roi_calibration_period, 0, media)
+    factor = 0
+
+  if model_spec.roi_calibration_period is None:
+    media_counterfactual = factor * media
+    media_counterfactual_scaled = factor * media_scaled
+    media_spend_counterfactual = factor * media_spend
+  else:
+    media_counterfactual = tf.where(
+        model_spec.roi_calibration_period, factor * media, media
+    )
     media_counterfactual_scaled = tf.where(
-        model_spec.roi_calibration_period, 0, media_scaled
+        model_spec.roi_calibration_period, factor * media_scaled, media_scaled
     )
     n_times = len(input_data.time)
     media_spend_counterfactual = tf.where(
         model_spec.roi_calibration_period[..., -n_times:, :],
-        0,
+        factor * media_spend,
         media_spend,
     )
 
@@ -207,6 +221,10 @@ def build_rf_tensors(
       reach, tf.convert_to_tensor(input_data.population, dtype=tf.float32)
   )
   reach_scaled = reach_transformer.forward(reach)
+
+  # marginal ROI by reach equals the ROI. The conversion between `beta_rf` and
+  # `roi_rf` is the same, regardless of whether `roi_rf` represents ROI or
+  # marginal ROI by reach.
   if model_spec.rf_roi_calibration_period is None:
     reach_counterfactual = tf.zeros_like(reach)
     reach_counterfactual_scaled = tf.zeros_like(reach_scaled)

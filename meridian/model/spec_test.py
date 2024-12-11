@@ -27,10 +27,11 @@ class ModelSpecTest(parameterized.TestCase):
 
     self.assertEqual(repr(model_spec.prior), repr(default_priors))
     self.assertEqual(model_spec.media_effects_dist, "log_normal")
-    self.assertEqual(model_spec.hill_before_adstock, False)
+    self.assertFalse(model_spec.hill_before_adstock)
     self.assertEqual(model_spec.max_lag, 8)
-    self.assertEqual(model_spec.unique_sigma_for_each_geo, False)
-    self.assertEqual(model_spec.use_roi_prior, True)
+    self.assertFalse(model_spec.unique_sigma_for_each_geo)
+    self.assertTrue(model_spec.use_roi_prior)
+    self.assertEqual(model_spec.paid_media_prior_type, "roi")
     self.assertIsNone(model_spec.roi_calibration_period)
     self.assertIsNone(model_spec.rf_roi_calibration_period)
     self.assertIsNone(model_spec.knots)
@@ -68,6 +69,39 @@ class ModelSpecTest(parameterized.TestCase):
   def test_spec_inits_invalid_media_effects_fails(self, dist, error_message):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
       spec.ModelSpec(media_effects_dist=dist)
+
+  @parameterized.named_parameters(
+      ("roi", "roi"), ("mroi", "mroi"), ("coefficient", "coefficient")
+  )
+  def test_spec_inits_valid_paid_media_prior_type_works(
+      self, paid_media_prior_type
+  ):
+    model_spec = spec.ModelSpec(paid_media_prior_type=paid_media_prior_type)
+    self.assertEqual(model_spec.paid_media_prior_type, paid_media_prior_type)
+
+  @parameterized.named_parameters(
+      (
+          "empty",
+          "",
+          (
+              "The `paid_media_prior_type` parameter '' must be one of"
+              " ['coefficient', 'mroi', 'roi']."
+          ),
+      ),
+      (
+          "invalid",
+          "invalid",
+          (
+              "The `paid_media_prior_type` parameter 'invalid' must be one"
+              " of ['coefficient', 'mroi', 'roi']."
+          ),
+      ),
+  )
+  def test_spec_inits_invalid_paid_media_prior_type_fails(
+      self, paid_media_prior_type, error_message
+  ):
+    with self.assertRaisesWithLiteralMatch(ValueError, error_message):
+      spec.ModelSpec(paid_media_prior_type=paid_media_prior_type)
 
   def test_spec_inits_valid_roi_calibration_works(self):
     shape = (3, 7)
