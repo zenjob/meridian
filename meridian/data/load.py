@@ -778,6 +778,7 @@ class DataFrameDataLoader(InputDataLoader):
       organic_frequency_to_channel = {
           'organic_frequency_newsletter': 'newsletter',
       }
+      ```
   """  # pyformat: disable
 
   df: pd.DataFrame
