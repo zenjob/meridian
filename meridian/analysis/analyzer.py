@@ -3656,21 +3656,18 @@ class Analyzer:
           [constants.EVALUATION_SET_VAR],
           list(constants.EVALUATION_SET),
       )
+
+      holdout_id = self._filter_holdout_id_for_selected_geos_and_times(
+          self._meridian.model_spec.holdout_id, selected_geos, selected_times
+      )
+
       nansum = lambda x: np.where(
           np.all(np.isnan(x), 0), np.nan, np.nansum(x, 0)
       )
-      actual_train = np.where(
-          self._meridian.model_spec.holdout_id, np.nan, actual
-      )
-      actual_test = np.where(
-          self._meridian.model_spec.holdout_id, actual, np.nan
-      )
-      expected_train = np.where(
-          self._meridian.model_spec.holdout_id, np.nan, expected
-      )
-      expected_test = np.where(
-          self._meridian.model_spec.holdout_id, expected, np.nan
-      )
+      actual_train = np.where(holdout_id, np.nan, actual)
+      actual_test = np.where(holdout_id, actual, np.nan)
+      expected_train = np.where(holdout_id, np.nan, expected)
+      expected_test = np.where(holdout_id, expected, np.nan)
 
       geo_train = self._predictive_accuracy_helper(actual_train, expected_train)
       national_train = self._predictive_accuracy_helper(
@@ -3720,6 +3717,24 @@ class Analyzer:
     mape = _calc_mape(expected_eval_set, actual_eval_set)
     wmape = _calc_weighted_mape(expected_eval_set, actual_eval_set)
     return [rsquared, mape, wmape]
+
+  def _filter_holdout_id_for_selected_geos_and_times(
+      self,
+      holdout_id: np.ndarray,
+      selected_geos: Sequence[str] | None = None,
+      selected_times: Sequence[str] | None = None,
+  ) -> np.ndarray:
+    """Filters the holdout_id array for selected times and geos."""
+
+    if selected_geos is not None:
+      geo_mask = [x in selected_geos for x in self._meridian.input_data.geo]
+      holdout_id = holdout_id[geo_mask]
+
+    if selected_times is not None:
+      time_mask = [x in selected_times for x in self._meridian.input_data.time]
+      holdout_id = holdout_id[:, time_mask]
+
+    return holdout_id
 
   def get_rhat(self) -> Mapping[str, tf.Tensor]:
     """Computes the R-hat values for each parameter in the model.

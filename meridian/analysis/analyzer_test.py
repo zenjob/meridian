@@ -1413,7 +1413,15 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         ],
     )
 
-  def test_predictive_accuracy_holdout_id_values_correct(self):
+  @parameterized.product(
+      selected_geos=[None, ["geo_1", "geo_3"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_predictive_accuracy_with_holdout_id_correct(
+      self,
+      selected_geos: Sequence[str] | None,
+      selected_times: Sequence[str] | None,
+  ):
     n_geos = len(self.input_data_media_and_rf.geo)
     n_times = len(self.input_data_media_and_rf.time)
     holdout_id = np.full([n_geos, n_times], False)
@@ -1421,20 +1429,40 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       holdout_id[i, np.random.choice(n_times, int(np.round(0.2 * n_times)))] = (
           True
       )
-    model_spec = spec.ModelSpec(holdout_id=holdout_id)
+    model_spec = spec.ModelSpec(holdout_id=holdout_id)  # Set holdout_id
     meridian = model.Meridian(
         model_spec=model_spec, input_data=self.input_data_media_and_rf
     )
     analyzer_holdout_id = analyzer.Analyzer(meridian)
-    predictive_accuracy_dataset = analyzer_holdout_id.predictive_accuracy()
+
+    predictive_accuracy_dims_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+    }
+
+    predictive_accuracy_dataset = analyzer_holdout_id.predictive_accuracy(
+        **predictive_accuracy_dims_kwargs,
+    )
     df = (
         predictive_accuracy_dataset[constants.VALUE]
         .to_dataframe()
         .reset_index()
     )
+
+    if not selected_geos and not selected_times:
+      expected_values = (
+          test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_NO_GEOS_OR_TIMES
+      )
+    elif selected_geos and not selected_times:
+      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_GEOS_NO_TIMES
+    elif not selected_geos and selected_times:
+      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_NO_GEOS
+    else:
+      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_AND_GEO
+
     self.assertAllClose(
         list(df[constants.VALUE]),
-        test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID,
+        expected_values,
         atol=2e-3,
     )
 
