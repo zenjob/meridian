@@ -492,20 +492,27 @@ class Meridian:
     Raises:
       ValueError: If the injected `InferenceData` has incorrect shapes.
     """
-    if hasattr(self.inference_data, "prior"):
-      self._validate_injected_inference_data_prior(self.inference_data)
-    # TODO: Add validation for injected posterior.
+    if hasattr(self.inference_data, constants.PRIOR):
+      self._validate_injected_inference_data_group(
+          self.inference_data, constants.PRIOR
+      )
+    if hasattr(self.inference_data, constants.POSTERIOR):
+      self._validate_injected_inference_data_group(
+          self.inference_data, constants.POSTERIOR
+      )
 
-  def _validate_injected_inference_data_prior_coord(
+  def _validate_injected_inference_data_group_coord(
       self,
       inference_data: az.InferenceData,
+      group: str,
       coord: str,
       expected_size: int,
   ):
-    """Validates that the injected inference data prior coordinate has the expected size.
+    """Validates that the injected inference data group coordinate has the expected size.
 
     Args:
       inference_data: The injected `InferenceData` to be validated.
+      group: The group of the coordinate to be validated.
       coord: The coordinate to be validated.
       expected_size: The expected size of the coordinate.
 
@@ -515,62 +522,79 @@ class Meridian:
     """
 
     injected_size = (
-        inference_data.prior.coords[coord].size
-        if coord in inference_data.prior.coords
+        inference_data[group].coords[coord].size
+        if coord in inference_data[group].coords
         else 0
     )
     if injected_size != expected_size:
       raise ValueError(
-          f"Injected inference data prior has incorrect coordinate '{coord}': "
-          f"expected {expected_size}, got {injected_size}"
+          f"Injected inference data {group} has incorrect coordinate '{coord}':"
+          f" expected {expected_size}, got {injected_size}"
       )
 
-  def _validate_injected_inference_data_prior(
-      self, inference_data: az.InferenceData
+  def _validate_injected_inference_data_group(
+      self,
+      inference_data: az.InferenceData,
+      group: str,
   ):
-    """Validates that the injected inference data prior has correct shapes."""
+    """Validates that the injected inference data group has correct shapes.
 
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.GEO, self.n_geos
+    Args:
+      inference_data: The injected `InferenceData` to be validated.
+      group: The group of the coordinate to be validated.
+
+    Raises:
+      ValueError: If the injected `InferenceData` has incorrect shapes.
+    """
+
+    self._validate_injected_inference_data_group_coord(
+        inference_data, group, constants.GEO, self.n_geos
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.CONTROL_VARIABLE,
         self.n_controls,
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.KNOTS,
         self.knot_info.n_knots,
     )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.TIME, self.n_times
+    self._validate_injected_inference_data_group_coord(
+        inference_data, group, constants.TIME, self.n_times
     )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.SIGMA_DIM, self._sigma_shape
+    self._validate_injected_inference_data_group_coord(
+        inference_data, group, constants.SIGMA_DIM, self._sigma_shape
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.MEDIA_CHANNEL,
         self.n_media_channels,
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.RF_CHANNEL,
         self.n_rf_channels,
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.ORGANIC_MEDIA_CHANNEL,
         self.n_organic_media_channels,
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.ORGANIC_RF_CHANNEL,
         self.n_organic_rf_channels,
     )
-    self._validate_injected_inference_data_prior_coord(
+    self._validate_injected_inference_data_group_coord(
         inference_data,
+        group,
         constants.NON_MEDIA_CHANNEL,
         self.n_non_media_channels,
     )

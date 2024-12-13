@@ -2544,6 +2544,47 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         meridian_with_inference_data.inference_data, inference_data
     )
 
+  def test_injected_sample_posterior_media_and_rf_returns_correct_shape(self):
+    """Checks validation passes with correct shapes."""
+    self.enter_context(
+        mock.patch.object(
+            model,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_and_rf,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec(
+        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
+        rf_roi_calibration_period=self._RF_ROI_CALIBRATION_PERIOD,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=self._N_CHAINS,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+    )
+    inference_data = meridian.inference_data
+    meridian_with_inference_data = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+        inference_data=inference_data,
+    )
+
+    self.assertEqual(
+        meridian_with_inference_data.inference_data, inference_data
+    )
+
   def test_injected_sample_prior_media_only_returns_correct_shape(self):
     """Checks validation passes with correct shapes."""
     self.enter_context(
@@ -2562,6 +2603,46 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     meridian.sample_prior(n_draws=self._N_DRAWS)
     inference_data = meridian.inference_data
 
+    meridian_with_inference_data = model.Meridian(
+        input_data=self.short_input_data_with_media_only,
+        model_spec=model_spec,
+        inference_data=inference_data,
+    )
+
+    self.assertEqual(
+        meridian_with_inference_data.inference_data, inference_data
+    )
+
+  def test_injected_sample_posterior_media_only_returns_correct_shape(self):
+    """Checks validation passes with correct shapes."""
+    self.enter_context(
+        mock.patch.object(
+            model,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_only,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec(
+        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_only,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=self._N_CHAINS,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+    )
+    inference_data = meridian.inference_data
     meridian_with_inference_data = model.Meridian(
         input_data=self.short_input_data_with_media_only,
         model_spec=model_spec,
@@ -2709,7 +2790,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_validate_injected_inference_data_prior_incorrect_coordinates(
       self, coord, mismatched_priors, mismatched_coord_size, expected_coord_size
   ):
-    """Checks validation fails with incorrect coordinates."""
+    """Checks prior validation fails with incorrect coordinates."""
     model_spec = spec.ModelSpec()
     meridian = model.Meridian(
         input_data=self.short_input_data_with_media_and_rf,
@@ -2734,10 +2815,192 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.assertRaisesRegex(
         ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{coord}': expected"
-        f" {expected_coord_size}, got"
+        f"Injected inference data {constants.PRIOR} has incorrect coordinate"
+        f" '{coord}': expected {expected_coord_size}, got"
         f" {mismatched_coord_size}",
+    ):
+      _ = model.Meridian(
+          input_data=self.short_input_data_with_media_and_rf,
+          model_spec=model_spec,
+          inference_data=inference_data,
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="control_variables",
+          coord=constants.CONTROL_VARIABLE,
+          mismatched_posteriors={
+              constants.GAMMA_C: (_N_CHAINS, _N_KEEP, _N_CONTROLS + 1),
+              constants.GAMMA_GC: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS,
+                  _N_CONTROLS + 1,
+              ),
+              constants.XI_C: (_N_CHAINS, _N_KEEP, _N_CONTROLS + 1),
+          },
+          mismatched_coord_size=_N_CONTROLS + 1,
+          expected_coord_size=_N_CONTROLS,
+      ),
+      dict(
+          testcase_name="geos",
+          coord=constants.GEO,
+          mismatched_posteriors={
+              constants.BETA_GM: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS + 1,
+                  _N_MEDIA_CHANNELS,
+              ),
+              constants.BETA_GRF: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS + 1,
+                  _N_RF_CHANNELS,
+              ),
+              constants.GAMMA_GC: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS + 1,
+                  _N_CONTROLS,
+              ),
+              constants.TAU_G: (_N_CHAINS, _N_KEEP, _N_GEOS + 1),
+          },
+          mismatched_coord_size=_N_GEOS + 1,
+          expected_coord_size=_N_GEOS,
+      ),
+      dict(
+          testcase_name="knots",
+          coord=constants.KNOTS,
+          mismatched_posteriors={
+              constants.KNOT_VALUES: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_TIMES_SHORT + 1,
+              ),
+          },
+          mismatched_coord_size=_N_TIMES_SHORT + 1,
+          expected_coord_size=_N_TIMES_SHORT,
+      ),
+      dict(
+          testcase_name="times",
+          coord=constants.TIME,
+          mismatched_posteriors={
+              constants.MU_T: (_N_CHAINS, _N_KEEP, _N_TIMES_SHORT + 1),
+          },
+          mismatched_coord_size=_N_TIMES_SHORT + 1,
+          expected_coord_size=_N_TIMES_SHORT,
+      ),
+      dict(
+          testcase_name="sigma_dims",
+          coord=constants.SIGMA_DIM,
+          mismatched_posteriors={
+              constants.SIGMA: (_N_CHAINS, _N_KEEP, _N_GEOS_NATIONAL + 1),
+          },
+          mismatched_coord_size=_N_GEOS_NATIONAL + 1,
+          expected_coord_size=_N_GEOS_NATIONAL,
+      ),
+      dict(
+          testcase_name="media_channels",
+          coord=constants.MEDIA_CHANNEL,
+          mismatched_posteriors={
+              constants.ALPHA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.BETA_GM: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS,
+                  _N_MEDIA_CHANNELS + 1,
+              ),
+              constants.BETA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.EC_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.ETA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.ROI_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.SLOPE_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_MEDIA_CHANNELS + 1,
+          expected_coord_size=_N_MEDIA_CHANNELS,
+      ),
+      dict(
+          testcase_name="rf_channels",
+          coord=constants.RF_CHANNEL,
+          mismatched_posteriors={
+              constants.ALPHA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.BETA_GRF: (
+                  _N_CHAINS,
+                  _N_KEEP,
+                  _N_GEOS,
+                  _N_RF_CHANNELS + 1,
+              ),
+              constants.BETA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.EC_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.ETA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.ROI_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.SLOPE_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_RF_CHANNELS + 1,
+          expected_coord_size=_N_RF_CHANNELS,
+      ),
+  )
+  def test_validate_injected_inference_data_posterior_incorrect_coordinates(
+      self,
+      coord,
+      mismatched_posteriors,
+      mismatched_coord_size,
+      expected_coord_size,
+  ):
+    """Checks posterior validation fails with incorrect coordinates."""
+    self.enter_context(
+        mock.patch.object(
+            model,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_and_rf,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec(
+        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
+        rf_roi_calibration_period=self._RF_ROI_CALIBRATION_PERIOD,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=self._N_CHAINS,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+    )
+
+    posterior_coords = meridian._create_inference_data_coords(
+        self._N_CHAINS, self._N_KEEP
+    )
+    posterior_dims = meridian._create_inference_data_dims()
+    posterior_samples = dict(meridian.inference_data.posterior)
+    for posterior in mismatched_posteriors:
+      posterior_samples[posterior] = tf.zeros(mismatched_posteriors[posterior])
+
+    posterior_coords = dict(posterior_coords)
+    posterior_coords[coord] = np.arange(mismatched_coord_size)
+
+    inference_data = az.convert_to_inference_data(
+        posterior_samples,
+        coords=posterior_coords,
+        dims=posterior_dims,
+        group=constants.POSTERIOR,
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        f"Injected inference data {constants.POSTERIOR} has incorrect"
+        f" coordinate '{coord}': expected"
+        f" {expected_coord_size}, got {mismatched_coord_size}",
     ):
       _ = model.Meridian(
           input_data=self.short_input_data_with_media_and_rf,
