@@ -2516,6 +2516,235 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     ):
       model.load_mmm("this/path/does/not/exist")
 
+  def test_injected_sample_prior_media_and_rf_returns_correct_shape(self):
+    """Checks validation passes with correct shapes."""
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "_sample_prior_fn",
+            autospec=True,
+            return_value=self.test_dist_media_and_rf,
+        )
+    )
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS)
+    inference_data = meridian.inference_data
+
+    meridian_with_inference_data = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+        inference_data=inference_data,
+    )
+
+    self.assertEqual(
+        meridian_with_inference_data.inference_data, inference_data
+    )
+
+  def test_injected_sample_prior_media_only_returns_correct_shape(self):
+    """Checks validation passes with correct shapes."""
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "_sample_prior_fn",
+            autospec=True,
+            return_value=self.test_dist_media_only,
+        )
+    )
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_only,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS)
+    inference_data = meridian.inference_data
+
+    meridian_with_inference_data = model.Meridian(
+        input_data=self.short_input_data_with_media_only,
+        model_spec=model_spec,
+        inference_data=inference_data,
+    )
+
+    self.assertEqual(
+        meridian_with_inference_data.inference_data, inference_data
+    )
+
+  def test_injected_sample_prior_rf_only_returns_correct_shape(self):
+    """Checks validation passes with correct shapes."""
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "_sample_prior_fn",
+            autospec=True,
+            return_value=self.test_dist_rf_only,
+        )
+    )
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_rf_only,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS)
+    inference_data = meridian.inference_data
+
+    meridian_with_inference_data = model.Meridian(
+        input_data=self.short_input_data_with_rf_only,
+        model_spec=model_spec,
+        inference_data=inference_data,
+    )
+
+    self.assertEqual(
+        meridian_with_inference_data.inference_data, inference_data
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="control_variables",
+          coord=constants.CONTROL_VARIABLE,
+          mismatched_priors={
+              constants.GAMMA_C: (1, _N_DRAWS, _N_CONTROLS + 1),
+              constants.GAMMA_GC: (1, _N_DRAWS, _N_GEOS, _N_CONTROLS + 1),
+              constants.XI_C: (1, _N_DRAWS, _N_CONTROLS + 1),
+          },
+          mismatched_coord_size=_N_CONTROLS + 1,
+          expected_coord_size=_N_CONTROLS,
+      ),
+      dict(
+          testcase_name="geos",
+          coord=constants.GEO,
+          mismatched_priors={
+              constants.BETA_GM: (1, _N_DRAWS, _N_GEOS + 1, _N_MEDIA_CHANNELS),
+              constants.BETA_GRF: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS + 1,
+                  _N_RF_CHANNELS,
+              ),
+              constants.GAMMA_GC: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS + 1,
+                  _N_CONTROLS,
+              ),
+              constants.TAU_G: (1, _N_DRAWS, _N_GEOS + 1),
+          },
+          mismatched_coord_size=_N_GEOS + 1,
+          expected_coord_size=_N_GEOS,
+      ),
+      dict(
+          testcase_name="knots",
+          coord=constants.KNOTS,
+          mismatched_priors={
+              constants.KNOT_VALUES: (
+                  1,
+                  _N_DRAWS,
+                  _N_TIMES_SHORT + 1,
+              ),
+          },
+          mismatched_coord_size=_N_TIMES_SHORT + 1,
+          expected_coord_size=_N_TIMES_SHORT,
+      ),
+      dict(
+          testcase_name="times",
+          coord=constants.TIME,
+          mismatched_priors={
+              constants.MU_T: (1, _N_DRAWS, _N_TIMES_SHORT + 1),
+          },
+          mismatched_coord_size=_N_TIMES_SHORT + 1,
+          expected_coord_size=_N_TIMES_SHORT,
+      ),
+      dict(
+          testcase_name="sigma_dims",
+          coord=constants.SIGMA_DIM,
+          mismatched_priors={
+              constants.SIGMA: (1, _N_DRAWS, _N_GEOS_NATIONAL + 1),
+          },
+          mismatched_coord_size=_N_GEOS_NATIONAL + 1,
+          expected_coord_size=_N_GEOS_NATIONAL,
+      ),
+      dict(
+          testcase_name="media_channels",
+          coord=constants.MEDIA_CHANNEL,
+          mismatched_priors={
+              constants.ALPHA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.BETA_GM: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS,
+                  _N_MEDIA_CHANNELS + 1,
+              ),
+              constants.BETA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.EC_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.ETA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.ROI_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.SLOPE_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_MEDIA_CHANNELS + 1,
+          expected_coord_size=_N_MEDIA_CHANNELS,
+      ),
+      dict(
+          testcase_name="rf_channels",
+          coord=constants.RF_CHANNEL,
+          mismatched_priors={
+              constants.ALPHA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.BETA_GRF: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS,
+                  _N_RF_CHANNELS + 1,
+              ),
+              constants.BETA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.EC_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.ETA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.ROI_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.SLOPE_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_RF_CHANNELS + 1,
+          expected_coord_size=_N_RF_CHANNELS,
+      ),
+  )
+  def test_validate_injected_inference_data_prior_incorrect_coordinates(
+      self, coord, mismatched_priors, mismatched_coord_size, expected_coord_size
+  ):
+    """Checks validation fails with incorrect coordinates."""
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    prior_samples = meridian._sample_prior_fn(self._N_DRAWS)
+    prior_coords = meridian._create_inference_data_coords(1, self._N_DRAWS)
+    prior_dims = meridian._create_inference_data_dims()
+
+    prior_samples = dict(prior_samples)
+    for param in mismatched_priors:
+      prior_samples[param] = tf.zeros(mismatched_priors[param])
+    prior_coords = dict(prior_coords)
+    prior_coords[coord] = np.arange(mismatched_coord_size)
+
+    inference_data = az.convert_to_inference_data(
+        prior_samples,
+        coords=prior_coords,
+        dims=prior_dims,
+        group=constants.PRIOR,
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        "Injected inference data prior has incorrect coordinate"
+        f" '{coord}': expected"
+        f" {expected_coord_size}, got"
+        f" {mismatched_coord_size}",
+    ):
+      _ = model.Meridian(
+          input_data=self.short_input_data_with_media_and_rf,
+          model_spec=model_spec,
+          inference_data=inference_data,
+      )
+
 
 class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -3219,141 +3448,69 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
         meridian_with_inference_data.inference_data, inference_data
     )
 
-  def test_validate_injected_inference_data_prior_incorrect_geos(self):
-    """Checks validation fails with incorrect number of geos."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_geos = meridian.n_geos + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.BETA_GM] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_media_channels,
-    ))
-    prior_samples[constants.BETA_GOM] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_organic_media_channels,
-    ))
-    prior_samples[constants.BETA_GORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_organic_rf_channels,
-    ))
-    prior_samples[constants.BETA_GRF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_rf_channels,
-    ))
-    prior_samples[constants.GAMMA_GC] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_controls,
-    ))
-    prior_samples[constants.GAMMA_GN] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-        meridian.n_non_media_channels,
-    ))
-    prior_samples[constants.TAU_G] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_geos,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.GEO] = np.arange(mismatched_n_geos)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.GEO}': expected {meridian.n_geos}, got"
-        f" {mismatched_n_geos}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_media_channels(
-      self,
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="non_media_channels",
+          coord=constants.NON_MEDIA_CHANNEL,
+          mismatched_priors={
+              constants.GAMMA_GN: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS,
+                  _N_NON_MEDIA_CHANNELS + 1,
+              ),
+              constants.GAMMA_N: (1, _N_DRAWS, _N_NON_MEDIA_CHANNELS + 1),
+              constants.XI_N: (1, _N_DRAWS, _N_NON_MEDIA_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_NON_MEDIA_CHANNELS + 1,
+          expected_coord_size=_N_NON_MEDIA_CHANNELS,
+      ),
+      dict(
+          testcase_name="organic_rf_channels",
+          coord=constants.ORGANIC_RF_CHANNEL,
+          mismatched_priors={
+              constants.ALPHA_ORF: (
+                  1,
+                  _N_DRAWS,
+                  _N_ORGANIC_RF_CHANNELS + 1,
+              ),
+              constants.BETA_ORF: (
+                  1,
+                  _N_DRAWS,
+                  _N_ORGANIC_RF_CHANNELS + 1,
+              ),
+              constants.BETA_GORF: (
+                  1,
+                  _N_DRAWS,
+                  _N_GEOS,
+                  _N_ORGANIC_RF_CHANNELS + 1,
+              ),
+              constants.EC_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
+              constants.ETA_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
+              constants.SLOPE_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
+          },
+          mismatched_coord_size=_N_ORGANIC_RF_CHANNELS + 1,
+          expected_coord_size=_N_ORGANIC_RF_CHANNELS,
+      ),
+  )
+  def test_validate_injected_inference_data_prior_incorrect_coordinates(
+      self, coord, mismatched_priors, mismatched_coord_size, expected_coord_size
   ):
-    """Checks validation fails with incorrect number of media channels."""
+    """Checks validation fails with incorrect coordinates."""
     model_spec = spec.ModelSpec()
     meridian = model.Meridian(
         input_data=self.input_data_non_media_and_organic,
         model_spec=model_spec,
     )
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
+    prior_samples = meridian._sample_prior_fn(self._N_DRAWS)
+    prior_coords = meridian._create_inference_data_coords(1, self._N_DRAWS)
     prior_dims = meridian._create_inference_data_dims()
 
-    mismatched_n_media_channels = meridian.n_media_channels + 1
     prior_samples = dict(prior_samples)
-    prior_samples[constants.ALPHA_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.BETA_GM] = tf.zeros((
-        n_chains,
-        n_draws,
-        meridian.n_geos,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.BETA_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.EC_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.ETA_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.ROI_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
-    prior_samples[constants.SLOPE_M] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_media_channels,
-    ))
+    for param in mismatched_priors:
+      prior_samples[param] = tf.zeros(mismatched_priors[param])
     prior_coords = dict(prior_coords)
-    prior_coords[constants.MEDIA_CHANNEL] = np.arange(
-        mismatched_n_media_channels
-    )
+    prior_coords[coord] = np.arange(mismatched_coord_size)
 
     inference_data = az.convert_to_inference_data(
         prior_samples,
@@ -3365,406 +3522,9 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError,
         "Injected inference data prior has incorrect coordinate"
-        f" '{constants.MEDIA_CHANNEL}': expected {meridian.n_media_channels},"
-        f" got {mismatched_n_media_channels}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_rf_channels(
-      self,
-  ):
-    """Checks validation fails with incorrect number of rf channels."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_rf_channels = meridian.n_rf_channels + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.ALPHA_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.BETA_GRF] = tf.zeros((
-        n_chains,
-        n_draws,
-        meridian.n_geos,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.BETA_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.EC_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.ETA_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.ROI_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_samples[constants.SLOPE_RF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_rf_channels,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.RF_CHANNEL] = np.arange(mismatched_n_rf_channels)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.RF_CHANNEL}': expected {meridian.n_rf_channels},"
-        f" got {mismatched_n_rf_channels}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_organic_rf_channels(
-      self,
-  ):
-    """Checks validation fails with incorrect number of organic rf channels."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_organic_rf_channels = meridian.n_organic_rf_channels + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.ALPHA_ORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_samples[constants.BETA_GORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        meridian.n_geos,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_samples[constants.BETA_ORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_samples[constants.EC_ORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_samples[constants.ETA_ORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_samples[constants.SLOPE_ORF] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_organic_rf_channels,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.ORGANIC_RF_CHANNEL] = np.arange(
-        mismatched_n_organic_rf_channels
-    )
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.ORGANIC_RF_CHANNEL}': expected"
-        f" {meridian.n_organic_rf_channels}, got"
-        f" {mismatched_n_organic_rf_channels}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_control_variables(
-      self,
-  ):
-    """Checks validation fails with incorrect number of control variables."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_controls = meridian.n_controls + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.GAMMA_C] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_controls,
-    ))
-    prior_samples[constants.GAMMA_GC] = tf.zeros((
-        n_chains,
-        n_draws,
-        meridian.n_geos,
-        mismatched_n_controls,
-    ))
-    prior_samples[constants.XI_C] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_controls,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.CONTROL_VARIABLE] = np.arange(mismatched_n_controls)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.CONTROL_VARIABLE}': expected"
-        f" {meridian.n_controls}, got"
-        f" {mismatched_n_controls}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_non_media_channels(
-      self,
-  ):
-    """Checks validation fails with incorrect number of non media channels."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_non_media_channels = meridian.n_non_media_channels + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.GAMMA_GN] = tf.zeros((
-        n_chains,
-        n_draws,
-        meridian.n_geos,
-        mismatched_n_non_media_channels,
-    ))
-    prior_samples[constants.GAMMA_N] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_non_media_channels,
-    ))
-    prior_samples[constants.XI_N] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_non_media_channels,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.NON_MEDIA_CHANNEL] = np.arange(
-        mismatched_n_non_media_channels
-    )
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.NON_MEDIA_CHANNEL}': expected"
-        f" {meridian.n_non_media_channels}, got"
-        f" {mismatched_n_non_media_channels}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_knots(self):
-    """Checks validation fails with incorrect number of knots."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_knots = meridian.knot_info.n_knots + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.KNOT_VALUES] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_knots,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.KNOTS] = np.arange(mismatched_n_knots)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.KNOTS}': expected {meridian.knot_info.n_knots}, got"
-        f" {mismatched_n_knots}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_times(
-      self,
-  ):
-    """Checks validation fails with incorrect number of times."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_n_times = meridian.n_times + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.MU_T] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_n_times,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.TIME] = np.arange(mismatched_n_times)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.TIME}': expected {meridian.n_times}, got"
-        f" {mismatched_n_times}",
-    ):
-      _ = model.Meridian(
-          input_data=self.input_data_non_media_and_organic,
-          model_spec=model_spec,
-          inference_data=inference_data,
-      )
-
-  def test_validate_injected_inference_data_prior_incorrect_sigma_dims(
-      self,
-  ):
-    """Checks validation fails with incorrect number of sigma dimensions."""
-    model_spec = spec.ModelSpec()
-    meridian = model.Meridian(
-        input_data=self.input_data_non_media_and_organic,
-        model_spec=model_spec,
-    )
-
-    n_chains = 1
-    n_draws = 10
-    prior_samples = meridian._sample_prior_fn(n_draws)
-    prior_coords = meridian._create_inference_data_coords(n_chains, n_draws)
-    prior_dims = meridian._create_inference_data_dims()
-
-    mismatched_sigma_shape = meridian._sigma_shape + 1
-    prior_samples = dict(prior_samples)
-    prior_samples[constants.SIGMA] = tf.zeros((
-        n_chains,
-        n_draws,
-        mismatched_sigma_shape,
-    ))
-    prior_coords = dict(prior_coords)
-    prior_coords[constants.SIGMA_DIM] = np.arange(mismatched_sigma_shape)
-
-    inference_data = az.convert_to_inference_data(
-        prior_samples,
-        coords=prior_coords,
-        dims=prior_dims,
-        group=constants.PRIOR,
-    )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        "Injected inference data prior has incorrect coordinate"
-        f" '{constants.SIGMA_DIM}': expected {meridian._sigma_shape}, got"
-        f" {mismatched_sigma_shape}",
+        f" '{coord}': expected"
+        f" {expected_coord_size}, got"
+        f" {mismatched_coord_size}",
     ):
       _ = model.Meridian(
           input_data=self.input_data_non_media_and_organic,

@@ -497,7 +497,10 @@ class Meridian:
     # TODO: Add validation for injected posterior.
 
   def _validate_injected_inference_data_prior_coord(
-      self, inference_data: az.InferenceData, coord: str, expected_size: int
+      self,
+      inference_data: az.InferenceData,
+      coord: str,
+      expected_size: int,
   ):
     """Validates that the injected inference data prior coordinate has the expected size.
 
@@ -531,10 +534,30 @@ class Meridian:
         inference_data, constants.GEO, self.n_geos
     )
     self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.MEDIA_CHANNEL, self.n_media_channels
+        inference_data,
+        constants.CONTROL_VARIABLE,
+        self.n_controls,
     )
     self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.RF_CHANNEL, self.n_rf_channels
+        inference_data,
+        constants.KNOTS,
+        self.knot_info.n_knots,
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.TIME, self.n_times
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.SIGMA_DIM, self._sigma_shape
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data,
+        constants.MEDIA_CHANNEL,
+        self.n_media_channels,
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data,
+        constants.RF_CHANNEL,
+        self.n_rf_channels,
     )
     self._validate_injected_inference_data_prior_coord(
         inference_data,
@@ -542,22 +565,14 @@ class Meridian:
         self.n_organic_media_channels,
     )
     self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.ORGANIC_RF_CHANNEL, self.n_organic_rf_channels
+        inference_data,
+        constants.ORGANIC_RF_CHANNEL,
+        self.n_organic_rf_channels,
     )
     self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.CONTROL_VARIABLE, self.n_controls
-    )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.NON_MEDIA_CHANNEL, self.n_non_media_channels
-    )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.KNOTS, self.knot_info.n_knots
-    )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.TIME, self.n_times
-    )
-    self._validate_injected_inference_data_prior_coord(
-        inference_data, constants.SIGMA_DIM, self._sigma_shape
+        inference_data,
+        constants.NON_MEDIA_CHANNEL,
+        self.n_non_media_channels,
     )
 
   def _validate_data_dependent_model_spec(self):
