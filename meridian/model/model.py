@@ -167,12 +167,18 @@ class Meridian:
       self,
       input_data: data.InputData,
       model_spec: spec.ModelSpec | None = None,
+      inference_data: (
+          az.InferenceData | None
+      ) = None,  # for deserializer use only
   ):
     self._input_data = input_data
     self._model_spec = model_spec if model_spec else spec.ModelSpec()
-    self._inference_data = az.InferenceData()
+    self._inference_data = (
+        inference_data if inference_data else az.InferenceData()
+    )
 
     self._validate_data_dependent_model_spec()
+    self._validate_injected_inference_data()
 
     if self.is_national:
       _warn_setting_national_args(
@@ -296,6 +302,10 @@ class Meridian:
   def is_national(self) -> bool:
     return self.n_geos == 1
 
+  @property
+  def _sigma_shape(self) -> int:
+    return len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
+
   @functools.cached_property
   def knot_info(self) -> knots.KnotInfo:
     return knots.get_knot_info(
@@ -410,9 +420,6 @@ class Meridian:
   @functools.cached_property
   def prior_broadcast(self) -> prior_distribution.PriorDistribution:
     """Returns broadcasted `PriorDistribution` object."""
-    sigma_shape = (
-        len(self.input_data.geo) if self.unique_sigma_for_each_geo else 1
-    )
     set_roi_prior = (
         self.input_data.revenue_per_kpi is None
         and self.input_data.kpi_type == constants.NON_REVENUE
@@ -438,7 +445,7 @@ class Meridian:
         n_organic_rf_channels=self.n_organic_rf_channels,
         n_controls=self.n_controls,
         n_non_media_channels=self.n_non_media_channels,
-        sigma_shape=sigma_shape,
+        sigma_shape=self._sigma_shape,
         n_knots=self.knot_info.n_knots,
         is_national=self.is_national,
         paid_media_prior_type=self.model_spec.paid_media_prior_type,
@@ -478,6 +485,80 @@ class Meridian:
     if expanded is None:
       return None
     return [date.strftime(constants.DATE_FORMAT) for date in expanded]
+
+  def _validate_injected_inference_data(self):
+    """Validates that the injected inference data has correct shapes.
+
+    Raises:
+      ValueError: If the injected `InferenceData` has incorrect shapes.
+    """
+    if hasattr(self.inference_data, "prior"):
+      self._validate_injected_inference_data_prior(self.inference_data)
+    # TODO: Add validation for injected posterior.
+
+  def _validate_injected_inference_data_prior_coord(
+      self, inference_data: az.InferenceData, coord: str, expected_size: int
+  ):
+    """Validates that the injected inference data prior coordinate has the expected size.
+
+    Args:
+      inference_data: The injected `InferenceData` to be validated.
+      coord: The coordinate to be validated.
+      expected_size: The expected size of the coordinate.
+
+    Raises:
+      ValueError: If the injected `InferenceData` has incorrect size for the
+      coordinate.
+    """
+
+    injected_size = (
+        inference_data.prior.coords[coord].size
+        if coord in inference_data.prior.coords
+        else 0
+    )
+    if injected_size != expected_size:
+      raise ValueError(
+          f"Injected inference data prior has incorrect coordinate '{coord}': "
+          f"expected {expected_size}, got {injected_size}"
+      )
+
+  def _validate_injected_inference_data_prior(
+      self, inference_data: az.InferenceData
+  ):
+    """Validates that the injected inference data prior has correct shapes."""
+
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.GEO, self.n_geos
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.MEDIA_CHANNEL, self.n_media_channels
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.RF_CHANNEL, self.n_rf_channels
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data,
+        constants.ORGANIC_MEDIA_CHANNEL,
+        self.n_organic_media_channels,
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.ORGANIC_RF_CHANNEL, self.n_organic_rf_channels
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.CONTROL_VARIABLE, self.n_controls
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.NON_MEDIA_CHANNEL, self.n_non_media_channels
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.KNOTS, self.knot_info.n_knots
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.TIME, self.n_times
+    )
+    self._validate_injected_inference_data_prior_coord(
+        inference_data, constants.SIGMA_DIM, self._sigma_shape
+    )
 
   def _validate_data_dependent_model_spec(self):
     """Validates that the data dependent model specs have correct shapes."""
