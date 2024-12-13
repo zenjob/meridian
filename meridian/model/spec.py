@@ -84,13 +84,13 @@ class ModelSpec:
       `PriorContainer.beta_m` and `PriorContainer.beta_rf` attributes will be
       ignored).
     roi_calibration_period: An optional boolean array of shape `(n_media_times,
-      n_media_channels)` indicating the subset of `time` for media ROI
-      calibration. If `None`, all times are used for media ROI calibration.
+      n_media_channels)` indicating the subset of `time` that the ROI (or mROI)
+      value of the `roi_m` prior applies to. If `None`, all times are used.
       Default: `None`.
     rf_roi_calibration_period: An optional boolean array of shape
-      `(n_media_times, n_rf_channels)` indicating the subset of `time` for reach
-      and frequency ROI calibration. If `None`, all times are used for media ROI
-      calibration. Default: `None`.
+      `(n_media_times, n_rf_channels)` indicating the subset of `time` that the
+      ROI (or mROI) value of the `roi_rf` prior applies to. If `None`, all times
+      are used. Default: `None`.
     knots: An optional integer or list of integers indicating the knots used to
       estimate time effects. When `knots` is a list of integers, the knot
       locations are provided by that list. Zero corresponds to a knot at the
