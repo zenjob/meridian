@@ -910,7 +910,26 @@ class MediaEffects:
         intervals, represented as a value between zero and one. Default is 0.9.
 
     Returns:
-      A DataFrame displaying the hill curves metrics.
+      Hill curves `pd.DataFrame` with columns:
+
+      *   `channel`: `media` or `rf` channel name.
+      *   `media_units`: Media (for `media` channels) or average frequency (for
+          `rf` channels) units.
+      *   `distribution`: Indication of `posterior` or `prior` draw.
+      *   `ci_hi`: Upper bound of the credible interval of the value of the Hill
+          function.
+      *   `ci_lo`: Lower bound of the credible interval of the value of the Hill
+          function.
+      *   `mean`: Point-wise mean of the value of the Hill function per draw.
+      *   `channel_type`: Indication of a `media` or `rf` channel.
+      *   `scaled_count_histogram`: Scaled count of media units or average
+          frequencies within the bin.
+      *   `count_histogram`: Count value of media units or average
+          frequencies within the bin.
+      *   `start_interval_histogram`: Media unit or average frequency starting
+          point for a histogram bin.
+      *   `end_interval_histogram`: Media unit or average frequency ending point
+          for a histogram bin.
     """
     return self._analyzer.hill_curves(confidence_level=confidence_level)
 

@@ -4368,7 +4368,7 @@ class Analyzer:
         plotting. Default is `25`.
 
     Returns:
-      Hill Curves pd.DataFrame with columns:
+      Hill curves `pd.DataFrame` with columns:
 
       *   `channel`: `media` or `rf` channel name.
       *   `media_units`: Media (for `media` channels) or average frequency (for
@@ -4382,7 +4382,7 @@ class Analyzer:
       *   `channel_type`: Indication of a `media` or `rf` channel.
       *   `scaled_count_histogram`: Scaled count of media units or average
           frequencies within the bin.
-      *   `count_histogram`: True count value of media units or average
+      *   `count_histogram`: Count value of media units or average
           frequencies within the bin.
       *   `start_interval_histogram`: Media unit or average frequency starting
           point for a histogram bin.
