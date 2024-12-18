@@ -1945,7 +1945,7 @@ class Analyzer:
           and not self._meridian.input_data.rf_spend_has_time_dimension
       ):
         raise ValueError(
-            "aggregate_geos=False not allowed because Meridian rf_spend data"
+            "aggregate_times=False not allowed because Meridian rf_spend data"
             " does not have time dimension."
         )
 
@@ -2044,9 +2044,17 @@ class Analyzer:
     The marginal ROI (mROI) numerator is the change in expected outcome (`kpi`
     or `kpi * revenue_per_kpi`) when one channel's spend is increased by a small
     fraction. The mROI denominator is the corresponding small fraction of the
-    channel's total spend. When `revenue_per_kpi` is unavailable,
-    `change_in_outcome / spend` is equivalent to `change_in_revenue / spend`
-    under the assumption that `revenue_per_kpi=1`.
+    channel's total spend.
+
+    If `selected_geos` or `selected_times` is specified, then the mROI
+    denominator is based on the total spend during the selected geos and time
+    periods. An exception will be thrown if the spend of the InputData used to
+    train the model does not have geo and time dimensions. (If the
+    `new_media_spend` and `new_rf_spend` arguments are used with different
+    dimensions than the InputData spend, then an exception will be thrown since
+    this is a likely user error.)
+
+    It is not recommended to set `aggregate_times=False`. (See `roi` docstring.)
 
     Args:
       incremental_increase: Small fraction by which each channel's spend is
@@ -2081,7 +2089,7 @@ class Analyzer:
       by_reach: Used for a channel with reach and frequency. If `True`, returns
         the mROI by reach for a given fixed frequency. If `False`, returns the
         mROI by frequency for a given fixed reach.
-      use_kpi: If `True`, then revenue is used to calculate the mROI numerator.
+      use_kpi: If `False`, then revenue is used to calculate the mROI numerator.
         Otherwise, uses KPI to calculate the mROI numerator.
       batch_size: Maximum draws per chain in each batch. The calculation is run
         in batches to avoid memory exhaustion. If a memory error occurs, try
@@ -2161,6 +2169,15 @@ class Analyzer:
           spend_inc, **dim_kwargs
       )
     else:
+      if not aggregate_geos or not aggregate_times:
+        # This check should not be reachable. It is here to protect against
+        # future changes to self._get_performance_tensors. If spend_inc.ndim is
+        # not 3 and either of `aggregate_geos` or `aggregate_times` is `False`,
+        # then self._get_performance_tensors should raise an error.
+        raise ValueError(
+            "aggregate_geos and aggregate_times must both be True if spend"
+            " does not have geo and time dimensions."
+        )
       denominator = spend_inc
     return tf.math.divide_no_nan(numerator, denominator)
 
@@ -2185,9 +2202,25 @@ class Analyzer:
     The ROI numerator is the change in expected outcome (`kpi` or `kpi *
     revenue_per_kpi`) when one channel's spend is set to zero, leaving all other
     channels' spend unchanged. The ROI denominator is the total spend of the
-    channel. When `revenue_per_kpi` is unavailable, `change_in_outcome / spend`
-    is equivalent to `change_in_revenue / spend` under the assumption that
-    `revenue_per_kpi=1`.
+    channel.
+
+    If `selected_geos` or `selected_times` is specified, then the ROI
+    denominator is the total spend during the selected geos and time periods. An
+    exception will be thrown if the spend of the InputData used to train the
+    model does not have geo and time dimensions. (If the `new_media_spend` and
+    `new_rf_spend` arguments are used with different dimensions than the
+    InputData spend, then an exception will be thrown since this is a likely
+    user error.)
+
+    It is not recommended to set `aggregate_times=False`. ROI is defined as the
+    incremental outcome generated during the time period divided by the spend
+    during that time period. Incremental outcome does not include the lagged
+    effect of media executed during the current time period, but it does include
+    the lagged effect of past media on the current time period. According to
+    this definition, the incremental outcome over a time window is the sum of
+    the incremental outcome by time period within that window. This consistency
+    would not hold if incremental outcome by time period included lagged effects
+    of media executed during that time period.
 
     Args:
       use_posterior: Boolean. If `True`, then the posterior distribution is
@@ -2215,7 +2248,7 @@ class Analyzer:
         all of the regions.
       aggregate_times: Boolean. If `True`, the expected revenue is summed over
         all of the time periods.
-      use_kpi: If `True`, then revenue is used to calculate the ROI numerator.
+      use_kpi: If `False`, then revenue is used to calculate the ROI numerator.
         Otherwise, uses KPI to calculate the ROI numerator.
       batch_size: Integer representing the maximum draws per chain in each
         batch. The calculation is run in batches to avoid memory exhaustion. If
@@ -2268,6 +2301,15 @@ class Analyzer:
           spend, **dim_kwargs
       )
     else:
+      if not aggregate_geos or not aggregate_times:
+        # This check should not be reachable. It is here to protect against
+        # future changes to self._get_performance_tensors. If spend_inc.ndim is
+        # not 3 and either of `aggregate_geos` or `aggregate_times` is `False`,
+        # then self._get_performance_tensors should raise an error.
+        raise ValueError(
+            "aggregate_geos and aggregate_times must both be True if spend"
+            " does not have geo and time dimensions."
+        )
       denominator = spend
     return tf.math.divide_no_nan(incremental_outcome, denominator)
 
@@ -2291,6 +2333,19 @@ class Analyzer:
     The CPIK numerator is the total spend on the channel. The CPIK denominator
     is the change in expected KPI when one channel's spend is set to zero,
     leaving all other channels' spend unchanged.
+
+    If `selected_geos` or `selected_times` is specified, then the CPIK
+    numerator is the total spend during the selected geos and time periods. An
+    exception will be thrown if the spend of the InputData used to train the
+    model does not have geo and time dimensions. (If the `new_media_spend` and
+    `new_rf_spend` arguments are used with different dimensions than the
+    InputData spend, then an exception will be thrown since this is a likely
+    user error.)
+
+    It is not recommended to set `aggregate_times=False`. (See `roi` docstring.)
+
+    Note that CPIK is simply 1/ROI, where ROI is obtained from a call to the
+    `roi` method with `use_kpi=True`.
 
     Args:
       use_posterior: Boolean. If `True` then the posterior distribution is
@@ -2320,47 +2375,21 @@ class Analyzer:
       dimensions are dropped if `aggregate_geos=True` or
       `aggregate_times=True`, respectively.
     """
-    dim_kwargs = {
-        "selected_geos": selected_geos,
-        "selected_times": selected_times,
-        "aggregate_geos": aggregate_geos,
-        "aggregate_times": aggregate_times,
-    }
-    incremental_outcome_kwargs = {
-        "inverse_transform_outcome": True,
-        "use_kpi": True,
-        "use_posterior": use_posterior,
-        "batch_size": batch_size,
-        "include_non_paid_channels": False,
-    }
-    # TODO: Organize the tensors passed between the methods
-    # using DataTensors.
-    tensors = self._get_performance_tensors(
-        new_media,
-        new_media_spend,
-        new_reach,
-        new_frequency,
-        new_rf_spend,
-        **dim_kwargs,
+    roi = self.roi(
+        use_kpi=True,
+        use_posterior=use_posterior,
+        new_media=new_media,
+        new_media_spend=new_media_spend,
+        new_reach=new_reach,
+        new_frequency=new_frequency,
+        new_rf_spend=new_rf_spend,
+        selected_geos=selected_geos,
+        selected_times=selected_times,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        batch_size=batch_size,
     )
-    incremental_kpi = self.incremental_outcome(
-        new_data=DataTensors(
-            media=tensors.media,
-            reach=tensors.reach,
-            frequency=tensors.frequency,
-        ),
-        **incremental_outcome_kwargs,
-        **dim_kwargs,
-    )
-
-    cpik_spend = tensors.total_spend()
-    if cpik_spend is not None and cpik_spend.ndim == 3:
-      numerator = self.filter_and_aggregate_geos_and_times(
-          cpik_spend, **dim_kwargs
-      )
-    else:
-      numerator = cpik_spend
-    return tf.math.divide_no_nan(numerator, incremental_kpi)
+    return tf.math.divide_no_nan(1.0, roi)
 
   def _mean_and_ci_by_eval_set(
       self,
