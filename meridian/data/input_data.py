@@ -108,13 +108,15 @@ class InputData:
       channel. This is used as the denominator for ROI calculations. The
       DataArray shape can be `(n_geos, n_times, n_media_channels)` or
       `(n_media_channels,)` if the data is aggregated over `geo` and `time`
-      dimensions. Align the total cost with the time window of the `kpi` and
-      `controls` data, which is the time window over which the incremental
-      revenue of the ROI numerator is calculated. The incremental outcome is
-      influenced by media execution prior to this time window, through lagged
-      effects. `media` and `media_spend` must contain the same number of media
-      channels in the same order. If either of these arguments is passed, then
-      the other is not optional.
+      dimensions. We recommend that the spend total aligns with the time window
+      of the `kpi` and `controls` data, which is the time window over which
+      incremental outcome of the ROI numerator is calculated. However, note that
+      incremental outcome is influenced by media execution prior to this time
+      window, through lagged effects, and excludes lagged effects beyond the
+      time window of media executed during the time window. `media` and
+      `media_spend` must contain the same number of media channels in the same
+      order. If either of these arguments is passed, then the other is not
+      optional.
     reach: An optional `DataArray` of dimensions `(n_geos, n_media_times,
       n_rf_channels)` containing non-negative `reach` values. It is required
       that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
@@ -152,7 +154,7 @@ class InputData:
       aggregated over geo and/or time dimensions that are not represented. We
       recommend that the spend total aligns with the time window of the `kpi`
       and `controls` data, which is the time window over which incremental
-      outcome of the ROI numerator is calculated). However, note that
+      outcome of the ROI numerator is calculated. However, note that
       incremental outcome is influenced by media execution prior to this time
       window, through lagged effects, and excludes lagged effects beyond the
       time window of media executed during the time window. If only `media` data
