@@ -1808,6 +1808,193 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
           int(list(is_true_df[constants.TIME_UNITS])[i]),
       )
 
+  def test_get_historical_spend_correct_channel_names(self):
+    actual_hist_spend = self.analyzer_media_and_rf.get_historical_spend(
+        selected_times=None
+    )
+    expected_channel_names = (
+        self.input_data_media_and_rf.get_all_paid_channels()
+    )
+
+    self.assertSameElements(
+        expected_channel_names, actual_hist_spend.channel.data
+    )
+
+  def test_get_historical_spend_correct_values(self):
+    # Set it to None to avoid the dimension checks on inference data.
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: None),
+        )
+    )
+
+    data = data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+        n_geos=1,
+        n_times=3,
+        n_media_times=4,
+        n_media_channels=2,
+        n_rf_channels=1,
+        seed=0,
+    )
+
+    # Avoid the pytype check complaint.
+    assert data.media_channel is not None and data.rf_channel is not None
+
+    data.media_spend = xr.DataArray(
+        np.array([[[1.0, 2.0], [1.1, 2.1], [1.2, 2.2]]]),
+        dims=["geo", "time", "media_channel"],
+        coords={
+            "geo": data.geo.values,
+            "time": data.time.values,
+            "media_channel": data.media_channel.values,
+        },
+    )
+    data.rf_spend = xr.DataArray(
+        np.array([[[3.0], [3.1], [3.2]]]),
+        dims=["geo", "time", "rf_channel"],
+        coords={
+            "geo": data.geo.values,
+            "time": data.time.values,
+            "rf_channel": data.rf_channel.values,
+        },
+    )
+
+    model_spec = spec.ModelSpec(max_lag=15)
+    meridian = model.Meridian(input_data=data, model_spec=model_spec)
+    meridian_analyzer = analyzer.Analyzer(meridian)
+
+    # All times are selected.
+    selected_times = None
+    actual_hist_spend = meridian_analyzer.get_historical_spend(selected_times)
+    expected_all_spend = np.array([3.3, 6.3, 9.3])
+    self.assertAllClose(expected_all_spend, actual_hist_spend.data)
+
+  def test_get_historical_spend_selected_times_correct_values(self):
+    # Set it to None to avoid the dimension checks on inference data.
+    self.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(lambda unused_self: None),
+        )
+    )
+
+    data = data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+        n_geos=1,
+        n_times=3,
+        n_media_times=4,
+        n_media_channels=2,
+        n_rf_channels=1,
+        seed=0,
+    )
+
+    # Avoid the pytype check complaint.
+    assert data.media_channel is not None and data.rf_channel is not None
+
+    data.media_spend = xr.DataArray(
+        np.array([[[1.0, 2.0], [1.1, 2.1], [1.2, 2.2]]]),
+        dims=["geo", "time", "media_channel"],
+        coords={
+            "geo": data.geo.values,
+            "time": data.time.values,
+            "media_channel": data.media_channel.values,
+        },
+    )
+    data.rf_spend = xr.DataArray(
+        np.array([[[3.0], [3.1], [3.2]]]),
+        dims=["geo", "time", "rf_channel"],
+        coords={
+            "geo": data.geo.values,
+            "time": data.time.values,
+            "rf_channel": data.rf_channel.values,
+        },
+    )
+
+    model_spec = spec.ModelSpec(max_lag=15)
+    meridian = model.Meridian(input_data=data, model_spec=model_spec)
+    meridian_analyzer = analyzer.Analyzer(meridian)
+
+    # The first two times are selected.
+    selected_times = ["2021-01-25", "2021-02-01"]
+
+    actual_hist_spend = meridian_analyzer.get_historical_spend(selected_times)
+    expected_all_spend = np.array([2.1, 4.1, 6.1])
+    self.assertAllClose(expected_all_spend, actual_hist_spend.data)
+
+  def test_get_historical_spend_with_single_dim_spends(self):
+    seed = 0
+    data = data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+        n_geos=_N_GEOS,
+        n_times=_N_TIMES,
+        n_media_times=_N_MEDIA_TIMES,
+        n_controls=_N_CONTROLS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        seed=seed,
+    )
+    data.media_spend = data_test_utils.random_media_spend_nd_da(
+        n_geos=None,
+        n_times=None,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        seed=seed,
+    )
+    data.rf_spend = data_test_utils.random_rf_spend_nd_da(
+        n_geos=None,
+        n_times=None,
+        n_rf_channels=_N_RF_CHANNELS,
+        seed=seed,
+    )
+
+    model_spec = spec.ModelSpec(max_lag=15)
+    meridian = model.Meridian(input_data=data, model_spec=model_spec)
+    meridian_analyzer = analyzer.Analyzer(meridian)
+
+    n_sub_times = 4
+
+    selected_times = data.time.values[-n_sub_times:].tolist()
+    actual_hist_spends = meridian_analyzer.get_historical_spend(selected_times)
+
+    # The spend is interpolated based on the ratio of media execution in the
+    # selected times to the media execution in the entire time period.
+    # Shape (n_geos, n_times, n_media_channels + n_rf_channels)
+    all_media_exe_values = data.get_all_media_and_rf()
+
+    # Get the media execution values in the selected times.
+    # Shape (n_media_channels + n_rf_channels)
+    target_media_exe_values = np.sum(
+        all_media_exe_values[:, -n_sub_times:], axis=(0, 1)
+    )
+    # Get the media execution values in the entire time period.
+    # Shape (n_media_channels + n_rf_channels)
+    all_media_exe_values = np.sum(
+        all_media_exe_values[:, -meridian.n_times :], axis=(0, 1)
+    )
+    # The ratio will be used to interpolate the spend.
+    ratio = target_media_exe_values / all_media_exe_values
+    # Shape (n_media_channels + n_rf_channels)
+    expected_all_spend = data.get_total_spend() * ratio
+
+    self.assertAllClose(expected_all_spend, actual_hist_spends.data)
+
+  def test_get_historical_spend_with_empty_times(self):
+    selected_times = []
+    actual = self.analyzer_media_and_rf.get_historical_spend(selected_times)
+    self.assertAllEqual(
+        actual.data, np.zeros((_N_MEDIA_CHANNELS + _N_RF_CHANNELS))
+    )
+
+  def test_get_historical_spend_with_no_channel_selected(self):
+    selected_times = self.input_data_media_and_rf.time.values.tolist()
+
+    with self.assertRaisesRegex(
+        ValueError, "At least one of include_media or include_rf must be True."
+    ):
+      self.analyzer_media_and_rf.get_historical_spend(
+          selected_times, include_media=False, include_rf=False
+      )
+
 
 class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -2469,6 +2656,34 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.baseline_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
 
+  def test_get_historical_spend_correct_channel_names(self):
+    actual_hist_spend = self.analyzer_media_only.get_historical_spend(
+        selected_times=None, include_rf=False
+    )
+    expected_channel_names = self.input_data_media_only.get_all_paid_channels()
+
+    self.assertSameElements(
+        expected_channel_names, actual_hist_spend.channel.data
+    )
+
+  def test_get_historical_spend_requests_rf_when_no_rf_throws_warning(self):
+    selected_times = self.input_data_media_only.time.values.tolist()
+    with self.assertWarnsRegex(
+        UserWarning,
+        "Requested spends for paid media channels with R&F data, but but the"
+        " channels are not available.",
+    ):
+      self.analyzer_media_only.get_historical_spend(selected_times)
+
+  def test_get_historical_spend_requests_rf_when_no_rf_outputs_empty_data_array(
+      self,
+  ):
+    selected_times = self.input_data_media_only.time.values.tolist()
+    actual = self.analyzer_media_only.get_historical_spend(
+        selected_times, include_media=False
+    )
+    self.assertAllEqual(actual.data, [])
+
 
 class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -3116,6 +3331,36 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(media_summary.baseline_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
+
+  def test_get_historical_spend_correct_channel_names(self):
+    actual_hist_spend = self.analyzer_rf_only.get_historical_spend(
+        selected_times=None, include_media=False
+    )
+    expected_channel_names = self.input_data_rf_only.get_all_paid_channels()
+
+    self.assertSameElements(
+        expected_channel_names, actual_hist_spend.channel.data
+    )
+
+  def test_get_historical_spend_requests_media_when_no_media_throws_warning(
+      self,
+  ):
+    selected_times = self.input_data_rf_only.time.values.tolist()
+    with self.assertWarnsRegex(
+        UserWarning,
+        "Requested spends for paid media channels that do not have R&F data,"
+        " but the channels are not available.",
+    ):
+      self.analyzer_rf_only.get_historical_spend(selected_times)
+
+  def test_get_historical_spend_requests_rf_when_no_rf_outputs_empty_data_array(
+      self,
+  ):
+    selected_times = self.input_data_rf_only.time.values.tolist()
+    actual = self.analyzer_rf_only.get_historical_spend(
+        selected_times, include_rf=False
+    )
+    self.assertAllEqual(actual.data, [])
 
 
 class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):

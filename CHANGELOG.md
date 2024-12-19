@@ -22,6 +22,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+* Add `get_historical_spend` method to `Analyzer` class.
 
 ## [0.14.0] - 2024-12-17
 * Remove deprecated `use_roi_prior` attribute from `ModelSpec`.

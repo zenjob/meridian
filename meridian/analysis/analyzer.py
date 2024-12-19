@@ -4659,3 +4659,146 @@ class Analyzer:
         confidence_level=confidence_level,
         include_median=True,
     )
+
+  def get_historical_spend(
+      self,
+      selected_times: Sequence[str] | None,
+      include_media: bool = True,
+      include_rf: bool = True,
+  ) -> xr.DataArray:
+    """Gets the aggregated historical spend based on the time period.
+
+    Args:
+      selected_times: The time period to get the historical spends. If None, the
+        historical spends will be aggregated over all time points.
+      include_media: Whether to include spends for paid media channels that do
+        not have R&F data.
+      include_rf: Whether to include spends for paid media channels with R&F
+        data.
+
+    Returns:
+      An `xr.DataArray` with the coordinate `channel` and contains the data
+      variable `spend`.
+
+    Raises:
+      ValueError: A ValueError is raised when `include_media` and `include_rf`
+      are both False.
+    """
+    if not include_media and not include_rf:
+      raise ValueError(
+          "At least one of include_media or include_rf must be True."
+      )
+
+    empty_da = xr.DataArray(
+        dims=[constants.CHANNEL], coords={constants.CHANNEL: []}
+    )
+
+    if not include_media:
+      aggregated_media_spend = empty_da
+    elif (
+        self._meridian.media_tensors.media is None
+        or self._meridian.media_tensors.media_spend is None
+        or self._meridian.input_data.media_channel is None
+    ):
+      warnings.warn(
+          "Requested spends for paid media channels that do not have R&F"
+          " data, but the channels are not available."
+      )
+      aggregated_media_spend = empty_da
+    else:
+      aggregated_media_spend = self._impute_and_aggregate_spend(
+          selected_times,
+          self._meridian.media_tensors.media,
+          self._meridian.media_tensors.media_spend,
+          list(self._meridian.input_data.media_channel.values),
+      )
+
+    if not include_rf:
+      aggregated_rf_spend = empty_da
+    elif (
+        self._meridian.input_data.rf_channel is None
+        or self._meridian.rf_tensors.reach is None
+        or self._meridian.rf_tensors.frequency is None
+        or self._meridian.rf_tensors.rf_spend is None
+    ):
+      warnings.warn(
+          "Requested spends for paid media channels with R&F data, but but the"
+          " channels are not available.",
+      )
+      aggregated_rf_spend = empty_da
+    else:
+      rf_execution_values = (
+          self._meridian.rf_tensors.reach * self._meridian.rf_tensors.frequency
+      )
+      aggregated_rf_spend = self._impute_and_aggregate_spend(
+          selected_times,
+          rf_execution_values,
+          self._meridian.rf_tensors.rf_spend,
+          list(self._meridian.input_data.rf_channel.values),
+      )
+
+    return xr.concat(
+        [aggregated_media_spend, aggregated_rf_spend], dim=constants.CHANNEL
+    )
+
+  def _impute_and_aggregate_spend(
+      self,
+      selected_times: Sequence[str] | None,
+      media_execution_values: tf.Tensor,
+      channel_spend: tf.Tensor,
+      channel_names: Sequence[str],
+  ) -> xr.DataArray:
+    """Imputes and aggregates the spend over the selected time period.
+
+    This function is used to aggregate the spend over the selected time period.
+    Imputation is required when `channel_spend` has only one dimension and the
+    aggregation is applied to only a subset of times, as specified by
+    `selected_times`. The `media_execution_values` argument only serves the
+    purpose of imputation. Although `media_execution_values` is a required
+    argument, its values only affect the output when imputation is required.
+
+    Args:
+      selected_times: The time period to get the historical spend.
+      media_execution_values: The media execution values over all time points.
+      channel_spend: The spend over all time points. Its shape can be `(n_geos,
+        n_times, n_media_channels)` or `(n_media_channels,)` if the data is
+        aggregated over `geo` and `time` dimensions.
+      channel_names: The channel names.
+
+    Returns:
+      An `xr.DataArray` with the coordinate `channel` and contains the data
+      variable `spend`.
+    """
+    dim_kwargs = {
+        "selected_geos": None,
+        "selected_times": selected_times,
+        "aggregate_geos": True,
+        "aggregate_times": True,
+    }
+
+    if channel_spend.ndim == 3:
+      aggregated_spend = self.filter_and_aggregate_geos_and_times(
+          channel_spend,
+          **dim_kwargs,
+      ).numpy()
+    # channel_spend.ndim can only be 3 or 1.
+    else:
+      # media spend can have more time points than the model time points
+      media_exe_values = media_execution_values[:, -self._meridian.n_times :, :]
+      # Calculates CPM over all times and geos if the spend does not have time
+      # and geo dimensions.
+      target_media_exe_values = self.filter_and_aggregate_geos_and_times(
+          media_exe_values,
+          **dim_kwargs,
+      )
+      imputed_cpmu = tf.math.divide_no_nan(
+          channel_spend,
+          np.sum(media_exe_values, (0, 1)),
+      )
+      aggregated_spend = (target_media_exe_values * imputed_cpmu).numpy()
+
+    return xr.DataArray(
+        data=aggregated_spend,
+        dims=[constants.CHANNEL],
+        coords={constants.CHANNEL: channel_names},
+    )
