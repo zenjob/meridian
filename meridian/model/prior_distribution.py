@@ -117,17 +117,14 @@ class PriorDistribution:
       `media_effects_dist` is set to `'normal'`, it is the hierarchical mean.
       When `media_effects_dist` is set to `'log_normal'`, it is the hierarchical
       parameter for the mean of the underlying, log-transformed, `Normal`
-      distribution. Meridian ignores this distribution if `use_roi_prior` is
-      `True` and uses the `roi_om` prior instead. Default distribution is
-      `HalfNormal(5.0)`.
+      distribution. Default distribution is `HalfNormal(5.0)`.
     beta_orf: Prior distribution on a parameter for the hierarchical
       distribution of geo-level media effects for organic reach and frequency
       media channels (`beta_gorf`). When `media_effects_dist` is set to
       `'normal'`, it is the hierarchical mean. When `media_effects_dist` is set
       to `'log_normal'`, it is the hierarchical parameter for the mean of the
-      underlying, log-transformed, `Normal` distribution. Meridian ignores this
-      distribution if `use_roi_prior` is `True` and uses the `roi_orf` prior
-      instead. Default distribution is `HalfNormal(5.0)`.
+      underlying, log-transformed, `Normal` distribution. Default distribution
+      is `HalfNormal(5.0)`.
     eta_m: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for impression media channels (`beta_gm`). When
       `media_effects_dist` is set to `'normal'`, it is the hierarchical standard

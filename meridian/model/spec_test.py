@@ -30,7 +30,6 @@ class ModelSpecTest(parameterized.TestCase):
     self.assertFalse(model_spec.hill_before_adstock)
     self.assertEqual(model_spec.max_lag, 8)
     self.assertFalse(model_spec.unique_sigma_for_each_geo)
-    self.assertTrue(model_spec.use_roi_prior)
     self.assertEqual(model_spec.paid_media_prior_type, "roi")
     self.assertIsNone(model_spec.roi_calibration_period)
     self.assertIsNone(model_spec.rf_roi_calibration_period)

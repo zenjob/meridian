@@ -52,8 +52,7 @@ class ModelSpec:
       a vector distribution. If a scalar distribution is passed, it is broadcast
       to the actual shape of the parameter vector. Note that the
       `PriorDistribution` contains distributions for both `roi_m` and `beta_m`,
-      but only one of these is used. If `use_roi_prior` is set to `True`, the
-      `roi_m` prior is used. Otherwise, the `beta_m` prior is used.
+      but only one of these is used.
     media_effects_dist: A string to specify the distribution of media random
       effects across geos. This attribute is not used with a national-level
       model. Allowed values: `'normal'` or `'log_normal'`. Default:
@@ -68,10 +67,6 @@ class ModelSpec:
     unique_sigma_for_each_geo: A boolean indicating whether to use a unique
       residual variance for each geo. If `False`, then a single residual
       variance is used for all geos. Default: `False`.
-    use_roi_prior: (deprecated, use `paid_media_prior_type` instead) A boolean
-      indicating whether to use ROI priors and the prior on `roi_m` in the
-      prior. If `False`, then the prior on `beta_m` in the prior is used.
-      Default: `True`.
     paid_media_prior_type: A string to specify the prior type for the media
       coefficients. Allowed values: `'roi'`, `'mroi'`, `'coefficient'`. Default:
       `'roi'`. If `paid_media_prior_type` is 'coefficient'`, then the
@@ -117,9 +112,8 @@ class ModelSpec:
       observations are part of the holdout sample, which are excluded from the
       training sample. Only KPI data is excluded from the training sample. Media
       data is still included as it can affect Adstock for subsequent weeks. If
-      "ROI priors" are used, such as `use_roi_prior=True`, then the `roi_m`
-      parameters correspond to the ROI of all geos and times, even those in the
-      holdout sample.
+      "ROI priors" are used, then the `roi_m` parameters correspond to the ROI
+      of all geos and times, even those in the holdout sample.
     control_population_scaling_id: An optional boolean tensor of dimension
       `(n_controls,)` indicating the control variables for which the control
       value will be scaled by population. If `None`, no control variables are
@@ -137,8 +131,6 @@ class ModelSpec:
   hill_before_adstock: bool = False
   max_lag: int | None = 8
   unique_sigma_for_each_geo: bool = False
-  # TODO: Remove deprecated `use_roi_prior`.
-  use_roi_prior: bool = True
   paid_media_prior_type: str = constants.PAID_MEDIA_PRIOR_TYPE_ROI
   roi_calibration_period: np.ndarray | None = None
   rf_roi_calibration_period: np.ndarray | None = None

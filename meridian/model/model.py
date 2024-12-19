@@ -423,7 +423,6 @@ class Meridian:
     set_roi_prior = (
         self.input_data.revenue_per_kpi is None
         and self.input_data.kpi_type == constants.NON_REVENUE
-        and self.model_spec.use_roi_prior
         and self.model_spec.paid_media_prior_type
         == constants.PAID_MEDIA_PRIOR_TYPE_ROI
     )
@@ -935,12 +934,6 @@ class Meridian:
 
     return rf_out
 
-  def _use_roi_prior(self) -> bool:
-    return self.model_spec.use_roi_prior and (
-        self.model_spec.paid_media_prior_type
-        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
-    )
-
   def _get_roi_prior_beta_m_value(
       self,
       alpha_m: tf.Tensor,
@@ -1179,7 +1172,10 @@ class Meridian:
             ec=ec_m,
             slope=slope_m,
         )
-        if self._use_roi_prior():
+        if (
+            self.model_spec.paid_media_prior_type
+            in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+        ):
           roi_m = yield prior_broadcast.roi_m
           beta_m_value = get_roi_prior_beta_m_value_fn(
               alpha_m,
@@ -1228,7 +1224,10 @@ class Meridian:
             slope=slope_rf,
         )
 
-        if self._use_roi_prior():
+        if (
+            self.model_spec.paid_media_prior_type
+            in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+        ):
           roi_rf = yield prior_broadcast.roi_rf
           beta_rf_value = get_roi_prior_beta_rf_value_fn(
               alpha_rf,
@@ -1478,7 +1477,10 @@ class Meridian:
         slope=media_vars[constants.SLOPE_M],
     )
 
-    if self._use_roi_prior():
+    if (
+        self.model_spec.paid_media_prior_type
+        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    ):
       media_vars[constants.ROI_M] = prior.roi_m.sample(**sample_kwargs)
       beta_m_value = self._get_roi_prior_beta_m_value(
           beta_gm_dev=beta_gm_dev,
@@ -1545,7 +1547,10 @@ class Meridian:
         slope=rf_vars[constants.SLOPE_RF],
     )
 
-    if self._use_roi_prior():
+    if (
+        self.model_spec.paid_media_prior_type
+        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    ):
       rf_vars[constants.ROI_RF] = prior.roi_rf.sample(**sample_kwargs)
       beta_rf_value = self._get_roi_prior_beta_rf_value(
           beta_grf_dev=beta_grf_dev,
