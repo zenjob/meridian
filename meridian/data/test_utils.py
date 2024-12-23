@@ -37,6 +37,16 @@ def _sample_names(prefix: str, n_names: int | None) -> list[str] | None:
   return [prefix + str(n) for n in range(n_names)] if n_names else None
 
 
+def _sample_geos(
+    n_geos: int | None, integer_geos: bool = False
+) -> list[str] | list[int] | None:
+  """Generates a list of sample geos."""
+  if integer_geos:
+    return list(range(n_geos)) if n_geos else None
+  else:
+    return _sample_names('geo_', n_geos)
+
+
 def _sample_times(
     n_times: int,
     start_date: datetime.date = _SAMPLE_START_DATE,
@@ -514,6 +524,7 @@ def random_media_da(
     array_name: str = 'media',
     channel_variable_name: str = 'media_channel',
     channel_prefix: str = 'ch_',
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `media` DataArray.
 
@@ -530,6 +541,7 @@ def random_media_da(
     array_name: The name of the array to be created
     channel_variable_name: The name of the channel variable
     channel_prefix: The prefix of the channel names
+    integer_geos: If True, the geos will be integers.
 
   Returns:
     A DataArray containing random data.
@@ -564,7 +576,7 @@ def random_media_da(
       media,
       dims=['geo', 'media_time', channel_variable_name],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'media_time': media_time,
           channel_variable_name: media_channels,
       },
@@ -581,6 +593,7 @@ def random_organic_media_da(
     date_format: str = c.DATE_FORMAT,
     explicit_time_index: Sequence[str] | None = None,
     explicit_media_channel_names: Sequence[str] | None = None,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `organic_media` DataArray."""
   return random_media_da(
@@ -595,6 +608,7 @@ def random_organic_media_da(
       array_name='organic_media',
       channel_variable_name='organic_media_channel',
       channel_prefix='organic_media_',
+      integer_geos=integer_geos,
   )
 
 
@@ -603,6 +617,7 @@ def random_media_spend_nd_da(
     n_times: int | None = None,
     n_media_channels: int | None = None,
     seed=0,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample N-dimensional `media_spend` DataArray.
 
@@ -620,6 +635,7 @@ def random_media_spend_nd_da(
       if the created array should not contain the `time` dimension.
     n_media_channels: Number of channels in the created `media_spend` array.
     seed: Random seed used by `np.random.seed()`.
+    integer_geos: If True, the geos will be integers.
 
   Returns:
     A DataArray containing the generated `media_spend` data with the given
@@ -631,7 +647,7 @@ def random_media_spend_nd_da(
   coords = {}
   if n_geos is not None:
     dims.append('geo')
-    coords['geo'] = _sample_names(prefix='geo_', n_names=n_geos)
+    coords['geo'] = _sample_geos(n_geos, integer_geos)
   if n_times is not None:
     dims.append('time')
     coords['time'] = _sample_times(n_times=n_times)
@@ -672,6 +688,7 @@ def random_controls_da(
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
     explicit_time_index: Sequence[str] | None = None,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `controls` DataArray.
 
@@ -683,6 +700,7 @@ def random_controls_da(
     seed: Random seed used by `np.random.seed()`
     date_format: The date format to use for time coordinate labels
     explicit_time_index: If given, ignore `date_format` and use this as is
+    integer_geos: If True, the geos will be integers.
 
   Returns:
     A DataArray containing random controls variable.
@@ -701,7 +719,7 @@ def random_controls_da(
       controls,
       dims=['geo', 'time', 'control_variable'],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'time': (
               _sample_times(n_times=n_times, date_format=date_format)
               if explicit_time_index is None
@@ -723,6 +741,7 @@ def random_kpi_da(
     n_media_channels: int,
     n_controls: int,
     seed: int = 0,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `kpi` DataArray."""
 
@@ -756,7 +775,7 @@ def random_kpi_da(
       kpi,
       dims=['geo', 'time'],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'time': _sample_times(n_times=n_times),
       },
       name=c.KPI,
@@ -764,7 +783,10 @@ def random_kpi_da(
 
 
 def constant_revenue_per_kpi(
-    n_geos: int, n_times: int, value: float
+    n_geos: int,
+    n_times: int,
+    value: float,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a constant `revenue_per_kpi` DataArray."""
 
@@ -774,14 +796,16 @@ def constant_revenue_per_kpi(
       revenue_per_kpi,
       dims=['geo', 'time'],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'time': _sample_times(n_times=n_times),
       },
       name='revenue_per_kpi',
   )
 
 
-def random_population(n_geos: int, seed: int = 0) -> xr.DataArray:
+def random_population(
+    n_geos: int, seed: int = 0, integer_geos: bool = False
+) -> xr.DataArray:
   """Generates a sample `population` DataArray."""
 
   np.random.seed(seed)
@@ -791,7 +815,7 @@ def random_population(n_geos: int, seed: int = 0) -> xr.DataArray:
   return xr.DataArray(
       population,
       dims=['geo'],
-      coords={'geo': _sample_names(prefix='geo_', n_names=n_geos)},
+      coords={'geo': _sample_geos(n_geos, integer_geos)},
       name='population',
   )
 
@@ -806,6 +830,7 @@ def random_reach_da(
     array_name: str = 'reach',
     channel_variable_name: str = 'rf_channel',
     channel_prefix: str = 'rf_ch_',
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `reach` DataArray."""
 
@@ -832,7 +857,7 @@ def random_reach_da(
       reach,
       dims=['geo', 'media_time', channel_variable_name],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'media_time': _sample_times(
               n_times=n_media_times, start_date=start_date
           ),
@@ -849,6 +874,7 @@ def random_organic_reach_da(
     n_organic_rf_channels: int,
     seed: int = 0,
     explicit_organic_rf_channel_names: Sequence[str] | None = None,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `organic_reach` DataArray."""
   return random_reach_da(
@@ -861,6 +887,7 @@ def random_organic_reach_da(
       array_name='organic_reach',
       channel_variable_name='organic_rf_channel',
       channel_prefix='organic_rf_ch_',
+      integer_geos=integer_geos,
   )
 
 
@@ -874,6 +901,7 @@ def random_frequency_da(
     array_name: str = 'frequency',
     channel_variable_name: str = 'rf_channel',
     channel_prefix: str = 'rf_ch_',
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `frequency` DataArray."""
 
@@ -897,7 +925,7 @@ def random_frequency_da(
       frequency,
       dims=['geo', 'media_time', channel_variable_name],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'media_time': _sample_times(
               n_times=n_media_times, start_date=start_date
           ),
@@ -914,6 +942,7 @@ def random_organic_frequency_da(
     n_organic_rf_channels: int,
     seed: int = 0,
     explicit_organic_rf_channel_names: Sequence[str] | None = None,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `organic_frequency` DataArray."""
   return random_frequency_da(
@@ -926,6 +955,7 @@ def random_organic_frequency_da(
       array_name='organic_frequency',
       channel_variable_name='organic_rf_channel',
       channel_prefix='organic_rf_ch_',
+      integer_geos=integer_geos,
   )
 
 
@@ -934,6 +964,7 @@ def random_rf_spend_nd_da(
     n_times: int | None = None,
     n_rf_channels: int | None = None,
     seed=0,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample N-dimensional `rf_spend` DataArray.
 
@@ -949,6 +980,7 @@ def random_rf_spend_nd_da(
       the created array should not contain the `time` dimension.
     n_rf_channels: Number of channels in the created `rf_spend` array.
     seed: Random seed used by `np.random.seed()`.
+    integer_geos: If True, the geos will be integers.
 
   Returns:
     A DataArray containing the generated `rf_spend` data with the given
@@ -960,7 +992,7 @@ def random_rf_spend_nd_da(
   coords = {}
   if n_geos is not None:
     dims.append('geo')
-    coords['geo'] = _sample_names(prefix='geo_', n_names=n_geos)
+    coords['geo'] = _sample_geos(n_geos, integer_geos)
   if n_times is not None:
     dims.append('time')
     coords['time'] = _sample_times(n_times=n_times)
@@ -997,6 +1029,7 @@ def random_non_media_treatments_da(
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
     explicit_time_index: Sequence[str] | None = None,
+    integer_geos: bool = False,
 ) -> xr.DataArray:
   """Generates a sample `non_media_treatments` DataArray.
 
@@ -1008,6 +1041,7 @@ def random_non_media_treatments_da(
     seed: Random seed used by `np.random.seed()`
     date_format: The date format to use for time coordinate labels
     explicit_time_index: If given, ignore `date_format` and use this as is
+    integer_geos: If True, the geos will be integers.
 
   Returns:
     A DataArray containing random non-media variable.
@@ -1026,7 +1060,7 @@ def random_non_media_treatments_da(
       non_media_treatments,
       dims=['geo', 'time', 'non_media_channel'],
       coords={
-          'geo': _sample_names(prefix='geo_', n_names=n_geos),
+          'geo': _sample_geos(n_geos, integer_geos),
           'time': (
               _sample_times(n_times=n_times, date_format=date_format)
               if explicit_time_index is None
@@ -1053,6 +1087,7 @@ def random_dataset(
     revenue_per_kpi_value: float | None = 3.14,
     seed: int = 0,
     remove_media_time: bool = False,
+    integer_geos: bool = False,
 ):
   """Generates a random dataset."""
   if n_media_channels:
@@ -1062,12 +1097,14 @@ def random_dataset(
         n_media_times=n_media_times,
         n_media_channels=n_media_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
     media_spend = random_media_spend_nd_da(
         n_geos=n_geos,
         n_times=n_times,
         n_media_channels=n_media_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
   else:
     media = None
@@ -1080,6 +1117,7 @@ def random_dataset(
         n_media_times=n_media_times,
         n_rf_channels=n_rf_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
     frequency = random_frequency_da(
         n_geos=n_geos,
@@ -1087,12 +1125,14 @@ def random_dataset(
         n_media_times=n_media_times,
         n_rf_channels=n_rf_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
     rf_spend = random_rf_spend_nd_da(
         n_geos=n_geos,
         n_times=n_times,
         n_rf_channels=n_rf_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
   else:
     reach = None
@@ -1101,7 +1141,10 @@ def random_dataset(
 
   if revenue_per_kpi_value is not None:
     revenue_per_kpi = constant_revenue_per_kpi(
-        n_geos=n_geos, n_times=n_times, value=revenue_per_kpi_value
+        n_geos=n_geos,
+        n_times=n_times,
+        value=revenue_per_kpi_value,
+        integer_geos=integer_geos,
     )
   else:
     revenue_per_kpi = None
@@ -1112,6 +1155,7 @@ def random_dataset(
       n_times=n_times,
       n_controls=n_controls,
       seed=seed,
+      integer_geos=integer_geos,
   )
   if n_non_media_channels:
     non_media_treatments = random_non_media_treatments_da(
@@ -1120,6 +1164,7 @@ def random_dataset(
         n_times=n_times,
         n_non_media_channels=n_non_media_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
   else:
     non_media_treatments = None
@@ -1131,6 +1176,7 @@ def random_dataset(
         n_media_times=n_media_times,
         n_organic_media_channels=n_organic_media_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
   else:
     organic_media = None
@@ -1142,6 +1188,7 @@ def random_dataset(
         n_media_times=n_media_times,
         n_organic_rf_channels=n_organic_rf_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
     organic_frequency = random_organic_frequency_da(
         n_geos=n_geos,
@@ -1149,6 +1196,7 @@ def random_dataset(
         n_media_times=n_media_times,
         n_organic_rf_channels=n_organic_rf_channels,
         seed=seed,
+        integer_geos=integer_geos,
     )
   else:
     organic_reach = None
@@ -1161,8 +1209,11 @@ def random_dataset(
       n_times=n_times,
       n_media_channels=n_media_channels or n_rf_channels or 0,
       n_controls=n_controls,
+      integer_geos=integer_geos,
   )
-  population = random_population(n_geos=n_geos, seed=seed)
+  population = random_population(
+      n_geos=n_geos, seed=seed, integer_geos=integer_geos
+  )
 
   dataset = xr.combine_by_coords([kpi, population, controls])
   if revenue_per_kpi is not None:

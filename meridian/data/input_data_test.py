@@ -580,6 +580,60 @@ class InputDataTest(parameterized.TestCase):
     )
     self.assertIsNone(data.media_channel)
 
+  def test_geo_property_returns_strings(self):
+    media_spend = test_utils.random_media_spend_nd_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        integer_geos=True,
+    )
+    controls = test_utils.random_controls_da(
+        media=self.not_lagged_media,
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_controls=self.n_controls,
+        integer_geos=True,
+    )
+    kpi = test_utils.random_kpi_da(
+        media=self.not_lagged_media,
+        controls=self.not_lagged_controls,
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        n_controls=self.n_controls,
+        integer_geos=True,
+    )
+    revenue_per_kpi = test_utils.constant_revenue_per_kpi(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        value=2.2,
+        integer_geos=True,
+    )
+    population = test_utils.random_population(
+        n_geos=self.n_geos, integer_geos=True
+    )
+    media = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        integer_geos=True,
+    )
+    data = input_data.InputData(
+        controls=controls,
+        kpi=kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=revenue_per_kpi,
+        population=population,
+        media=media,
+        media_spend=media_spend,
+    )
+    self.assertTrue(all(isinstance(g, str) for g in data.geo.values))
+    self.assertEqual(
+        data.geo.values.tolist(),
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+    )
+
   def test_properties_media_and_rf(self):
     data = input_data.InputData(
         controls=self.not_lagged_controls,

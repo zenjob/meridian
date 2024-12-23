@@ -154,13 +154,13 @@ class InputData:
       aggregated over geo and/or time dimensions that are not represented. We
       recommend that the spend total aligns with the time window of the `kpi`
       and `controls` data, which is the time window over which incremental
-      outcome of the ROI numerator is calculated. However, note that
-      incremental outcome is influenced by media execution prior to this time
-      window, through lagged effects, and excludes lagged effects beyond the
-      time window of media executed during the time window. If only `media` data
-      is used, `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend`
-      must contain the same number of media channels in the same order. If any
-      of these arguments is passed, then the others are not optional.
+      outcome of the ROI numerator is calculated. However, note that incremental
+      outcome is influenced by media execution prior to this time window,
+      through lagged effects, and excludes lagged effects beyond the time window
+      of media executed during the time window. If only `media` data is used,
+      `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend` must
+      contain the same number of media channels in the same order. If any of
+      these arguments is passed, then the others are not optional.
     organic_media: An optional `DataArray` of dimensions `(n_geos,
       n_media_times, n_organic_media_channels)` containing non-negative organic
       media values. Organic media variables are media activities that have no
@@ -244,7 +244,7 @@ class InputData:
   @property
   def geo(self) -> xr.DataArray:
     """Returns the geo dimension."""
-    return self.kpi[constants.GEO]
+    return self.kpi[constants.GEO].astype(str)
 
   @property
   def time(self) -> xr.DataArray:
