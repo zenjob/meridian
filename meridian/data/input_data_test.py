@@ -633,6 +633,7 @@ class InputDataTest(parameterized.TestCase):
         data.geo.values.tolist(),
         ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
     )
+    self.assertIn("1", data.population.coords[constants.GEO].values)
 
   def test_properties_media_and_rf(self):
     data = input_data.InputData(

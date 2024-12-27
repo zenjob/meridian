@@ -233,6 +233,7 @@ class InputData:
   non_media_treatments: xr.DataArray | None = None
 
   def __post_init__(self):
+    self._convert_geos_to_strings()
     self._validate_kpi()
     self._validate_scenarios()
     self._validate_names()
@@ -241,10 +242,17 @@ class InputData:
     self._validate_time_formats()
     self._validate_times()
 
+  def _convert_geos_to_strings(self):
+    """Converts geo coordinates to strings in all relevant DataArrays."""
+    for field in dataclasses.fields(self):
+      array = getattr(self, field.name)
+      if isinstance(array, xr.DataArray) and constants.GEO in array.dims:
+        array.coords[constants.GEO] = array.coords[constants.GEO].astype(str)
+
   @property
   def geo(self) -> xr.DataArray:
     """Returns the geo dimension."""
-    return self.kpi[constants.GEO].astype(str)
+    return self.kpi[constants.GEO]
 
   @property
   def time(self) -> xr.DataArray:

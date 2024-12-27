@@ -22,6 +22,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+* Convert `InputData` geo coordinates to strings upon initialization to avoid
+  type mismatches with `GeoInfo` proto which expects strings.
+
 * Add `get_historical_spend` method to `Analyzer` class.
 
 ## [0.14.0] - 2024-12-17
