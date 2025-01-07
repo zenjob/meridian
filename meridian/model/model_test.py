@@ -15,7 +15,7 @@
 """Unit tests for model.py."""
 
 import collections
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 import os
 from unittest import mock
 import warnings
@@ -630,6 +630,83 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           any(
               "In a nationally aggregated model, the"
               " `unique_sigma_for_each_geo` will be reset to `False`."
+              in str(warning.message)
+              for warning in w
+          )
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="custom_beta_m_prior_type_roi",
+          custom_distributions={
+              constants.BETA_M: tfp.distributions.LogNormal(
+                  0.2, 0.8, name=constants.BETA_M
+              )
+          },
+          ignored_priors="beta_m",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+      ),
+      dict(
+          testcase_name="custom_mroi_m_mroi_rf_prior_type_roi",
+          custom_distributions={
+              constants.MROI_M: tfp.distributions.LogNormal(
+                  0.2, 0.8, name=constants.MROI_M
+              ),
+              constants.MROI_RF: tfp.distributions.LogNormal(
+                  0.2, 0.8, name=constants.MROI_RF
+              )
+          },
+          ignored_priors="mroi_m, mroi_rf",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+      ),
+      dict(
+          testcase_name="custom_beta_m_beta_rf_roi_m_prior_type_mroi",
+          custom_distributions={
+              constants.BETA_M: tfp.distributions.LogNormal(
+                  0.7, 0.9, name=constants.ROI_M
+              ),
+              constants.BETA_RF: tfp.distributions.LogNormal(
+                  0.8, 0.9, name=constants.ROI_RF
+              ),
+              constants.ROI_M: tfp.distributions.LogNormal(
+                  0.2, 0.1, name=constants.ROI_M
+              )
+          },
+          ignored_priors="beta_m, beta_rf, roi_m",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+      ),
+      dict(
+          testcase_name="custom_roi_rf_prior_type_coefficient",
+          custom_distributions={
+              constants.ROI_RF: tfp.distributions.LogNormal(
+                  0.2, 0.1, name=constants.ROI_RF
+              )
+          },
+          ignored_priors="roi_rf",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+      ),
+  )
+  def test_warn_setting_ignored_priors(
+      self,
+      custom_distributions: Mapping[str, tfp.distributions.Distribution],
+      ignored_priors: str,
+      paid_media_prior_type: str,
+  ):
+    # Create prior distribution with given parameters.
+    distribution = prior_distribution.PriorDistribution(**custom_distributions)
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter("module")
+      model.Meridian(
+          input_data=self.input_data_with_media_and_rf,
+          model_spec=spec.ModelSpec(
+              prior=distribution, paid_media_prior_type=paid_media_prior_type
+          ),
+      )
+      self.assertTrue(
+          any(
+              f"Custom prior(s) `{ignored_priors}` are ignored when"
+              " `paid_media_prior_type` is set to"
+              f' "{paid_media_prior_type}".'
               in str(warning.message)
               for warning in w
           )

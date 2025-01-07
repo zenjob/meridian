@@ -337,7 +337,11 @@ UNSAVED_PARAMETERS = (
     GAMMA_GN_DEV,
     TAU_G_EXCL_BASELINE,  # Used to derive TAU_G.
 )
-
+IGNORED_PRIORS = immutabledict.immutabledict({
+    PAID_MEDIA_PRIOR_TYPE_ROI: (BETA_M, BETA_RF, MROI_M, MROI_RF),
+    PAID_MEDIA_PRIOR_TYPE_MROI: (BETA_M, BETA_RF, ROI_M, ROI_RF),
+    PAID_MEDIA_PRIOR_TYPE_COEFFICIENT: (ROI_M, ROI_RF, MROI_M, MROI_RF),
+})
 
 # Inference data dimensions.
 INFERENCE_DIMS = immutabledict.immutabledict(

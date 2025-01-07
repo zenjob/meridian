@@ -185,7 +185,7 @@ class Meridian:
           media_effects_dist=self.model_spec.media_effects_dist,
           unique_sigma_for_each_geo=self.model_spec.unique_sigma_for_each_geo,
       )
-
+    self._warn_setting_ignored_priors()
     self._validate_paid_media_prior_type()
     self._validate_geo_invariants()
     self._validate_time_invariants()
@@ -672,6 +672,27 @@ class Meridian:
           f" {self.model_spec.non_media_population_scaling_id.shape} is"
           " different from `(n_non_media_channels,) ="
           f" ({self.n_non_media_channels},)`."
+      )
+
+  def _warn_setting_ignored_priors(self):
+    """Raises a warning if ignored priors are set."""
+    default_distribution = prior_distribution.PriorDistribution()
+    prior_type = self.model_spec.paid_media_prior_type
+
+    ignored_custom_priors = []
+    for prior in constants.IGNORED_PRIORS.get(prior_type, []):
+      self_prior = getattr(self.model_spec.prior, prior)
+      default_prior = getattr(default_distribution, prior)
+      if not prior_distribution.distributions_are_equal(
+          self_prior, default_prior
+      ):
+        ignored_custom_priors.append(prior)
+    if ignored_custom_priors:
+      ignored_priors_str = ", ".join(ignored_custom_priors)
+      warnings.warn(
+          f"Custom prior(s) `{ignored_priors_str}` are ignored when"
+          " `paid_media_prior_type` is set to"
+          f' "{prior_type}".'
       )
 
   def _validate_paid_media_prior_type(self):

@@ -22,6 +22,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+* Add warning message when user sets custom priors that will be ignored by the
+  `paid_media_prior_type` argument.
 
 ## [0.15.0] - 2025-01-07
 * Convert `InputData` geo coordinates to strings upon initialization to avoid
