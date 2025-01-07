@@ -50,9 +50,8 @@ class ModelSpec:
       each set of model parameters. The distribution for a vector of parameters
       (for example, `alpha_m`) can be passed as either a scalar distribution or
       a vector distribution. If a scalar distribution is passed, it is broadcast
-      to the actual shape of the parameter vector. Note that the
-      `PriorDistribution` contains distributions for both `roi_m` and `beta_m`,
-      but only one of these is used.
+      to the actual shape of the parameter vector. See `paid_media_prior_type`
+      for related details.
     media_effects_dist: A string to specify the distribution of media random
       effects across geos. This attribute is not used with a national-level
       model. Allowed values: `'normal'` or `'log_normal'`. Default:
@@ -69,23 +68,27 @@ class ModelSpec:
       variance is used for all geos. Default: `False`.
     paid_media_prior_type: A string to specify the prior type for the media
       coefficients. Allowed values: `'roi'`, `'mroi'`, `'coefficient'`. Default:
-      `'roi'`. If `paid_media_prior_type` is 'coefficient'`, then the
-      `PriorContainer.beta_m` and `PriorContainer.beta_rf` attributes are used
-      to specify a prior on the coefficient mean parameters (and the
-      `PriorContainer.roi_m` and `PriorContainer.roi_rf` attributes will be
-      ignored). If `paid_media_prior_type' is `'roi'` or `'mroi'`, then the
-      `PriorContainer.roi_m` and `PriorContainer.roi_rf` attributes are used to
-      specify a prior on the ROI or mROI, respectively (and the
-      `PriorContainer.beta_m` and `PriorContainer.beta_rf` attributes will be
-      ignored).
+      `'roi'`. The `PriorDistribution` contains distributions `roi_m`, `mroi_m`,
+      and`beta_m`, but only one of these is used depending on the
+      `paid_media_prior_type`. Likewise, the `PriorDistribution` contains
+      distributions `roi_rf`, `mroi_rf`, and`beta_rf`, but only one of these is
+      used depending on the `paid_media_prior_type`. When
+      `paid_media_prior_type` is `'roi'`, the `PriorDistribution.roi_m` and
+      `PriorDistribution.roi_rf` parameters are used to specify a prior on the
+      ROI. When `paid_media_prior_type` is `'mroi'`, the
+      `PriorDistribution.mroi_m` and `PriorDistribution.mroi_rf` parameters are
+      used to specify a prior on the mROI. When `paid_media_prior_type` is
+      `'coefficient'`, the `PriorDistribution.beta_m` and
+      `PriorDistribution.beta_rf` parameters are used to specify a prior on the
+      coefficient mean parameters.
     roi_calibration_period: An optional boolean array of shape `(n_media_times,
-      n_media_channels)` indicating the subset of `time` that the ROI (or mROI)
-      value of the `roi_m` prior applies to. If `None`, all times are used.
-      Default: `None`.
+      n_media_channels)` indicating the subset of `time` that the ROI value of
+      the `roi_m` prior (or mROI value of the `mroi_m` prior) applies to. If
+      `None`, all times are used. Default: `None`.
     rf_roi_calibration_period: An optional boolean array of shape
       `(n_media_times, n_rf_channels)` indicating the subset of `time` that the
-      ROI (or mROI) value of the `roi_rf` prior applies to. If `None`, all times
-      are used. Default: `None`.
+      ROI value of the `roi_rf` prior (or mROI value of the `mroi_rf` prior)
+      applies to. If `None`, all times are used. Default: `None`.
     knots: An optional integer or list of integers indicating the knots used to
       estimate time effects. When `knots` is a list of integers, the knot
       locations are provided by that list. Zero corresponds to a knot at the

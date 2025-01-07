@@ -22,10 +22,12 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+
+## [0.15.0] - 2025-01-07
 * Convert `InputData` geo coordinates to strings upon initialization to avoid
   type mismatches with `GeoInfo` proto which expects strings.
-
 * Add `get_historical_spend` method to `Analyzer` class.
+* Split up `roi_*` and `mroi_*` parameters.
 
 ## [0.14.0] - 2024-12-17
 * Remove deprecated `use_roi_prior` attribute from `ModelSpec`.
@@ -137,6 +139,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.12.0]: https://github.com/google/meridian/releases/tag/v0.12.0
 [0.13.0]: https://github.com/google/meridian/releases/tag/v0.13.0
 [0.14.0]: https://github.com/google/meridian/releases/tag/v0.14.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.14.0...HEAD
+[0.15.0]: https://github.com/google/meridian/releases/tag/v0.15.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.15.0...HEAD
 
 

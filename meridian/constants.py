@@ -208,6 +208,8 @@ KNOT_VALUES = 'knot_values'
 MU_T = 'mu_t'
 ROI_M = 'roi_m'
 ROI_RF = 'roi_rf'
+MROI_M = 'mroi_m'
+MROI_RF = 'mroi_rf'
 GAMMA_C = 'gamma_c'
 GAMMA_N = 'gamma_n'
 XI_C = 'xi_c'
@@ -256,6 +258,8 @@ COMMON_PARAMETER_NAMES = (
     TAU_G,
     GAMMA_GC,
 )
+# These constants are only used in unit tests for mocking default inference data
+# which doesn't include MROI priors.
 MEDIA_PARAMETER_NAMES = (
     ROI_M,
     ALPHA_M,
@@ -281,7 +285,6 @@ ORGANIC_MEDIA_PARAMETERS = (
     EC_OM,
     SLOPE_OM,
 )
-
 ORGANIC_RF_PARAMETERS = (
     BETA_ORF,
     ETA_ORF,
@@ -289,15 +292,14 @@ ORGANIC_RF_PARAMETERS = (
     EC_ORF,
     SLOPE_ORF,
 )
-
 NON_MEDIA_PARAMETERS = (
     GAMMA_N,
     XI_N,
 )
 
 KNOTS_PARAMETERS = (KNOT_VALUES,)
-MEDIA_PARAMETERS = (ETA_M, BETA_M, ALPHA_M, EC_M, SLOPE_M, ROI_M)
-RF_PARAMETERS = (ETA_RF, BETA_RF, ALPHA_RF, EC_RF, SLOPE_RF, ROI_RF)
+MEDIA_PARAMETERS = (ETA_M, BETA_M, ALPHA_M, EC_M, SLOPE_M, ROI_M, MROI_M)
+RF_PARAMETERS = (ETA_RF, BETA_RF, ALPHA_RF, EC_RF, SLOPE_RF, ROI_RF, MROI_RF)
 CONTROL_PARAMETERS = (GAMMA_C, XI_C)
 SIGMA_PARAMETERS = (SIGMA,)
 GEO_PARAMETERS = (

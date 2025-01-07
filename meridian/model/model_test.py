@@ -490,8 +490,8 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   def test_validate_paid_media_prior_type(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        "Custom priors should be set during model creation with mROI prior type"
-        " when KPI is non-revenue and revenue per kpi data is missing.",
+        "Custom priors should be set on `mroi_m` and `mroi_rf` when KPI is"
+        " non-revenue and revenue per kpi data is missing.",
     ):
       model.Meridian(
           input_data=self.input_data_non_revenue_no_revenue_per_kpi,
@@ -995,7 +995,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     _ = meridian.prior_broadcast
 
     _, mock_kwargs = mock_broadcast.call_args
-    self.assertEqual(mock_kwargs["set_roi_prior"], True)
+    self.assertEqual(mock_kwargs["set_total_media_contribution_prior"], True)
     self.assertEqual(mock_kwargs["kpi"], np.sum(meridian.input_data.kpi))
     np.testing.assert_allclose(mock_kwargs["total_spend"], expected_total_spend)
 
@@ -1378,9 +1378,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SIGMA,
     ]
 
-    if paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+    if paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
       derived_params.append(constants.BETA_M)
       prior_distribution_params.append(constants.ROI_M)
+    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      derived_params.append(constants.BETA_M)
+      prior_distribution_params.append(constants.MROI_M)
     else:
       prior_distribution_params.append(constants.BETA_M)
 
@@ -1513,9 +1516,12 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SIGMA,
     ]
 
-    if paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+    if paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
       derived_params.append(constants.BETA_RF)
       prior_distribution_params.append(constants.ROI_RF)
+    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      derived_params.append(constants.BETA_RF)
+      prior_distribution_params.append(constants.MROI_RF)
     else:
       prior_distribution_params.append(constants.BETA_RF)
 
@@ -1655,11 +1661,16 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SIGMA,
     ]
 
-    if paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+    if paid_media_prior_type in constants.PAID_MEDIA_PRIOR_TYPE_ROI:
       derived_params.append(constants.BETA_M)
       derived_params.append(constants.BETA_RF)
       prior_distribution_params.append(constants.ROI_M)
       prior_distribution_params.append(constants.ROI_RF)
+    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      derived_params.append(constants.BETA_M)
+      derived_params.append(constants.BETA_RF)
+      prior_distribution_params.append(constants.MROI_M)
+      prior_distribution_params.append(constants.MROI_RF)
     else:
       prior_distribution_params.append(constants.BETA_M)
       prior_distribution_params.append(constants.BETA_RF)
@@ -1815,16 +1826,21 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+    rf_parameters = list(constants.RF_PARAMETER_NAMES)
+    rf_parameters.remove(constants.BETA_GRF)
+
     prior = meridian.inference_data.prior
     shape_to_params = {
         knots_shape: [
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
         ],
         media_channel_shape: [
-            getattr(prior, attr) for attr in constants.MEDIA_PARAMETERS
+            getattr(prior, attr) for attr in media_parameters
         ],
         rf_channel_shape: [
-            getattr(prior, attr) for attr in constants.RF_PARAMETERS
+            getattr(prior, attr) for attr in rf_parameters
         ],
         control_shape: [
             getattr(prior, attr) for attr in constants.CONTROL_PARAMETERS
@@ -1879,13 +1895,16 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
 
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+
     prior = meridian.inference_data.prior
     shape_to_params = {
         knots_shape: [
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
         ],
         media_channel_shape: [
-            getattr(prior, attr) for attr in constants.MEDIA_PARAMETERS
+            getattr(prior, attr) for attr in media_parameters
         ],
         control_shape: [
             getattr(prior, attr) for attr in constants.CONTROL_PARAMETERS
@@ -1943,7 +1962,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
         ],
         rf_channel_shape: [
-            getattr(prior, attr) for attr in constants.RF_PARAMETERS
+            getattr(prior, attr) for attr in constants.RF_PARAMETER_NAMES
         ],
         control_shape: [
             getattr(prior, attr) for attr in constants.CONTROL_PARAMETERS
@@ -2024,6 +2043,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+    rf_parameters = list(constants.RF_PARAMETER_NAMES)
+    rf_parameters.remove(constants.BETA_GRF)
+
     posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
@@ -2033,10 +2057,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
         media_channel_shape: [
-            getattr(posterior, attr) for attr in constants.MEDIA_PARAMETERS
+            getattr(posterior, attr) for attr in media_parameters
         ],
         rf_channel_shape: [
-            getattr(posterior, attr) for attr in constants.RF_PARAMETERS
+            getattr(posterior, attr) for attr in rf_parameters
         ],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
@@ -2146,6 +2170,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
 
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+
     posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
@@ -2155,7 +2182,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
         media_channel_shape: [
-            getattr(posterior, attr) for attr in constants.MEDIA_PARAMETERS
+            getattr(posterior, attr) for attr in media_parameters
         ],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
@@ -2262,6 +2289,9 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_control_shape = geo_shape + (self._N_CONTROLS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
+    rf_parameters = list(constants.RF_PARAMETER_NAMES)
+    rf_parameters.remove(constants.BETA_GRF)
+
     posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
@@ -2271,7 +2301,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
         rf_channel_shape: [
-            getattr(posterior, attr) for attr in constants.RF_PARAMETERS
+            getattr(posterior, attr) for attr in rf_parameters
         ],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
@@ -2382,6 +2412,11 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
     geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
     geo_rf_channel_shape = geo_shape + (self._N_RF_CHANNELS,)
 
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+    rf_parameters = list(constants.RF_PARAMETER_NAMES)
+    rf_parameters.remove(constants.BETA_GRF)
+
     posterior = meridian.inference_data.posterior
     shape_to_params = {
         knots_shape: [
@@ -2391,10 +2426,10 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
             getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
         media_channel_shape: [
-            getattr(posterior, attr) for attr in constants.MEDIA_PARAMETERS
+            getattr(posterior, attr) for attr in media_parameters
         ],
         rf_channel_shape: [
-            getattr(posterior, attr) for attr in constants.RF_PARAMETERS
+            getattr(posterior, attr) for attr in rf_parameters
         ],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
@@ -3518,11 +3553,16 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
         constants.SLOPE_ORF,
         constants.SIGMA,
     ]
-    if paid_media_prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+    if paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
       derived_params.append(constants.BETA_M)
       derived_params.append(constants.BETA_RF)
       prior_distribution_params.append(constants.ROI_M)
       prior_distribution_params.append(constants.ROI_RF)
+    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      derived_params.append(constants.BETA_M)
+      derived_params.append(constants.BETA_RF)
+      prior_distribution_params.append(constants.MROI_M)
+      prior_distribution_params.append(constants.MROI_RF)
     else:
       prior_distribution_params.append(constants.BETA_M)
       prior_distribution_params.append(constants.BETA_RF)

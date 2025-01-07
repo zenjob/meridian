@@ -83,8 +83,9 @@ class PriorDistributionTest(parameterized.TestCase):
         c.SIGMA: tfp.distributions.HalfNormal(5.0, name=c.SIGMA),
         c.ROI_M: tfp.distributions.LogNormal(0.2, 0.9, name=c.ROI_M),
         c.ROI_RF: tfp.distributions.LogNormal(0.2, 0.9, name=c.ROI_RF),
+        c.MROI_M: tfp.distributions.LogNormal(0.0, 0.5, name=c.MROI_M),
+        c.MROI_RF: tfp.distributions.LogNormal(0.0, 0.5, name=c.MROI_RF),
     }
-
     self.sample_broadcast = prior_distribution.PriorDistribution().broadcast(
         n_geos=_N_GEOS,
         n_media_channels=_N_MEDIA_CHANNELS,
@@ -96,8 +97,7 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
-        paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-        set_roi_prior=False,
+        set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
     )
@@ -223,6 +223,12 @@ class PriorDistributionTest(parameterized.TestCase):
     self.assert_distribution_params_are_equal(
         distribution.roi_rf, self.sample_distributions[c.ROI_RF]
     )
+    self.assert_distribution_params_are_equal(
+        distribution.mroi_m, self.sample_distributions[c.MROI_M]
+    )
+    self.assert_distribution_params_are_equal(
+        distribution.mroi_rf, self.sample_distributions[c.MROI_RF]
+    )
 
   def test_has_deterministic_param_broadcasted_distribution_correct(self):
     for d in self.sample_distributions:
@@ -245,8 +251,7 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
-        paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-        set_roi_prior=False,
+        set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
     )
@@ -281,6 +286,8 @@ class PriorDistributionTest(parameterized.TestCase):
         distribution.sigma,
         distribution.roi_m,
         distribution.roi_rf,
+        distribution.mroi_m,
+        distribution.mroi_rf,
     ]
 
     broadcast_distributions_list = [
@@ -313,6 +320,8 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.sigma.parameters[c.DISTRIBUTION],
         broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
         broadcast_distribution.roi_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_rf.parameters[c.DISTRIBUTION],
     ]
 
     # Compare Distributions.
@@ -344,8 +353,7 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=sigma_shape,
         n_knots=_N_KNOTS,
         is_national=False,
-        paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-        set_roi_prior=False,
+        set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
     )
@@ -368,6 +376,7 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.alpha_m,
         broadcast_distribution.slope_m,
         broadcast_distribution.roi_m,
+        broadcast_distribution.mroi_m,
     ]
     for broad in n_media_channels_distributions_list:
       self.assertEqual(broad.batch_shape, (_N_MEDIA_CHANNELS,))
@@ -380,6 +389,7 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.eta_rf,
         broadcast_distribution.slope_rf,
         broadcast_distribution.roi_rf,
+        broadcast_distribution.mroi_rf,
     ]
     for broad in n_rf_channels_distributions_list:
       self.assertEqual(broad.batch_shape, (_N_RF_CHANNELS,))
@@ -467,8 +477,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -553,8 +562,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -629,8 +637,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -698,8 +705,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -767,8 +773,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -812,8 +817,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -857,8 +861,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -950,8 +953,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS_NATIONAL,
           n_knots=_N_KNOTS,
           is_national=True,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=False,
+          set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
       )
@@ -1037,6 +1039,7 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.eta_m,
         broadcast_distribution.slope_m,
         broadcast_distribution.roi_m,
+        broadcast_distribution.mroi_m,
     ]
     for broad in n_media_channels_distributions_list:
       self.assertEqual(broad.batch_shape, (_N_MEDIA_CHANNELS,))
@@ -1049,6 +1052,7 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.eta_rf,
         broadcast_distribution.slope_rf,
         broadcast_distribution.roi_rf,
+        broadcast_distribution.mroi_rf,
     ]
     for broad in n_rf_channels_distributions_list:
       self.assertEqual(broad.batch_shape, (_N_RF_CHANNELS,))
@@ -1090,50 +1094,6 @@ class PriorDistributionTest(parameterized.TestCase):
     # Validate sigma.
     self.assertEqual(
         broadcast_distribution.sigma.batch_shape, (_N_GEOS_NATIONAL,)
-    )
-
-  def test_broadcast_paid_media_prior_type_mroi_distribution(self):
-    distribution = prior_distribution.PriorDistribution()
-    with warnings.catch_warnings(record=True) as warns:
-      # Cause all warnings to always be triggered.
-      warnings.simplefilter('always')
-      broadcast_distribution = distribution.broadcast(
-          n_geos=_N_GEOS,
-          n_media_channels=_N_MEDIA_CHANNELS,
-          n_rf_channels=_N_RF_CHANNELS,
-          n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
-          n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
-          n_controls=_N_CONTROLS,
-          n_non_media_channels=_N_NON_MEDIA_CHANNELS,
-          sigma_shape=_N_GEOS,
-          n_knots=_N_KNOTS,
-          is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_MROI,
-          set_roi_prior=False,
-          kpi=1.0,
-          total_spend=np.array([]),
-      )
-      self.assertLen(warns, 2)
-      self.assertTrue(issubclass(warns[0].category, UserWarning))
-      self.assertIn(
-          'When `paid_media_prior_type == "mroi"`, `roi_m` has been set to'
-          ' `LogNormal(0.0, 0.5)`.',
-          str(warns[0].message),
-      )
-      self.assertTrue(issubclass(warns[1].category, UserWarning))
-      self.assertIn(
-          'When `paid_media_prior_type == "mroi"`, `roi_rf` has been set to'
-          ' `LogNormal(0.0, 0.5)`.',
-          str(warns[1].message),
-      )
-
-    self.assert_distribution_params_are_equal(
-        broadcast_distribution.roi_m.distribution,
-        tfp.distributions.LogNormal(0.0, 0.5, name=c.ROI_M),
-    )
-    self.assert_distribution_params_are_equal(
-        broadcast_distribution.roi_rf.distribution,
-        tfp.distributions.LogNormal(0.0, 0.5, name=c.ROI_RF),
     )
 
   @parameterized.named_parameters(
@@ -1187,8 +1147,7 @@ class PriorDistributionTest(parameterized.TestCase):
           sigma_shape=_N_GEOS,
           n_knots=_N_KNOTS,
           is_national=False,
-          paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-          set_roi_prior=True,
+          set_total_media_contribution_prior=True,
           kpi=kpi,
           total_spend=total_spend,
       )
@@ -1271,6 +1230,8 @@ class PriorDistributionTest(parameterized.TestCase):
       (c.SIGMA, c.SIGMA),
       (c.ROI_M, c.ROI_M),
       (c.ROI_RF, c.ROI_RF),
+      (c.MROI_M, c.MROI_M),
+      (c.MROI_RF, c.MROI_RF),
   )
   def test_getstate_correct(self, attribute):
     def _distribution_info(
@@ -1313,6 +1274,8 @@ class PriorDistributionTest(parameterized.TestCase):
         c.SIGMA: _distribution_info(self.sample_broadcast.sigma),
         c.ROI_M: _distribution_info(self.sample_broadcast.roi_m),
         c.ROI_RF: _distribution_info(self.sample_broadcast.roi_rf),
+        c.MROI_M: _distribution_info(self.sample_broadcast.mroi_m),
+        c.MROI_RF: _distribution_info(self.sample_broadcast.mroi_rf),
     }
 
     self.assert_distribution_params_are_equal(
@@ -1332,8 +1295,7 @@ class PriorDistributionTest(parameterized.TestCase):
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
         is_national=False,
-        paid_media_prior_type=c.PAID_MEDIA_PRIOR_TYPE_ROI,
-        set_roi_prior=False,
+        set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
     )

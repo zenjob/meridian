@@ -82,6 +82,8 @@ class PriorDistribution:
   | `sigma`               | (σ)                        |
   | `roi_m`               | `n_media_channels`         |
   | `roi_rf`              | `n_rf_channels`            |
+  | `mroi_m`              | `n_media_channels`         |
+  | `mroi_rf`             | `n_rf_channels`            |
 
   (σ) `n_geos` if `unique_sigma_for_each_geo`, otherwise this is `1`
 
@@ -102,16 +104,16 @@ class PriorDistribution:
       When `media_effects_dist` is set to `'log_normal'`, it is the hierarchical
       parameter for the mean of the underlying, log-transformed, `Normal`
       distribution. Meridian ignores this distribution if
-      `paid_media_prior_type` is `'roi'` or `'mroi'`, and uses `roi_m` prior
-      instead. Default distribution is `HalfNormal(5.0)`.
+      `paid_media_prior_type` is `'roi'` or `'mroi'`, and uses the `roi_m` or
+      `mroi_m` prior instead. Default distribution is `HalfNormal(5.0)`.
     beta_rf: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for reach and frequency media channels
       (`beta_grf`). When `media_effects_dist` is set to `'normal'`, it is the
       hierarchical mean. When `media_effects_dist` is set to `'log_normal'`, it
       is the hierarchical parameter for the mean of the underlying,
       log-transformed, `Normal` distribution. Meridian ignores this distribution
-      if `paid_media_prior_type` is `'roi'` or `'mroi'`, and uses the `roi_m`
-      prior instead. Default distribution is `HalfNormal(5.0)`.
+      if `paid_media_prior_type` is `'roi'` or `'mroi'`, and uses the `roi_m` or
+      `mroi_rf` prior instead. Default distribution is `HalfNormal(5.0)`.
     beta_om: Prior distribution on a parameter for the hierarchical distribution
       of geo-level media effects for organic media channels (`beta_gom`). When
       `media_effects_dist` is set to `'normal'`, it is the hierarchical mean.
@@ -194,37 +196,43 @@ class PriorDistribution:
       input. Default distribution is `LogNormal(0.7, 0.4)`.
     sigma: Prior distribution on the standard deviation of noise. Default
       distribution is `HalfNormal(5.0)`.
-    roi_m: Prior distribution on either the ROI or mROI (depending on the value
-      of `paid_media_prior_type`) of each media channel. Meridian ignores this
-      distribution if `paid_media_prior_type` is `'coefficient'` and uses
-      `beta_m` instead. When `paid_media_prior_type` is `'roi'` or `'mroi'` then
-      `beta_m` is calculated as a deterministic function of `roi_m`, `alpha_m`,
-      `ec_m`, `slope_m`, and the spend associated with each media channel.
-      Default distribution is `LogNormal(0.2, 0.9)` when `paid_media_prior_type
-      == "roi"` and `LogNormal(0.0, 0.5)` when `paid_media_prior_type ==
-      "mroi"`. When `kpi_type` is `'non_revenue'` and `revenue_per_kpi` is not
-      provided, ROI is interpreted as incremental KPI units per monetary unit
-      spent. In this case: 1) if `paid_media_prior_type='roi'`, the default
-      value for `roi_m` and `roi_rf` will be ignored and a common ROI prior will
-      be assigned to all channels to achieve a target mean and standard
-      deviation on the total media contribution, and 2)
-      `paid_media_prior_type='mroi'` is not supported.
-    roi_rf: Prior distribution on either the ROI or mROI (depending on the value
-      of `paid_media_prior_type`) of each Reach & Frequency channel. Meridian
-      ignores this distribution if `paid_media_prior_type` is `'coefficient'`
-      and uses `beta_rf` instead. When `paid_media_prior_type` is `'roi'` or
-      `'mroi'`, then `beta_rf` is calculated as a deterministic function of
+    roi_m: Prior distribution on the ROI of each media channel. This parameter
+      is only used when `paid_media_prior_type` is `'roi'`, in which case
+      `beta_m` is calculated as a deterministic function of `roi_rf`,
+      `alpha_rf`, `ec_rf`, `slope_rf`, and the spend associated with each media
+      channel. Default distribution is `LogNormal(0.2, 0.9)`. When `kpi_type` is
+      `'non_revenue'` and `revenue_per_kpi` is not provided, ROI is interpreted
+      as incremental KPI units per monetary unit spent. In this case, the
+      default value for `roi_m` and `roi_rf` will be ignored and a common ROI
+      prior will be assigned to all channels to achieve a target mean and
+      standard deviation on the total media contribution.
+    roi_rf: Prior distribution on the ROI of each Reach & Frequency channel.
+      This parameter is only used when `paid_media_prior_type` is `'roi'`, in
+      which case `beta_rf` is calculated as a deterministic function of
       `roi_rf`, `alpha_rf`, `ec_rf`, `slope_rf`, and the spend associated with
-      each media channel. Default distribution is `LogNormal(0.2, 0.9)` when
-      `paid_media_prior_type == "roi"` and `LogNormal(0.0, 0.5)` when
-      `paid_media_prior_type == "mroi"`. When `kpi_type` is `'non_revenue'` and
-      `revenue_per_kpi` is not provided, ROI is interpreted as incremental KPI
-      units per monetary unit spent. In this
-      case: 1) if `paid_media_prior_type='roi'`, the default value for `roi_m`
-        and `roi_rf` will be ignored and a common ROI prior will be assigned to
-        all channels to achieve a target mean and standard deviation on the
-        total media contribution, and 2) `paid_media_prior_type='mroi'` is not
-        supported.
+      each RF channel. Default distribution is `LogNormal(0.2, 0.9)`. When
+      `kpi_type` is `'non_revenue'` and `revenue_per_kpi` is not provided, ROI
+      is interpreted as incremental KPI units per monetary unit spent. In this
+      case, the default value for `roi_m` and `roi_rf` will be ignored and a
+      common ROI prior will be assigned to all channels to achieve a target mean
+      and standard deviation on the total media contribution.
+    mroi_m: Prior distribution on the mROI of each media channel. This parameter
+      is only used when `paid_media_prior_type` is `'mroi'`, in which case
+      `beta_m` is calculated as a deterministic function of `mroi_m`, `alpha_m`,
+      `ec_m`, `slope_m`, and the spend associated with each media channel.
+      Default distribution is `LogNormal(0.0, 0.5)`. When `kpi_type` is
+      `'non_revenue'` and `revenue_per_kpi` is not provided, mROI is interpreted
+      as the marginal incremental KPI units per monetary unit spent. In this
+      case, a default distribution is not provided, so the user must specify it.
+    mroi_rf: Prior distribution on the mROI of each Reach & Frequency channel.
+      This parameter is only used when `paid_media_prior_type` is `'mroi'`, in
+      which case `beta_rf` is calculated as a deterministic function of
+      `mroi_rf`, `alpha_rf`, `ec_rf`, `slope_rf`, and the spend associated with
+      each media channel. Default distribution is `LogNormal(0.0, 0.5)`. When
+      `kpi_type` is `'non_revenue'` and `revenue_per_kpi` is not provided, mROI
+      is interpreted as the marginal incremental KPI units per monetary unit
+      spent. In this case, a default distribution is not provided, so the user
+      must specify it.
   """
 
   knot_values: tfp.distributions.Distribution = dataclasses.field(
@@ -376,6 +384,16 @@ class PriorDistribution:
           0.2, 0.9, name=constants.ROI_RF
       ),
   )
+  mroi_m: tfp.distributions.Distribution = dataclasses.field(
+      default_factory=lambda: tfp.distributions.LogNormal(
+          0.0, 0.5, name=constants.MROI_M
+      ),
+  )
+  mroi_rf: tfp.distributions.Distribution = dataclasses.field(
+      default_factory=lambda: tfp.distributions.LogNormal(
+          0.0, 0.5, name=constants.MROI_RF
+      ),
+  )
 
   def __setstate__(self, state):
     # Override to support pickling.
@@ -434,8 +452,7 @@ class PriorDistribution:
       sigma_shape: int,
       n_knots: int,
       is_national: bool,
-      paid_media_prior_type: str,
-      set_roi_prior: bool,
+      set_total_media_contribution_prior: bool,
       kpi: float,
       total_spend: np.ndarray,
   ) -> PriorDistribution:
@@ -456,13 +473,13 @@ class PriorDistribution:
       n_knots: Number of knots used.
       is_national: A boolean indicator whether the prior distribution will be
         adapted for a national model.
-      paid_media_prior_type: A string specifying the prior type for the media
-        coefficients.
-      set_roi_prior: A boolean indicator whether the ROI prior should be set.
+      set_total_media_contribution_prior: A boolean indicator whether the ROI
+        priors should be set to achieve a total media constribution prior with
+        target mean and variance.
       kpi: Sum of the entire KPI across geos and time. Required if
-        `set_roi_prior=True`.
+        `set_total_media_contribution_prior=True`.
       total_spend: Spend per media channel summed across geos and time. Required
-        if `set_roi_prior=True`.
+        if `set_total_media_contribution_prior=True`.
 
     Returns:
       A new `PriorDistribution` broadcast from this prior distribution,
@@ -487,6 +504,7 @@ class PriorDistribution:
         )
 
     _validate_media_custom_priors(self.roi_m)
+    _validate_media_custom_priors(self.mroi_m)
     _validate_media_custom_priors(self.alpha_m)
     _validate_media_custom_priors(self.ec_m)
     _validate_media_custom_priors(self.slope_m)
@@ -547,6 +565,7 @@ class PriorDistribution:
         )
 
     _validate_rf_custom_priors(self.roi_rf)
+    _validate_rf_custom_priors(self.mroi_rf)
     _validate_rf_custom_priors(self.alpha_rf)
     _validate_rf_custom_priors(self.ec_rf)
     _validate_rf_custom_priors(self.slope_rf)
@@ -722,7 +741,7 @@ class PriorDistribution:
     )
 
     default_distribution = PriorDistribution()
-    if set_roi_prior and distributions_are_equal(
+    if set_total_media_contribution_prior and distributions_are_equal(
         self.roi_m, default_distribution.roi_m
     ):
       warnings.warn(
@@ -736,22 +755,13 @@ class PriorDistribution:
       roi_m_converted = _get_total_media_contribution_prior(
           kpi, total_spend, constants.ROI_M
       )
-    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
-      warnings.warn(
-          'When `paid_media_prior_type =='
-          f' "{constants.PAID_MEDIA_PRIOR_TYPE_MROI}"`, `{constants.ROI_M}` has'
-          ' been set to `LogNormal(0.0, 0.5)`.'
-      )
-      roi_m_converted = tfp.distributions.LogNormal(
-          0.0, 0.5, name=constants.ROI_M
-      )
     else:
       roi_m_converted = self.roi_m
     roi_m = tfp.distributions.BatchBroadcast(
         roi_m_converted, n_media_channels, name=constants.ROI_M
     )
 
-    if set_roi_prior and distributions_are_equal(
+    if set_total_media_contribution_prior and distributions_are_equal(
         self.roi_rf, default_distribution.roi_rf
     ):
       warnings.warn(
@@ -765,19 +775,17 @@ class PriorDistribution:
       roi_rf_converted = _get_total_media_contribution_prior(
           kpi, total_spend, constants.ROI_RF
       )
-    elif paid_media_prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
-      warnings.warn(
-          'When `paid_media_prior_type =='
-          f' "{constants.PAID_MEDIA_PRIOR_TYPE_MROI}"`, `{constants.ROI_RF}`'
-          ' has been set to `LogNormal(0.0, 0.5)`.'
-      )
-      roi_rf_converted = tfp.distributions.LogNormal(
-          0.0, 0.5, name=constants.ROI_RF
-      )
     else:
       roi_rf_converted = self.roi_rf
     roi_rf = tfp.distributions.BatchBroadcast(
         roi_rf_converted, n_rf_channels, name=constants.ROI_RF
+    )
+
+    mroi_m = tfp.distributions.BatchBroadcast(
+        self.mroi_m, n_media_channels, name=constants.MROI_M
+    )
+    mroi_rf = tfp.distributions.BatchBroadcast(
+        self.mroi_rf, n_rf_channels, name=constants.MROI_RF
     )
 
     return PriorDistribution(
@@ -810,6 +818,8 @@ class PriorDistribution:
         sigma=sigma,
         roi_m=roi_m,
         roi_rf=roi_rf,
+        mroi_m=mroi_m,
+        mroi_rf=mroi_rf,
     )
 
 

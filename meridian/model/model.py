@@ -420,7 +420,7 @@ class Meridian:
   @functools.cached_property
   def prior_broadcast(self) -> prior_distribution.PriorDistribution:
     """Returns broadcasted `PriorDistribution` object."""
-    set_roi_prior = (
+    set_total_media_contribution_prior = (
         self.input_data.revenue_per_kpi is None
         and self.input_data.kpi_type == constants.NON_REVENUE
         and self.model_spec.paid_media_prior_type
@@ -447,8 +447,7 @@ class Meridian:
         sigma_shape=self._sigma_shape,
         n_knots=self.knot_info.n_knots,
         is_national=self.is_national,
-        paid_media_prior_type=self.model_spec.paid_media_prior_type,
-        set_roi_prior=set_roi_prior,
+        set_total_media_contribution_prior=set_total_media_contribution_prior,
         kpi=np.sum(self.input_data.kpi.values),
         total_spend=agg_total_spend,
     )
@@ -678,16 +677,16 @@ class Meridian:
   def _validate_paid_media_prior_type(self):
     """Validates the media prior type."""
     default_distribution = prior_distribution.PriorDistribution()
-    roi_m_not_set = (
+    mroi_m_not_set = (
         self.n_media_channels > 0
         and prior_distribution.distributions_are_equal(
-            self.model_spec.prior.roi_m, default_distribution.roi_m
+            self.model_spec.prior.mroi_m, default_distribution.mroi_m
         )
     )
-    roi_rf_not_set = (
+    mroi_rf_not_set = (
         self.n_rf_channels > 0
         and prior_distribution.distributions_are_equal(
-            self.model_spec.prior.roi_rf, default_distribution.roi_rf
+            self.model_spec.prior.mroi_rf, default_distribution.mroi_rf
         )
     )
     if (
@@ -695,11 +694,12 @@ class Meridian:
         and self.input_data.kpi_type == constants.NON_REVENUE
         and self.model_spec.paid_media_prior_type
         == constants.PAID_MEDIA_PRIOR_TYPE_MROI
-        and (roi_m_not_set or roi_rf_not_set)
+        and (mroi_m_not_set or mroi_rf_not_set)
     ):
       raise ValueError(
-          "Custom priors should be set during model creation with mROI prior"
-          " type when KPI is non-revenue and revenue per kpi data is missing."
+          f"Custom priors should be set on `{constants.MROI_M}` and"
+          f" `{constants.MROI_RF}` when KPI is non-revenue and revenue per kpi"
+          f" data is missing."
       )
 
   def _validate_geo_invariants(self):
@@ -940,14 +940,14 @@ class Meridian:
       beta_gm_dev: tf.Tensor,
       ec_m: tf.Tensor,
       eta_m: tf.Tensor,
-      roi_m: tf.Tensor,
+      roi_or_mroi_m: tf.Tensor,
       slope_m: tf.Tensor,
       media_transformed: tf.Tensor,
   ) -> tf.Tensor:
     """Returns a tensor to be used in `beta_m`."""
-    # The `roi_m` parameter represents either ROI or mROI. For reach & frequency
-    # channels, marginal ROI priors are defined as "mROI by reach", which is
-    # equivalent to ROI.
+    # The `roi_or_mroi_m` parameter represents either ROI or mROI. For reach &
+    # frequency channels, marginal ROI priors are defined as "mROI by reach",
+    # which is equivalent to ROI.
     media_spend = self.media_tensors.media_spend
     media_spend_counterfactual = self.media_tensors.media_spend_counterfactual
     media_counterfactual_scaled = self.media_tensors.media_counterfactual_scaled
@@ -959,7 +959,7 @@ class Meridian:
 
     # Use absolute value here because this difference will be negative for
     # marginal ROI priors.
-    inc_revenue_m = roi_m * tf.reduce_sum(
+    inc_revenue_m = roi_or_mroi_m * tf.reduce_sum(
         tf.abs(media_spend - media_spend_counterfactual),
         range(media_spend.ndim - 1),
     )
@@ -1014,7 +1014,7 @@ class Meridian:
       beta_grf_dev: tf.Tensor,
       ec_rf: tf.Tensor,
       eta_rf: tf.Tensor,
-      roi_rf: tf.Tensor,
+      roi_or_mroi_rf: tf.Tensor,
       slope_rf: tf.Tensor,
       rf_transformed: tf.Tensor,
   ) -> tf.Tensor:
@@ -1030,7 +1030,7 @@ class Meridian:
     assert reach_counterfactual_scaled is not None
     assert frequency is not None
 
-    inc_revenue_rf = roi_rf * tf.reduce_sum(
+    inc_revenue_rf = roi_or_mroi_rf * tf.reduce_sum(
         rf_spend - rf_spend_counterfactual,
         range(rf_spend.ndim - 1),
     )
@@ -1172,17 +1172,18 @@ class Meridian:
             ec=ec_m,
             slope=slope_m,
         )
-        if (
-            self.model_spec.paid_media_prior_type
-            in constants.PAID_MEDIA_ROI_PRIOR_TYPES
-        ):
-          roi_m = yield prior_broadcast.roi_m
+        prior_type = self.model_spec.paid_media_prior_type
+        if prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+          if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
+            roi_or_mroi_m = yield prior_broadcast.roi_m
+          else:
+            roi_or_mroi_m = yield prior_broadcast.mroi_m
           beta_m_value = get_roi_prior_beta_m_value_fn(
               alpha_m,
               beta_gm_dev,
               ec_m,
               eta_m,
-              roi_m,
+              roi_or_mroi_m,
               slope_m,
               media_transformed,
           )
@@ -1224,17 +1225,18 @@ class Meridian:
             slope=slope_rf,
         )
 
-        if (
-            self.model_spec.paid_media_prior_type
-            in constants.PAID_MEDIA_ROI_PRIOR_TYPES
-        ):
-          roi_rf = yield prior_broadcast.roi_rf
+        prior_type = self.model_spec.paid_media_prior_type
+        if prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
+          if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
+            roi_or_mroi_rf = yield prior_broadcast.roi_rf
+          else:
+            roi_or_mroi_rf = yield prior_broadcast.mroi_rf
           beta_rf_value = get_roi_prior_beta_rf_value_fn(
               alpha_rf,
               beta_grf_dev,
               ec_rf,
               eta_rf,
-              roi_rf,
+              roi_or_mroi_rf,
               slope_rf,
               rf_transformed,
           )
@@ -1477,16 +1479,28 @@ class Meridian:
         slope=media_vars[constants.SLOPE_M],
     )
 
-    if (
-        self.model_spec.paid_media_prior_type
-        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
-    ):
-      media_vars[constants.ROI_M] = prior.roi_m.sample(**sample_kwargs)
+    prior_type = self.model_spec.paid_media_prior_type
+    if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
+      roi_m = prior.roi_m.sample(**sample_kwargs)
       beta_m_value = self._get_roi_prior_beta_m_value(
           beta_gm_dev=beta_gm_dev,
           media_transformed=media_transformed,
+          roi_or_mroi_m=roi_m,
           **media_vars,
       )
+      media_vars[constants.ROI_M] = roi_m
+      media_vars[constants.BETA_M] = tfp.distributions.Deterministic(
+          beta_m_value, name=constants.BETA_M
+      ).sample()
+    elif prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      mroi_m = prior.mroi_m.sample(**sample_kwargs)
+      beta_m_value = self._get_roi_prior_beta_m_value(
+          beta_gm_dev=beta_gm_dev,
+          media_transformed=media_transformed,
+          roi_or_mroi_m=mroi_m,
+          **media_vars,
+      )
+      media_vars[constants.MROI_M] = mroi_m
       media_vars[constants.BETA_M] = tfp.distributions.Deterministic(
           beta_m_value, name=constants.BETA_M
       ).sample()
@@ -1547,16 +1561,29 @@ class Meridian:
         slope=rf_vars[constants.SLOPE_RF],
     )
 
-    if (
-        self.model_spec.paid_media_prior_type
-        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
-    ):
-      rf_vars[constants.ROI_RF] = prior.roi_rf.sample(**sample_kwargs)
+    prior_type = self.model_spec.paid_media_prior_type
+    if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
+      roi_rf = prior.roi_rf.sample(**sample_kwargs)
       beta_rf_value = self._get_roi_prior_beta_rf_value(
           beta_grf_dev=beta_grf_dev,
           rf_transformed=rf_transformed,
+          roi_or_mroi_rf=roi_rf,
           **rf_vars,
       )
+      rf_vars[constants.ROI_RF] = roi_rf
+      rf_vars[constants.BETA_RF] = tfp.distributions.Deterministic(
+          beta_rf_value,
+          name=constants.BETA_RF,
+      ).sample()
+    elif prior_type == constants.PAID_MEDIA_PRIOR_TYPE_MROI:
+      mroi_rf = prior.mroi_rf.sample(**sample_kwargs)
+      beta_rf_value = self._get_roi_prior_beta_rf_value(
+          beta_grf_dev=beta_grf_dev,
+          rf_transformed=rf_transformed,
+          roi_or_mroi_rf=mroi_rf,
+          **rf_vars,
+      )
+      rf_vars[constants.MROI_RF] = mroi_rf
       rf_vars[constants.BETA_RF] = tfp.distributions.Deterministic(
           beta_rf_value,
           name=constants.BETA_RF,
