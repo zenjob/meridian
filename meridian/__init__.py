@@ -14,6 +14,9 @@
 
 """Meridian API."""
 
+__version__ = "0.15.0"
+
+
 from meridian import analysis
 from meridian import data
 from meridian import model
