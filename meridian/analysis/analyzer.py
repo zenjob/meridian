@@ -3755,13 +3755,17 @@ class Analyzer:
   ) -> np.ndarray:
     """Filters the holdout_id array for selected times and geos."""
 
-    if selected_geos is not None:
+    if selected_geos is not None and not self._meridian.is_national:
       geo_mask = [x in selected_geos for x in self._meridian.input_data.geo]
       holdout_id = holdout_id[geo_mask]
 
     if selected_times is not None:
       time_mask = [x in selected_times for x in self._meridian.input_data.time]
-      holdout_id = holdout_id[:, time_mask]
+      # If model is national, holdout_id will have only 1 dimension.
+      if self._meridian.is_national:
+        holdout_id = holdout_id[time_mask]
+      else:
+        holdout_id = holdout_id[:, time_mask]
 
     return holdout_id
 

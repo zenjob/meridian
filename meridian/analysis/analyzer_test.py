@@ -68,6 +68,14 @@ _TEST_SAMPLE_POSTERIOR_NON_PAID_PATH = os.path.join(
     _TEST_DIR,
     "sample_posterior_non_paid.nc",
 )
+_TEST_SAMPLE_PRIOR_NATIONAL_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_prior_national.nc",
+)
+_TEST_SAMPLE_POSTERIOR_NATIONAL_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_posterior_national.nc",
+)
 _TEST_SAMPLE_TRACE_PATH = os.path.join(
     _TEST_DIR,
     "sample_trace.nc",
@@ -126,6 +134,20 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             seed=0,
         )
     )
+    cls.input_data_national = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=1,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+            n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+            n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+            seed=0,
+        )
+    )
     model_spec = spec.ModelSpec(max_lag=15)
     cls.meridian_media_and_rf = model.Meridian(
         input_data=cls.input_data_media_and_rf, model_spec=model_spec
@@ -135,6 +157,10 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     cls.inference_data_media_and_rf = _build_inference_data(
         _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH,
         _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH,
+    )
+    cls.inference_data_national = _build_inference_data(
+        _TEST_SAMPLE_PRIOR_NATIONAL_PATH,
+        _TEST_SAMPLE_POSTERIOR_NATIONAL_PATH,
     )
     cls.enter_context(
         mock.patch.object(
@@ -1458,7 +1484,56 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     elif not selected_geos and selected_times:
       expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_NO_GEOS
     else:
-      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_AND_GEO
+      expected_values = (
+          test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_AND_GEO
+      )
+
+    self.assertAllClose(
+        list(df[constants.VALUE]),
+        expected_values,
+        atol=2e-3,
+    )
+
+  @parameterized.product(
+      selected_geos=[None, ["geo_0"]],
+      selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  @mock.patch.object(
+      model.Meridian,
+      "inference_data",
+      new_callable=mock.PropertyMock,
+  )
+  def test_predictive_accuracy_with_holdout_id_national_correct(
+      self, mock_inference_data, selected_geos, selected_times
+  ):
+    mock_inference_data.return_value = self.inference_data_national
+    input_data = self.input_data_national
+    n_times = len(input_data.time)
+    holdout_id = np.full([n_times], False)
+    holdout_id[np.random.choice(n_times, int(np.round(0.2 * n_times)))] = True
+    model_spec = spec.ModelSpec(holdout_id=holdout_id)  # Set holdout_id
+    meridian = model.Meridian(model_spec=model_spec, input_data=input_data)
+    analyzer_holdout_id = analyzer.Analyzer(meridian)
+    predictive_accuracy_dims_kwargs = {
+        "selected_geos": selected_geos,
+        "selected_times": selected_times,
+    }
+
+    predictive_accuracy_dataset = analyzer_holdout_id.predictive_accuracy(
+        **predictive_accuracy_dims_kwargs,
+    )
+    df = (
+        predictive_accuracy_dataset[constants.VALUE]
+        .to_dataframe()
+        .reset_index()
+    )
+
+    if not selected_times:
+      expected_values = (
+          test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_NATIONAL_NO_TIMES
+      )
+    else:
+      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_NATIONAL_TIMES
 
     self.assertAllClose(
         list(df[constants.VALUE]),
