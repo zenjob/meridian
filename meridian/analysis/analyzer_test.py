@@ -753,46 +753,57 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   def test_roi_wrong_media_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
-        "new_media.shape must match media.shape",
+        "new_data.media.shape must match media.shape",
     ):
       self.analyzer_media_and_rf.roi(
-          new_media=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              media=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_roi_wrong_media_spend_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        "new_media_spend.shape: (5,) must match either (3,) or (5, 49, 3).",
+        "new_data.media_spend.shape: (5,) must match either (3,) or (5,"
+        " 49, 3).",
     ):
       self.analyzer_media_and_rf.roi(
-          new_media_spend=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              media_spend=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_roi_wrong_reach_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
-        "new_reach.shape must match reach.shape",
+        "new_data.reach.shape must match reach.shape",
     ):
       self.analyzer_media_and_rf.roi(
-          new_reach=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              reach=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_roi_wrong_frequency_raises_exception(self):
     with self.assertRaisesRegex(
         ValueError,
-        "new_frequency.shape must match frequency.shape",
+        "new_data.frequency.shape must match frequency.shape",
     ):
       self.analyzer_media_and_rf.roi(
-          new_frequency=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              frequency=self.meridian_media_and_rf.population
+          ),
       )
 
   def test_roi_wrong_rf_spend_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        "new_rf_spend.shape: (5,) must match either (2,) or (5, 49, 2).",
+        "new_data.rf_spend.shape: (5,) must match either (2,) or (5, 49, 2).",
     ):
       self.analyzer_media_and_rf.roi(
-          new_rf_spend=self.meridian_media_and_rf.population,
+          new_data=analyzer.DataTensors(
+              rf_spend=self.meridian_media_and_rf.population
+          ),
       )
 
   @parameterized.product(
@@ -2559,7 +2570,9 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     total_spend = self.analyzer_media_only.filter_and_aggregate_geos_and_times(
         self.meridian_media_only.media_tensors.media_spend
     )
-    roi = self.analyzer_media_only.roi(new_media_spend=total_spend)
+    roi = self.analyzer_media_only.roi(
+        new_data=analyzer.DataTensors(media_spend=total_spend)
+    )
     expected_roi = self.analyzer_media_only.incremental_outcome() / total_spend
     self.assertAllClose(roi, expected_roi)
 
@@ -2575,7 +2588,9 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     new_media = tf.zeros_like(
         self.meridian_media_only.media_tensors.media, dtype=tf.float32
     )
-    roi = self.analyzer_media_only.roi(new_media=new_media)
+    roi = self.analyzer_media_only.roi(
+        new_data=analyzer.DataTensors(media=new_media)
+    )
     self.assertAllClose(
         roi, tf.zeros((_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS)), atol=2e-6
     )
@@ -3267,8 +3282,9 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           "aggregate_times": True,
       }
       roi_temp = self.analyzer_rf_only.roi(
-          new_reach=new_reach,
-          new_frequency=new_frequency,
+          new_data=analyzer.DataTensors(
+              reach=new_reach, frequency=new_frequency
+          ),
           use_posterior=True,
           **dim_kwargs,
       )[..., -self.analyzer_rf_only._meridian.n_rf_channels :]

@@ -515,6 +515,7 @@ NEW_ORGANIC_REACH = 'new_organic_reach'
 NEW_ORGANIC_FREQUENCY = 'new_organic_frequency'
 NEW_NON_MEDIA_TREATMENTS = 'new_non_media_treatments'
 NEW_CONTROLS = 'new_controls'
+NEW_DATA = 'new_data'
 
 
 # Media types.

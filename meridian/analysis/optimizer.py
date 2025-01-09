@@ -930,13 +930,13 @@ class BudgetOptimizer:
       budget: Number indicating the total budget for the fixed budget scenario.
         Defaults to the historical budget.
       pct_of_spend: Numeric list of size `n_total_channels` containing the
-        percentage allocation for spend for all media and RF channels. The
-        order must match `InputData.media` with values between 0-1, summing to
-        1. By default, the historical allocation is used. Budget and allocation
-        are used in conjunction to determine the non-optimized media-level
-        spend, which is used to calculate the non-optimized performance metrics
-        (for example, ROI) and construct the feasible range of media-level
-        spend with the spend constraints.
+        percentage allocation for spend for all media and RF channels. The order
+        must match `InputData.media` with values between 0-1, summing to 1. By
+        default, the historical allocation is used. Budget and allocation are
+        used in conjunction to determine the non-optimized media-level spend,
+        which is used to calculate the non-optimized performance metrics (for
+        example, ROI) and construct the feasible range of media-level spend with
+        the spend constraints.
       spend_constraint_lower: Numeric list of size `n_total_channels` or float
         (same constraint for all channels) indicating the lower bound of
         media-level spend. The lower bound of media-level spend is `(1 -
@@ -1411,11 +1411,13 @@ class BudgetOptimizer:
     marginal_roi = analyzer.get_central_tendency_and_ci(
         data=self._analyzer.marginal_roi(
             use_posterior=use_posterior,
-            new_media=new_media,
-            new_reach=new_reach,
-            new_frequency=new_frequency,
-            new_media_spend=new_media_spend,
-            new_rf_spend=new_rf_spend,
+            new_data=analyzer.DataTensors(
+                media=new_media,
+                reach=new_reach,
+                frequency=new_frequency,
+                media_spend=new_media_spend,
+                rf_spend=new_rf_spend,
+            ),
             selected_times=selected_times,
             batch_size=batch_size,
             by_reach=True,

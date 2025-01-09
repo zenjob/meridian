@@ -22,6 +22,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+
+## [0.16.0] - 2025-01-08
+* Organize tensor arguments of `roi`, `mroi`, and `cpik` methods of Analyzer
+  into a `DataTensors` container.
 * Add warning message when user sets custom priors that will be ignored by the
   `paid_media_prior_type` argument.
 
@@ -142,6 +146,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.13.0]: https://github.com/google/meridian/releases/tag/v0.13.0
 [0.14.0]: https://github.com/google/meridian/releases/tag/v0.14.0
 [0.15.0]: https://github.com/google/meridian/releases/tag/v0.15.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.15.0...HEAD
+[0.16.0]: https://github.com/google/meridian/releases/tag/v0.16.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.16.0...HEAD
 
 

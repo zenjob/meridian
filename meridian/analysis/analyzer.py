@@ -43,9 +43,13 @@ class DataTensors(tf.experimental.ExtensionType):
   Attributes:
     media: Optional tensor with dimensions `(n_geos, T, n_media_channels)` for
       any time dimension `T`.
+    media_spend: Optional tensor with dimensions `(n_geos, T, n_media_channels)`
+      for any time dimension `T`.
     reach: Optional tensor with dimensions `(n_geos, T, n_rf_channels)` for any
       time dimension `T`.
     frequency: Optional tensor with dimensions `(n_geos, T, n_rf_channels)` for
+      any time dimension `T`.
+    rf_spend: Optional tensor with dimensions `(n_geos, T, n_rf_channels)` for
       any time dimension `T`.
     organic_media: Optional tensor with dimensions `(n_geos, T,
       n_organic_media_channels)` for any time dimension `T`.
@@ -60,8 +64,10 @@ class DataTensors(tf.experimental.ExtensionType):
   """
 
   media: Optional[tf.Tensor] = None
+  media_spend: Optional[tf.Tensor] = None
   reach: Optional[tf.Tensor] = None
   frequency: Optional[tf.Tensor] = None
+  rf_spend: Optional[tf.Tensor] = None
   organic_media: Optional[tf.Tensor] = None
   organic_reach: Optional[tf.Tensor] = None
   organic_frequency: Optional[tf.Tensor] = None
@@ -1860,6 +1866,7 @@ class Analyzer:
         total_spend = self.rf_spend
       return total_spend
 
+  # TODO: Merge the logic with DataTensors usage.
   def _get_performance_tensors(
       self,
       new_media: tf.Tensor | None = None,
@@ -1951,13 +1958,13 @@ class Analyzer:
 
     _check_shape_matches(
         new_media,
-        constants.NEW_MEDIA,
+        f"{constants.NEW_DATA}.{constants.MEDIA}",
         self._meridian.media_tensors.media,
         constants.MEDIA,
     )
     _check_spend_shape_matches(
         new_media_spend,
-        constants.NEW_MEDIA_SPEND,
+        f"{constants.NEW_DATA}.{constants.MEDIA_SPEND}",
         (
             tf.TensorShape((self._meridian.n_media_channels)),
             tf.TensorShape((
@@ -1969,19 +1976,19 @@ class Analyzer:
     )
     _check_shape_matches(
         new_reach,
-        constants.NEW_REACH,
+        f"{constants.NEW_DATA}.{constants.REACH}",
         self._meridian.rf_tensors.reach,
         constants.REACH,
     )
     _check_shape_matches(
         new_frequency,
-        constants.NEW_FREQUENCY,
+        f"{constants.NEW_DATA}.{constants.FREQUENCY}",
         self._meridian.rf_tensors.frequency,
         constants.FREQUENCY,
     )
     _check_spend_shape_matches(
         new_rf_spend,
-        constants.NEW_RF_SPEND,
+        f"{constants.NEW_DATA}.{constants.RF_SPEND}",
         (
             tf.TensorShape((self._meridian.n_rf_channels)),
             tf.TensorShape((
@@ -2021,16 +2028,11 @@ class Analyzer:
         rf_spend=rf_spend,
     )
 
-  # TODO organize new_* arguments with DataTensors.
   def marginal_roi(
       self,
       incremental_increase: float = 0.01,
       use_posterior: bool = True,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
+      new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
@@ -2050,9 +2052,9 @@ class Analyzer:
     denominator is based on the total spend during the selected geos and time
     periods. An exception will be thrown if the spend of the InputData used to
     train the model does not have geo and time dimensions. (If the
-    `new_media_spend` and `new_rf_spend` arguments are used with different
-    dimensions than the InputData spend, then an exception will be thrown since
-    this is a likely user error.)
+    `new_data.media_spend` and `new_data.rf_spend` arguments are used with
+    different dimensions than the InputData spend, then an exception will be
+    thrown since this is a likely user error.)
 
     It is not recommended to set `aggregate_times=False`. (See `roi` docstring.)
 
@@ -2063,21 +2065,10 @@ class Analyzer:
         `True`.
       use_posterior: If `True` then the posterior distribution is calculated.
         Otherwise, the prior distribution is calculated.
-      new_media: Optional. Media data with the same shape as
-        `meridian.input_data.media`. Used to compute mROI for alternative media
-        data. Default uses `meridian.input_data.media`.
-      new_media_spend: Optional. Media spend data with the same shape as
-        `meridian.input_data.spend`. Used to compute mROI for alternative
-        `media_spend` data. Default uses `meridian.input_data.media_spend`.
-      new_reach: Optional. Reach data with the same shape as
-        `meridian.input_data.reach`. Used to compute mROI for alternative reach
-        data. Default uses `meridian.input_data.reach`.
-      new_frequency: Optional. Frequency data with the same shape as
-        `meridian.input_data.frequency`. Used to compute mROI for alternative
-        frequency data. Default uses `meridian.input_data.frequency`.
-      new_rf_spend: Optional. RF Spend data with the same shape as
-        `meridian.input_data.rf_spend`. Used to compute mROI for alternative
-        `rf_spend` data. Default uses `meridian.input_data.rf_spend`.
+      new_data: Optional. DataTensors containing `media`, `media_spend`,
+        `reach`, `frequency`, and `rf_spend` data with the same shape as
+        `meridian.input_data`. Used to compute mROI for alternative data.
+        Default uses the tensors from `meridian.input_data`.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
@@ -2116,12 +2107,15 @@ class Analyzer:
         "batch_size": batch_size,
         "include_non_paid_channels": False,
     }
+    # TODO: Switch from PerformanceTensors to DataTensors.
+    if new_data is None:
+      new_data = DataTensors()
     performance_tensors = self._get_performance_tensors(
-        new_media,
-        new_media_spend,
-        new_reach,
-        new_frequency,
-        new_rf_spend,
+        new_data.media,
+        new_data.media_spend,
+        new_data.reach,
+        new_data.frequency,
+        new_data.rf_spend,
         **dim_kwargs,
     )
     incremental_outcome = self.incremental_outcome(
@@ -2142,7 +2136,7 @@ class Analyzer:
         incremental_increase + 1,
         by_reach,
     )
-    new_data = DataTensors(
+    incremented_data = DataTensors(
         media=(
             incremented_tensors["new_media"]
             if "new_media" in incremented_tensors
@@ -2160,7 +2154,7 @@ class Analyzer:
         ),
     )
     incremental_outcome_with_multiplier = self.incremental_outcome(
-        new_data=new_data, **dim_kwargs, **incremental_outcome_kwargs
+        new_data=incremented_data, **dim_kwargs, **incremental_outcome_kwargs
     )
     numerator = incremental_outcome_with_multiplier - incremental_outcome
     spend_inc = performance_tensors.total_spend() * incremental_increase
@@ -2181,15 +2175,10 @@ class Analyzer:
       denominator = spend_inc
     return tf.math.divide_no_nan(numerator, denominator)
 
-  # TODO: Organize the arguments with DataTensors.
   def roi(
       self,
       use_posterior: bool = True,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
+      new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
@@ -2207,9 +2196,9 @@ class Analyzer:
     If `selected_geos` or `selected_times` is specified, then the ROI
     denominator is the total spend during the selected geos and time periods. An
     exception will be thrown if the spend of the InputData used to train the
-    model does not have geo and time dimensions. (If the `new_media_spend` and
-    `new_rf_spend` arguments are used with different dimensions than the
-    InputData spend, then an exception will be thrown since this is a likely
+    model does not have geo and time dimensions. (If the `new_data.media_spend`
+    and `new_data.rf_spend` arguments are used with different dimensions than
+    the InputData spend, then an exception will be thrown since this is a likely
     user error.)
 
     It is not recommended to set `aggregate_times=False`. ROI is defined as the
@@ -2225,21 +2214,10 @@ class Analyzer:
     Args:
       use_posterior: Boolean. If `True`, then the posterior distribution is
         calculated. Otherwise, the prior distribution is calculated.
-      new_media: Optional. Media data with the same shape as
-        `meridian.input_data.media`. Used to compute ROI for alternative media
-        data. Default uses `meridian.input_data.media`.
-      new_media_spend: Optional. Media spend data with the same shape as
-        `meridian.input_data.spend`. Used to compute ROI for alternative
-        `media_spend` data. Default uses `meridian.input_data.media_spend`.
-      new_reach: Optional. Reach data with the same shape as
-        `meridian.input_data.reach`. Used to compute ROI for alternative reach
-        data. Default uses `meridian.input_data.reach`.
-      new_frequency: Optional. Frequency data with the same shape as
-        `meridian.input_data.frequency`. Used to compute ROI for alternative
-        frequency data. Default uses `meridian.input_data.frequency`.
-      new_rf_spend: Optional. RF Spend data with the same shape as
-        `meridian.input_data.rf_spend`. Used to compute ROI for alternative
-        `rf_spend` data. Default uses `meridian.input_data.rf_spend`.
+      new_data: Optional. DataTensors containing `media`, `media_spend`,
+        `reach`, `frequency`, and `rf_spend` data with the same shape as
+        `meridian.input_data`. Used to compute ROI for alternative data. Default
+        uses the tensors from `meridian.input_data`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2275,14 +2253,15 @@ class Analyzer:
         "batch_size": batch_size,
         "include_non_paid_channels": False,
     }
-    # TODO: Organize the tensors passed between the methods
-    # using DataTensors.
+    # TODO: Switch from PerformanceTensors to DataTensors.
+    if new_data is None:
+      new_data = DataTensors()
     performance_tensors = self._get_performance_tensors(
-        new_media,
-        new_media_spend,
-        new_reach,
-        new_frequency,
-        new_rf_spend,
+        new_data.media,
+        new_data.media_spend,
+        new_data.reach,
+        new_data.frequency,
+        new_data.rf_spend,
         **dim_kwargs,
     )
     incremental_outcome = self.incremental_outcome(
@@ -2313,15 +2292,10 @@ class Analyzer:
       denominator = spend
     return tf.math.divide_no_nan(incremental_outcome, denominator)
 
-  # TODO: Organize the arguments with DataTensors.
   def cpik(
       self,
       use_posterior: bool = True,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
+      new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
@@ -2337,8 +2311,9 @@ class Analyzer:
     If `selected_geos` or `selected_times` is specified, then the CPIK
     numerator is the total spend during the selected geos and time periods. An
     exception will be thrown if the spend of the InputData used to train the
-    model does not have geo and time dimensions. (If the `new_media_spend` and
-    `new_rf_spend` arguments are used with different dimensions than the
+    model does not have geo and time dimensions. (If the `new_data.media_spend`
+    and
+    `new_data.rf_spend` arguments are used with different dimensions than the
     InputData spend, then an exception will be thrown since this is a likely
     user error.)
 
@@ -2350,12 +2325,10 @@ class Analyzer:
     Args:
       use_posterior: Boolean. If `True` then the posterior distribution is
         calculated. Otherwise, the prior distribution is calculated.
-      new_media: Optional tensor with media. Used to compute CPIK.
-      new_media_spend: Optional tensor with `media_spend` to be used to compute
-        CPIK.
-      new_reach: Optional tensor with reach. Used to compute CPIK.
-      new_frequency: Optional tensor with frequency. Used to compute CPIK.
-      new_rf_spend: Optional tensor with rf_spend to be used to compute CPIK.
+      new_data: Optional. DataTensors containing `media`, `media_spend`,
+        `reach`, `frequency`, and `rf_spend` data with the same shape as
+        `meridian.input_data`. Used to compute CPIK for alternative data.
+        Default uses the tensors from `meridian.input_data`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2378,11 +2351,7 @@ class Analyzer:
     roi = self.roi(
         use_kpi=True,
         use_posterior=use_posterior,
-        new_media=new_media,
-        new_media_spend=new_media_spend,
-        new_reach=new_reach,
-        new_frequency=new_frequency,
-        new_rf_spend=new_rf_spend,
+        new_data=new_data,
         selected_geos=selected_geos,
         selected_times=selected_times,
         aggregate_geos=aggregate_geos,
@@ -3178,15 +3147,10 @@ class Analyzer:
 
   # TODO: This method can be replaced once generalized
   # `media_summary_metric` is done.
-  # TODO: Organize the arguments using DataTensors.
   def _counterfactual_metric_dataset(
       self,
       use_posterior: bool = True,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
+      new_data: DataTensors | None = None,
       marginal_roi_by_reach: bool = True,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
@@ -3200,21 +3164,9 @@ class Analyzer:
     Args:
       use_posterior: Boolean. If `True`, posterior counterfactual metrics are
         generated. If `False`, prior counterfactual metrics are generated.
-      new_media: Optional tensor with dimensions matching media. When specified,
-        it contains the counterfactual media value. If `None`, the original
-        media value is used.
-      new_media_spend: Optional tensor with dimensions matching media_spend.
-        When specified, it contains the counterfactual media spend value. If
-        `None`, the original media spend value is used.
-      new_reach: Optional tensor with dimensions matching reach. When specified,
-        it contains the counterfactual reach value. If `None`, the original
-        reach value is used.
-      new_frequency: Optional tensor with dimensions matching frequency. When
-        specified, it contains the counterfactual frequency value. If `None`,
-        the original frequency value is used.
-      new_rf_spend: Optional tensor with dimensions matching rf_spend. When
-        specified, it contains the counterfactual rf_spend value. If `None`, the
-        original rf_spend value is used.
+      new_data: Optional DataTensors. When specified, it contains the
+        counterfactual media, reach, frequency, media_spend, and rf_spend
+        values. Default uses the tensors from `meridian.input_data`.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding
@@ -3260,28 +3212,25 @@ class Analyzer:
         "batch_size": batch_size,
     }
 
+    # TODO: Merge _get_performance_tensors() logic with DataTensors
+    # and Switch from PerformanceData to DataTensors.
+    if new_data is None:
+      new_data = DataTensors()
     performance_data = self._get_performance_tensors(
-        new_media,
-        new_media_spend,
-        new_reach,
-        new_frequency,
-        new_rf_spend,
+        new_data.media,
+        new_data.media_spend,
+        new_data.reach,
+        new_data.frequency,
+        new_data.rf_spend,
         **dim_kwargs,
     )
-    new_data = DataTensors(
+    derived_data = DataTensors(
         media=performance_data.media,
         reach=performance_data.reach,
         frequency=performance_data.frequency,
+        media_spend=performance_data.media_spend,
+        rf_spend=performance_data.rf_spend,
     )
-    new_data_kwargs = {
-        "new_media": new_data.media,
-        "new_reach": new_data.reach,
-        "new_frequency": new_data.frequency,
-    }
-    new_spend_kwargs = {
-        "new_media_spend": performance_data.media_spend,
-        "new_rf_spend": performance_data.rf_spend,
-    }
 
     spend = performance_data.total_spend()
     if spend is not None and spend.ndim == 3:
@@ -3290,7 +3239,7 @@ class Analyzer:
     # _counterfactual_metric_dataset() is called only from `optimal_freq()`
     # and uses only paid channels.
     incremental_outcome_tensor = self.incremental_outcome(
-        new_data=new_data,
+        new_data=derived_data,
         include_non_paid_channels=False,
         **dim_kwargs,
         **metric_tensor_kwargs,
@@ -3298,7 +3247,7 @@ class Analyzer:
     # expected_outcome returns a tensor of shape (n_chains, n_draws).
     mean_expected_outcome = tf.reduce_mean(
         self.expected_outcome(
-            new_data=new_data,
+            new_data=derived_data,
             **dim_kwargs,
             **metric_tensor_kwargs,
         ),
@@ -3323,13 +3272,14 @@ class Analyzer:
         confidence_level=confidence_level,
         include_median=True,
     )
+    # TODO: Organize the tensors passed between the methods
+    # using DataTensors.
     mroi = get_central_tendency_and_ci(
         data=self.marginal_roi(
             by_reach=marginal_roi_by_reach,
+            new_data=derived_data,
             **dim_kwargs,
             **metric_tensor_kwargs,
-            **new_data_kwargs,
-            **new_spend_kwargs,
         ),
         confidence_level=confidence_level,
         include_median=True,
@@ -3471,8 +3421,7 @@ class Analyzer:
           / new_frequency
       )
       metric_grid_temp = self.roi(
-          new_reach=new_reach,
-          new_frequency=new_frequency,
+          new_data=DataTensors(reach=new_reach, frequency=new_frequency),
           use_posterior=use_posterior,
           selected_geos=selected_geos,
           selected_times=selected_times,
@@ -3505,8 +3454,9 @@ class Analyzer:
     # Compute the optimized metrics based on the optimal frequency.
     optimized_metrics_by_reach = self._counterfactual_metric_dataset(
         use_posterior=use_posterior,
-        new_reach=optimal_reach,
-        new_frequency=optimal_frequency_tensor,
+        new_data=DataTensors(
+            reach=optimal_reach, frequency=optimal_frequency_tensor
+        ),
         marginal_roi_by_reach=True,
         selected_geos=selected_geos,
         selected_times=selected_times,
@@ -3514,8 +3464,9 @@ class Analyzer:
     ).sel({constants.CHANNEL: rf_channel_values})
     optimized_metrics_by_frequency = self._counterfactual_metric_dataset(
         use_posterior=use_posterior,
-        new_reach=optimal_reach,
-        new_frequency=optimal_frequency_tensor,
+        new_data=DataTensors(
+            reach=optimal_reach, frequency=optimal_frequency_tensor
+        ),
         marginal_roi_by_reach=False,
         selected_geos=selected_geos,
         selected_times=selected_times,
