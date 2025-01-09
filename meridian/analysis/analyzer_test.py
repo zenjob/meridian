@@ -1495,9 +1495,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     elif not selected_geos and selected_times:
       expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_NO_GEOS
     else:
-      expected_values = (
-          test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_AND_GEO
-      )
+      expected_values = test_utils.PREDICTIVE_ACCURACY_HOLDOUT_ID_TIMES_AND_GEO
 
     self.assertAllClose(
         list(df[constants.VALUE]),
@@ -3571,14 +3569,16 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
   def test_marginal_roi_no_revenue_data_use_kpi_false(self):
     with self.assertRaisesRegex(
         ValueError,
-        "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
+        "Revenue analysis is not available when `revenue_per_kpi` is unknown."
+        " Set `use_kpi=True` to perform KPI analysis instead.",
     ):
       self.analyzer_kpi.marginal_roi(use_kpi=False)
 
   def test_roi_no_revenue_data_use_kpi_false(self):
     with self.assertRaisesRegex(
         ValueError,
-        "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
+        "Revenue analysis is not available when `revenue_per_kpi` is unknown."
+        " Set `use_kpi=True` to perform KPI analysis instead.",
     ):
       self.analyzer_kpi.roi(use_kpi=False)
 
@@ -3601,9 +3601,35 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
   def test_use_kpi_no_revenue_per_kpi_correct_usage_expected_outcome(self):
     with self.assertRaisesRegex(
         ValueError,
-        "`use_kpi` must be True when `revenue_per_kpi` is not defined.",
+        "Revenue analysis is not available when `revenue_per_kpi` is unknown."
+        " Set `use_kpi=True` to perform KPI analysis instead.",
     ):
       self.analyzer_kpi.expected_outcome()
+
+  def test_expected_outcome_revenue_kpi_use_kpi_true_raises_warning(self):
+    input_data_revenue = data_test_utils.sample_input_data_revenue(
+        n_geos=_N_GEOS,
+        n_times=_N_TIMES,
+        n_media_times=_N_MEDIA_TIMES,
+        n_controls=_N_CONTROLS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        seed=0,
+    )
+    mmm_revenue = model.Meridian(input_data=input_data_revenue)
+    analyzer_revenue = analyzer.Analyzer(mmm_revenue)
+    with warnings.catch_warnings(record=True) as w:
+      analyzer_revenue.expected_outcome(
+          use_kpi=True,
+      )
+
+      self.assertLen(w, 1)
+      self.assertTrue(issubclass(w[0].category, UserWarning))
+      self.assertIn(
+          "Setting `use_kpi=True` has no effect when `kpi_type=REVENUE`"
+          " since in this case, KPI is equal to revenue.",
+          str(w[0].message),
+      )
 
   def test_optimal_frequency_data_no_revenue_per_kpi_correct(self):
     actual = self.analyzer_kpi.optimal_freq(

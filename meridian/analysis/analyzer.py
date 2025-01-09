@@ -499,11 +499,41 @@ class Analyzer:
     return result
 
   def _check_revenue_data_exists(self, use_kpi: bool = False):
-    """Raises an error if `use_kpi` is False but revenue data does not exist."""
-    if not use_kpi and self._meridian.revenue_per_kpi is None:
-      raise ValueError(
-          "`use_kpi` must be True when `revenue_per_kpi` is not defined."
-      )
+    """Checks if the revenue data is available for the analysis.
+
+    In the `kpi_type=NON_REVENUE` case, `revenue_per_kpi` is required to perform
+    the revenue analysis. If `revenue_per_kpi` is not defined, then the revenue
+    data is not available and the revenue analysis (`use_kpi=False`) is not
+    possible. Only the KPI analysis (`use_kpi=True`) is possible in this case.
+
+    In the `kpi_type=REVENUE` case, KPI is equal to revenue and setting
+    `use_kpi=True` has no effect. Therefore, a warning is issued if the default
+    `False` value of `use_kpi` is overridden by the user.
+
+    Args:
+      use_kpi: A boolean flag indicating whether to use KPI instead of revenue.
+
+    Raises:
+      ValueError: If `use_kpi` is `False` and `revenue_per_kpi` is not defined.
+      UserWarning: If `use_kpi` is `True` in the `kpi_type=REVENUE` case.
+    """
+    if self._meridian.input_data.kpi_type == constants.NON_REVENUE:
+      if not use_kpi and self._meridian.revenue_per_kpi is None:
+        raise ValueError(
+            "Revenue analysis is not available when `revenue_per_kpi` is"
+            " unknown. Set `use_kpi=True` to perform KPI analysis instead."
+        )
+
+    if self._meridian.input_data.kpi_type == constants.REVENUE:
+      # In the `kpi_type=REVENUE` case, KPI is equal to revenue and
+      # `revenue_per_kpi` is set to a tensor of 1s in the initialization of the
+      # `InputData` object.
+      assert self._meridian.revenue_per_kpi is not None
+      if use_kpi:
+        warnings.warn(
+            "Setting `use_kpi=True` has no effect when `kpi_type=REVENUE`"
+            " since in this case, KPI is equal to revenue."
+        )
 
   def _get_adstock_dataframe(
       self,
