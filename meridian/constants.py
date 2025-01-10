@@ -539,6 +539,8 @@ USE_HISTORICAL_BUDGET = 'use_historical_budget'
 FIXED_BUDGET = 'fixed_budget'
 TARGET_ROI = 'target_roi'
 TARGET_MROI = 'target_mroi'
+SPEND_CONSTRAINT_DEFAULT_FIXED_BUDGET = 0.3
+SPEND_CONSTRAINT_DEFAULT_FLEXIBLE_BUDGET = 1.0
 
 
 # Plot constants.

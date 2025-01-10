@@ -1201,7 +1201,11 @@ class BudgetOptimizer:
 
     def get_const_array(const: _SpendConstraint | None) -> np.ndarray:
       if const is None:
-        const = np.array([0.3]) if fixed_budget else np.array([1.0])
+        const = (
+            np.array([c.SPEND_CONSTRAINT_DEFAULT_FIXED_BUDGET])
+            if fixed_budget
+            else np.array([c.SPEND_CONSTRAINT_DEFAULT_FLEXIBLE_BUDGET])
+        )
       elif isinstance(const, (float, int)):
         const = np.array([const])
       else:

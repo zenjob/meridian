@@ -22,6 +22,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+* Define constants for channel constraints in the optimizer.
 
 ## [0.16.0] - 2025-01-08
 * Organize tensor arguments of `roi`, `mroi`, and `cpik` methods of Analyzer
