@@ -3978,6 +3978,99 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   @parameterized.product(
+      new_tensors_names=[
+          [],
+          [constants.MEDIA, constants.REACH, constants.FREQUENCY],
+          [
+              constants.MEDIA,
+              constants.REACH,
+              constants.FREQUENCY,
+              constants.CONTROLS,
+          ],
+          [
+              constants.MEDIA,
+              constants.REACH,
+              constants.FREQUENCY,
+              constants.ORGANIC_MEDIA,
+              constants.ORGANIC_REACH,
+              constants.ORGANIC_FREQUENCY,
+              constants.NON_MEDIA_TREATMENTS,
+          ],
+          [
+              constants.MEDIA,
+              constants.REACH,
+              constants.FREQUENCY,
+              constants.REVENUE_PER_KPI,
+          ],
+      ],
+      require_non_paid_channels=[True, False],
+      require_controls=[True, False],
+      require_revenue_per_kpi=[True, False],
+  )
+  def test_fill_missing_data_tensors(
+      self,
+      new_tensors_names: Sequence[str],
+      require_non_paid_channels: bool,
+      require_controls: bool,
+      require_revenue_per_kpi: bool,
+  ):
+    data1 = data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+        n_geos=_N_GEOS,
+        n_times=_N_TIMES,
+        n_media_times=_N_MEDIA_TIMES,
+        n_controls=_N_CONTROLS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+        n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+        n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+        seed=1,
+    )
+
+    if not new_tensors_names:
+      new_data = None
+    else:
+      tensors = {}
+      for tensor_name in new_tensors_names:
+        tensors[tensor_name] = getattr(data1, tensor_name)
+      new_data = analyzer.DataTensors(**tensors)
+
+    required_tensors_names = [
+        constants.MEDIA,
+        constants.REACH,
+        constants.FREQUENCY,
+    ]
+    if require_controls:
+      required_tensors_names.append(constants.CONTROLS)
+    if require_non_paid_channels:
+      required_tensors_names.append(constants.ORGANIC_MEDIA)
+      required_tensors_names.append(constants.ORGANIC_REACH)
+      required_tensors_names.append(constants.ORGANIC_FREQUENCY)
+      required_tensors_names.append(constants.NON_MEDIA_TREATMENTS)
+    if require_revenue_per_kpi:
+      required_tensors_names.append(constants.REVENUE_PER_KPI)
+
+    filled_tensors = self.analyzer_non_paid._fill_missing_data_tensors(
+        new_data=new_data,
+        required_tensors_names=required_tensors_names,
+    )
+    for tensor_name in required_tensors_names:
+      if tensor_name in new_tensors_names:
+        self.assertAllClose(
+            getattr(filled_tensors, tensor_name),
+            getattr(data1, tensor_name),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+      else:
+        self.assertAllClose(
+            getattr(filled_tensors, tensor_name),
+            getattr(self.input_data_non_paid, tensor_name),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+
+  @parameterized.product(
       selected_geos=[["geo_1", "geo_3"]],
       selected_times=[
           ["2021-04-19", "2021-09-13", "2021-12-13"],

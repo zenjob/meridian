@@ -609,6 +609,102 @@ class Analyzer:
         .reset_index()
     )
 
+  def _fill_missing_data_tensors(
+      self,
+      new_data: DataTensors | None,
+      required_tensors_names: Sequence[str],
+  ) -> DataTensors:
+    """Fills missing data tensors with their original values.
+
+    This method takes a collection of new data tensors set by the user and
+    fills in the missing tensors with their original values from the Meridian
+    object. For example, if `required_tensors_names = ["media", "reach",
+    "frequency"]` and the user sets only `new_data.media`, then this method will
+    output `new_data.media` and the values of the `reach` and `frequency` from
+    the Meridian object.
+
+    Args:
+      new_data: A `DataTensors` container with optional tensors set by the user.
+      required_tensors_names: A sequence of data tensors names to fill in
+        `new_data` with their original values from the Meridian object.
+
+    Returns:
+      A `DataTensors` container. For every tensor from the
+      `required_tensors_names` list, the output contains the tensor from
+      `new_data` if it is not `None`, otherwise the corresponding tensor from
+      the Meridian object.
+    """
+    if new_data is None:
+      new_data = DataTensors()
+    output = {}
+    if constants.MEDIA in required_tensors_names:
+      output[constants.MEDIA] = (
+          new_data.media
+          if new_data.media is not None
+          else self._meridian.media_tensors.media
+      )
+    if constants.MEDIA_SPEND in required_tensors_names:
+      output[constants.MEDIA_SPEND] = (
+          new_data.media_spend
+          if new_data.media_spend is not None
+          else self._meridian.media_tensors.media_spend
+      )
+    if constants.REACH in required_tensors_names:
+      output[constants.REACH] = (
+          new_data.reach
+          if new_data.reach is not None
+          else self._meridian.rf_tensors.reach
+      )
+    if constants.FREQUENCY in required_tensors_names:
+      output[constants.FREQUENCY] = (
+          new_data.frequency
+          if new_data.frequency is not None
+          else self._meridian.rf_tensors.frequency
+      )
+    if constants.RF_SPEND in required_tensors_names:
+      output[constants.RF_SPEND] = (
+          new_data.rf_spend
+          if new_data.rf_spend is not None
+          else self._meridian.rf_tensors.rf_spend
+      )
+    if constants.ORGANIC_MEDIA in required_tensors_names:
+      output[constants.ORGANIC_MEDIA] = (
+          new_data.organic_media
+          if new_data.organic_media is not None
+          else self._meridian.organic_media_tensors.organic_media
+      )
+    if constants.ORGANIC_REACH in required_tensors_names:
+      output[constants.ORGANIC_REACH] = (
+          new_data.organic_reach
+          if new_data.organic_reach is not None
+          else self._meridian.organic_rf_tensors.organic_reach
+      )
+    if constants.ORGANIC_FREQUENCY in required_tensors_names:
+      output[constants.ORGANIC_FREQUENCY] = (
+          new_data.organic_frequency
+          if new_data.organic_frequency is not None
+          else self._meridian.organic_rf_tensors.organic_frequency
+      )
+    if constants.NON_MEDIA_TREATMENTS in required_tensors_names:
+      output[constants.NON_MEDIA_TREATMENTS] = (
+          new_data.non_media_treatments
+          if new_data.non_media_treatments is not None
+          else self._meridian.non_media_treatments
+      )
+    if constants.CONTROLS in required_tensors_names:
+      output[constants.CONTROLS] = (
+          new_data.controls
+          if new_data.controls is not None
+          else self._meridian.controls
+      )
+    if constants.REVENUE_PER_KPI in required_tensors_names:
+      output[constants.REVENUE_PER_KPI] = (
+          new_data.revenue_per_kpi
+          if new_data.revenue_per_kpi is not None
+          else self._meridian.revenue_per_kpi
+      )
+    return DataTensors(**output)
+
   def _get_scaled_data_tensors(
       self,
       new_data: DataTensors | None = None,
@@ -1703,36 +1799,18 @@ class Analyzer:
       )
 
     # Set default values for optional media arguments.
-    if new_data.media is None:
-      new_media = mmm.media_tensors.media
-    else:
-      new_media = new_data.media
-    if new_data.reach is None:
-      new_reach = mmm.rf_tensors.reach
-    else:
-      new_reach = new_data.reach
-    if new_data.organic_media is None:
-      new_organic_media = mmm.organic_media_tensors.organic_media
-    else:
-      new_organic_media = new_data.organic_media
-    if new_data.organic_reach is None:
-      new_organic_reach = mmm.organic_rf_tensors.organic_reach
-    else:
-      new_organic_reach = new_data.organic_reach
-    if new_data.non_media_treatments is None:
-      new_non_media_treatments = mmm.non_media_treatments
-    else:
-      new_non_media_treatments = new_data.non_media_treatments
-
-    new_data = DataTensors(
-        media=new_media,
-        reach=new_reach,
-        frequency=new_data.frequency,
-        organic_media=new_organic_media,
-        organic_reach=new_organic_reach,
-        organic_frequency=new_data.organic_frequency,
-        non_media_treatments=new_non_media_treatments,
-        revenue_per_kpi=new_data.revenue_per_kpi,
+    data_tensors = self._fill_missing_data_tensors(
+        new_data,
+        [
+            constants.MEDIA,
+            constants.REACH,
+            constants.FREQUENCY,
+            constants.ORGANIC_MEDIA,
+            constants.ORGANIC_REACH,
+            constants.ORGANIC_FREQUENCY,
+            constants.NON_MEDIA_TREATMENTS,
+            constants.REVENUE_PER_KPI,
+        ],
     )
     if media_selected_times is None:
       media_selected_times = [True] * new_n_media_times
@@ -1759,60 +1837,68 @@ class Analyzer:
         1 + (scaling_factor1 - 1) * np.array(media_selected_times)
     )[:, None]
     new_media0 = (
-        None if new_data.media is None else new_data.media * counterfactual0
+        None
+        if data_tensors.media is None
+        else data_tensors.media * counterfactual0
     )
     new_reach0 = (
-        None if new_data.reach is None else new_data.reach * counterfactual0
+        None
+        if data_tensors.reach is None
+        else data_tensors.reach * counterfactual0
     )
     new_organic_media0 = (
         None
-        if new_data.organic_media is None
-        else new_data.organic_media * counterfactual0
+        if data_tensors.organic_media is None
+        else data_tensors.organic_media * counterfactual0
     )
     new_organic_reach0 = (
         None
-        if new_data.organic_reach is None
-        else new_data.organic_reach * counterfactual0
+        if data_tensors.organic_reach is None
+        else data_tensors.organic_reach * counterfactual0
     )
-    if new_data.non_media_treatments is not None:
+    if data_tensors.non_media_treatments is not None:
       new_non_media_treatments0 = _compute_non_media_baseline(
-          non_media_treatments=new_data.non_media_treatments,
+          non_media_treatments=data_tensors.non_media_treatments,
           non_media_baseline_values=non_media_baseline_values,
           non_media_selected_times=non_media_selected_times,
       )
     else:
       new_non_media_treatments0 = None
     new_media1 = (
-        None if new_data.media is None else new_data.media * counterfactual1
+        None
+        if data_tensors.media is None
+        else data_tensors.media * counterfactual1
     )
     new_reach1 = (
-        None if new_data.reach is None else new_data.reach * counterfactual1
+        None
+        if data_tensors.reach is None
+        else data_tensors.reach * counterfactual1
     )
     new_organic_media1 = (
         None
-        if new_data.organic_media is None
-        else new_data.organic_media * counterfactual1
+        if data_tensors.organic_media is None
+        else data_tensors.organic_media * counterfactual1
     )
     new_organic_reach1 = (
         None
-        if new_data.organic_reach is None
-        else new_data.organic_reach * counterfactual1
+        if data_tensors.organic_reach is None
+        else data_tensors.organic_reach * counterfactual1
     )
     new_non_media_treatments1 = (
         None
-        if new_data.non_media_treatments is None
-        else new_data.non_media_treatments
+        if data_tensors.non_media_treatments is None
+        else data_tensors.non_media_treatments
     )
     data_tensors0 = self._get_scaled_data_tensors(
         new_data=DataTensors(
             media=new_media0,
             reach=new_reach0,
-            frequency=new_data.frequency,
+            frequency=data_tensors.frequency,
             organic_media=new_organic_media0,
             organic_reach=new_organic_reach0,
-            organic_frequency=new_data.organic_frequency,
+            organic_frequency=data_tensors.organic_frequency,
             non_media_treatments=new_non_media_treatments0,
-            revenue_per_kpi=new_data.revenue_per_kpi,
+            revenue_per_kpi=data_tensors.revenue_per_kpi,
         ),
         include_non_paid_channels=include_non_paid_channels,
     )
@@ -1820,12 +1906,12 @@ class Analyzer:
         new_data=DataTensors(
             media=new_media1,
             reach=new_reach1,
-            frequency=new_data.frequency,
+            frequency=data_tensors.frequency,
             organic_media=new_organic_media1,
             organic_reach=new_organic_reach1,
-            organic_frequency=new_data.organic_frequency,
+            organic_frequency=data_tensors.organic_frequency,
             non_media_treatments=new_non_media_treatments1,
-            revenue_per_kpi=new_data.revenue_per_kpi,
+            revenue_per_kpi=data_tensors.revenue_per_kpi,
         ),
         include_non_paid_channels=include_non_paid_channels,
     )
