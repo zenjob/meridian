@@ -51,10 +51,15 @@ documentation = "https://developers.google.com/meridian"
 # Development deps (unittest, linting, formating,...)
 # Installed through `pip install -e .[dev]`
 dev = [
-    "pytest>=8.0.0",
-    "pytest-xdist",
-    "pylint>=2.6.0",
-    "pyink",
+  "pytest>=8.0.0",
+  "pytest-xdist",
+  "pylint>=2.6.0",
+  "pyink",
+]
+# Colab deps
+# Installed through `pip install -e .[colab]`
+colab = [
+  "psutil",
 ]
 
 [tool.pyink]
