@@ -22,7 +22,13 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 -->
 
 ## [Unreleased]
+
+## [0.17.0]
 * Define constants for channel constraints in the optimizer.
+* Remove `aggregate_times` from `roi`, `marginal_roi`, and `cpik` methods in
+  `Analyzer` and do not report these metrics in the `summary_metrics` method
+  when `aggregate_times=False` as these metrics do not have a clear
+  interpretation by time period.
 
 ## [0.16.0] - 2025-01-08
 * Organize tensor arguments of `roi`, `mroi`, and `cpik` methods of Analyzer
@@ -148,6 +154,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.14.0]: https://github.com/google/meridian/releases/tag/v0.14.0
 [0.15.0]: https://github.com/google/meridian/releases/tag/v0.15.0
 [0.16.0]: https://github.com/google/meridian/releases/tag/v0.16.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.16.0...HEAD
+[0.17.0]: https://github.com/google/meridian/releases/tag/v0.17.0
+[Unreleased]: https://github.com/google/meridian/compare/v0.17.0...HEAD
 
 

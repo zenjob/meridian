@@ -666,7 +666,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
       by_reach=[False, True],
@@ -675,7 +674,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
       by_reach: bool,
@@ -686,7 +684,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     mroi = self.analyzer_media_and_rf.marginal_roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
         by_reach=by_reach,
@@ -695,10 +692,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS + _N_RF_CHANNELS,)
     self.assertEqual(mroi.shape, expected_shape)
@@ -809,7 +802,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
@@ -817,14 +809,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
     roi = self.analyzer_media_and_rf.roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
     )
@@ -832,10 +822,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS + _N_RF_CHANNELS,)
     self.assertEqual(roi.shape, expected_shape)
@@ -855,7 +841,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
@@ -863,14 +848,12 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
     cpik = self.analyzer_media_and_rf.cpik(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
     )
@@ -878,10 +861,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS + _N_RF_CHANNELS,)
     self.assertEqual(cpik.shape, expected_shape)
@@ -1136,10 +1115,16 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
     self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
-    self.assertEqual(media_summary.roi.shape, expected_shape)
-    self.assertEqual(media_summary.effectiveness.shape, expected_shape)
-    self.assertEqual(media_summary.mroi.shape, expected_shape)
-    self.assertEqual(media_summary.cpik.shape, expected_shape)
+    if aggregate_times:
+      self.assertEqual(media_summary.roi.shape, expected_shape)
+      self.assertEqual(media_summary.effectiveness.shape, expected_shape)
+      self.assertEqual(media_summary.mroi.shape, expected_shape)
+      self.assertEqual(media_summary.cpik.shape, expected_shape)
+    else:
+      self.assertNotIn(constants.ROI, media_summary.data_vars)
+      self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
+      self.assertNotIn(constants.MROI, media_summary.data_vars)
+      self.assertNotIn(constants.CPIK, media_summary.data_vars)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -2455,7 +2440,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
       by_reach=[False, True],
@@ -2464,7 +2448,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
       by_reach: bool,
@@ -2472,7 +2455,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     mroi = self.analyzer_media_only.marginal_roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
         by_reach=by_reach,
@@ -2481,10 +2463,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS,)
     self.assertEqual(mroi.shape, expected_shape)
@@ -2533,7 +2511,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
@@ -2541,14 +2518,12 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
     roi = self.analyzer_media_only.roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
     )
@@ -2556,10 +2531,6 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_MEDIA_CHANNELS,)
     self.assertEqual(roi.shape, expected_shape)
@@ -2699,10 +2670,16 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
     self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
-    self.assertEqual(media_summary.roi.shape, expected_shape)
-    self.assertEqual(media_summary.effectiveness.shape, expected_shape)
-    self.assertEqual(media_summary.mroi.shape, expected_shape)
-    self.assertEqual(media_summary.cpik.shape, expected_shape)
+    if aggregate_times:
+      self.assertEqual(media_summary.roi.shape, expected_shape)
+      self.assertEqual(media_summary.effectiveness.shape, expected_shape)
+      self.assertEqual(media_summary.mroi.shape, expected_shape)
+      self.assertEqual(media_summary.cpik.shape, expected_shape)
+    else:
+      self.assertNotIn(constants.ROI, media_summary.data_vars)
+      self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
+      self.assertNotIn(constants.MROI, media_summary.data_vars)
+      self.assertNotIn(constants.CPIK, media_summary.data_vars)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -2954,7 +2931,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
       by_reach=[False, True],
@@ -2963,7 +2939,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
       by_reach: bool,
@@ -2971,7 +2946,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     mroi = self.analyzer_rf_only.marginal_roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
         by_reach=by_reach,
@@ -2980,10 +2954,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_RF_CHANNELS,)
     self.assertEqual(mroi.shape, expected_shape)
@@ -3035,7 +3005,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.product(
       use_posterior=[False, True],
       aggregate_geos=[False, True],
-      aggregate_times=[False, True],
       selected_geos=[None, ["geo_1", "geo_3"]],
       selected_times=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
   )
@@ -3043,14 +3012,12 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       aggregate_geos: bool,
-      aggregate_times: bool,
       selected_geos: Sequence[str] | None,
       selected_times: Sequence[str] | None,
   ):
     roi = self.analyzer_rf_only.roi(
         use_posterior=use_posterior,
         aggregate_geos=aggregate_geos,
-        aggregate_times=aggregate_times,
         selected_geos=selected_geos,
         selected_times=selected_times,
     )
@@ -3058,10 +3025,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     if not aggregate_geos:
       expected_shape += (
           (len(selected_geos),) if selected_geos is not None else (_N_GEOS,)
-      )
-    if not aggregate_times:
-      expected_shape += (
-          (len(selected_times),) if selected_times is not None else (_N_TIMES,)
       )
     expected_shape += (_N_RF_CHANNELS,)
     self.assertEqual(roi.shape, expected_shape)
@@ -3078,7 +3041,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     mroi = self.analyzer_rf_only.marginal_roi(
         use_posterior=True,
         aggregate_geos=True,
-        aggregate_times=True,
         selected_geos=None,
         selected_times=None,
         by_reach=True,
@@ -3086,7 +3048,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     roi = self.analyzer_rf_only.roi(
         use_posterior=True,
         aggregate_geos=True,
-        aggregate_times=True,
         selected_geos=None,
         selected_times=None,
     )
@@ -3115,10 +3076,10 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           "not have a clear interpretation by time period.",
           str(w[0].message),
       )
-      self.assertTrue((media_summary.roi.isnull()).all())
-      self.assertTrue((media_summary.mroi.isnull()).all())
-      self.assertTrue((media_summary.effectiveness.isnull()).all())
-      self.assertTrue((media_summary.cpik.isnull()).all())
+      self.assertNotIn(constants.ROI, media_summary.data_vars)
+      self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
+      self.assertNotIn(constants.MROI, media_summary.data_vars)
+      self.assertNotIn(constants.CPIK, media_summary.data_vars)
 
   def test_optimal_frequency_data_rf_only_correct(self):
     actual = self.analyzer_rf_only.optimal_freq(
@@ -3277,7 +3238,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
           "selected_geos": None,
           "selected_times": None,
           "aggregate_geos": True,
-          "aggregate_times": True,
       }
       roi_temp = self.analyzer_rf_only.roi(
           new_data=analyzer.DataTensors(
@@ -3376,10 +3336,16 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(media_summary.cpm.shape, expected_channel_shape)
     self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
-    self.assertEqual(media_summary.roi.shape, expected_shape)
-    self.assertEqual(media_summary.effectiveness.shape, expected_shape)
-    self.assertEqual(media_summary.mroi.shape, expected_shape)
-    self.assertEqual(media_summary.cpik.shape, expected_shape)
+    if aggregate_times:
+      self.assertEqual(media_summary.roi.shape, expected_shape)
+      self.assertEqual(media_summary.effectiveness.shape, expected_shape)
+      self.assertEqual(media_summary.mroi.shape, expected_shape)
+      self.assertEqual(media_summary.cpik.shape, expected_shape)
+    else:
+      self.assertNotIn(constants.ROI, media_summary.data_vars)
+      self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
+      self.assertNotIn(constants.MROI, media_summary.data_vars)
+      self.assertNotIn(constants.CPIK, media_summary.data_vars)
 
   @parameterized.product(
       aggregate_geos=[False, True],
@@ -4331,7 +4297,10 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(media_summary.incremental_outcome.shape, expected_shape)
     self.assertEqual(media_summary.pct_of_contribution.shape, expected_shape)
-    self.assertEqual(media_summary.effectiveness.shape, expected_shape)
+    if aggregate_times:
+      self.assertEqual(media_summary.effectiveness.shape, expected_shape)
+    else:
+      self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
 
 
 class AnalyzerNotFittedTest(absltest.TestCase):
