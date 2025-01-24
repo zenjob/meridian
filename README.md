@@ -29,16 +29,12 @@ you understand the differences between these MMM projects.
 
 # Install Meridian
 
-Python 3.10 or higher is required to use Meridian. We also recommend
-using a minimum of 1 GPU.
+Python 3.11 or 3.12 is required to use Meridian. We also recommend using a
+minimum of 1 GPU.
 
 Note: This project has been tested on V100 and T4 GPU using 16 GB of RAM.
 
 To install Meridian:
-
-1.  Follow the GitHub instructions to generate a [personal access
-    token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic),
-    which is required to access the Meridian repository.
 
 1.  Run the following command to automatically install the most recent version
     from GitHub. The installer also verifies that enough GPU is
@@ -124,7 +120,7 @@ To cite this repository:
   author = {Google Meridian Marketing Mix Modeling Team},
   title = {Meridian: Marketing Mix Modeling},
   url = {https://github.com/google/meridian},
-  version = {0.1.0},
-  year = {2024},
+  version = {1.0.0},
+  year = {2025},
 }
 ```
