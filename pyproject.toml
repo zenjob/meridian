@@ -1,7 +1,7 @@
 [project]
 # Project metadata. Available keys are documented at:
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata
-name = "meridian"
+name = "google-meridian"
 description = """\
   Google's open source mixed marketing model library, helps you understand \
   your return on investment and direct your ad spend with confidence. \
