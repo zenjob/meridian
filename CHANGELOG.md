@@ -23,7 +23,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
-## [0.17.0]
+## [1.0.0] - 2025-01-24
+* Bump `tensorflow` version to 2.16 to support Python 3.12.
+
+## [0.17.0] - 2025-01-23
 * Define constants for channel constraints in the optimizer.
 * Remove `aggregate_times` from `roi`, `marginal_roi`, and `cpik` methods in
   `Analyzer` and do not report these metrics in the `summary_metrics` method
@@ -155,6 +158,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.15.0]: https://github.com/google/meridian/releases/tag/v0.15.0
 [0.16.0]: https://github.com/google/meridian/releases/tag/v0.16.0
 [0.17.0]: https://github.com/google/meridian/releases/tag/v0.17.0
-[Unreleased]: https://github.com/google/meridian/compare/v0.17.0...HEAD
+[1.0.0]: https://github.com/google/meridian/releases/tag/v1.0.0
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.0...HEAD
 
 

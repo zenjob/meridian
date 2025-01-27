@@ -14,7 +14,7 @@
 
 """Meridian API."""
 
-__version__ = "0.17.0"
+__version__ = "1.0.0"
 
 
 from meridian import analysis
