@@ -34,9 +34,15 @@ minimum of 1 GPU.
 
 Note: This project has been tested on V100 and T4 GPU using 16 GB of RAM.
 
-To install Meridian, run the following command to automatically install the most
-recent version from GitHub. The installer also verifies that enough GPU is
-available.
+To install Meridian, run the following command to automatically install the
+latest release from PyPI.
+
+```sh
+$ pip install --upgrade google-meridian
+```
+
+Alternatively, run the following command to install the most recent, unreleased
+version from GitHub.
 
 ```sh
 $ pip install --upgrade git+https://github.com/google/meridian.git
