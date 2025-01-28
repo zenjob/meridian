@@ -1002,13 +1002,13 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         media_summary.pct_of_impressions, test_utils.SAMPLE_PCT_OF_IMPRESSIONS
     )
     self.assertAllClose(
-        media_summary.spend, test_utils.SAMPLE_SPEND, atol=1e-2, rtol=1e-2
+        media_summary.spend, test_utils.SAMPLE_SPEND, atol=1e-4, rtol=1e-4
     )
     self.assertAllClose(
         media_summary.pct_of_spend,
         test_utils.SAMPLE_PCT_OF_SPEND,
-        atol=1e-2,
-        rtol=1e-2,
+        atol=1e-4,
+        rtol=1e-4,
     )
     self.assertAllClose(
         media_summary.cpm,
@@ -1017,14 +1017,14 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(
         media_summary.incremental_outcome,
         test_utils.SAMPLE_INCREMENTAL_OUTCOME,
-        atol=1e-2,
-        rtol=1e-2,
+        atol=1e-3,
+        rtol=1e-3,
     )
     self.assertAllClose(
         media_summary.pct_of_contribution,
         test_utils.SAMPLE_PCT_OF_CONTRIBUTION,
-        atol=1e-2,
-        rtol=1e-2,
+        atol=1e-3,
+        rtol=1e-3,
     )
     self.assertAllClose(
         media_summary.roi, test_utils.SAMPLE_ROI, atol=1e-3, rtol=1e-3
@@ -1032,14 +1032,153 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(
         media_summary.effectiveness,
         test_utils.SAMPLE_EFFECTIVENESS,
-        atol=1e-3,
-        rtol=1e-3,
+        atol=1e-4,
+        rtol=1e-4,
     )
     self.assertAllClose(
         media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
     )
     self.assertAllClose(
         media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
+    )
+
+  def test_media_summary_with_new_data_returns_correct_values(self):
+    data1 = data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+        n_geos=_N_GEOS,
+        n_times=_N_TIMES,
+        n_media_times=_N_MEDIA_TIMES,
+        n_controls=_N_CONTROLS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+        seed=1,
+    )
+    new_data = analyzer.DataTensors(
+        media=tf.convert_to_tensor(data1.media, dtype=tf.float32),
+        reach=tf.convert_to_tensor(data1.reach, dtype=tf.float32),
+        media_spend=tf.convert_to_tensor(data1.media_spend, dtype=tf.float32),
+    )
+    media_summary = self.analyzer_media_and_rf.summary_metrics(
+        new_data=new_data,
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
+        marginal_roi_by_reach=False,
+        aggregate_geos=True,
+        aggregate_times=True,
+        selected_geos=None,
+        selected_times=None,
+    )
+    self.assertEqual(
+        list(media_summary.data_vars.keys()),
+        [
+            constants.IMPRESSIONS,
+            constants.PCT_OF_IMPRESSIONS,
+            constants.SPEND,
+            constants.PCT_OF_SPEND,
+            constants.CPM,
+            constants.INCREMENTAL_OUTCOME,
+            constants.PCT_OF_CONTRIBUTION,
+            constants.ROI,
+            constants.EFFECTIVENESS,
+            constants.MROI,
+            constants.CPIK,
+        ],
+    )
+    self.assertNotAllClose(
+        media_summary.impressions, test_utils.SAMPLE_IMPRESSIONS
+    )
+    self.assertAllClose(
+        media_summary.impressions, test_utils.SAMPLE_IMPRESSIONS_NEW_DATA
+    )
+    self.assertNotAllClose(
+        media_summary.pct_of_impressions, test_utils.SAMPLE_PCT_OF_IMPRESSIONS
+    )
+    self.assertAllClose(
+        media_summary.pct_of_impressions,
+        test_utils.SAMPLE_PCT_OF_IMPRESSIONS_NEW_DATA,
+    )
+    self.assertNotAllClose(media_summary.spend, test_utils.SAMPLE_SPEND)
+    self.assertAllClose(
+        media_summary.spend,
+        test_utils.SAMPLE_SPEND_NEW_DATA,
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    self.assertNotAllClose(
+        media_summary.pct_of_spend,
+        test_utils.SAMPLE_PCT_OF_SPEND,
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    self.assertAllClose(
+        media_summary.pct_of_spend,
+        test_utils.SAMPLE_PCT_OF_SPEND_NEW_DATA,
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    self.assertNotAllClose(media_summary.cpm, test_utils.SAMPLE_CPM)
+    self.assertAllClose(
+        media_summary.cpm,
+        test_utils.SAMPLE_CPM_NEW_DATA,
+    )
+    self.assertNotAllClose(
+        media_summary.incremental_outcome,
+        test_utils.SAMPLE_INCREMENTAL_OUTCOME,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertAllClose(
+        media_summary.incremental_outcome,
+        test_utils.SAMPLE_INCREMENTAL_OUTCOME_NEW_DATA,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertNotAllClose(
+        media_summary.pct_of_contribution,
+        test_utils.SAMPLE_PCT_OF_CONTRIBUTION,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertAllClose(
+        media_summary.pct_of_contribution,
+        test_utils.SAMPLE_PCT_OF_CONTRIBUTION_NEW_DATA,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertNotAllClose(
+        media_summary.roi, test_utils.SAMPLE_ROI, atol=1e-3, rtol=1e-3
+    )
+    self.assertAllClose(
+        media_summary.roi, test_utils.SAMPLE_ROI_NEW_DATA, atol=1e-3, rtol=1e-3
+    )
+    self.assertNotAllClose(
+        media_summary.effectiveness,
+        test_utils.SAMPLE_EFFECTIVENESS,
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    self.assertAllClose(
+        media_summary.effectiveness,
+        test_utils.SAMPLE_EFFECTIVENESS_NEW_DATA,
+        atol=1e-4,
+        rtol=1e-4,
+    )
+    self.assertNotAllClose(
+        media_summary.mroi, test_utils.SAMPLE_MROI, atol=1e-3, rtol=1e-3
+    )
+    self.assertAllClose(
+        media_summary.mroi,
+        test_utils.SAMPLE_MROI_NEW_DATA,
+        atol=1e-3,
+        rtol=1e-3,
+    )
+    self.assertNotAllClose(
+        media_summary.cpik, test_utils.SAMPLE_CPIK, atol=1e-3, rtol=1e-3
+    )
+    self.assertAllClose(
+        media_summary.cpik,
+        test_utils.SAMPLE_CPIK_NEW_DATA,
+        atol=1e-3,
+        rtol=1e-3,
     )
 
   def test_baseline_summary_returns_correct_values(self):

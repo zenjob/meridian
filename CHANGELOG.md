@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Add `new_data` argument to `Analyzer.summary_metrics` method.
+
 ## [1.0.0] - 2025-01-24
 * Bump `tensorflow` version to 2.16 to support Python 3.12.
 

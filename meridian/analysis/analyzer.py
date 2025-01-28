@@ -739,7 +739,9 @@ class Analyzer:
         `revenue_per_kpi`. If `None`, the original scaled tensors from the
         Meridian object are used. If `new_data` is provided, the output contains
         the scaled versions of the tensors in `new_data` and the original scaled
-        versions of all the remaining tensors.
+        versions of all the remaining tensors. The new tensors' dimensions must
+        match the dimensions of the corresponding original tensors from
+        `meridian.input_data`.
       include_non_paid_channels: Boolean. If `True`, organic media, organic RF
         and non-media treatments data is included in the output.
 
@@ -1122,8 +1124,8 @@ class Analyzer:
 
     In principle, expected outcome could be calculated with other time
     dimensions (for future predictions, for instance). However, this is not
-    this is not allowed with this method because of the additional complexities
-    this introduces:
+    allowed with this method because of the additional complexities this
+    introduces:
 
     1.  Corresponding price (revenue per KPI) data would also be needed.
     2.  If the model contains weekly effect parameters, then some method is
@@ -1146,7 +1148,9 @@ class Analyzer:
         frequency=new_frequency))` calculates expected outcome conditional on
         the original `media`, `organic_media`, `organic_reach`,
         `organic_frequency`, `non_media_treatments` and `controls` tensors and
-        on the new given values for `reach` and `frequency` tensors.
+        on the new given values for `reach` and `frequency` tensors. The new
+        tensors' dimensions must match the dimensions of the corresponding
+        original tensors from `input_data`.
       selected_geos: Optional list of containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list of containing a subset of dates to include.
@@ -2163,6 +2167,15 @@ class Analyzer:
     fraction. The mROI denominator is the corresponding small fraction of the
     channel's total spend.
 
+    If `new_data=None`, this method calculates marginal ROI conditional on the
+    values of the paid media variables that the Meridian object was initialized
+    with. The user can also override this historical data through the `new_data`
+    argument, as long as the new tensors` dimensions match. For example,
+
+    ```python
+    new_data = DataTensors(media=new_media, frequency=new_frequency)
+    ```
+
     If `selected_geos` or `selected_times` is specified, then the mROI
     denominator is based on the total spend during the selected geos and time
     periods. An exception will be thrown if the spend of the InputData used to
@@ -2179,9 +2192,13 @@ class Analyzer:
       use_posterior: If `True` then the posterior distribution is calculated.
         Otherwise, the prior distribution is calculated.
       new_data: Optional. DataTensors containing `media`, `media_spend`,
-        `reach`, `frequency`, and `rf_spend` data with the same shape as
-        `meridian.input_data`. Used to compute mROI for alternative data.
-        Default uses the tensors from `meridian.input_data`.
+        `reach`, `frequency`, `rf_spend` and `revenue_per_kpi` data. If
+        provided, the marginal ROI is calculated using the values of the tensors
+        passed in `new_data` and the original values of all the remaining
+        tensors. The new tensors' dimensions must match the dimensions of the
+        corresponding original tensors from `meridian.input_data`. If `None`,
+        the marginal ROI is calculated using the original values of all the
+        tensors.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
@@ -2233,6 +2250,7 @@ class Analyzer:
             media=performance_tensors.media,
             reach=performance_tensors.reach,
             frequency=performance_tensors.frequency,
+            revenue_per_kpi=new_data.revenue_per_kpi,
         ),
         **incremental_outcome_kwargs,
         **dim_kwargs,
@@ -2302,6 +2320,15 @@ class Analyzer:
     channels' spend unchanged. The ROI denominator is the total spend of the
     channel.
 
+    If `new_data=None`, this method calculates ROI conditional on the values of
+    the paid media variables that the Meridian object was initialized with. The
+    user can also override this historical data through the `new_data` argument,
+    as long as the new tensors' dimensions match. For example,
+
+    ```python
+    new_data = DataTensors(media=new_media, frequency=new_frequency)
+    ```
+
     If `selected_geos` or `selected_times` is specified, then the ROI
     denominator is the total spend during the selected geos and time periods. An
     exception will be thrown if the spend of the InputData used to train the
@@ -2314,9 +2341,12 @@ class Analyzer:
       use_posterior: Boolean. If `True`, then the posterior distribution is
         calculated. Otherwise, the prior distribution is calculated.
       new_data: Optional. DataTensors containing `media`, `media_spend`,
-        `reach`, `frequency`, and `rf_spend` data with the same shape as
-        `meridian.input_data`. Used to compute ROI for alternative data. Default
-        uses the tensors from `meridian.input_data`.
+        `reach`, `frequency`, and `rf_spend`, and `revenue_per_kpi` data. If
+        provided, the ROI is calculated using the values of the tensors passed
+        in `new_data` and the original values of all the remaining tensors. The
+        new tensors' dimensions must match the dimensions of the corresponding
+        original tensors from `meridian.input_data`. If `None`, the ROI is
+        calculated using the original values of all the tensors.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2365,6 +2395,7 @@ class Analyzer:
             media=performance_tensors.media,
             reach=performance_tensors.reach,
             frequency=performance_tensors.frequency,
+            revenue_per_kpi=new_data.revenue_per_kpi,
         ),
         **incremental_outcome_kwargs,
         **dim_kwargs,
@@ -2403,6 +2434,15 @@ class Analyzer:
     is the change in expected KPI when one channel's spend is set to zero,
     leaving all other channels' spend unchanged.
 
+    If `new_data=None`, this method calculates CPIK conditional on the values of
+    the paid media variables that the Meridian object was initialized with. The
+    user can also override this historical data through the `new_data` argument,
+    as long as the new tensors' dimensions match. For example,
+
+    ```python
+    new_data = DataTensors(media=new_media, frequency=new_frequency)
+    ```
+
     If `selected_geos` or `selected_times` is specified, then the CPIK
     numerator is the total spend during the selected geos and time periods. An
     exception will be thrown if the spend of the InputData used to train the
@@ -2419,9 +2459,12 @@ class Analyzer:
       use_posterior: Boolean. If `True` then the posterior distribution is
         calculated. Otherwise, the prior distribution is calculated.
       new_data: Optional. DataTensors containing `media`, `media_spend`,
-        `reach`, `frequency`, and `rf_spend` data with the same shape as
-        `meridian.input_data`. Used to compute CPIK for alternative data.
-        Default uses the tensors from `meridian.input_data`.
+        `reach`, `frequency`, `rf_spend` and `revenue_per_kpi` data. If
+        provided, the cpik is calculated using the values of the tensors passed
+        in `new_data` and the original values of all the remaining tensors. The
+        new tensors' dimensions must match the dimensions of the corresponding
+        original tensors from `meridian.input_data`. If `None`, the cpik is
+        calculated using the original values of all the tensors.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -2695,6 +2738,7 @@ class Analyzer:
   def _compute_incremental_outcome_aggregate(
       self,
       use_posterior: bool,
+      new_data: DataTensors | None = None,
       use_kpi: bool | None = None,
       include_non_paid_channels: bool = True,
       non_media_baseline_values: Sequence[str | float] | None = None,
@@ -2704,6 +2748,7 @@ class Analyzer:
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
     incremental_outcome_m = self.incremental_outcome(
         use_posterior=use_posterior,
+        new_data=new_data,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         non_media_baseline_values=non_media_baseline_values,
@@ -2720,6 +2765,7 @@ class Analyzer:
 
   def summary_metrics(
       self,
+      new_data: DataTensors | None = None,
       marginal_roi_by_reach: bool = True,
       marginal_roi_incremental_increase: float = 0.01,
       selected_geos: Sequence[str] | None = None,
@@ -2734,10 +2780,31 @@ class Analyzer:
   ) -> xr.Dataset:
     """Returns summary metrics.
 
+    If `new_data=None`, this method calculates all the metrics conditional on
+    the values of the data variables that the Meridian object was initialized
+    with. The user can also override this historical data through the `new_data`
+    argument, as long as the new tensors` dimensions match. For example,
+
+    ```python
+    new_data = DataTensors(
+        media=new_media,
+        frequency=new_frequency,
+        non_media_treatments=new_non_media_treatments)
+    ```
+
     Note that `mroi` and `effectiveness` metrics are not defined (`math.nan`)
     for the aggregate `"All Paid Channels"` channel dimension.
 
     Args:
+      new_data: Optional `DataTensors` object with optional new tensors:
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments`, `controls`,
+        `revenue_per_kpi`. If provided, the summary metrics are calculated using
+        the values of the tensors passed in `new_data` and the original values
+        of all the remaining tensors. The new tensors' dimensions must match the
+        dimensions of the corresponding original tensors from
+        `meridian.input_data`. If `None`, the summary metrics are calculated
+        using the original values of all the tensors.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding
@@ -2760,7 +2827,7 @@ class Analyzer:
         interpretation by time period.
       optimal_frequency: An optional list with dimension `n_rf_channels`,
         containing the optimal frequency per channel, that maximizes posterior
-        mean roi. Default value is `None`, and historical frequency is used for
+        mean ROI. Default value is `None`, and historical frequency is used for
         the metrics calculation.
       use_kpi: Boolean. If `True`, the summary metrics are calculated using KPI.
         If `False`, the metrics are calculated using revenue.
@@ -2802,6 +2869,7 @@ class Analyzer:
     }
     batched_kwargs = {"batch_size": batch_size}
     aggregated_impressions = self.get_aggregated_impressions(
+        new_data=new_data,
         optimal_frequency=optimal_frequency,
         include_non_paid_channels=include_non_paid_channels,
         **dim_kwargs,
@@ -2816,6 +2884,7 @@ class Analyzer:
 
     incremental_outcome_prior = self._compute_incremental_outcome_aggregate(
         use_posterior=False,
+        new_data=new_data,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         **dim_kwargs,
@@ -2823,6 +2892,7 @@ class Analyzer:
     )
     incremental_outcome_posterior = self._compute_incremental_outcome_aggregate(
         use_posterior=True,
+        new_data=new_data,
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         **dim_kwargs,
@@ -2830,12 +2900,14 @@ class Analyzer:
     )
     expected_outcome_prior = self.expected_outcome(
         use_posterior=False,
+        new_data=new_data,
         use_kpi=use_kpi,
         **dim_kwargs,
         **batched_kwargs,
     )
     expected_outcome_posterior = self.expected_outcome(
         use_posterior=True,
+        new_data=new_data,
         use_kpi=use_kpi,
         **dim_kwargs,
         **batched_kwargs,
@@ -2947,10 +3019,13 @@ class Analyzer:
     # If non-paid channels are not included, return all metrics, paid and
     # non-paid.
     spend_list = []
+    new_spend_tensors = self._fill_missing_data_tensors(
+        new_data, [constants.MEDIA_SPEND, constants.RF_SPEND]
+    )
     if self._meridian.n_media_channels > 0:
-      spend_list.append(self._meridian.media_tensors.media_spend)
+      spend_list.append(new_spend_tensors.media_spend)
     if self._meridian.n_rf_channels > 0:
-      spend_list.append(self._meridian.rf_tensors.rf_spend)
+      spend_list.append(new_spend_tensors.rf_spend)
     # TODO Add support for 1-dimensional spend.
     aggregated_spend = self.filter_and_aggregate_geos_and_times(
         tensor=tf.concat(spend_list, axis=-1), **dim_kwargs
@@ -2997,6 +3072,7 @@ class Analyzer:
           xr_coords=xr_coords_with_ci_and_distribution,
           confidence_level=confidence_level,
           spend_with_total=spend_with_total,
+          new_data=new_data,
           use_kpi=use_kpi,
           **dim_kwargs_wo_agg_times,
           **batched_kwargs,
@@ -3010,6 +3086,7 @@ class Analyzer:
       cpik = self._compute_cpik_aggregate(
           incremental_kpi_prior=self._compute_incremental_outcome_aggregate(
               use_posterior=False,
+              new_data=new_data,
               use_kpi=True,
               include_non_paid_channels=False,
               **dim_kwargs,
@@ -3017,6 +3094,7 @@ class Analyzer:
           ),
           incremental_kpi_posterior=self._compute_incremental_outcome_aggregate(
               use_posterior=True,
+              new_data=new_data,
               use_kpi=True,
               include_non_paid_channels=False,
               **dim_kwargs,
@@ -3039,6 +3117,7 @@ class Analyzer:
 
   def get_aggregated_impressions(
       self,
+      new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
@@ -3049,6 +3128,15 @@ class Analyzer:
     """Computes aggregated impressions values in the data across all channels.
 
     Args:
+      new_data: An optional `DataTensors` object containing the new `media`,
+        `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, and `non_media_treatments` tensors. If `new_data`
+        argument is used, then the aggregated impressions are computed using the
+        values of the tensors passed in the `new_data` argument and the original
+        values of all the remaining tensors. The new tensors' dimensions must
+        match the dimensions of the corresponding original tensors from
+        `meridian.input_data`. If `None`, the existing tensors from the Meridian
+        object are used.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -3059,7 +3147,7 @@ class Analyzer:
         all of the time periods.
       optimal_frequency: An optional list with dimension `n_rf_channels`,
         containing the optimal frequency per channel, that maximizes posterior
-        mean roi. Default value is `None`, and historical frequency is used for
+        mean ROI. Default value is `None`, and historical frequency is used for
         the metrics calculation.
       include_non_paid_channels: Boolean. If `True`, the organic media, organic
         RF, and non-media channels are included in the aggregation.
@@ -3069,50 +3157,53 @@ class Analyzer:
       (or `(n_channels,)` if geos and times are aggregated) with aggregate
       impression values per channel.
     """
+    tensor_names_list = [
+        constants.MEDIA,
+        constants.REACH,
+        constants.FREQUENCY,
+    ]
+    if include_non_paid_channels:
+      tensor_names_list.extend([
+          constants.ORGANIC_MEDIA,
+          constants.ORGANIC_REACH,
+          constants.ORGANIC_FREQUENCY,
+          constants.NON_MEDIA_TREATMENTS,
+      ])
+    data_tensors = self._fill_missing_data_tensors(new_data, tensor_names_list)
     impressions_list = []
     if self._meridian.n_media_channels > 0:
       impressions_list.append(
-          self._meridian.media_tensors.media[:, -self._meridian.n_times :, :]
+          data_tensors.media[:, -self._meridian.n_times :, :]
       )
 
     if self._meridian.n_rf_channels > 0:
       if optimal_frequency is None:
-        new_frequency = self._meridian.rf_tensors.frequency
+        new_frequency = data_tensors.frequency
       else:
-        new_frequency = (
-            tf.ones_like(self._meridian.rf_tensors.frequency)
-            * optimal_frequency
-        )
+        new_frequency = tf.ones_like(data_tensors.frequency) * optimal_frequency
       impressions_list.append(
-          self._meridian.rf_tensors.reach[:, -self._meridian.n_times :, :]
+          data_tensors.reach[:, -self._meridian.n_times :, :]
           * new_frequency[:, -self._meridian.n_times :, :]
       )
 
     if include_non_paid_channels:
       if self._meridian.n_organic_media_channels > 0:
         impressions_list.append(
-            self._meridian.organic_media_tensors.organic_media[
-                :, -self._meridian.n_times :, :
-            ]
+            data_tensors.organic_media[:, -self._meridian.n_times :, :]
         )
       if self._meridian.n_organic_rf_channels > 0:
         if optimal_frequency is None:
-          new_organic_frequency = (
-              self._meridian.organic_rf_tensors.organic_frequency
-          )
+          new_organic_frequency = data_tensors.organic_frequency
         else:
           new_organic_frequency = (
-              tf.ones_like(self._meridian.organic_rf_tensors.organic_frequency)
-              * optimal_frequency
+              tf.ones_like(data_tensors.organic_frequency) * optimal_frequency
           )
         impressions_list.append(
-            self._meridian.organic_rf_tensors.organic_reach[
-                :, -self._meridian.n_times :, :
-            ]
+            data_tensors.organic_reach[:, -self._meridian.n_times :, :]
             * new_organic_frequency[:, -self._meridian.n_times :, :]
         )
       if self._meridian.n_non_media_channels > 0:
-        impressions_list.append(self._meridian.non_media_treatments)
+        impressions_list.append(data_tensors.non_media_treatments)
 
     return self.filter_and_aggregate_geos_and_times(
         tensor=tf.concat(impressions_list, axis=-1),
@@ -3273,8 +3364,11 @@ class Analyzer:
       use_posterior: Boolean. If `True`, posterior counterfactual metrics are
         generated. If `False`, prior counterfactual metrics are generated.
       new_data: Optional DataTensors. When specified, it contains the
-        counterfactual media, reach, frequency, media_spend, and rf_spend
-        values. Default uses the tensors from `meridian.input_data`.
+        counterfactual `media`, `reach`, `frequency`, `media_spend`, `rf_spend`
+        and `revenue_per_kpi` values. The new tensors' dimensions must match the
+        dimensions of the corresponding original tensors from
+        `meridian.input_data`. If `None`, the existing tensors from the Meridian
+        object are used.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding
@@ -3336,6 +3430,7 @@ class Analyzer:
         frequency=performance_data.frequency,
         media_spend=performance_data.media_spend,
         rf_spend=performance_data.rf_spend,
+        revenue_per_kpi=new_data.revenue_per_kpi,
     )
 
     spend = performance_data.total_spend()
@@ -4532,12 +4627,17 @@ class Analyzer:
       xr_dims: Sequence[str],
       xr_coords: Mapping[str, tuple[Sequence[str], Sequence[str]]],
       spend_with_total: tf.Tensor,
+      new_data: DataTensors | None = None,
       use_kpi: bool = False,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       **roi_kwargs,
   ) -> xr.Dataset:
+    data_tensors = self._fill_missing_data_tensors(
+        new_data, [constants.MEDIA, constants.REACH, constants.FREQUENCY]
+    )
     mroi_prior = self.marginal_roi(
         use_posterior=False,
+        new_data=data_tensors,
         by_reach=marginal_roi_by_reach,
         incremental_increase=marginal_roi_incremental_increase,
         use_kpi=use_kpi,
@@ -4545,6 +4645,7 @@ class Analyzer:
     )
     mroi_posterior = self.marginal_roi(
         use_posterior=True,
+        new_data=data_tensors,
         by_reach=marginal_roi_by_reach,
         incremental_increase=marginal_roi_incremental_increase,
         use_kpi=use_kpi,
@@ -4553,13 +4654,13 @@ class Analyzer:
     # TODO: Organize the arguments passed between the functions
     # using DataTensors.
     incremented_tensors = _scale_tensors_by_multiplier(
-        media=self._meridian.media_tensors.media,
-        reach=self._meridian.rf_tensors.reach,
-        frequency=self._meridian.rf_tensors.frequency,
+        media=data_tensors.media,
+        reach=data_tensors.reach,
+        frequency=data_tensors.frequency,
         multiplier=(1 + marginal_roi_incremental_increase),
         by_reach=marginal_roi_by_reach,
     )
-    new_data = DataTensors(
+    incremented_data = DataTensors(
         media=(
             incremented_tensors["new_media"]
             if "new_media" in incremented_tensors
@@ -4580,7 +4681,7 @@ class Analyzer:
     mroi_prior_total = (
         self.expected_outcome(
             use_posterior=False,
-            new_data=new_data,
+            new_data=incremented_data,
             use_kpi=use_kpi,
             **roi_kwargs,
         )
@@ -4589,7 +4690,7 @@ class Analyzer:
     mroi_posterior_total = (
         self.expected_outcome(
             use_posterior=True,
-            new_data=new_data,
+            new_data=incremented_data,
             use_kpi=use_kpi,
             **roi_kwargs,
         )
