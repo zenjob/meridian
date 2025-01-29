@@ -48,7 +48,7 @@ version from GitHub.
 $ pip install --upgrade git+https://github.com/google/meridian.git
 ```
 
-TIP: We recommend to install Meridian in a fresh
+We recommend to install Meridian in a fresh
 [virtual environment](https://virtualenv.pypa.io/en/latest/user_guide.html#quick-start)
 to make sure that correct versions of all the dependencies are installed, as defined in [pyproject.toml](https://github.com/google/meridian/blob/main/pyproject.toml).
 
