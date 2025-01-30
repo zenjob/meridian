@@ -697,23 +697,31 @@ class ReachAndFrequencyTest(parameterized.TestCase):
             return_value=cls.mock_optimal_frequency_data,
         )
     )
-    cls.reach_and_frequency = visualizer.ReachAndFrequency(cls.meridian)
+    cls.reach_and_frequency = visualizer.ReachAndFrequency(
+        cls.meridian, use_kpi=False
+    )
 
   def test_reach_and_frequency_plot_optimal_freq_update_selected_times(self):
     times1 = ["2023-01-01", "2023-04-21"]
     reach_and_frequency = visualizer.ReachAndFrequency(
-        self.meridian, selected_times=times1
+        self.meridian, selected_times=times1, use_kpi=False
     )
-    self.mock_optimal_freq_method.assert_called_with(selected_times=times1)
+    self.mock_optimal_freq_method.assert_called_with(
+        selected_times=times1, use_kpi=False
+    )
     reach_and_frequency.update_optimal_reach_and_frequency_selected_times(
         selected_times=None
     )
-    self.mock_optimal_freq_method.assert_called_with(selected_times=None)
+    self.mock_optimal_freq_method.assert_called_with(
+        selected_times=None, use_kpi=False
+    )
     times2 = ["2023-02-01", "2023-06-30"]
     reach_and_frequency.update_optimal_reach_and_frequency_selected_times(
         selected_times=times2
     )
-    self.mock_optimal_freq_method.assert_called_with(selected_times=times2)
+    self.mock_optimal_freq_method.assert_called_with(
+        selected_times=times2, use_kpi=False
+    )
 
   def test_reach_and_frequency_plot_optimal_freq_correct_line(self):
     plot = self.reach_and_frequency.plot_optimal_frequency()

@@ -493,6 +493,8 @@ IS_REVENUE_KPI = 'is_revenue_kpi'
 TOTAL_INCREMENTAL_OUTCOME = 'total_incremental_outcome'
 TOTAL_ROI = 'total_roi'
 TOTAL_CPIK = 'total_cpik'
+USE_KPI = 'use_kpi'
+USE_POSTERIOR = 'use_posterior'
 
 # R-hat summary metrics.
 PARAM = 'param'

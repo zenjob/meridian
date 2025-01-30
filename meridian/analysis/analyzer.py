@@ -3538,6 +3538,7 @@ class Analyzer:
       self,
       freq_grid: Sequence[float] | None = None,
       use_posterior: bool = True,
+      use_kpi: bool = False,
       selected_geos: Sequence[str | int] | None = None,
       selected_times: Sequence[str | int] | None = None,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
@@ -3550,8 +3551,8 @@ class Analyzer:
     number of impressions remains unchanged as frequency varies. Meridian solves
     for the frequency at which posterior mean ROI is optimized.
 
-    Note: The ROI numerator is revenue if `revenue_per_kpi` is defined or if
-    `kpi_type == 'revenue'`. Otherwise, the ROI numerator is KPI units.
+    Note: The ROI numerator is revenue if `use_kpi` is `False`, otherwise, the
+    ROI numerator is KPI units.
 
     Args:
       freq_grid: List of frequency values. The ROI of each channel is calculated
@@ -3559,6 +3560,9 @@ class Analyzer:
         numbers from `1.0` to the maximum frequency in increments of `0.1`.
       use_posterior: Boolean. If `True`, posterior optimal frequencies are
         generated. If `False`, prior optimal frequencies are generated.
+      use_kpi: Boolean. If `True`, the counterfactual metrics are calculated
+        using KPI. If `False`, the counterfactual metrics are calculated using
+        revenue.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
       selected_times: Optional list containing a subset of times to include. By
@@ -3595,7 +3599,6 @@ class Analyzer:
       ValueError: If there are no channels with reach and frequency data.
     """
     dist_type = constants.POSTERIOR if use_posterior else constants.PRIOR
-    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.n_rf_channels == 0:
       raise ValueError(
           "Must have at least one channel with reach and frequency data."
@@ -3729,7 +3732,11 @@ class Analyzer:
         },
         attrs={
             constants.CONFIDENCE_LEVEL: confidence_level,
-            "use_posterior": use_posterior,
+            constants.USE_POSTERIOR: use_posterior,
+            constants.IS_REVENUE_KPI: (
+                self._meridian.input_data.kpi_type == constants.REVENUE
+                or not use_kpi
+            ),
         },
     )
 
@@ -4084,7 +4091,9 @@ class Analyzer:
           self._meridian.rf_tensors.frequency
       ) * tf.convert_to_tensor(
           self.optimal_freq(
-              selected_geos=selected_geos, selected_times=selected_times
+              selected_geos=selected_geos,
+              selected_times=selected_times,
+              use_kpi=use_kpi,
           ).optimal_frequency,
           dtype=tf.float32,
       )

@@ -3263,6 +3263,17 @@ class OptimizerKPITest(parameterized.TestCase):
             seed=0,
         )
     )
+    self.input_data_non_revenue_revenue_per_kpi = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=_N_CONTROLS,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            n_rf_channels=_N_RF_CHANNELS,
+            seed=0,
+        )
+    )
     custom_model_spec = spec.ModelSpec(
         prior=prior_distribution.PriorDistribution(
             knot_values=tfp.distributions.Normal(0.0, 5.0, name=c.KNOT_VALUES),
@@ -3282,8 +3293,14 @@ class OptimizerKPITest(parameterized.TestCase):
         input_data=self.input_data_media_and_rf_kpi,
         model_spec=custom_model_spec,
     )
+    self.meridian_non_revenue_revenue_per_kpi = model.Meridian(
+        input_data=self.input_data_non_revenue_revenue_per_kpi,
+    )
     self.budget_optimizer_media_and_rf_kpi = optimizer.BudgetOptimizer(
         self.meridian_media_and_rf_kpi
+    )
+    self.budget_optimizer_non_revenue_revenue_per_kpi = (
+        optimizer.BudgetOptimizer(self.meridian_non_revenue_revenue_per_kpi)
     )
     self.enter_context(
         mock.patch.object(
@@ -3319,7 +3336,9 @@ class OptimizerKPITest(parameterized.TestCase):
         )
     )
 
-    self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
+    self.budget_optimizer_media_and_rf_kpi.optimize(
+        use_posterior=use_posterior, use_kpi=True
+    )
 
     mock_incremental_outcome.assert_called_with(
         # marginal roi computation in the analyzer transitively calls
@@ -3351,7 +3370,9 @@ class OptimizerKPITest(parameterized.TestCase):
             )),
         )
     )
-    self.budget_optimizer_media_and_rf_kpi.optimize(use_posterior=use_posterior)
+    self.budget_optimizer_media_and_rf_kpi.optimize(
+        use_posterior=use_posterior, use_kpi=True
+    )
     mock_expected_outcome.assert_called_with(
         use_posterior=use_posterior,
         new_data=mock.ANY,
@@ -3361,7 +3382,9 @@ class OptimizerKPITest(parameterized.TestCase):
     )
 
   def test_results_kpi_only(self):
-    optimization_results = self.budget_optimizer_media_and_rf_kpi.optimize()
+    optimization_results = self.budget_optimizer_media_and_rf_kpi.optimize(
+        use_kpi=True
+    )
     for var in (c.ROI, c.MROI, c.CPIK, c.EFFECTIVENESS):
       self.assertIsNotNone(optimization_results.optimized_data[var])
       self.assertIsNotNone(optimization_results.nonoptimized_data[var])
@@ -3385,6 +3408,36 @@ class OptimizerKPITest(parameterized.TestCase):
             c.IS_REVENUE_KPI
         ]
     )
+
+  @parameterized.parameters([True, False])
+  def test_use_kpi_sets_is_revenue_kpi(self, use_kpi: bool):
+    optimization_results = (
+        self.budget_optimizer_non_revenue_revenue_per_kpi.optimize(
+            use_kpi=use_kpi
+        )
+    )
+
+    self.assertEqual(
+        optimization_results.optimized_data.attrs[c.IS_REVENUE_KPI], not use_kpi
+    )
+    self.assertEqual(
+        optimization_results.nonoptimized_data.attrs[c.IS_REVENUE_KPI],
+        not use_kpi,
+    )
+    self.assertEqual(
+        optimization_results.nonoptimized_data_with_optimal_freq.attrs[
+            c.IS_REVENUE_KPI
+        ],
+        not use_kpi,
+    )
+
+  def test_optimize_no_use_kpi_no_revenue_per_kpi_raises_error(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Revenue analysis is not available when `revenue_per_kpi` is unknown.'
+        ' Set `use_kpi=True` to perform KPI analysis instead.',
+    ):
+      self.budget_optimizer_media_and_rf_kpi.optimize(use_kpi=False)
 
 
 if __name__ == '__main__':

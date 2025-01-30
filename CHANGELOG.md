@@ -24,11 +24,14 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 
 * Add `new_data` argument to `Analyzer.summary_metrics` method.
+* Add `use_kpi` argument to the `optimize()` method.
 
 ## [1.0.0] - 2025-01-24
+
 * Bump `tensorflow` version to 2.16 to support Python 3.12.
 
 ## [0.17.0] - 2025-01-23
+
 * Define constants for channel constraints in the optimizer.
 * Remove `aggregate_times` from `roi`, `marginal_roi`, and `cpik` methods in
   `Analyzer` and do not report these metrics in the `summary_metrics` method
@@ -36,31 +39,38 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
   interpretation by time period.
 
 ## [0.16.0] - 2025-01-08
+
 * Organize tensor arguments of `roi`, `mroi`, and `cpik` methods of Analyzer
   into a `DataTensors` container.
 * Add warning message when user sets custom priors that will be ignored by the
   `paid_media_prior_type` argument.
 
 ## [0.15.0] - 2025-01-07
+
 * Convert `InputData` geo coordinates to strings upon initialization to avoid
   type mismatches with `GeoInfo` proto which expects strings.
 * Add `get_historical_spend` method to `Analyzer` class.
 * Split up `roi_*` and `mroi_*` parameters.
 
 ## [0.14.0] - 2024-12-17
+
 * Remove deprecated `use_roi_prior` attribute from `ModelSpec`.
 
 ## [0.13.0] - 2024-12-11
+
 * Add support for marginal ROI priors in Meridian.
 
 ## [0.12.0] - 2024-12-09
+
 * Rename `incremental_impact` to `incremental_outcome`.
 * Rename `plot_incremental_impact_delta` to `plot_incremental_outcome_delta`.
 
 ## [0.11.2] - 2024-11-27
+
 * Remove deprecated `all_channel_names` property from `Meridian` class.
 
 ## [0.11.1] - 2024-11-22
+
 * Remove unneeded argument `include_non_paid_channels` from
   `expected_outcome()`.
 * Fix a bug in the custom RF prior validation.
@@ -138,7 +148,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [0.2.0] - 2024-07-16
 
-## 0.1.0 - 2022-01-01
+## [0.1.0] - 2022-01-01
 
 * Initial release
 

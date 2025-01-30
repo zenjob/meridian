@@ -111,7 +111,7 @@ class OptimizationResults:
   def _kpi_or_revenue(self) -> str:
     return (
         c.REVENUE
-        if self.meridian.input_data.revenue_per_kpi is not None
+        if self.nonoptimized_data.attrs[c.IS_REVENUE_KPI]
         else c.KPI.upper()
     )
 
@@ -905,6 +905,7 @@ class BudgetOptimizer:
       target_mroi: float | None = None,
       gtol: float = 0.0001,
       use_optimal_frequency: bool = True,
+      use_kpi: bool = False,
       confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> OptimizationResults:
@@ -960,6 +961,7 @@ class BudgetOptimizer:
       use_optimal_frequency: If `True`, uses `optimal_frequency` calculated by
         trained Meridian model for optimization. If `False`, uses historical
         frequency.
+      use_kpi: If `True`, runs the optimization on KPI. Defaults to revenue.
       confidence_level: The threshold for computing the confidence intervals.
       batch_size: Maximum draws per chain in each batch. The calculation is run
         in batches to avoid memory exhaustion. If a memory error occurs, try
@@ -1004,7 +1006,9 @@ class BudgetOptimizer:
     if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
       optimal_frequency = tf.convert_to_tensor(
           self._analyzer.optimal_freq(
-              use_posterior=use_posterior, selected_times=selected_time_dims
+              use_posterior=use_posterior,
+              selected_times=selected_time_dims,
+              use_kpi=use_kpi,
           ).optimal_frequency,
           dtype=tf.float32,
       )
@@ -1027,6 +1031,7 @@ class BudgetOptimizer:
         step_size=step_size,
         selected_times=selected_time_dims,
         use_posterior=use_posterior,
+        use_kpi=use_kpi,
         optimal_frequency=optimal_frequency,
         batch_size=batch_size,
     )
@@ -1049,6 +1054,7 @@ class BudgetOptimizer:
 
     nonoptimized_data = self._create_budget_dataset(
         use_posterior=use_posterior,
+        use_kpi=use_kpi,
         hist_spend=hist_spend,
         spend=rounded_spend,
         selected_times=selected_time_dims,
@@ -1058,6 +1064,7 @@ class BudgetOptimizer:
     )
     nonoptimized_data_with_optimal_freq = self._create_budget_dataset(
         use_posterior=use_posterior,
+        use_kpi=use_kpi,
         hist_spend=hist_spend,
         spend=rounded_spend,
         selected_times=selected_time_dims,
@@ -1068,6 +1075,7 @@ class BudgetOptimizer:
     )
     optimized_data = self._create_budget_dataset(
         use_posterior=use_posterior,
+        use_kpi=use_kpi,
         hist_spend=hist_spend,
         spend=optimal_spend,
         selected_times=selected_time_dims,
@@ -1321,6 +1329,7 @@ class BudgetOptimizer:
       hist_spend: np.ndarray,
       spend: np.ndarray,
       use_posterior: bool = True,
+      use_kpi: bool = False,
       selected_times: Sequence[str] | None = None,
       optimal_frequency: Sequence[float] | None = None,
       attrs: Mapping[str, Any] | None = None,
@@ -1336,7 +1345,6 @@ class BudgetOptimizer:
             hist_spend, spend, optimal_frequency
         )
     )
-    kpi_only = self._meridian.revenue_per_kpi is None
     budget = np.sum(spend)
     all_times = self._meridian.input_data.time.values.tolist()
 
@@ -1350,7 +1358,7 @@ class BudgetOptimizer:
             frequency=new_frequency,
         ),
         selected_times=selected_times,
-        use_kpi=kpi_only,
+        use_kpi=use_kpi,
         batch_size=batch_size,
         include_non_paid_channels=False,
     )
@@ -1378,7 +1386,7 @@ class BudgetOptimizer:
             frequency=new_frequency,
         ),
         selected_times=selected_times,
-        use_kpi=kpi_only,
+        use_kpi=use_kpi,
         batch_size=batch_size,
     )
     mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
@@ -1425,7 +1433,7 @@ class BudgetOptimizer:
             selected_times=selected_times,
             batch_size=batch_size,
             by_reach=True,
-            use_kpi=kpi_only,
+            use_kpi=use_kpi,
         ),
         confidence_level=confidence_level,
         include_median=True,
@@ -1471,7 +1479,9 @@ class BudgetOptimizer:
         c.TOTAL_INCREMENTAL_OUTCOME: total_incremental_outcome,
         c.TOTAL_ROI: total_incremental_outcome / budget,
         c.TOTAL_CPIK: total_cpik,
-        c.IS_REVENUE_KPI: not kpi_only,
+        c.IS_REVENUE_KPI: (
+            self._meridian.input_data.kpi_type == c.REVENUE or not use_kpi
+        ),
         c.CONFIDENCE_LEVEL: confidence_level,
         c.USE_HISTORICAL_BUDGET: use_historical_budget,
     }
@@ -1547,6 +1557,7 @@ class BudgetOptimizer:
       multipliers_grid: tf.Tensor,
       selected_times: Sequence[str],
       use_posterior: bool = True,
+      use_kpi: bool = False,
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ):
@@ -1564,6 +1575,9 @@ class BudgetOptimizer:
       use_posterior: Boolean. If `True`, then the incremental outcome is derived
         from the posterior distribution of the model. Otherwise, the prior
         distribution is used.
+      use_kpi: Boolean. If `True`, then the incremental outcome is derived from
+        the KPI impact. Otherwise, the incremental outcome is derived from the
+        revenue impact.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
         Value is `None` if the model does not contain reach and frequency data,
@@ -1605,7 +1619,6 @@ class BudgetOptimizer:
     # incremental_outcome returns a three dimensional tensor with dims
     # (n_chains x n_draws x n_total_channels). Incremental_outcome_grid requires
     # incremental outcome by channel.
-    use_kpi = self._meridian.revenue_per_kpi is None
     incremental_outcome_grid[i, :] = np.mean(
         self._analyzer.incremental_outcome(
             use_posterior=use_posterior,
@@ -1631,6 +1644,7 @@ class BudgetOptimizer:
       step_size: int,
       selected_times: Sequence[str],
       use_posterior: bool = True,
+      use_kpi: bool = False,
       optimal_frequency: xr.DataArray | None = None,
       batch_size: int = c.DEFAULT_BATCH_SIZE,
   ) -> tuple[np.ndarray, np.ndarray]:
@@ -1649,6 +1663,9 @@ class BudgetOptimizer:
       use_posterior: Boolean. If `True`, then the incremental outcome is derived
         from the posterior distribution of the model. Otherwise, the prior
         distribution is used.
+      use_kpi: Boolean. If `True`, then the incremental outcome is derived from
+        the KPI impact. Otherwise, the incremental outcome is derived from the
+        revenue impact.
       optimal_frequency: xr.DataArray with dimension `n_rf_channels`, containing
         the optimal frequency per channel, that maximizes posterior mean roi.
         Value is `None` if the model does not contain reach and frequency data,
@@ -1688,12 +1705,13 @@ class BudgetOptimizer:
     )
     for i in range(n_grid_rows):
       self._update_incremental_outcome_grid(
-          i,
-          incremental_outcome_grid,
-          multipliers_grid,
-          selected_times,
-          use_posterior,
-          optimal_frequency,
+          i=i,
+          incremental_outcome_grid=incremental_outcome_grid,
+          multipliers_grid=multipliers_grid,
+          selected_times=selected_times,
+          use_posterior=use_posterior,
+          use_kpi=use_kpi,
+          optimal_frequency=optimal_frequency,
           batch_size=batch_size,
       )
     # In theory, for RF channels, incremental_outcome/spend should always be

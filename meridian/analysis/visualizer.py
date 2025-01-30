@@ -635,6 +635,7 @@ class ReachAndFrequency:
       self,
       meridian: model.Meridian,
       selected_times: Sequence[str] | None = None,
+      use_kpi: bool | None = None,
   ):
     """Initializes the reach and frequency dataset for the model data.
 
@@ -642,12 +643,23 @@ class ReachAndFrequency:
       meridian: Media mix model with the raw data from the model fitting.
       selected_times: Optional list containing a subset of times to include. By
         default, all time periods are included.
+      use_kpi: If `True`, KPI is used instead of revenue.
     """
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
     self._selected_times = selected_times
+    # TODO Adapt the mechanisms to choose between KPI and REVENUE
+    # from Analyzer.
+    if use_kpi is None:
+      self._use_kpi = (
+          meridian.input_data.kpi_type == c.NON_REVENUE
+          and meridian.input_data.revenue_per_kpi is None
+      )
+    else:
+      self._use_kpi = use_kpi
     self._optimal_frequency_data = self._analyzer.optimal_freq(
-        selected_times=selected_times
+        selected_times=selected_times,
+        use_kpi=self._use_kpi,
     )
 
   @property
@@ -673,7 +685,8 @@ class ReachAndFrequency:
     """
     self._selected_times = selected_times
     self._optimal_frequency_data = self._analyzer.optimal_freq(
-        selected_times=selected_times
+        selected_times=selected_times,
+        use_kpi=self._use_kpi,
     )
 
   def _transform_optimal_frequency_metrics(

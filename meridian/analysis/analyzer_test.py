@@ -3741,6 +3741,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         freq_grid=[1.0, 2.0, 3.0],
         confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
         use_posterior=True,
+        use_kpi=True,
     )
     expected = xr.Dataset(
         coords={
