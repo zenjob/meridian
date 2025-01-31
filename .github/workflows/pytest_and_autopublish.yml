@@ -7,9 +7,9 @@ on:
       - '**'
     tags:
       - 'v*'  # Trigger only on tags starting from 'v'.
-  workflow_dispatch:
+  workflow_dispatch:  # For triggering publication workflows manually, on demend, from GitHub UI.
     inputs:
-      publish_to_pypi:
+      publish_to_pypi:  # Creates a boolean `github.event.inputs.publish_to_pypi` variable.
         description: 'Publish to PyPI?'
         required: false
         type: boolean
@@ -85,6 +85,7 @@ jobs:
           && github.event.inputs.publish_to_pypi == 'true')
     needs:
     - build
+    - pytest-job
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -111,6 +112,7 @@ jobs:
         && github.event.inputs.publish_to_testpypi == 'true')
     needs:
     - build
+    - pytest-job
     runs-on: ubuntu-latest
 
     environment:
