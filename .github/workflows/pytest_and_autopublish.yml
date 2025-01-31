@@ -63,10 +63,7 @@ jobs:
         python-version: "3.11"
     - name: Install pypa/build
       run: >-
-        python3 -m
-        pip install
-        build
-        --user
+        python3 -m pip install build --user
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
     - name: Store the distribution packages
@@ -74,6 +71,42 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+
+  # Check if the current `meridian.__version__` semver has been incremented. If so, sets a
+  # `new_version` output.
+  check-version:
+    name: Version check
+    needs:
+    - pytest-job
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      new_tag: ${{ steps.version_check.outputs.new_version }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Important: fetch all tags for comparison
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - run: pip install semver
+    - id: version_check
+      name: Check Version
+      shell: bash
+      # !! This relies on the git repository to have "v{major}.{minor}.{patch}" named tags.
+      run: |
+        CURRENT_VERSION=$(python3 -c "import meridian; print(meridian.__version__)")
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "v0.0.0")
+        PREVIOUS_VERSION=$(echo "$PREVIOUS_TAG" | sed 's/^v//')
+
+        if [[ $(python3 -m semver compare "$CURRENT_VERSION" "$PREVIOUS_VERSION") -eq 1 ]]; then
+          echo "::set-output name=new_version::$CURRENT_VERSION"
+          echo "New version detected: $NEW_VERSION"
+        else
+          echo "::set-output name=new_version::" # Empty output if no new version.
+          echo "No version increment detected."
+        fi
 
   publish-to-pypi:
     name: >-
