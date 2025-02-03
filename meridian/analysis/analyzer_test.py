@@ -639,6 +639,30 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         atol=1e-3,
     )
 
+  def test_compute_incremental_outcome_aggregate_media_and_rf(self):
+    mock_incremental_outcome = np.ones(
+        (_N_CHAINS, _N_DRAWS, _N_MEDIA_CHANNELS + _N_RF_CHANNELS)
+    )
+    self.enter_context(
+        mock.patch.object(
+            self.analyzer_media_and_rf,
+            "incremental_outcome",
+            return_value=mock_incremental_outcome,
+        )
+    )
+    incremental_outcome_with_totals = np.full(
+        (_N_CHAINS, _N_DRAWS, 1), _N_MEDIA_CHANNELS + _N_RF_CHANNELS
+    )
+    outcome = self.analyzer_media_and_rf.compute_incremental_outcome_aggregate(
+        use_posterior=True
+    )
+    self.assertAllClose(
+        outcome,
+        tf.concat(
+            [mock_incremental_outcome, incremental_outcome_with_totals], -1
+        ),
+    )
+
   # The purpose of this test is to prevent accidental logic change.
   def test_incremental_outcome_media_and_rf_new_params(self):
     model.Meridian.inference_data = mock.PropertyMock(

@@ -2735,16 +2735,53 @@ class Analyzer:
     )
     return self.expected_outcome(new_data=new_data, **expected_outcome_kwargs)
 
-  def _compute_incremental_outcome_aggregate(
+  def compute_incremental_outcome_aggregate(
       self,
       use_posterior: bool,
       new_data: DataTensors | None = None,
       use_kpi: bool | None = None,
       include_non_paid_channels: bool = True,
       non_media_baseline_values: Sequence[str | float] | None = None,
-      **roi_kwargs,
-  ):
-    """Aggregates incremental outcomes for MediaSummary metrics."""
+      **kwargs,
+  ) -> tf.Tensor:
+    """Aggregates the incremental outcome of the media channels.
+
+    Args:
+      use_posterior: Boolean. If `True` then the posterior distribution is
+        calculated. Otherwise, the prior distribution is calculated.
+      new_data: Optional `DataTensors` object with optional new tensors:
+        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
+        `organic_frequency`, `non_media_treatments`, `controls`,
+        `revenue_per_kpi`. If provided, the summary metrics are calculated using
+        the values of the tensors passed in `new_data` and the original values
+        of all the remaining tensors. The new tensors' dimensions must match the
+        dimensions of the corresponding original tensors from
+        `meridian.input_data`. If `None`, the summary metrics are calculated
+        using the original values of all the tensors.
+      use_kpi: Boolean. If `True`, the summary metrics are calculated using KPI.
+        If `False`, the metrics are calculated using revenue.
+      include_non_paid_channels: Boolean. If `True`, non-paid channels (organic
+        media, organic reach and frequency, and non-media treatments) are
+        included in the summary but only the metrics independent of spend are
+        reported. If `False`, only the paid channels (media, reach and
+        frequency) are included but the summary contains also the metrics
+        dependent on spend. Default: `True`.
+      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
+        Each element is either a float (which means that the fixed value will be
+        used as baseline for the given channel) or one of the strings "min" or
+        "max" (which mean that the global minimum or maximum value will be used
+        as baseline for the values of the given non_media treatment channel). If
+        None, the minimum value is used as baseline for each non_media treatment
+        channel.
+      **kwargs: kwargs to pass to `incremental_outcome`, which could contain
+        selected_geos, selected_times, aggregate_geos, aggregate_times,
+        batch_size.
+
+    Returns:
+      A Tensor with the same dimensions as `incremental_outcome` except the size
+      of the channel dimension is incremented by one, with the new component at
+      the end containing the total incremental outcome of all channels.
+    """
     use_kpi = use_kpi or self._meridian.input_data.revenue_per_kpi is None
     incremental_outcome_m = self.incremental_outcome(
         use_posterior=use_posterior,
@@ -2752,7 +2789,7 @@ class Analyzer:
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         non_media_baseline_values=non_media_baseline_values,
-        **roi_kwargs,
+        **kwargs,
     )
     incremental_outcome_total = tf.reduce_sum(
         incremental_outcome_m, axis=-1, keepdims=True
@@ -2882,7 +2919,7 @@ class Analyzer:
         axis=-1,
     )
 
-    incremental_outcome_prior = self._compute_incremental_outcome_aggregate(
+    incremental_outcome_prior = self.compute_incremental_outcome_aggregate(
         use_posterior=False,
         new_data=new_data,
         use_kpi=use_kpi,
@@ -2890,7 +2927,7 @@ class Analyzer:
         **dim_kwargs,
         **batched_kwargs,
     )
-    incremental_outcome_posterior = self._compute_incremental_outcome_aggregate(
+    incremental_outcome_posterior = self.compute_incremental_outcome_aggregate(
         use_posterior=True,
         new_data=new_data,
         use_kpi=use_kpi,
@@ -3084,7 +3121,7 @@ class Analyzer:
           # have much practical usefulness, anyway.
       ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
       cpik = self._compute_cpik_aggregate(
-          incremental_kpi_prior=self._compute_incremental_outcome_aggregate(
+          incremental_kpi_prior=self.compute_incremental_outcome_aggregate(
               use_posterior=False,
               new_data=new_data,
               use_kpi=True,
@@ -3092,7 +3129,7 @@ class Analyzer:
               **dim_kwargs,
               **batched_kwargs,
           ),
-          incremental_kpi_posterior=self._compute_incremental_outcome_aggregate(
+          incremental_kpi_posterior=self.compute_incremental_outcome_aggregate(
               use_posterior=True,
               new_data=new_data,
               use_kpi=True,

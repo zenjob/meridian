@@ -23,6 +23,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Make `compute_incremental_outcome_aggregate` public.
 * Add `new_data` argument to `Analyzer.summary_metrics` method.
 * Add `use_kpi` argument to the `optimize()` method.
 
