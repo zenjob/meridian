@@ -4442,6 +4442,29 @@ class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):
     else:
       self.assertNotIn(constants.EFFECTIVENESS, media_summary.data_vars)
 
+  def test_baseline_summary_returns_correct_values(self):
+    baseline_summary = self.analyzer_non_paid.baseline_summary_metrics(
+        confidence_level=constants.DEFAULT_CONFIDENCE_LEVEL,
+        aggregate_geos=True,
+        aggregate_times=True,
+        selected_geos=None,
+        selected_times=None,
+    )
+    self.assertIsNotNone(baseline_summary.baseline_outcome)
+    self.assertIsNotNone(baseline_summary.pct_of_contribution)
+    self.assertAllClose(
+        baseline_summary.baseline_outcome,
+        test_utils.SAMPLE_BASELINE_EXPECTED_OUTCOME_NON_PAID,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+    self.assertAllClose(
+        baseline_summary.pct_of_contribution,
+        test_utils.SAMPLE_BASELINE_PCT_OF_CONTRIBUTION_NON_PAID,
+        atol=1e-2,
+        rtol=1e-2,
+    )
+
 
 class AnalyzerNotFittedTest(absltest.TestCase):
 
