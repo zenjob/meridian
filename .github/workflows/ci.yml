@@ -12,7 +12,6 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     strategy:
       max-parallel: 2
       matrix:
@@ -20,24 +19,12 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.python-version }}
       cancel-in-progress: true
-
     name: pytest (python-${{ matrix.python-version }})
-
     steps:
-      - uses: actions/checkout@v3
-
-      # Install deps
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-meridian
         with:
-          python-version: ${{ matrix.python-version }}
-          # Uncomment to cache of pip dependencies (if tests too slow)
-          cache: pip
-          cache-dependency-path: '**/pyproject.toml'
-
-      - run: pip --version
-      - run: pip install -e .[dev] --config-settings editable_mode=strict
-      - run: pip freeze
-
+          python_version: ${{ matrix.python-version }}
       # Run tests (in parallel)
       - name: Run core tests
         run: pytest -vv -n auto
@@ -49,5 +36,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build
+        with:
+          python_version: ${{ env.USE_PYTHON_VERSION }}
+
+  # Include for sanity checking that version increment parsing and checking logic works.
+  check-version:
+    name: Version check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - id: version_check
+        uses: ./.github/actions/version-check
         with:
           python_version: ${{ env.USE_PYTHON_VERSION }}

@@ -79,7 +79,6 @@ jobs:
       - uses: ./.github/actions/publish
         with:
           repository_url: https://upload.pypi.org/legacy/
-          environment_name: pypi
 
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
@@ -92,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/meridian
+      url: https://test.pypi.org/p/google-meridian
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
@@ -100,4 +99,3 @@ jobs:
       - uses: ./.github/actions/publish
         with:
           repository_url: https://test.pypi.org/legacy/
-          environment_name: testpypi
