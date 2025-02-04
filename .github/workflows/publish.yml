@@ -3,7 +3,7 @@ name: Publish  # For tagging and publishing releases.
 on:
   push:
     branches:
-      - main  # This entire workflow only runs on a push to the `main` branch.
+      - main  # This entire workflow only runs on a push to the `main` branch (i.e. POST SUBMIT).
     tags:
       - 'v*'  # Trigger only on pushed tags whose names start with 'v'.
   workflow_dispatch:  # For triggering publication workflows manually, on demend, from GitHub UI.
@@ -61,13 +61,17 @@ jobs:
 
   publish-to-pypi:
     name: Publish Python distribution to PyPI
-    # Check if it's a tag push or the `publish_to_pypi` workflow is selected in a manual trigger.
-    if: >
-      (github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/'))
-      || (github.event_name == 'workflow_dispatch'
-          && github.event.inputs.publish_to_pypi == 'true')
     needs:
       - build
+      - check-version
+    # Check if it's a tag push, or the `publish_to_pypi` workflow is selected in a manual trigger.
+    # or if a new version was discovered in a push to the `main` branch.
+    if: >
+      github.repository == 'google/meridian' && (
+        (github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/'))
+        || (github.event_name == 'workflow_dispatch'
+            && github.event.inputs.publish_to_pypi == 'true')
+      )
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -82,12 +86,18 @@ jobs:
 
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
-    # Check if the `publish_to_testpypi` workflow is selected in a manual trigger.
-    if: >
-      (github.event_name == 'workflow_dispatch'
-        && github.event.inputs.publish_to_testpypi == 'true')
     needs:
       - build
+      - check-version
+    # Check if it's a tag push, or the `publish_to_testpypi` workflow is selected in a manual trigger.
+    # or if a new version was discovered in a push to the `main` branch.
+    if: >
+      github.repository == 'google/meridian' && (
+        (github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/'))
+        || (github.event_name == 'workflow_dispatch'
+            && github.event.inputs.publish_to_testpypi == 'true')
+        || needs.check-version.outputs.new_version != ''
+      )
     runs-on: ubuntu-latest
     environment:
       name: testpypi
