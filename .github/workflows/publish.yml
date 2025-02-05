@@ -48,8 +48,10 @@ jobs:
 
   create-tag:
     needs: check-version
-    # Only run if new_version was discovered.
-    if: needs.check-version.outputs.new_version != ''
+    # Only run if new_version was discovered, and do this only on the main branch.
+    if: >
+      github.ref == 'refs/heads/main'
+      && needs.check-version.outputs.new_version != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write # Allow to create tags
