@@ -25,6 +25,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 * Add `non_media_baseline_values` argument to `summary_metrics`,
   `baseline_summary_metrics` and `expected_vs_actual` methods.
+* Update `compute_incremental_outcome_aggregate` docstring to match
+  `incremental_outcome`.
 
 ## [1.0.1] - 2025-02-04
 
