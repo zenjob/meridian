@@ -50,7 +50,8 @@ $ pip install --upgrade git+https://github.com/google/meridian.git
 
 We recommend to install Meridian in a fresh
 [virtual environment](https://virtualenv.pypa.io/en/latest/user_guide.html#quick-start)
-to make sure that correct versions of all the dependencies are installed, as defined in [pyproject.toml](https://github.com/google/meridian/blob/main/pyproject.toml).
+to make sure that correct versions of all the dependencies are installed, as
+defined in [pyproject.toml](https://github.com/google/meridian/blob/main/pyproject.toml).
 
 ## How to use the Meridian library
 
@@ -123,12 +124,13 @@ this.
 
 To cite this repository:
 
-```
+<!-- mdlint off(SNIPPET_INVALID_LANGUAGE) -->
+```BibTeX
 @software{meridian_github,
   author = {Google Meridian Marketing Mix Modeling Team},
   title = {Meridian: Marketing Mix Modeling},
   url = {https://github.com/google/meridian},
-  version = {1.0.0},
+  version = {1.0.1},
   year = {2025},
 }
 ```
