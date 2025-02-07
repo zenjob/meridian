@@ -97,8 +97,7 @@ jobs:
     needs:
       - build
       - check-version
-    # Check if it's a tag push, or the `publish_to_testpypi` workflow is selected in a manual trigger.
-    # or if a new version was discovered in a push to the `main` branch.
+    # Check if the `publish_to_testpypi` workflow is selected in a manual trigger.
     if: >
       github.repository == 'google/meridian' && (
         (github.event_name == 'workflow_dispatch'
