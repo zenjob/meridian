@@ -23,6 +23,11 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-02-06
+
+* Bump minimum `tensorflow` version to 2.18.
+* Add `[and-cuda]` optional dependencies to install `tensorflow` dependency with
+  GPU support.
 * Add `non_media_baseline_values` argument to `summary_metrics`,
   `baseline_summary_metrics` and `expected_vs_actual` methods.
 * Update `compute_incremental_outcome_aggregate` docstring to match
@@ -182,6 +187,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [0.17.0]: https://github.com/google/meridian/releases/tag/v0.17.0
 [1.0.0]: https://github.com/google/meridian/releases/tag/v1.0.0
 [1.0.1]: https://github.com/google/meridian/releases/tag/v1.0.1
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.1...HEAD
+[1.0.2]: https://github.com/google/meridian/releases/tag/v1.0.2
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.2...HEAD
 
 

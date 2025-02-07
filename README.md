@@ -32,10 +32,18 @@ you understand the differences between these MMM projects.
 Python 3.11 or 3.12 is required to use Meridian. We also recommend using a
 minimum of 1 GPU.
 
-Note: This project has been tested on V100 and T4 GPU using 16 GB of RAM.
+Note: This project has been tested on T4 GPU using 16 GB of RAM.
 
 To install Meridian, run the following command to automatically install the
 latest release from PyPI.
+
+For GPU users (requires CUDA toolchain to already be installed in the system):
+
+```sh
+$ pip install --upgrade google-meridian[and-cuda]
+```
+
+For CPU users:
 
 ```sh
 $ pip install --upgrade google-meridian
@@ -43,6 +51,14 @@ $ pip install --upgrade google-meridian
 
 Alternatively, run the following command to install the most recent, unreleased
 version from GitHub.
+
+For GPU users (requires CUDA toolchain to already be installed in the system):
+
+```sh
+$ pip install --upgrade "google-meridian[and-cuda] @ git+https://github.com/google/meridian.git"
+```
+
+For CPU users:
 
 ```sh
 $ pip install --upgrade git+https://github.com/google/meridian.git
