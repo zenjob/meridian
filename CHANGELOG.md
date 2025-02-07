@@ -23,6 +23,11 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-02-07
+
+* Temporarily downgrade `tensorflow` version to 2.16 until the convergence
+  issues on L4 and A100 GPU runtimes are resolved.
+
 ## [1.0.2] - 2025-02-06
 
 * Bump minimum `tensorflow` version to 2.18.
@@ -188,6 +193,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.0]: https://github.com/google/meridian/releases/tag/v1.0.0
 [1.0.1]: https://github.com/google/meridian/releases/tag/v1.0.1
 [1.0.2]: https://github.com/google/meridian/releases/tag/v1.0.2
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.2...HEAD
+[1.0.3]: https://github.com/google/meridian/releases/tag/v1.0.3
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.3...HEAD
 
 
