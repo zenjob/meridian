@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Fix a divide-by-zero error in spend ratio calculation when historical spend is
+  zero, preventing a `ValueError` in `output_optimization_summary`.
+
 ## [1.0.3] - 2025-02-07
 
 * Temporarily downgrade `tensorflow` version to 2.16 until the convergence

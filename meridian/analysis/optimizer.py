@@ -1002,7 +1002,12 @@ class BudgetOptimizer:
     round_factor = _get_round_factor(budget, gtol)
     step_size = 10 ** (-round_factor)
     rounded_spend = np.round(spend, round_factor).astype(int)
-    spend_ratio = spend / hist_spend
+    spend_ratio = np.divide(
+        spend,
+        hist_spend,
+        out=np.zeros_like(hist_spend, dtype=float),
+        where=hist_spend != 0,
+    )
     if self._meridian.n_rf_channels > 0 and use_optimal_frequency:
       optimal_frequency = tf.convert_to_tensor(
           self._analyzer.optimal_freq(

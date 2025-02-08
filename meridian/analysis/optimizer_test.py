@@ -776,6 +776,26 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         np.sum(expected_spend),
     )
 
+  def test_spend_ratio_handles_zero_hist_spend(self):
+    """Tests that spend_ratio is 0 when hist_spend is 0."""
+
+    budget_optimizer = self.budget_optimizer_media_and_rf
+
+    with mock.patch.object(
+        budget_optimizer._analyzer,
+        'get_historical_spend',
+        return_value=mock.MagicMock(data=np.array([0, 0, 0, 0, 0])),
+    ) as _:
+
+      optimization_results = budget_optimizer.optimize(
+          budget=1000, pct_of_spend=[0, 0.25, 0.25, 0.25, 0.25]
+      )
+
+      np.testing.assert_array_equal(
+          optimization_results.spend_ratio,
+          np.zeros_like(optimization_results.spend_ratio),
+      )
+
   def test_incremental_outcome_tensors(self):
     spend = np.array([100, 200, 300, 400, 500], dtype=np.float32)
     hist_spend = np.array([350, 400, 200, 50, 500], dtype=np.float32)
