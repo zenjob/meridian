@@ -23,6 +23,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Add `non_media_baseline_values` argument to `MediaSummary` visualizations.
 * Fix a divide-by-zero error in spend ratio calculation when historical spend is
   zero, preventing a `ValueError` in `output_optimization_summary`.
 
