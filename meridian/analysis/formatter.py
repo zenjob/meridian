@@ -110,6 +110,24 @@ def bar_chart_width(num_bars: int) -> int:
   return (c.BAR_SIZE + c.PADDING_20) * num_bars
 
 
+def format_percent(percent: float) -> str:
+  """Formats a percentage value into a string format.
+
+  Percentage values between 0 and 1 are formatted with 1 decimal place.
+  Percentage values greater than 1 are formatted with 0 decimal places.
+
+  Args:
+    percent: The percentage value to format.
+
+  Returns:
+    A formatted string.
+  """
+  if percent >= 0.01:
+    return '{:.0%}'.format(percent)
+  else:
+    return '{:.1g}%'.format(percent * 100)
+
+
 def compact_number(n: float, precision: int = 0, currency: str = '') -> str:
   """Formats a number into a compact notation to the specified precision.
 

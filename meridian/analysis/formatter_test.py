@@ -41,6 +41,16 @@ class FormatterTest(parameterized.TestCase):
     width = formatter.bar_chart_width(num_bars)
     self.assertEqual(width, 186)
 
+  @parameterized.named_parameters(
+      ('zero_percent', 0.0, '0%'),
+      ('less_than_one_percent', 0.0005, '0.05%'),
+      ('one_percent', 0.01, '1%'),
+      ('greater_than_one_percent', 0.4257, '43%'),
+  )
+  def test_format_percent_correct(self, percent, expected):
+    formatted_percent = formatter.format_percent(percent)
+    self.assertEqual(formatted_percent, expected)
+
   def test_compact_number_expr_default(self):
     expr = formatter.compact_number_expr()
     self.assertEqual(expr, "replace(format(datum.value, '.3~s'), 'G', 'B')")

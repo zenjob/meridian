@@ -227,8 +227,8 @@ class Summarizer:
         ]
         row_values = [
             '{:.2f}'.format(sliced_table_by_eval_set[c.R_SQUARED].item()),
-            '{:.0%}'.format(sliced_table_by_eval_set[c.MAPE].item()),
-            '{:.0%}'.format(sliced_table_by_eval_set[c.WMAPE].item()),
+            formatter.format_percent(sliced_table_by_eval_set[c.MAPE].item()),
+            formatter.format_percent(sliced_table_by_eval_set[c.WMAPE].item()),
         ]
         return row_values
 
