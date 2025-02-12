@@ -19,5 +19,6 @@ from meridian.model import knots
 from meridian.model import media
 from meridian.model import model
 from meridian.model import prior_distribution
+from meridian.model import prior_sampler
 from meridian.model import spec
 from meridian.model import transformers
