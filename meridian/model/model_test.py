@@ -30,6 +30,7 @@ from meridian.data import test_utils
 from meridian.model import adstock_hill
 from meridian.model import knots as knots_module
 from meridian.model import model
+from meridian.model import model_test_data
 from meridian.model import prior_distribution
 from meridian.model import spec
 import numpy as np
@@ -38,267 +39,17 @@ import tensorflow_probability as tfp
 import xarray as xr
 
 
-def _convert_with_swap(array: xr.DataArray, n_burnin: int) -> tf.Tensor:
-  """Converts a DataArray to a tf.Tensor with the correct MCMC format.
+class ModelTest(
+    tf.test.TestCase,
+    parameterized.TestCase,
+    model_test_data.WithInputDataSamples,
+):
 
-  This function converts a DataArray to tf.Tensor, swaps first two dimensions
-  and adds the burnin part. This is needed to properly mock the
-  _xla_windowed_adaptive_nuts() function output in the sample_posterior
-  tests.
-
-  Args:
-    array: The array to be converted.
-    n_burnin: The number of extra draws to be padded with as the 'burnin' part.
-
-  Returns:
-    A tensor in the same format as returned by the _xla_windowed_adaptive_nuts()
-    function.
-  """
-  tensor = tf.convert_to_tensor(array)
-  perm = [1, 0] + [i for i in range(2, len(tensor.shape))]
-  transposed_tensor = tf.transpose(tensor, perm=perm)
-
-  # Add the "burnin" part to the mocked output of _xla_windowed_adaptive_nuts
-  # to make sure sample_posterior returns the correct "keep" part.
-  if array.dtype == bool:
-    pad_value = False
-  else:
-    pad_value = 0.0 if array.dtype.kind == "f" else 0
-
-  burnin = tf.fill([n_burnin] + transposed_tensor.shape[1:], pad_value)
-  return tf.concat(
-      [burnin, transposed_tensor],
-      axis=0,
-  )
-
-
-class ModelTest(tf.test.TestCase, parameterized.TestCase):
-  # TODO: Update the sample data to span over 1 or 2 year(s).
-  _TEST_DIR = os.path.join(os.path.dirname(__file__), "test_data")
-  _TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_media_and_rf.nc",
-  )
-  _TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_media_only.nc",
-  )
-  _TEST_SAMPLE_PRIOR_RF_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_prior_rf_only.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_media_and_rf.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_media_only.nc",
-  )
-  _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_posterior_rf_only.nc",
-  )
-  _TEST_SAMPLE_TRACE_PATH = os.path.join(
-      _TEST_DIR,
-      "sample_trace.nc",
-  )
-
-  # Data dimensions for sample input.
-  _N_CHAINS = 2
-  _N_ADAPT = 2
-  _N_BURNIN = 5
-  _N_KEEP = 10
-  _N_DRAWS = 10
-  _N_GEOS = 5
-  _N_GEOS_NATIONAL = 1
-  _N_TIMES = 200
-  _N_TIMES_SHORT = 49
-  _N_MEDIA_TIMES = 203
-  _N_MEDIA_TIMES_SHORT = 52
-  _N_MEDIA_CHANNELS = 3
-  _N_RF_CHANNELS = 2
-  _N_CONTROLS = 2
-  _ROI_CALIBRATION_PERIOD = tf.cast(
-      tf.ones((_N_MEDIA_TIMES_SHORT, _N_MEDIA_CHANNELS)),
-      dtype=tf.bool,
-  )
-  _RF_ROI_CALIBRATION_PERIOD = tf.cast(
-      tf.ones((_N_MEDIA_TIMES_SHORT, _N_RF_CHANNELS)),
-      dtype=tf.bool,
-  )
+  input_data_samples = model_test_data.WithInputDataSamples
 
   def setUp(self):
     super().setUp()
-    self.input_data_non_revenue_no_revenue_per_kpi = (
-        test_utils.sample_input_data_non_revenue_no_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            seed=0,
-        )
-    )
-    self.input_data_with_media_only = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            seed=0,
-        )
-    )
-    self.input_data_with_rf_only = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.input_data_with_media_and_rf = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.short_input_data_with_media_only = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES_SHORT,
-            n_media_times=self._N_MEDIA_TIMES_SHORT,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            seed=0,
-        )
-    )
-    self.short_input_data_with_rf_only = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES_SHORT,
-            n_media_times=self._N_MEDIA_TIMES_SHORT,
-            n_controls=self._N_CONTROLS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.short_input_data_with_media_and_rf = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES_SHORT,
-            n_media_times=self._N_MEDIA_TIMES_SHORT,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.national_input_data_media_only = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS_NATIONAL,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            seed=0,
-        )
-    )
-    self.national_input_data_media_and_rf = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS_NATIONAL,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            seed=0,
-        )
-    )
-
-    test_prior_media_and_rf = xr.open_dataset(
-        self._TEST_SAMPLE_PRIOR_MEDIA_AND_RF_PATH
-    )
-    test_prior_media_only = xr.open_dataset(
-        self._TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH
-    )
-    test_prior_rf_only = xr.open_dataset(self._TEST_SAMPLE_PRIOR_RF_ONLY_PATH)
-    self.test_dist_media_and_rf = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_media_and_rf[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    })
-    self.test_dist_media_only = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_media_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-    })
-    self.test_dist_rf_only = collections.OrderedDict({
-        param: tf.convert_to_tensor(test_prior_rf_only[param])
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    })
-
-    test_posterior_media_and_rf = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH
-    )
-    test_posterior_media_only = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH
-    )
-    test_posterior_rf_only = xr.open_dataset(
-        self._TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH
-    )
-    posterior_params_to_tensors_media_and_rf = {
-        param: _convert_with_swap(
-            test_posterior_media_and_rf[param], n_burnin=self._N_BURNIN
-        )
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    }
-    posterior_params_to_tensors_media_only = {
-        param: _convert_with_swap(
-            test_posterior_media_only[param], n_burnin=self._N_BURNIN
-        )
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-    }
-    posterior_params_to_tensors_rf_only = {
-        param: _convert_with_swap(
-            test_posterior_rf_only[param], n_burnin=self._N_BURNIN
-        )
-        for param in constants.COMMON_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES
-    }
-    self.test_posterior_states_media_and_rf = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES
-        + constants.MEDIA_PARAMETER_NAMES
-        + constants.RF_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_media_and_rf)
-    self.test_posterior_states_media_only = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES + constants.MEDIA_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_media_only)
-    self.test_posterior_states_rf_only = collections.namedtuple(
-        "StructTuple",
-        constants.COMMON_PARAMETER_NAMES + constants.RF_PARAMETER_NAMES,
-    )(**posterior_params_to_tensors_rf_only)
-
-    test_trace = xr.open_dataset(self._TEST_SAMPLE_TRACE_PATH)
-    self.test_trace = {
-        param: _convert_with_swap(test_trace[param], n_burnin=self._N_BURNIN)
-        for param in test_trace.data_vars
-    }
+    model_test_data.WithInputDataSamples.setup(self)
 
   @parameterized.named_parameters(
       dict(
@@ -654,7 +405,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
               ),
               constants.MROI_RF: tfp.distributions.LogNormal(
                   0.2, 0.8, name=constants.MROI_RF
-              )
+              ),
           },
           ignored_priors="mroi_m, mroi_rf",
           paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_ROI,
@@ -670,7 +421,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
               ),
               constants.ROI_M: tfp.distributions.LogNormal(
                   0.2, 0.1, name=constants.ROI_M
-              )
+              ),
           },
           ignored_priors="beta_m, beta_rf, roi_m",
           paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_MROI,
@@ -740,19 +491,20 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="media_only",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_media_channels=_N_MEDIA_CHANNELS
+              n_media_channels=input_data_samples._N_MEDIA_CHANNELS
           ),
       ),
       dict(
           testcase_name="rf_only",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_rf_channels=_N_RF_CHANNELS
+              n_rf_channels=input_data_samples._N_RF_CHANNELS
           ),
       ),
       dict(
           testcase_name="rf_and_media",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_media_channels=_N_MEDIA_CHANNELS, n_rf_channels=_N_RF_CHANNELS
+              n_media_channels=input_data_samples._N_MEDIA_CHANNELS,
+              n_rf_channels=input_data_samples._N_RF_CHANNELS,
           ),
       ),
   )
@@ -824,25 +576,25 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="geo_normal",
-          n_geos=_N_GEOS,
+          n_geos=input_data_samples._N_GEOS,
           media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
           expected_media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
       ),
       dict(
           testcase_name="geo_log_normal",
-          n_geos=_N_GEOS,
+          n_geos=input_data_samples._N_GEOS,
           media_effects_dist=constants.MEDIA_EFFECTS_LOG_NORMAL,
           expected_media_effects_dist=constants.MEDIA_EFFECTS_LOG_NORMAL,
       ),
       dict(
           testcase_name="national_normal",
-          n_geos=_N_GEOS_NATIONAL,
+          n_geos=input_data_samples._N_GEOS_NATIONAL,
           media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
           expected_media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
       ),
       dict(
           testcase_name="national_log_normal",
-          n_geos=_N_GEOS_NATIONAL,
+          n_geos=input_data_samples._N_GEOS_NATIONAL,
           media_effects_dist=constants.MEDIA_EFFECTS_LOG_NORMAL,
           expected_media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
       ),
@@ -861,25 +613,25 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name="geo_unique_sigma_for_each_geo_true",
-          n_geos=_N_GEOS,
+          n_geos=input_data_samples._N_GEOS,
           unique_sigma_for_each_geo=True,
           expected_unique_sigma_for_each_geo=True,
       ),
       dict(
           testcase_name="geo_unique_sigma_for_each_geo_false",
-          n_geos=_N_GEOS,
+          n_geos=input_data_samples._N_GEOS,
           unique_sigma_for_each_geo=False,
           expected_unique_sigma_for_each_geo=False,
       ),
       dict(
           testcase_name="national_unique_sigma_for_each_geo_true",
-          n_geos=_N_GEOS_NATIONAL,
+          n_geos=input_data_samples._N_GEOS_NATIONAL,
           unique_sigma_for_each_geo=True,
           expected_unique_sigma_for_each_geo=False,
       ),
       dict(
           testcase_name="national_unique_sigma_for_each_geo_false",
-          n_geos=_N_GEOS_NATIONAL,
+          n_geos=input_data_samples._N_GEOS_NATIONAL,
           unique_sigma_for_each_geo=False,
           expected_unique_sigma_for_each_geo=False,
       ),
@@ -1916,9 +1668,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         media_channel_shape: [
             getattr(prior, attr) for attr in media_parameters
         ],
-        rf_channel_shape: [
-            getattr(prior, attr) for attr in rf_parameters
-        ],
+        rf_channel_shape: [getattr(prior, attr) for attr in rf_parameters],
         control_shape: [
             getattr(prior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
@@ -2136,9 +1886,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         media_channel_shape: [
             getattr(posterior, attr) for attr in media_parameters
         ],
-        rf_channel_shape: [
-            getattr(posterior, attr) for attr in rf_parameters
-        ],
+        rf_channel_shape: [getattr(posterior, attr) for attr in rf_parameters],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
         ],
@@ -2377,9 +2125,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         control_shape: [
             getattr(posterior, attr) for attr in constants.CONTROL_PARAMETERS
         ],
-        rf_channel_shape: [
-            getattr(posterior, attr) for attr in rf_parameters
-        ],
+        rf_channel_shape: [getattr(posterior, attr) for attr in rf_parameters],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
         ],
@@ -2505,9 +2251,7 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
         media_channel_shape: [
             getattr(posterior, attr) for attr in media_parameters
         ],
-        rf_channel_shape: [
-            getattr(posterior, attr) for attr in rf_parameters
-        ],
+        rf_channel_shape: [getattr(posterior, attr) for attr in rf_parameters],
         sigma_shape: [
             getattr(posterior, attr) for attr in constants.SIGMA_PARAMETERS
         ],
@@ -2780,34 +2524,56 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="control_variables",
           coord=constants.CONTROL_VARIABLE,
           mismatched_priors={
-              constants.GAMMA_C: (1, _N_DRAWS, _N_CONTROLS + 1),
-              constants.GAMMA_GC: (1, _N_DRAWS, _N_GEOS, _N_CONTROLS + 1),
-              constants.XI_C: (1, _N_DRAWS, _N_CONTROLS + 1),
+              constants.GAMMA_C: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_CONTROLS + 1,
+              ),
+              constants.GAMMA_GC: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_CONTROLS + 1,
+              ),
+              constants.XI_C: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_CONTROLS + 1,
+              ),
           },
-          mismatched_coord_size=_N_CONTROLS + 1,
-          expected_coord_size=_N_CONTROLS,
+          mismatched_coord_size=input_data_samples._N_CONTROLS + 1,
+          expected_coord_size=input_data_samples._N_CONTROLS,
       ),
       dict(
           testcase_name="geos",
           coord=constants.GEO,
           mismatched_priors={
-              constants.BETA_GM: (1, _N_DRAWS, _N_GEOS + 1, _N_MEDIA_CHANNELS),
+              constants.BETA_GM: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_MEDIA_CHANNELS,
+              ),
               constants.BETA_GRF: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS + 1,
-                  _N_RF_CHANNELS,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_RF_CHANNELS,
               ),
               constants.GAMMA_GC: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS + 1,
-                  _N_CONTROLS,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_CONTROLS,
               ),
-              constants.TAU_G: (1, _N_DRAWS, _N_GEOS + 1),
+              constants.TAU_G: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS + 1,
+              ),
           },
-          mismatched_coord_size=_N_GEOS + 1,
-          expected_coord_size=_N_GEOS,
+          mismatched_coord_size=input_data_samples._N_GEOS + 1,
+          expected_coord_size=input_data_samples._N_GEOS,
       ),
       dict(
           testcase_name="knots",
@@ -2815,70 +2581,126 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           mismatched_priors={
               constants.KNOT_VALUES: (
                   1,
-                  _N_DRAWS,
-                  _N_TIMES_SHORT + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_TIMES_SHORT + 1,
               ),
           },
-          mismatched_coord_size=_N_TIMES_SHORT + 1,
-          expected_coord_size=_N_TIMES_SHORT,
+          mismatched_coord_size=input_data_samples._N_TIMES_SHORT + 1,
+          expected_coord_size=input_data_samples._N_TIMES_SHORT,
       ),
       dict(
           testcase_name="times",
           coord=constants.TIME,
           mismatched_priors={
-              constants.MU_T: (1, _N_DRAWS, _N_TIMES_SHORT + 1),
+              constants.MU_T: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_TIMES_SHORT + 1,
+              ),
           },
-          mismatched_coord_size=_N_TIMES_SHORT + 1,
-          expected_coord_size=_N_TIMES_SHORT,
+          mismatched_coord_size=input_data_samples._N_TIMES_SHORT + 1,
+          expected_coord_size=input_data_samples._N_TIMES_SHORT,
       ),
       dict(
           testcase_name="sigma_dims",
           coord=constants.SIGMA_DIM,
           mismatched_priors={
-              constants.SIGMA: (1, _N_DRAWS, _N_GEOS_NATIONAL + 1),
+              constants.SIGMA: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS_NATIONAL + 1,
+              ),
           },
-          mismatched_coord_size=_N_GEOS_NATIONAL + 1,
-          expected_coord_size=_N_GEOS_NATIONAL,
+          mismatched_coord_size=input_data_samples._N_GEOS_NATIONAL + 1,
+          expected_coord_size=input_data_samples._N_GEOS_NATIONAL,
       ),
       dict(
           testcase_name="media_channels",
           coord=constants.MEDIA_CHANNEL,
           mismatched_priors={
-              constants.ALPHA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.ALPHA_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
               constants.BETA_GM: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS,
-                  _N_MEDIA_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
               ),
-              constants.BETA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
-              constants.EC_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
-              constants.ETA_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
-              constants.ROI_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
-              constants.SLOPE_M: (1, _N_DRAWS, _N_MEDIA_CHANNELS + 1),
+              constants.BETA_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.EC_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.ETA_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.ROI_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.SLOPE_M: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_MEDIA_CHANNELS + 1,
-          expected_coord_size=_N_MEDIA_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_MEDIA_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_MEDIA_CHANNELS,
       ),
       dict(
           testcase_name="rf_channels",
           coord=constants.RF_CHANNEL,
           mismatched_priors={
-              constants.ALPHA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.ALPHA_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
               constants.BETA_GRF: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS,
-                  _N_RF_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_RF_CHANNELS + 1,
               ),
-              constants.BETA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
-              constants.EC_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
-              constants.ETA_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
-              constants.ROI_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
-              constants.SLOPE_RF: (1, _N_DRAWS, _N_RF_CHANNELS + 1),
+              constants.BETA_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.EC_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.ETA_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.ROI_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.SLOPE_RF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_RF_CHANNELS + 1,
-          expected_coord_size=_N_RF_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_RF_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_RF_CHANNELS,
       ),
   )
   def test_validate_injected_inference_data_prior_incorrect_coordinates(
@@ -2924,115 +2746,183 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="control_variables",
           coord=constants.CONTROL_VARIABLE,
           mismatched_posteriors={
-              constants.GAMMA_C: (_N_CHAINS, _N_KEEP, _N_CONTROLS + 1),
-              constants.GAMMA_GC: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS,
-                  _N_CONTROLS + 1,
+              constants.GAMMA_C: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_CONTROLS + 1,
               ),
-              constants.XI_C: (_N_CHAINS, _N_KEEP, _N_CONTROLS + 1),
+              constants.GAMMA_GC: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_CONTROLS + 1,
+              ),
+              constants.XI_C: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_CONTROLS + 1,
+              ),
           },
-          mismatched_coord_size=_N_CONTROLS + 1,
-          expected_coord_size=_N_CONTROLS,
+          mismatched_coord_size=input_data_samples._N_CONTROLS + 1,
+          expected_coord_size=input_data_samples._N_CONTROLS,
       ),
       dict(
           testcase_name="geos",
           coord=constants.GEO,
           mismatched_posteriors={
               constants.BETA_GM: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS + 1,
-                  _N_MEDIA_CHANNELS,
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_MEDIA_CHANNELS,
               ),
               constants.BETA_GRF: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS + 1,
-                  _N_RF_CHANNELS,
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_RF_CHANNELS,
               ),
               constants.GAMMA_GC: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS + 1,
-                  _N_CONTROLS,
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS + 1,
+                  input_data_samples._N_CONTROLS,
               ),
-              constants.TAU_G: (_N_CHAINS, _N_KEEP, _N_GEOS + 1),
+              constants.TAU_G: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS + 1,
+              ),
           },
-          mismatched_coord_size=_N_GEOS + 1,
-          expected_coord_size=_N_GEOS,
+          mismatched_coord_size=input_data_samples._N_GEOS + 1,
+          expected_coord_size=input_data_samples._N_GEOS,
       ),
       dict(
           testcase_name="knots",
           coord=constants.KNOTS,
           mismatched_posteriors={
               constants.KNOT_VALUES: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_TIMES_SHORT + 1,
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_TIMES_SHORT + 1,
               ),
           },
-          mismatched_coord_size=_N_TIMES_SHORT + 1,
-          expected_coord_size=_N_TIMES_SHORT,
+          mismatched_coord_size=input_data_samples._N_TIMES_SHORT + 1,
+          expected_coord_size=input_data_samples._N_TIMES_SHORT,
       ),
       dict(
           testcase_name="times",
           coord=constants.TIME,
           mismatched_posteriors={
-              constants.MU_T: (_N_CHAINS, _N_KEEP, _N_TIMES_SHORT + 1),
+              constants.MU_T: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_TIMES_SHORT + 1,
+              ),
           },
-          mismatched_coord_size=_N_TIMES_SHORT + 1,
-          expected_coord_size=_N_TIMES_SHORT,
+          mismatched_coord_size=input_data_samples._N_TIMES_SHORT + 1,
+          expected_coord_size=input_data_samples._N_TIMES_SHORT,
       ),
       dict(
           testcase_name="sigma_dims",
           coord=constants.SIGMA_DIM,
           mismatched_posteriors={
-              constants.SIGMA: (_N_CHAINS, _N_KEEP, _N_GEOS_NATIONAL + 1),
+              constants.SIGMA: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS_NATIONAL + 1,
+              ),
           },
-          mismatched_coord_size=_N_GEOS_NATIONAL + 1,
-          expected_coord_size=_N_GEOS_NATIONAL,
+          mismatched_coord_size=input_data_samples._N_GEOS_NATIONAL + 1,
+          expected_coord_size=input_data_samples._N_GEOS_NATIONAL,
       ),
       dict(
           testcase_name="media_channels",
           coord=constants.MEDIA_CHANNEL,
           mismatched_posteriors={
-              constants.ALPHA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
-              constants.BETA_GM: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS,
-                  _N_MEDIA_CHANNELS + 1,
+              constants.ALPHA_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
               ),
-              constants.BETA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
-              constants.EC_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
-              constants.ETA_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
-              constants.ROI_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
-              constants.SLOPE_M: (_N_CHAINS, _N_KEEP, _N_MEDIA_CHANNELS + 1),
+              constants.BETA_GM: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.BETA_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.EC_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.ETA_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.ROI_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
+              constants.SLOPE_M: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_MEDIA_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_MEDIA_CHANNELS + 1,
-          expected_coord_size=_N_MEDIA_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_MEDIA_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_MEDIA_CHANNELS,
       ),
       dict(
           testcase_name="rf_channels",
           coord=constants.RF_CHANNEL,
           mismatched_posteriors={
-              constants.ALPHA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
-              constants.BETA_GRF: (
-                  _N_CHAINS,
-                  _N_KEEP,
-                  _N_GEOS,
-                  _N_RF_CHANNELS + 1,
+              constants.ALPHA_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
               ),
-              constants.BETA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
-              constants.EC_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
-              constants.ETA_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
-              constants.ROI_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
-              constants.SLOPE_RF: (_N_CHAINS, _N_KEEP, _N_RF_CHANNELS + 1),
+              constants.BETA_GRF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.BETA_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.EC_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.ETA_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.ROI_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
+              constants.SLOPE_RF: (
+                  input_data_samples._N_CHAINS,
+                  input_data_samples._N_KEEP,
+                  input_data_samples._N_RF_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_RF_CHANNELS + 1,
-          expected_coord_size=_N_RF_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_RF_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_RF_CHANNELS,
       ),
   )
   def test_validate_injected_inference_data_posterior_incorrect_coordinates(
@@ -3103,87 +2993,17 @@ class ModelTest(tf.test.TestCase, parameterized.TestCase):
       )
 
 
-class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
+class NonPaidModelTest(
+    tf.test.TestCase,
+    parameterized.TestCase,
+    model_test_data.WithInputDataSamples,
+):
 
-  # Data dimensions for sample input.
-  _N_CHAINS = 2
-  _N_ADAPT = 2
-  _N_BURNIN = 5
-  _N_KEEP = 10
-  _N_DRAWS = 10
-  _N_GEOS = 5
-  _N_GEOS_NATIONAL = 1
-  _N_TIMES = 200
-  _N_TIMES_SHORT = 49
-  _N_MEDIA_TIMES = 203
-  _N_MEDIA_TIMES_SHORT = 52
-  _N_MEDIA_CHANNELS = 3
-  _N_RF_CHANNELS = 2
-  _N_ORGANIC_MEDIA_CHANNELS = 4
-  _N_ORGANIC_RF_CHANNELS = 1
-  _N_CONTROLS = 2
-  _N_NON_MEDIA_CHANNELS = 2
+  input_data_samples = model_test_data.WithInputDataSamples
 
   def setUp(self):
     super().setUp()
-
-    self.national_input_data_non_media_and_organic = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS_NATIONAL,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_non_media_channels=self._N_NON_MEDIA_CHANNELS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            n_organic_media_channels=self._N_ORGANIC_MEDIA_CHANNELS,
-            n_organic_rf_channels=self._N_ORGANIC_RF_CHANNELS,
-            seed=0,
-        )
-    )
-
-    self.input_data_non_media_and_organic = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES,
-            n_media_times=self._N_MEDIA_TIMES,
-            n_controls=self._N_CONTROLS,
-            n_non_media_channels=self._N_NON_MEDIA_CHANNELS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            n_organic_media_channels=self._N_ORGANIC_MEDIA_CHANNELS,
-            n_organic_rf_channels=self._N_ORGANIC_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.short_input_data_non_media_and_organic = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES_SHORT,
-            n_media_times=self._N_MEDIA_TIMES_SHORT,
-            n_controls=self._N_CONTROLS,
-            n_non_media_channels=self._N_NON_MEDIA_CHANNELS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            n_organic_media_channels=self._N_ORGANIC_MEDIA_CHANNELS,
-            n_organic_rf_channels=self._N_ORGANIC_RF_CHANNELS,
-            seed=0,
-        )
-    )
-    self.short_input_data_non_media = (
-        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-            n_geos=self._N_GEOS,
-            n_times=self._N_TIMES_SHORT,
-            n_media_times=self._N_MEDIA_TIMES_SHORT,
-            n_controls=self._N_CONTROLS,
-            n_non_media_channels=self._N_NON_MEDIA_CHANNELS,
-            n_media_channels=self._N_MEDIA_CHANNELS,
-            n_rf_channels=self._N_RF_CHANNELS,
-            n_organic_media_channels=0,
-            n_organic_rf_channels=0,
-            seed=0,
-        )
-    )
+    model_test_data.WithInputDataSamples.setup(self)
 
   def test_init_with_wrong_non_media_population_scaling_id_shape_fails(self):
     model_spec = spec.ModelSpec(
@@ -3231,29 +3051,29 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="media_non_media_and_organic",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_media_channels=_N_MEDIA_CHANNELS,
-              n_non_media_channels=_N_NON_MEDIA_CHANNELS,
-              n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
-              n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+              n_media_channels=input_data_samples._N_MEDIA_CHANNELS,
+              n_non_media_channels=input_data_samples._N_NON_MEDIA_CHANNELS,
+              n_organic_media_channels=input_data_samples._N_ORGANIC_MEDIA_CHANNELS,
+              n_organic_rf_channels=input_data_samples._N_ORGANIC_RF_CHANNELS,
           ),
       ),
       dict(
           testcase_name="rf_non_media_and_organic",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_rf_channels=_N_RF_CHANNELS,
-              n_non_media_channels=_N_NON_MEDIA_CHANNELS,
-              n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
-              n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+              n_rf_channels=input_data_samples._N_RF_CHANNELS,
+              n_non_media_channels=input_data_samples._N_NON_MEDIA_CHANNELS,
+              n_organic_media_channels=input_data_samples._N_ORGANIC_MEDIA_CHANNELS,
+              n_organic_rf_channels=input_data_samples._N_ORGANIC_RF_CHANNELS,
           ),
       ),
       dict(
           testcase_name="media_rf_non_media_and_organic",
           data=test_utils.sample_input_data_non_revenue_revenue_per_kpi(
-              n_media_channels=_N_MEDIA_CHANNELS,
-              n_rf_channels=_N_RF_CHANNELS,
-              n_non_media_channels=_N_NON_MEDIA_CHANNELS,
-              n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
-              n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+              n_media_channels=input_data_samples._N_MEDIA_CHANNELS,
+              n_rf_channels=input_data_samples._N_RF_CHANNELS,
+              n_non_media_channels=input_data_samples._N_NON_MEDIA_CHANNELS,
+              n_organic_media_channels=input_data_samples._N_ORGANIC_MEDIA_CHANNELS,
+              n_organic_rf_channels=input_data_samples._N_ORGANIC_RF_CHANNELS,
           ),
       ),
   )
@@ -3572,7 +3392,7 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
   ):
     model_spec = spec.ModelSpec(
         paid_media_prior_type=paid_media_prior_type,
-        media_effects_dist=media_effects_dist
+        media_effects_dist=media_effects_dist,
     )
     meridian = model.Meridian(
         model_spec=model_spec,
@@ -3822,15 +3642,23 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
           mismatched_priors={
               constants.GAMMA_GN: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS,
-                  _N_NON_MEDIA_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_NON_MEDIA_CHANNELS + 1,
               ),
-              constants.GAMMA_N: (1, _N_DRAWS, _N_NON_MEDIA_CHANNELS + 1),
-              constants.XI_N: (1, _N_DRAWS, _N_NON_MEDIA_CHANNELS + 1),
+              constants.GAMMA_N: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_NON_MEDIA_CHANNELS + 1,
+              ),
+              constants.XI_N: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_NON_MEDIA_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_NON_MEDIA_CHANNELS + 1,
-          expected_coord_size=_N_NON_MEDIA_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_NON_MEDIA_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_NON_MEDIA_CHANNELS,
       ),
       dict(
           testcase_name="organic_rf_channels",
@@ -3838,26 +3666,38 @@ class NonPaidModelTest(tf.test.TestCase, parameterized.TestCase):
           mismatched_priors={
               constants.ALPHA_ORF: (
                   1,
-                  _N_DRAWS,
-                  _N_ORGANIC_RF_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
               ),
               constants.BETA_ORF: (
                   1,
-                  _N_DRAWS,
-                  _N_ORGANIC_RF_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
               ),
               constants.BETA_GORF: (
                   1,
-                  _N_DRAWS,
-                  _N_GEOS,
-                  _N_ORGANIC_RF_CHANNELS + 1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_GEOS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
               ),
-              constants.EC_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
-              constants.ETA_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
-              constants.SLOPE_ORF: (1, _N_DRAWS, _N_ORGANIC_RF_CHANNELS + 1),
+              constants.EC_ORF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
+              ),
+              constants.ETA_ORF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
+              ),
+              constants.SLOPE_ORF: (
+                  1,
+                  input_data_samples._N_DRAWS,
+                  input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
+              ),
           },
-          mismatched_coord_size=_N_ORGANIC_RF_CHANNELS + 1,
-          expected_coord_size=_N_ORGANIC_RF_CHANNELS,
+          mismatched_coord_size=input_data_samples._N_ORGANIC_RF_CHANNELS + 1,
+          expected_coord_size=input_data_samples._N_ORGANIC_RF_CHANNELS,
       ),
   )
   def test_validate_injected_inference_data_prior_incorrect_coordinates(

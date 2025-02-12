@@ -1480,7 +1480,9 @@ def sample_coord_to_columns(
   )
 
 
-def sample_input_data_from_dataset(dataset: xr.Dataset, kpi_type: str):
+def sample_input_data_from_dataset(
+    dataset: xr.Dataset, kpi_type: str
+) -> input_data.InputData:
   """Generates a sample `InputData` from a full xarray Dataset."""
   return input_data.InputData(
       kpi=dataset.kpi,
@@ -1507,7 +1509,7 @@ def sample_input_data_revenue(
     n_organic_media_channels: int | None = None,
     n_organic_rf_channels: int | None = None,
     seed: int = 0,
-):
+) -> input_data.InputData:
   """Generates sample InputData for `kpi_type='revenue'`."""
   dataset = random_dataset(
       n_geos=n_geos,
@@ -1555,7 +1557,7 @@ def sample_input_data_non_revenue_revenue_per_kpi(
     n_organic_media_channels: int | None = None,
     n_organic_rf_channels: int | None = None,
     seed: int = 0,
-):
+) -> input_data.InputData:
   """Generates sample InputData for `non_revenue` KPI w/ revenue_per_kpi."""
   dataset = random_dataset(
       n_geos=n_geos,
@@ -1602,7 +1604,7 @@ def sample_input_data_non_revenue_no_revenue_per_kpi(
     n_organic_media_channels: int | None = None,
     n_organic_rf_channels: int | None = None,
     seed: int = 0,
-):
+) -> input_data.InputData:
   """Generates sample InputData for `non_revenue` KPI w/o revenue_per_kpi."""
   dataset = random_dataset(
       n_geos=n_geos,
