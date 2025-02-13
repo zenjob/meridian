@@ -15,12 +15,16 @@
 """Module for MCMC sampling of posterior distributions in a Meridian model."""
 
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
 import arviz as az
 from meridian import constants
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
+
+if TYPE_CHECKING:
+  from meridian.model import model  # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 
 __all__ = [
@@ -78,7 +82,7 @@ def _xla_windowed_adaptive_nuts(**kwargs):
 class PosteriorMCMCSampler:
   """A callable that samples from posterior distributions using MCMC."""
 
-  def __init__(self, meridian):  # meridian: model.Meridian
+  def __init__(self, meridian: "model.Meridian"):
     self._meridian = meridian
 
   def _get_joint_dist_unpinned(self) -> tfp.distributions.Distribution:

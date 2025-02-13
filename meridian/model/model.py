@@ -414,14 +414,14 @@ class Meridian:
 
   @functools.cached_property
   def prior_sampler_callable(self) -> prior_sampler.PriorDistributionSampler:
-    """Returns a `PriorDistributionSampler` callable bound to this model."""
+    """A `PriorDistributionSampler` callable bound to this model."""
     return prior_sampler.PriorDistributionSampler(self)
 
   @functools.cached_property
   def posterior_sampler_callable(
       self,
   ) -> posterior_sampler.PosteriorMCMCSampler:
-    """Returns a `PosteriorMCMCSampler` callable bound to this model."""
+    """A `PosteriorMCMCSampler` callable bound to this model."""
     return posterior_sampler.PosteriorMCMCSampler(self)
 
   def expand_selected_time_dims(

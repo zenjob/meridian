@@ -15,11 +15,15 @@
 """Module for sampling prior distributions in a Meridian model."""
 
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 import arviz as az
 from meridian import constants
 import tensorflow as tf
 import tensorflow_probability as tfp
+
+if TYPE_CHECKING:
+  from meridian.model import model  # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 
 __all__ = [
@@ -61,7 +65,7 @@ def _get_tau_g(
 class PriorDistributionSampler:
   """A callable that samples from a model spec's prior distributions."""
 
-  def __init__(self, meridian):  # meridian: model.Meridian
+  def __init__(self, meridian: "model.Meridian"):
     self._meridian = meridian
 
   def get_roi_prior_beta_m_value(
