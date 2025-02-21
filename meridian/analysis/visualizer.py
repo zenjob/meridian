@@ -1233,10 +1233,10 @@ class MediaEffects:
       bands for the Hill curves.
     """
     if c.MEDIA in list(df_channel_type[c.CHANNEL_TYPE]):
-      x_axis_title = 'Media Units per Capita'
+      x_axis_title = summary_text.HILL_X_AXIS_MEDIA_LABEL
       shaded_area_title = summary_text.HILL_SHADED_REGION_MEDIA_LABEL
     else:
-      x_axis_title = 'Average Frequency'
+      x_axis_title = summary_text.HILL_X_AXIS_RF_LABEL
       shaded_area_title = summary_text.HILL_SHADED_REGION_RF_LABEL
     domain_list = [
         c.POSTERIOR,
