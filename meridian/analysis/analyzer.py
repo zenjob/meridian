@@ -15,7 +15,6 @@
 """Methods to compute analysis metrics of the model and the data."""
 
 from collections.abc import Mapping, Sequence
-import dataclasses
 import itertools
 from typing import Any, Optional
 import warnings
@@ -74,6 +73,21 @@ class DataTensors(tf.experimental.ExtensionType):
   non_media_treatments: Optional[tf.Tensor] = None
   controls: Optional[tf.Tensor] = None
   revenue_per_kpi: Optional[tf.Tensor] = None
+
+  def total_spend(self) -> tf.Tensor | None:
+    """Returns the total spend tensor.
+
+    Returns:
+      The `media_spend` tensor (if present) concatenated with the `rf_spend`
+      tensor (if present), in this order. If both tensors are missing, returns
+      `None`.
+    """
+    spend_tensors = []
+    if self.media_spend is not None:
+      spend_tensors.append(self.media_spend)
+    if self.rf_spend is not None:
+      spend_tensors.append(self.rf_spend)
+    return tf.concat(spend_tensors, axis=-1) if spend_tensors else None
 
 
 class DistributionTensors(tf.experimental.ExtensionType):
@@ -372,38 +386,34 @@ def _validate_media_selected_times_flexible_time(
     )
 
 
-# TODO: Organize arguments and output with DataTensors.
 def _scale_tensors_by_multiplier(
-    media: tf.Tensor | None,
-    reach: tf.Tensor | None,
-    frequency: tf.Tensor | None,
+    data: DataTensors,
     multiplier: float,
     by_reach: bool,
-) -> Mapping[str, tf.Tensor | None]:
+) -> DataTensors:
   """Get scaled tensors for incremental outcome calculation.
 
   Args:
-    media: Optional tensor with dimensions matching media.
-    reach: Optional tensor with dimensions matching reach.
-    frequency: Optional tensor with dimensions matching frequency.
+    data: DataTensors object containing the optional tensors to scale: `media`,
+      `reach`, `frequency`.
     multiplier: Float indicating the factor to scale tensors by.
     by_reach: Boolean indicating whether to scale reach or frequency when rf
       data is available.
 
   Returns:
-    Dictionary containing scaled tensor parameters.
+    A `DataTensors` object containing scaled tensor parameters.
   """
-  scaled_tensors = {}
-  if media is not None:
-    scaled_tensors["new_media"] = media * multiplier
-  if reach is not None and frequency is not None:
+  incremented_data = {}
+  if data.media is not None:
+    incremented_data[constants.MEDIA] = data.media * multiplier
+  if data.reach is not None and data.frequency is not None:
     if by_reach:
-      scaled_tensors["new_frequency"] = frequency
-      scaled_tensors["new_reach"] = reach * multiplier
+      incremented_data[constants.REACH] = data.reach * multiplier
+      incremented_data[constants.FREQUENCY] = data.frequency
     else:
-      scaled_tensors["new_frequency"] = frequency * multiplier
-      scaled_tensors["new_reach"] = reach
-  return scaled_tensors
+      incremented_data[constants.REACH] = data.reach
+      incremented_data[constants.FREQUENCY] = data.frequency * multiplier
+  return DataTensors(**incremented_data)
 
 
 def _central_tendency_and_ci_by_prior_and_posterior(
@@ -2091,61 +2101,22 @@ class Analyzer:
         )
     return tf.concat(incremental_outcome_temps, axis=1)
 
-  # TODO Unify usage of DataTensors and PerformanceData.
-  @dataclasses.dataclass(frozen=True)
-  class PerformanceData:
-    """Dataclass for data required in profitability calculations."""
-
-    media: tf.Tensor | None
-    media_spend: tf.Tensor | None
-    reach: tf.Tensor | None
-    frequency: tf.Tensor | None
-    rf_spend: tf.Tensor | None
-
-    def total_spend(self) -> tf.Tensor | None:
-      if self.media_spend is not None and self.rf_spend is not None:
-        total_spend = tf.concat([self.media_spend, self.rf_spend], axis=-1)
-      elif self.media_spend is not None:
-        total_spend = self.media_spend
-      else:
-        total_spend = self.rf_spend
-      return total_spend
-
-  # TODO: Merge the logic with DataTensors usage.
-  def _get_performance_tensors(
+  def _validate_and_fill_roi_analysis_arguments(
       self,
-      new_media: tf.Tensor | None = None,
-      new_media_spend: tf.Tensor | None = None,
-      new_reach: tf.Tensor | None = None,
-      new_frequency: tf.Tensor | None = None,
-      new_rf_spend: tf.Tensor | None = None,
+      new_data: DataTensors,
       selected_geos: Sequence[str] | None = None,
       selected_times: Sequence[str] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
-  ) -> PerformanceData:
-    """Get tensors required for profitability calculations (ROI, mROI, CPIK).
+  ) -> DataTensors:
+    """Validates dimensions of arguments for ROI analysis methods.
 
-    Verify dimensionality requirements and return a dictionary with data tensors
-    required for profitability calculations.
+    Validates dimensionality requirements for `new_data` and other arguments for
+    ROI analysis methods.
 
     Args:
-      new_media: Optional. Media data, with the same shape as
-        `meridian.input_data.media`, to be used to compute ROI for alternative
-        media data. Default uses `meridian.input_data.media`.
-      new_media_spend: Optional. Media spend data, with the same shape as
-        `meridian.input_data.media_spend`, to be used to compute ROI for
-        alternative `media_spend` data. Default uses
-        `meridian.input_data.media_spend`.
-      new_reach: Optional. Reach data with the same shape as
-        `meridian.input_data.reach`, to be used to compute ROI for alternative
-        reach data. Default uses `meridian.input_data.reach`.
-      new_frequency: Optional. Frequency data with the same shape as
-        `meridian.input_data.frequency`, to be used to compute ROI for
-        alternative frequency data. Defaults to `meridian.input_data.frequency`.
-      new_rf_spend: Optional. RF Spend data with the same shape as
-        `meridian.input_data.rf_spend`, to be used to compute ROI for
-        alternative `rf_spend` data. Defaults to `meridian.input_data.rf_spend`.
+      new_data: DataTensors containing optional `media`, `media_spend`, `reach`,
+        `frequency`, and `rf_spend` data.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
       selected_times: Optional. Contains a subset of times to include. By
@@ -2156,8 +2127,13 @@ class Analyzer:
         periods.
 
     Returns:
-      PerformanceData object containing the media, rf, and spend data for
-        profitability calculations.
+      `DataTensors` containing the new data tensors, filled using the original
+      data tensors if the new data tensors are `None`.
+
+    Raises:
+      ValueError: If the dimensions of the arguments do not match the
+        dimensions of the corresponding tensors in the Meridian object or if
+        the other arguments are invalid.
     """
 
     if self._meridian.is_national:
@@ -2202,13 +2178,13 @@ class Analyzer:
         )
 
     _check_shape_matches(
-        new_media,
+        new_data.media,
         f"{constants.NEW_DATA}.{constants.MEDIA}",
         self._meridian.media_tensors.media,
         constants.MEDIA,
     )
     _check_spend_shape_matches(
-        new_media_spend,
+        new_data.media_spend,
         f"{constants.NEW_DATA}.{constants.MEDIA_SPEND}",
         (
             tf.TensorShape((self._meridian.n_media_channels)),
@@ -2220,19 +2196,19 @@ class Analyzer:
         ),
     )
     _check_shape_matches(
-        new_reach,
+        new_data.reach,
         f"{constants.NEW_DATA}.{constants.REACH}",
         self._meridian.rf_tensors.reach,
         constants.REACH,
     )
     _check_shape_matches(
-        new_frequency,
+        new_data.frequency,
         f"{constants.NEW_DATA}.{constants.FREQUENCY}",
         self._meridian.rf_tensors.frequency,
         constants.FREQUENCY,
     )
     _check_spend_shape_matches(
-        new_rf_spend,
+        new_data.rf_spend,
         f"{constants.NEW_DATA}.{constants.RF_SPEND}",
         (
             tf.TensorShape((self._meridian.n_rf_channels)),
@@ -2244,33 +2220,39 @@ class Analyzer:
         ),
     )
 
-    media = (
-        self._meridian.media_tensors.media if new_media is None else new_media
+    new_media = (
+        self._meridian.media_tensors.media
+        if new_data.media is None
+        else new_data.media
     )
-    reach = self._meridian.rf_tensors.reach if new_reach is None else new_reach
-    frequency = (
+    new_reach = (
+        self._meridian.rf_tensors.reach
+        if new_data.reach is None
+        else new_data.reach
+    )
+    new_frequency = (
         self._meridian.rf_tensors.frequency
-        if new_frequency is None
-        else new_frequency
+        if new_data.frequency is None
+        else new_data.frequency
     )
 
-    media_spend = (
+    new_media_spend = (
         self._meridian.media_tensors.media_spend
-        if new_media_spend is None
-        else new_media_spend
+        if new_data.media_spend is None
+        else new_data.media_spend
     )
-    rf_spend = (
+    new_rf_spend = (
         self._meridian.rf_tensors.rf_spend
-        if new_rf_spend is None
-        else new_rf_spend
+        if new_data.rf_spend is None
+        else new_data.rf_spend
     )
 
-    return self.PerformanceData(
-        media=media,
-        media_spend=media_spend,
-        reach=reach,
-        frequency=frequency,
-        rf_spend=rf_spend,
+    return DataTensors(
+        media=new_media,
+        reach=new_reach,
+        frequency=new_frequency,
+        media_spend=new_media_spend,
+        rf_spend=new_rf_spend,
     )
 
   def marginal_roi(
@@ -2359,58 +2341,25 @@ class Analyzer:
         "batch_size": batch_size,
         "include_non_paid_channels": False,
     }
-    # TODO: Switch from PerformanceTensors to DataTensors.
-    if new_data is None:
-      new_data = DataTensors()
-    performance_tensors = self._get_performance_tensors(
-        new_data.media,
-        new_data.media_spend,
-        new_data.reach,
-        new_data.frequency,
-        new_data.rf_spend,
+    filled_data = self._validate_and_fill_roi_analysis_arguments(
+        new_data=new_data or DataTensors(),
         **dim_kwargs,
     )
     incremental_outcome = self.incremental_outcome(
-        new_data=DataTensors(
-            media=performance_tensors.media,
-            reach=performance_tensors.reach,
-            frequency=performance_tensors.frequency,
-            revenue_per_kpi=new_data.revenue_per_kpi,
-        ),
+        new_data=filled_data,
         **incremental_outcome_kwargs,
         **dim_kwargs,
     )
-    # TODO: Organize the tensor passed between the methods
-    # using DataTensors.
-    incremented_tensors = _scale_tensors_by_multiplier(
-        performance_tensors.media,
-        performance_tensors.reach,
-        performance_tensors.frequency,
-        incremental_increase + 1,
-        by_reach,
-    )
-    incremented_data = DataTensors(
-        media=(
-            incremented_tensors["new_media"]
-            if "new_media" in incremented_tensors
-            else None
-        ),
-        reach=(
-            incremented_tensors["new_reach"]
-            if "new_reach" in incremented_tensors
-            else None
-        ),
-        frequency=(
-            incremented_tensors["new_frequency"]
-            if "new_frequency" in incremented_tensors
-            else None
-        ),
+    incremented_data = _scale_tensors_by_multiplier(
+        data=filled_data,
+        multiplier=incremental_increase + 1,
+        by_reach=by_reach,
     )
     incremental_outcome_with_multiplier = self.incremental_outcome(
         new_data=incremented_data, **dim_kwargs, **incremental_outcome_kwargs
     )
     numerator = incremental_outcome_with_multiplier - incremental_outcome
-    spend_inc = performance_tensors.total_spend() * incremental_increase
+    spend_inc = filled_data.total_spend() * incremental_increase
     if spend_inc is not None and spend_inc.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
           spend_inc, **dim_kwargs
@@ -2418,9 +2367,9 @@ class Analyzer:
     else:
       if not aggregate_geos:
         # This check should not be reachable. It is here to protect against
-        # future changes to self._get_performance_tensors. If spend_inc.ndim is
-        # not 3 and `aggregate_geos` is `False`, then
-        # self._get_performance_tensors should raise an error.
+        # future changes to self._validate_and_fill_roi_analysis_arguments. If
+        # spend_inc.ndim is not 3 and `aggregate_geos` is `False`, then
+        # self._validate_and_fill_roi_analysis_arguments should raise an error.
         raise ValueError(
             "aggregate_geos must be True if spend does not have a geo "
             "dimension."
@@ -2504,29 +2453,17 @@ class Analyzer:
         "batch_size": batch_size,
         "include_non_paid_channels": False,
     }
-    # TODO: Switch from PerformanceTensors to DataTensors.
-    if new_data is None:
-      new_data = DataTensors()
-    performance_tensors = self._get_performance_tensors(
-        new_data.media,
-        new_data.media_spend,
-        new_data.reach,
-        new_data.frequency,
-        new_data.rf_spend,
+    filled_data = self._validate_and_fill_roi_analysis_arguments(
+        new_data=new_data or DataTensors(),
         **dim_kwargs,
     )
     incremental_outcome = self.incremental_outcome(
-        new_data=DataTensors(
-            media=performance_tensors.media,
-            reach=performance_tensors.reach,
-            frequency=performance_tensors.frequency,
-            revenue_per_kpi=new_data.revenue_per_kpi,
-        ),
+        new_data=filled_data,
         **incremental_outcome_kwargs,
         **dim_kwargs,
     )
 
-    spend = performance_tensors.total_spend()
+    spend = filled_data.total_spend()
     if spend is not None and spend.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
           spend, **dim_kwargs
@@ -2534,9 +2471,10 @@ class Analyzer:
     else:
       if not aggregate_geos:
         # This check should not be reachable. It is here to protect against
-        # future changes to self._get_performance_tensors. If spend_inc.ndim is
-        # not 3 and either of `aggregate_geos` or `aggregate_times` is `False`,
-        # then self._get_performance_tensors should raise an error.
+        # future changes to self._validate_and_fill_roi_analysis_arguments. If
+        # spend_inc.ndim is not 3 and either of `aggregate_geos` or
+        # `aggregate_times` is `False`, then
+        # self._validate_and_fill_roi_analysis_arguments should raise an error.
         raise ValueError(
             "aggregate_geos must be True if spend does not have a geo "
             "dimension."
@@ -3609,36 +3547,17 @@ class Analyzer:
         "use_kpi": use_kpi,
         "batch_size": batch_size,
     }
-
-    # TODO: Merge _get_performance_tensors() logic with DataTensors
-    # and Switch from PerformanceData to DataTensors.
-    if new_data is None:
-      new_data = DataTensors()
-    performance_data = self._get_performance_tensors(
-        new_data.media,
-        new_data.media_spend,
-        new_data.reach,
-        new_data.frequency,
-        new_data.rf_spend,
-        **dim_kwargs,
+    filled_data = self._validate_and_fill_roi_analysis_arguments(
+        new_data=new_data or DataTensors()
     )
-    derived_data = DataTensors(
-        media=performance_data.media,
-        reach=performance_data.reach,
-        frequency=performance_data.frequency,
-        media_spend=performance_data.media_spend,
-        rf_spend=performance_data.rf_spend,
-        revenue_per_kpi=new_data.revenue_per_kpi,
-    )
-
-    spend = performance_data.total_spend()
+    spend = filled_data.total_spend()
     if spend is not None and spend.ndim == 3:
       spend = self.filter_and_aggregate_geos_and_times(spend, **dim_kwargs)
 
     # _counterfactual_metric_dataset() is called only from `optimal_freq()`
     # and uses only paid channels.
     incremental_outcome_tensor = self.incremental_outcome(
-        new_data=derived_data,
+        new_data=filled_data,
         include_non_paid_channels=False,
         **dim_kwargs,
         **metric_tensor_kwargs,
@@ -3646,7 +3565,7 @@ class Analyzer:
     # expected_outcome returns a tensor of shape (n_chains, n_draws).
     mean_expected_outcome = tf.reduce_mean(
         self.expected_outcome(
-            new_data=derived_data,
+            new_data=filled_data,
             **dim_kwargs,
             **metric_tensor_kwargs,
         ),
@@ -3671,12 +3590,10 @@ class Analyzer:
         confidence_level=confidence_level,
         include_median=True,
     )
-    # TODO: Organize the tensors passed between the methods
-    # using DataTensors.
     mroi = get_central_tendency_and_ci(
         data=self.marginal_roi(
             by_reach=marginal_roi_by_reach,
-            new_data=derived_data,
+            new_data=filled_data,
             **dim_kwargs,
             **metric_tensor_kwargs,
         ),
@@ -3687,7 +3604,7 @@ class Analyzer:
         data=incremental_outcome_tensor
         / self.get_aggregated_impressions(
             **dim_kwargs,
-            optimal_frequency=performance_data.frequency,
+            optimal_frequency=filled_data.frequency,
             include_non_paid_channels=False,
         ),
         confidence_level=confidence_level,
@@ -4315,29 +4232,14 @@ class Analyzer:
             (len(self._meridian.input_data.get_all_paid_channels()), 3)
         )  # Last dimension = 3 for the mean, ci_lo and ci_hi.
         continue
-      tensor_kwargs = _scale_tensors_by_multiplier(
-          self._meridian.media_tensors.media,
-          reach,
-          frequency,
+      new_data = _scale_tensors_by_multiplier(
+          data=DataTensors(
+              media=self._meridian.media_tensors.media,
+              reach=reach,
+              frequency=frequency,
+          ),
           multiplier=multiplier,
           by_reach=by_reach,
-      )
-      new_data = DataTensors(
-          media=(
-              tensor_kwargs["new_media"]
-              if "new_media" in tensor_kwargs
-              else None
-          ),
-          reach=(
-              tensor_kwargs["new_reach"]
-              if "new_reach" in tensor_kwargs
-              else None
-          ),
-          frequency=(
-              tensor_kwargs["new_frequency"]
-              if "new_frequency" in tensor_kwargs
-              else None
-          ),
       )
       inc_outcome_temp = self.incremental_outcome(
           use_posterior=use_posterior,
@@ -4858,31 +4760,10 @@ class Analyzer:
         use_kpi=use_kpi,
         **roi_kwargs,
     )
-    # TODO: Organize the arguments passed between the functions
-    # using DataTensors.
-    incremented_tensors = _scale_tensors_by_multiplier(
-        media=data_tensors.media,
-        reach=data_tensors.reach,
-        frequency=data_tensors.frequency,
+    incremented_data = _scale_tensors_by_multiplier(
+        data=data_tensors,
         multiplier=(1 + marginal_roi_incremental_increase),
         by_reach=marginal_roi_by_reach,
-    )
-    incremented_data = DataTensors(
-        media=(
-            incremented_tensors["new_media"]
-            if "new_media" in incremented_tensors
-            else None
-        ),
-        reach=(
-            incremented_tensors["new_reach"]
-            if "new_reach" in incremented_tensors
-            else None
-        ),
-        frequency=(
-            incremented_tensors["new_frequency"]
-            if "new_frequency" in incremented_tensors
-            else None
-        ),
     )
 
     mroi_prior_total = (
