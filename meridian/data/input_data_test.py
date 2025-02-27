@@ -1107,6 +1107,137 @@ class InputDataTest(parameterized.TestCase):
         (channels == self.not_lagged_reach[constants.RF_CHANNEL]).all()
     )
 
+  def test_get_all_paid_channels(self):
+    data = input_data.InputData(
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=self.lagged_reach,
+        frequency=self.lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+    channels = data.get_all_paid_channels()
+    expected_paid_channels = [
+        m.item() for m in self.lagged_media[constants.MEDIA_CHANNEL]
+    ] + [rf.item() for rf in self.lagged_reach[constants.RF_CHANNEL]]
+    self.assertSequenceEqual(
+        channels.tolist(),
+        expected_paid_channels,
+    )
+
+  def test_get_paid_channels_argument_builder(self):
+    data = input_data.InputData(
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=self.lagged_reach,
+        frequency=self.lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+
+    paid_channels_arg_builder = data.get_paid_channels_argument_builder()
+    expected_paid_channels = [
+        m.item() for m in self.lagged_media[constants.MEDIA_CHANNEL]
+    ] + [rf.item() for rf in self.lagged_reach[constants.RF_CHANNEL]]
+
+    self.assertSequenceEqual(
+        paid_channels_arg_builder._ordered_coords,
+        expected_paid_channels,
+    )
+
+  def test_get_paid_media_channels_argument_builder(self):
+    data = input_data.InputData(
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=self.lagged_reach,
+        frequency=self.lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+
+    paid_media_channels_arg_builder = (
+        data.get_paid_media_channels_argument_builder()
+    )
+
+    expected_paid_media_channels = [
+        m.item() for m in self.lagged_media[constants.MEDIA_CHANNEL]
+    ]
+    self.assertSequenceEqual(
+        paid_media_channels_arg_builder._ordered_coords,
+        expected_paid_media_channels,
+    )
+
+  def test_get_paid_media_channels_argument_builder_no_media_channels(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=self.not_lagged_reach,
+        frequency=self.not_lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "There are no media channels in the input data.",
+    ):
+      data.get_paid_media_channels_argument_builder()
+
+  def test_get_paid_rf_channels_argument_builder(self):
+    data = input_data.InputData(
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=self.lagged_reach,
+        frequency=self.lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+
+    paid_rf_channels_arg_builder = data.get_paid_rf_channels_argument_builder()
+
+    expected_paid_rf_channels = [
+        rf.item() for rf in self.lagged_reach[constants.RF_CHANNEL]
+    ]
+    self.assertSequenceEqual(
+        paid_rf_channels_arg_builder._ordered_coords,
+        expected_paid_rf_channels,
+    )
+
+  def test_get_paid_rf_channels_argument_builder_no_rf_channels(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "There are no RF channels in the input data.",
+    ):
+      data.get_paid_rf_channels_argument_builder()
+
   def test_get_all_channels_media_and_rf(self):
     data = input_data.InputData(
         media=self.lagged_media,
@@ -1286,6 +1417,30 @@ class NonpaidInputDataTest(parameterized.TestCase):
     )
     xr.testing.assert_equal(data.controls, self.controls)
     xr.testing.assert_equal(data.population, self.population)
+
+  def test_get_all_paid_channels(self):
+    # Expect that non-paid channels are not included.
+    data = input_data.InputData(
+        controls=self.controls,
+        kpi=self.kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        non_media_treatments=self.non_media_treatments,
+        population=self.population,
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        organic_media=self.lagged_organic_media,
+        organic_reach=self.lagged_organic_reach,
+        organic_frequency=self.lagged_organic_frequency,
+    )
+    channels = data.get_all_paid_channels()
+    expected_paid_channels = [
+        m.item() for m in self.lagged_media[constants.MEDIA_CHANNEL]
+    ]
+    self.assertSequenceEqual(
+        channels.tolist(),
+        expected_paid_channels,
+    )
 
 
 if __name__ == "__main__":

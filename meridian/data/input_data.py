@@ -24,6 +24,7 @@ import functools
 import warnings
 
 from meridian import constants
+from meridian.data import arg_builder
 from meridian.data import time_coordinates as tc
 import numpy as np
 import xarray as xr
@@ -677,6 +678,28 @@ class InputData:
     else:
       raise ValueError("Both RF and media channel values are missing.")
     # pytype: enable=attribute-error
+
+  def get_paid_channels_argument_builder(
+      self,
+  ) -> arg_builder.OrderedListArgumentBuilder:
+    """Returns an argument builder for all *paid* channels."""
+    return arg_builder.OrderedListArgumentBuilder(self.get_all_paid_channels())
+
+  def get_paid_media_channels_argument_builder(
+      self,
+  ) -> arg_builder.OrderedListArgumentBuilder:
+    """Returns an argument builder for *paid* media channels *only*."""
+    if self.media_channel is None:
+      raise ValueError("There are no media channels in the input data.")
+    return arg_builder.OrderedListArgumentBuilder(self.media_channel.values)
+
+  def get_paid_rf_channels_argument_builder(
+      self,
+  ) -> arg_builder.OrderedListArgumentBuilder:
+    """Returns an argument builder for *paid* RF channels *only*."""
+    if self.rf_channel is None:
+      raise ValueError("There are no RF channels in the input data.")
+    return arg_builder.OrderedListArgumentBuilder(self.rf_channel.values)
 
   def get_all_channels(self) -> np.ndarray:
     """Returns all the channel dimensions.

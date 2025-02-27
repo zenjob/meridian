@@ -28,6 +28,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add `non_media_baseline_values` argument to `MediaSummary` visualizations.
 * Refactor prior and posterior sampling logic into separate modules, simplifying
   `model` module.
+* Create a helper argument builder construct for API parameters that require
+  an ordered list/array of values.
+  See, e.g., `InputData.get_paid_channels_argument_builder()`.
 
 ## [1.0.3] - 2025-02-07
 
