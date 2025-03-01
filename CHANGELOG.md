@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-02-28
+
 * Fix a divide-by-zero error in spend ratio calculation when historical spend is
   zero, preventing a `ValueError` in `output_optimization_summary`.
 * Add `non_media_baseline_values` argument to `MediaSummary` visualizations.
@@ -203,4 +205,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.1]: https://github.com/google/meridian/releases/tag/v1.0.1
 [1.0.2]: https://github.com/google/meridian/releases/tag/v1.0.2
 [1.0.3]: https://github.com/google/meridian/releases/tag/v1.0.3
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.3...HEAD
+[1.0.4]: https://github.com/google/meridian/releases/tag/v1.0.4
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.4...HEAD

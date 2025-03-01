@@ -929,30 +929,33 @@ class BudgetOptimizer:
         specify either `target_roi` or `target_mroi`.
       budget: Number indicating the total budget for the fixed budget scenario.
         Defaults to the historical budget.
-      pct_of_spend: Numeric list of size `n_total_channels` containing the
+      pct_of_spend: Numeric list of size `n_paid_channels` containing the
         percentage allocation for spend for all media and RF channels. The order
-        must match `InputData.media` with values between 0-1, summing to 1. By
-        default, the historical allocation is used. Budget and allocation are
-        used in conjunction to determine the non-optimized media-level spend,
-        which is used to calculate the non-optimized performance metrics (for
-        example, ROI) and construct the feasible range of media-level spend with
-        the spend constraints. Consider using
-        `InputData.get_paid_channels_argument_builder()` to construct the
-        argument here.
-      spend_constraint_lower: Numeric list of size `n_total_channels` or float
+        must match `(InputData.media + InputData.reach)` with values between
+        0-1, summing to 1. By default, the historical allocation is used. Budget
+        and allocation are used in conjunction to determine the non-optimized
+        media-level spend, which is used to calculate the non-optimized
+        performance metrics (for example, ROI) and construct the feasible range
+        of media-level spend with the spend constraints. Consider using
+        `InputData.get_paid_channels_argument_builder()` to construct this
+        argument.
+      spend_constraint_lower: Numeric list of size `n_paid_channels` or float
         (same constraint for all channels) indicating the lower bound of
-        media-level spend. The lower bound of media-level spend is `(1 -
-        spend_constraint_lower) * budget * allocation)`. The value must be
-        between 0-1. Defaults to `0.3` for fixed budget and `1` for flexible.
-        Consider using `InputData.get_paid_channels_argument_builder()` to
-        construct the argument here.
-      spend_constraint_upper: Numeric list of size `n_total_channels` or float
+        media-level spend. If given as a channel-indexed array, the order must
+        match `(InputData.media + InputData.reach)`. The lower bound of
+        media-level spend is `(1 - spend_constraint_lower) * budget *
+        allocation)`. The value must be between 0-1. Defaults to `0.3` for fixed
+        budget and `1` for flexible. Consider using
+        `InputData.get_paid_channels_argument_builder()` to construct this
+        argument.
+      spend_constraint_upper: Numeric list of size `n_paid_channels` or float
         (same constraint for all channels) indicating the upper bound of
-        media-level spend. The upper bound of media-level spend is `(1 +
-        spend_constraint_upper) * budget * allocation)`. Defaults to `0.3` for
-        fixed budget and `1` for flexible. Consider using
-        `InputData.get_paid_channels_argument_builder()` to construct the
-        argument here.
+        media-level spend. If given as a channel-indexed array, the order must
+        match `(InputData.media + InputData.reach)`. The upper bound of
+        media-level spend is `(1 + spend_constraint_upper) * budget *
+        allocation)`. Defaults to `0.3` for fixed budget and `1` for flexible.
+        Consider using `InputData.get_paid_channels_argument_builder()` to
+        construct this argument.
       target_roi: Float indicating the target ROI constraint. Only used for
         flexible budget scenarios. The budget is constrained to when the ROI of
         the total spend hits `target_roi`.

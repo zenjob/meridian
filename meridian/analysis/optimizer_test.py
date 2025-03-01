@@ -1867,8 +1867,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
     expected_pct_of_spend = [0.1, 0.2, 0.3, 0.3, 0.1]
 
+    idata = self.budget_optimizer_media_and_rf._meridian.input_data
+    paid_channels = list(
+        idata.get_all_paid_channels()
+    )
+    pct_of_spend = idata.get_paid_channels_argument_builder()(**{
+        paid_channels[0]: 0.1,
+        paid_channels[1]: 0.2,
+        paid_channels[2]: 0.3,
+        paid_channels[3]: 0.3,
+        paid_channels[4]: 0.1,
+    })
+
     optimization_results = self.budget_optimizer_media_and_rf.optimize(
-        pct_of_spend=expected_pct_of_spend, fixed_budget=True
+        pct_of_spend=pct_of_spend, fixed_budget=True
     )
 
     actual_spend = optimization_results.nonoptimized_data.spend
