@@ -25,6 +25,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [1.0.4] - 2025-02-28
 
+* Fix validation on injected inference data when `unique_sigma_for_each_geo` is
+  used in the model initialization.
 * Fix a divide-by-zero error in spend ratio calculation when historical spend is
   zero, preventing a `ValueError` in `output_optimization_summary`.
 * Add `non_media_baseline_values` argument to `MediaSummary` visualizations.
