@@ -1851,6 +1851,45 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         np.isnan(opt_results.optimization_grid.incremental_outcome_grid),
     )
 
+  def test_grid_search_with_target_mroi_correct(self):
+    spend_grid = np.array([
+        [0, 0, 0, 0, 65900000, 40300000],
+        [100000, 100000, 100000, 100000, 66000000, 40400000],
+        [200000, 200000, 200000, 200000, 66100000, 40500000],
+        [300000, 300000, 300000, 300000, 66200000, 40600000],
+        [400000, 400000, 400000, 400000, 66300000, 40700000],
+        [500000, 500000, 500000, 500000, 66400000, 40800000],
+    ])
+
+    incremental_outcome_grid = np.array([
+        [0, 0, 0, 0, 31020000, 16160000],
+        [220000, 360000, 180000, 390000, 31070000, 16200000],
+        [430000, 710000, 350000, 780000, 31120000, 16240000],
+        [650000, 1060000, 530000, 1160000, 31170000, 16280000],
+        [860000, 1400000, 700000, 1520000, 31220000, 16320000],
+        [1060000, 1730000, 870000, 1880000, 31270000, 16360000],
+    ])
+
+    budget = 225_000_000
+    fixed_budget = False
+    target_roi = 1.0
+    target_mroi = None
+
+    optimal_spend = self.budget_optimizer_media_and_rf._grid_search(
+        spend_grid=spend_grid,
+        incremental_outcome_grid=incremental_outcome_grid,
+        budget=budget,
+        fixed_budget=fixed_budget,
+        target_roi=target_roi,
+        target_mroi=target_mroi,
+    )
+
+    expected_optimal_spend = np.array(
+        [500000, 500000, 500000, 500000, 66400000, 40300000]
+    )
+
+    np.testing.assert_array_equal(optimal_spend, expected_optimal_spend)
+
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimizer_budget_with_specified_budget(
       self, mock_incremental_outcome
