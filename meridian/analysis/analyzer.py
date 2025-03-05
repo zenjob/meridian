@@ -3527,8 +3527,6 @@ class Analyzer:
         * `roi`: The ROI for each frequency value in `freq_grid`.
         * `optimized_incremental_outcome`: The incremental outcome based on the
             optimal frequency.
-        * `optimized_pct_of_contribution`: The contribution percentage based on
-            the optimal frequency.
         * `optimized_effectiveness`: The effectiveness based on the optimal
             frequency.
         * `optimized_roi`: The ROI based on the optimal frequency.
@@ -3638,10 +3636,6 @@ class Analyzer:
         constants.OPTIMIZED_INCREMENTAL_OUTCOME: (
             [constants.RF_CHANNEL, constants.METRIC],
             optimized_metrics_by_reach.incremental_outcome.data,
-        ),
-        constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-            [constants.RF_CHANNEL, constants.METRIC],
-            optimized_metrics_by_reach.pct_of_contribution.data,
         ),
         constants.OPTIMIZED_ROI: (
             (constants.RF_CHANNEL, constants.METRIC),

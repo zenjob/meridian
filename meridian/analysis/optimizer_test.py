@@ -77,14 +77,6 @@ _NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI = np.array([
     [580.1, 580.1, 580.1, 580.1],
     [242.4, 242.4, 242.4, 242.4],
 ])
-_NONOPTIMIZED_EXPECTED_OUTCOME = np.array([16150.22])
-_NONOPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
-    [2.07829976, 2.07829976, 2.07829976, 2.07829976],
-    [3.28856182, 3.28856182, 3.28856182, 3.28856182],
-    [4.9019146, 4.9019146, 4.9019146, 4.9019146],
-    [3.59190154, 3.59190154, 3.59190154, 3.59190154],
-    [1.50090837, 1.50090837, 1.50090837, 1.50090837],
-])
 _NONOPTIMIZED_EFFECTIVENESS_WITH_CI = np.array([
     [0.33565, 0.33565, 0.33565, 0.33565],
     [0.26555499, 0.26555499, 0.26555499, 0.26555499],
@@ -104,14 +96,6 @@ _OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI = np.array([
     [427.4, 427.4, 427.4, 427.4],
     [1178.6, 1178.6, 1178.6, 1178.6],
     [889.0, 889.0, 889.0, 889.0],
-])
-_OPTIMIZED_EXPECTED_OUTCOME = np.array([20385.18])
-_OPTIMIZED_PCT_CONTRIB_WITH_CI = np.array([
-    [2.59355092, 2.59355092, 2.59355092, 2.59355092],
-    [3.18074226, 3.18074226, 3.18074226, 3.18074226],
-    [2.09662104, 2.09662104, 2.09662104, 2.09662104],
-    [5.7816515, 5.7816515, 5.7816515, 5.7816515],
-    [4.36101151, 4.36101151, 4.36101151, 4.36101151],
 ])
 _OPTIMIZED_EFFECTIVENESS_WITH_CI = np.array([
     [0.52869999, 0.52869999, 0.52869999, 0.52869999],
@@ -156,7 +140,6 @@ _N_DRAWS = 1
 def _create_budget_data(
     spend: np.ndarray,
     inc_outcome: np.ndarray,
-    pct_contrib: np.ndarray,
     effectiveness: np.ndarray,
     mroi: np.ndarray | None = None,
     explicit_cpik: np.ndarray | None = None,
@@ -172,7 +155,6 @@ def _create_budget_data(
       c.SPEND: ([c.CHANNEL], spend),
       c.PCT_OF_SPEND: ([c.CHANNEL], spend / sum(spend)),
       c.INCREMENTAL_OUTCOME: ([c.CHANNEL, c.METRIC], inc_outcome),
-      c.PCT_OF_CONTRIBUTION: ([c.CHANNEL, c.METRIC], pct_contrib),
       c.EFFECTIVENESS: ([c.CHANNEL, c.METRIC], effectiveness),
       c.ROI: (
           [c.CHANNEL, c.METRIC],
@@ -240,11 +222,6 @@ _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
     inc_outcome=np.array(
         [[280, 280, 280, 280], [150, 150, 150, 150], [330, 330, 330, 330]]
     ),
-    pct_contrib=np.array([
-        [1.48002565, 1.48002565, 0.36243074, 2.66551235],
-        [1.90578914, 1.90578914, 0.75641038, 3.12185835],
-        [0.52090943, 0.52090943, 0.24711426, 0.81274763],
-    ]),
     effectiveness=np.array([
         [0.1, 0.2, 0.3, 0.4],
         [0.1, 0.2, 0.3, 0.4],
@@ -260,11 +237,6 @@ _SAMPLE_OPTIMIZED_DATA = _create_budget_data(
     inc_outcome=np.array(
         [[350, 350, 349, 351], [210, 210, 209, 211], [270, 270, 269, 271]]
     ),
-    pct_contrib=np.array([
-        [0.94532406, 0.94532406, 0.23230099, 1.70155593],
-        [1.64540553, 1.64540553, 0.65481003, 2.69352735],
-        [0.3454003, 0.3454003, 0.16847587, 0.5343038],
-    ]),
     effectiveness=np.array([
         [0.1, 0.2, 0.3, 0.4],
         [0.1, 0.2, 0.3, 0.4],
@@ -283,11 +255,6 @@ _SAMPLE_NON_OPTIMIZED_DATA_KPI = _create_budget_data(
     inc_outcome=np.array(
         [[280, 280, 279, 281], [150, 150, 149, 151], [330, 330, 329, 331]]
     ),
-    pct_contrib=np.array([
-        [1.48002565, 1.48002565, 0.36243074, 2.66551235],
-        [1.90578914, 1.90578914, 0.75641038, 3.12185835],
-        [0.52090943, 0.52090943, 0.24711426, 0.81274763],
-    ]),
     effectiveness=np.array([
         [0.1, 0.2, 0.3, 0.4],
         [0.1, 0.2, 0.3, 0.4],
@@ -303,11 +270,6 @@ _SAMPLE_OPTIMIZED_DATA_KPI = _create_budget_data(
     inc_outcome=np.array(
         [[350, 350, 349, 351], [210, 210, 209, 211], [270, 270, 269, 271]]
     ),
-    pct_contrib=np.array([
-        [0.94532406, 0.94532406, 0.23230099, 1.70155593],
-        [1.64540553, 1.64540553, 0.65481003, 2.69352735],
-        [0.3454003, 0.3454003, 0.16847587, 0.5343038],
-    ]),
     effectiveness=np.array([
         [0.1, 0.2, 0.3, 0.4],
         [0.1, 0.2, 0.3, 0.4],
@@ -922,19 +884,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_media_and_rf(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -943,7 +900,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND,
         inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
-        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
@@ -956,20 +912,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_media_only(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_OUTCOME[:_N_MEDIA_CHANNELS]]],
         tf.float32,
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[:_N_MEDIA_CHANNELS]]], tf.float32
@@ -979,7 +930,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[
             :_N_MEDIA_CHANNELS
         ],
-        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
@@ -992,20 +942,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_nonoptimized_data_with_defaults_rf_only(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_NONOPTIMIZED_INCREMENTAL_OUTCOME[-_N_RF_CHANNELS:]]],
         tf.float32,
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_NONOPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[-_N_RF_CHANNELS:]]], tf.float32
@@ -1013,7 +958,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_NONOPTIMIZED_SPEND[-_N_RF_CHANNELS:],
         inc_outcome=_NONOPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[-_N_RF_CHANNELS:],
-        pct_contrib=_NONOPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         effectiveness=_NONOPTIMIZED_EFFECTIVENESS_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-_N_RF_CHANNELS:],
         channels=self.input_data_rf_only.get_all_channels(),
@@ -1026,19 +970,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_media_and_rf(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -1046,7 +985,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_SPEND,
         inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
-        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
@@ -1064,20 +1002,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_media_only(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_OUTCOME[:_N_MEDIA_CHANNELS]]],
         tf.float32,
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[:_N_MEDIA_CHANNELS]]], tf.float32
@@ -1085,7 +1018,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_MEDIA_ONLY_SPEND,
         inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[:_N_MEDIA_CHANNELS],
-        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[:_N_MEDIA_CHANNELS],
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI[:_N_MEDIA_CHANNELS],
         mroi=_BUDGET_MROI_WITH_CI[:_N_MEDIA_CHANNELS],
         channels=self.input_data_media_only.get_all_channels(),
@@ -1104,20 +1036,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_defaults_rf_only(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_OUTCOME[-_N_RF_CHANNELS:]]],
         tf.float32,
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS[-_N_RF_CHANNELS:]]], tf.float32
@@ -1125,7 +1052,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_OPTIMIZED_RF_ONLY_SPEND,
         inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI[-_N_RF_CHANNELS:],
-        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI[-_N_RF_CHANNELS:],
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI[-_N_RF_CHANNELS:],
         mroi=_BUDGET_MROI_WITH_CI[-self.meridian_rf_only.n_rf_channels :],
         channels=self.input_data_rf_only.get_all_channels(),
@@ -1144,19 +1070,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_target_mroi(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -1164,7 +1085,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_TARGET_MROI_SPEND,
         inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
-        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
@@ -1181,19 +1101,14 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
   @mock.patch.object(
       analyzer.Analyzer, 'get_aggregated_impressions', autospec=True
   )
-  @mock.patch.object(analyzer.Analyzer, 'expected_outcome', autospec=True)
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimized_data_with_target_roi(
       self,
       mock_incremental_outcome,
-      mock_expected_outcome,
       mock_get_aggregated_impressions,
   ):
     mock_incremental_outcome.return_value = tf.convert_to_tensor(
         [[_OPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
-    )
-    mock_expected_outcome.return_value = tf.convert_to_tensor(
-        [[_OPTIMIZED_EXPECTED_OUTCOME]], tf.float32
     )
     mock_get_aggregated_impressions.return_value = tf.convert_to_tensor(
         [[_AGGREGATED_IMPRESSIONS]], tf.float32
@@ -1201,7 +1116,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=_TARGET_ROI_SPEND,
         inc_outcome=_OPTIMIZED_INCREMENTAL_OUTCOME_WITH_CI,
-        pct_contrib=_OPTIMIZED_PCT_CONTRIB_WITH_CI,
         effectiveness=_OPTIMIZED_EFFECTIVENESS_WITH_CI,
         mroi=_BUDGET_MROI_WITH_CI,
         channels=self.input_data_media_and_rf.get_all_channels(),
@@ -1226,13 +1140,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [86.25695, 85.316986, 42.073544, 133.43192],
               [1619.1354, 1625.3555, 567.3521, 2663.7307],
               [2493.0112, 2461.1328, 645.39844, 4406.3643],
-          ]),
-          expected_pct_contrib=np.array([
-              [0.9453246, 0.928919, 0.23230107, 1.7015568],
-              [1.6454064, 1.6100401, 0.6548105, 2.6935287],
-              [0.3454004, 0.34163648, 0.16847593, 0.534304],
-              [6.4835367, 6.508443, 2.2718592, 10.666429],
-              [9.982813, 9.855163, 2.5843816, 17.644493],
           ]),
           expected_effectiveness=np.array([
               [0.16258691, 0.15976532, 0.03995359, 0.29265174],
@@ -1267,13 +1174,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [372.6778, 372.97467, 154.88652, 589.69165],
               [595.451, 588.6903, 210.37312, 995.23],
           ]),
-          expected_pct_contrib=np.array([
-              [1.0797391, 1.0610008, 0.26533166, 1.943499],
-              [2.0402389, 1.9958311, 0.7911475, 3.3612845],
-              [0.39451244, 0.39021337, 0.1924313, 0.61027604],
-              [1.7045122, 1.70587, 0.70840275, 2.697066],
-              [2.7234073, 2.6924865, 0.9621812, 4.5518723],
-          ]),
           expected_effectiveness=np.array([
               [1.6258691e-01, 1.5976532e-01, 3.9953593e-02, 2.9265174e-01],
               [3.2418722e-01, 3.1713104e-01, 1.2571074e-01, 5.3409714e-01],
@@ -1302,7 +1202,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       use_optimal_frequency,
       expected_spend,
       expected_incremental_outcome,
-      expected_pct_contrib,
       expected_effectiveness,
       expected_mroi,
       expected_cpik,
@@ -1310,7 +1209,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     expected_data = _create_budget_data(
         spend=expected_spend,
         inc_outcome=expected_incremental_outcome,
-        pct_contrib=expected_pct_contrib,
         effectiveness=expected_effectiveness,
         mroi=expected_mroi,
         explicit_cpik=expected_cpik,
@@ -3441,30 +3339,6 @@ class OptimizerKPITest(parameterized.TestCase):
         use_posterior=use_posterior,
         new_data=mock.ANY,
         include_non_paid_channels=False,
-    )
-
-  @parameterized.parameters([True, False])
-  def test_expected_outcome_called_correct_optimize(self, use_posterior: bool):
-    mock_expected_outcome = self.enter_context(
-        mock.patch.object(
-            self.budget_optimizer_media_and_rf_kpi._analyzer,
-            'expected_outcome',
-            autospec=True,
-            return_value=tf.ones((
-                _N_CHAINS,
-                _N_DRAWS,
-            )),
-        )
-    )
-    self.budget_optimizer_media_and_rf_kpi.optimize(
-        use_posterior=use_posterior, use_kpi=True
-    )
-    mock_expected_outcome.assert_called_with(
-        use_posterior=use_posterior,
-        new_data=mock.ANY,
-        selected_times=None,
-        use_kpi=True,
-        batch_size=c.DEFAULT_BATCH_SIZE,
     )
 
   def test_results_kpi_only(self):

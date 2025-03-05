@@ -1385,13 +1385,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
                     [0.000544, 0.000537, 0.000139, 0.000963],
                 ],
             ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [5.16181, 5.18164, 1.80875, 8.49197],
-                    [7.89052, 7.79130, 2.01976, 13.96686],
-                ],
-            ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.57, 4.59, 1.6, 7.52], [6.61, 6.52, 1.69, 11.7]],
@@ -1432,11 +1425,6 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimized_effectiveness,
         expected.optimized_effectiveness,
         atol=0.00001,
-    )
-    xr.testing.assert_allclose(
-        actual.optimized_pct_of_contribution,
-        expected.optimized_pct_of_contribution,
-        atol=0.01,
     )
     xr.testing.assert_allclose(
         actual.optimized_roi,
@@ -3310,13 +3298,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
                     [5.891235e-04, 6.401768e-04, 3.493646e-05, 1.078733e-03],
                 ],
             ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [0.01613, 0.01225, 0.0039, 0.03179],
-                    [0.02505, 0.02721, 0.00149, 0.04587],
-                ],
-            ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [[4.87, 3.70, 1.18, 9.61], [7.16, 7.77, 0.42, 13.10]],
@@ -3360,11 +3341,6 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimized_effectiveness,
         expected.optimized_effectiveness,
         atol=0.00001,
-    )
-    xr.testing.assert_allclose(
-        actual.optimized_pct_of_contribution,
-        expected.optimized_pct_of_contribution,
-        atol=0.0001,
     )
     xr.testing.assert_allclose(
         actual.optimized_roi,
@@ -3820,13 +3796,6 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
                     [611.12, 603.30, 158.21, 1080.15],
                 ],
             ),
-            constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
-                [constants.RF_CHANNEL, constants.METRIC],
-                [
-                    [5.1566, 5.1764145, 1.8069, 8.48342],
-                    [7.94896, 7.8473177, 2.05785, 14.04969],
-                ],
-            ),
             constants.OPTIMIZED_ROI: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
@@ -3886,11 +3855,6 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
         actual.optimized_effectiveness,
         expected.optimized_effectiveness,
         atol=0.000001,
-    )
-    xr.testing.assert_allclose(
-        actual.optimized_pct_of_contribution,
-        expected.optimized_pct_of_contribution,
-        atol=0.0001,
     )
     xr.testing.assert_allclose(
         actual.optimized_roi,

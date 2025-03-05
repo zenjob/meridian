@@ -1390,27 +1390,6 @@ class BudgetOptimizer:
         incremental_outcome_with_mean_median_and_ci[:, 0]
     )
 
-    # expected_outcome here is a tensor with the shape (n_chains, n_draws)
-    expected_outcome = self._analyzer.expected_outcome(
-        use_posterior=use_posterior,
-        new_data=analyzer.DataTensors(
-            media=new_media,
-            reach=new_reach,
-            frequency=new_frequency,
-        ),
-        selected_times=selected_times,
-        use_kpi=use_kpi,
-        batch_size=batch_size,
-    )
-    mean_expected_outcome = tf.reduce_mean(expected_outcome, (0, 1))  # a scalar
-
-    pct_contrib = incremental_outcome / mean_expected_outcome[..., None] * 100
-    pct_contrib_with_mean_median_and_ci = analyzer.get_central_tendency_and_ci(
-        data=pct_contrib,
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-
     aggregated_impressions = self._analyzer.get_aggregated_impressions(
         selected_times=selected_times,
         selected_geos=None,
@@ -1470,10 +1449,6 @@ class BudgetOptimizer:
         c.INCREMENTAL_OUTCOME: (
             [c.CHANNEL, c.METRIC],
             incremental_outcome_with_mean_median_and_ci,
-        ),
-        c.PCT_OF_CONTRIBUTION: (
-            [c.CHANNEL, c.METRIC],
-            pct_contrib_with_mean_median_and_ci,
         ),
         c.EFFECTIVENESS: (
             [c.CHANNEL, c.METRIC],
