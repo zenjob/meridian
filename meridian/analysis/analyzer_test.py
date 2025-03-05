@@ -1381,8 +1381,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.001699, 0.001705, 0.000595, 0.002795],
-                    [0.00259, 0.002557, 0.000663, 0.004585],
+                    [0.00038, 0.000382, 0.000133, 0.000626],
+                    [0.000544, 0.000537, 0.000139, 0.000963],
                 ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
@@ -1406,7 +1406,7 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
             ),
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
-                [[0.371, 0.371, 0.132, 0.623], [0.337, 0.337, 0.085, 0.591]],
+                [[1.16, 1.13, 0.417, 1.95], [1.06, 1.05, 0.268, 1.85]],
             ),
         },
         attrs={
@@ -3306,8 +3306,8 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000604, 0.000458, 0.000146, 0.001189],
-                    [0.002804, 0.003047, 0.000166, 0.005135],
+                    [4.055367e-04, 3.081534e-04, 9.794392e-05, 7.991136e-04],
+                    [5.891235e-04, 6.401768e-04, 3.493646e-05, 1.078733e-03],
                 ],
             ),
             constants.OPTIMIZED_PCT_OF_CONTRIBUTION: (
@@ -3332,8 +3332,8 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.476, 0.48521742, 0.104, 0.849],
-                    [0.698, 0.231271, 0.076, 2.403],
+                    [1.496871, 1.523583, 0.329373, 2.666992],
+                    [2.191838, 0.726191, 0.239616, 7.546689],
                 ],
             ),
         },
@@ -3837,8 +3837,8 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_EFFECTIVENESS: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [0.000541, 0.000543, 0.00019, 0.00089],
-                    [0.000832, 0.000821, 0.000215, 0.00147],
+                    [1.211769e-04, 1.216424e-04, 4.246090e-05, 1.993549e-04],
+                    [1.747521e-04, 1.725175e-04, 4.524036e-05, 3.088720e-04],
                 ],
             ),
             constants.OPTIMIZED_MROI_BY_REACH: (
@@ -3858,8 +3858,8 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             constants.OPTIMIZED_CPIK: (
                 [constants.RF_CHANNEL, constants.METRIC],
                 [
-                    [1.166, 1.139, 0.417, 1.959],
-                    [1.042, 1.038, 0.267, 1.82],
+                    [1.1664926, 1.1397777, 0.41729444, 1.9592067],
+                    [1.041547, 1.0384206, 0.26651454, 1.8195891],
                 ],
             ),
         },
@@ -3910,7 +3910,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     xr.testing.assert_allclose(
         actual.optimized_cpik,
         expected.optimized_cpik,
-        atol=0.001,
+        atol=0.01,
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)

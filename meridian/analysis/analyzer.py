@@ -3480,175 +3480,6 @@ class Analyzer:
         baseline_pct_of_contribution,
     ])
 
-  # TODO: This method can be replaced once generalized
-  # `media_summary_metric` is done.
-  def _counterfactual_metric_dataset(
-      self,
-      use_posterior: bool = True,
-      new_data: DataTensors | None = None,
-      marginal_roi_by_reach: bool = True,
-      selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
-      use_kpi: bool = False,
-      attrs: Mapping[str, Any] | None = None,
-      confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
-      batch_size: int = constants.DEFAULT_BATCH_SIZE,
-  ) -> xr.Dataset:
-    """Calculates the counterfactual metric dataset.
-
-    Args:
-      use_posterior: Boolean. If `True`, posterior counterfactual metrics are
-        generated. If `False`, prior counterfactual metrics are generated.
-      new_data: Optional DataTensors. When specified, it contains the
-        counterfactual `media`, `reach`, `frequency`, `media_spend`, `rf_spend`
-        and `revenue_per_kpi` values. The new tensors' dimensions must match the
-        dimensions of the corresponding original tensors from
-        `meridian.input_data`. If `None`, the existing tensors from the Meridian
-        object are used.
-      marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
-        return on the next dollar spent. If this argument is `True`, the
-        assumption is that the next dollar spent only impacts reach, holding
-        frequency constant. If this argument is `False`, the assumption is that
-        the next dollar spent only impacts frequency, holding reach constant.
-      selected_geos: Optional list contains a subset of geos to include. By
-        default, all geos are included.
-      selected_times: Optional list contains a subset of times to include. By
-        default, all time periods are included.
-      use_kpi: Boolean. If `True`, the counterfactual metrics are calculated
-        using KPI. If `False`, the counterfactual metrics are calculated using
-        revenue.
-      attrs: Optional dictionary of attributes to add to the dataset.
-      confidence_level: Confidence level for prior and posterior credible
-        intervals, represented as a value between zero and one.
-      batch_size: Maximum draws per chain in each batch. The calculation is run
-        in batches to avoid memory exhaustion. If a memory error occurs, try
-        reducing `batch_size`. The calculation will generally be faster with
-        larger `batch_size` values.
-
-    Returns:
-      An xarray Dataset which contains:
-      * Coordinates: `channel`, `metric` (`mean`, `median`, `ci_lo`, `ci_hi`).
-      * Data variables:
-        * `spend`: The spend for each channel.
-        * `pct_of_spend`: The percentage of spend for each channel.
-        * `incremental_outcome`: The incremental outcome for each channel.
-        * `pct_of_contribution`: The contribution percentage for each channel.
-        * `roi`: The ROI for each channel.
-        * `effectiveness`: The effectiveness for each channel.
-        * `mroi`: The marginal ROI for each channel.
-        * `cpik`: The CPIK for each channel.
-    """
-    dim_kwargs = {
-        "selected_geos": selected_geos,
-        "selected_times": selected_times,
-    }
-    metric_tensor_kwargs = {
-        "use_posterior": use_posterior,
-        "use_kpi": use_kpi,
-        "batch_size": batch_size,
-    }
-    filled_data = self._validate_and_fill_roi_analysis_arguments(
-        new_data=new_data or DataTensors()
-    )
-    spend = filled_data.total_spend()
-    if spend is not None and spend.ndim == 3:
-      spend = self.filter_and_aggregate_geos_and_times(spend, **dim_kwargs)
-
-    # _counterfactual_metric_dataset() is called only from `optimal_freq()`
-    # and uses only paid channels.
-    incremental_outcome_tensor = self.incremental_outcome(
-        new_data=filled_data,
-        include_non_paid_channels=False,
-        **dim_kwargs,
-        **metric_tensor_kwargs,
-    )
-    # expected_outcome returns a tensor of shape (n_chains, n_draws).
-    mean_expected_outcome = tf.reduce_mean(
-        self.expected_outcome(
-            new_data=filled_data,
-            **dim_kwargs,
-            **metric_tensor_kwargs,
-        ),
-        (0, 1),
-    )
-
-    # Calculate the mean, median, and confidence intervals for each metric.
-    incremental_outcome = get_central_tendency_and_ci(
-        data=incremental_outcome_tensor,
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-    pct_of_contribution = get_central_tendency_and_ci(
-        data=incremental_outcome_tensor
-        / mean_expected_outcome[..., None]
-        * 100,
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-    roi = get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(incremental_outcome_tensor, spend),
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-    mroi = get_central_tendency_and_ci(
-        data=self.marginal_roi(
-            by_reach=marginal_roi_by_reach,
-            new_data=filled_data,
-            **dim_kwargs,
-            **metric_tensor_kwargs,
-        ),
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-    effectiveness = get_central_tendency_and_ci(
-        data=incremental_outcome_tensor
-        / self.get_aggregated_impressions(
-            **dim_kwargs,
-            optimal_frequency=filled_data.frequency,
-            include_non_paid_channels=False,
-        ),
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-    cpik = get_central_tendency_and_ci(
-        data=tf.math.divide_no_nan(spend, incremental_outcome_tensor),
-        confidence_level=confidence_level,
-        include_median=True,
-    )
-
-    budget = np.sum(spend) if np.sum(spend) > 0 else 1
-    dims = [constants.CHANNEL, constants.METRIC]
-    data_vars = {
-        constants.SPEND: ([constants.CHANNEL], spend),
-        constants.PCT_OF_SPEND: ([constants.CHANNEL], spend / budget),
-        constants.INCREMENTAL_OUTCOME: (dims, incremental_outcome),
-        constants.PCT_OF_CONTRIBUTION: (dims, pct_of_contribution),
-        constants.ROI: (dims, roi),
-        constants.MROI: (dims, mroi),
-        constants.EFFECTIVENESS: (dims, effectiveness),
-        constants.CPIK: (dims, cpik),
-    }
-
-    return xr.Dataset(
-        data_vars=data_vars,
-        coords={
-            constants.CHANNEL: (
-                [constants.CHANNEL],
-                self._meridian.input_data.get_all_paid_channels(),
-            ),
-            constants.METRIC: (
-                [constants.METRIC],
-                [
-                    constants.MEAN,
-                    constants.MEDIAN,
-                    constants.CI_LO,
-                    constants.CI_HI,
-                ],
-            ),
-        },
-        attrs=attrs,
-    )
-
   def optimal_freq(
       self,
       freq_grid: Sequence[float] | None = None,
@@ -3770,8 +3601,7 @@ class Analyzer:
     )
 
     # Compute the optimized metrics based on the optimal frequency.
-    optimized_metrics_by_reach = self._counterfactual_metric_dataset(
-        use_posterior=use_posterior,
+    optimized_metrics_by_reach = self.summary_metrics(
         new_data=DataTensors(
             reach=optimal_reach, frequency=optimal_frequency_tensor
         ),
@@ -3779,9 +3609,11 @@ class Analyzer:
         selected_geos=selected_geos,
         selected_times=selected_times,
         use_kpi=use_kpi,
-    ).sel({constants.CHANNEL: rf_channel_values})
-    optimized_metrics_by_frequency = self._counterfactual_metric_dataset(
-        use_posterior=use_posterior,
+    ).sel({
+        constants.CHANNEL: rf_channel_values,
+        constants.DISTRIBUTION: dist_type,
+    })
+    optimized_metrics_by_frequency = self.summary_metrics(
         new_data=DataTensors(
             reach=optimal_reach, frequency=optimal_frequency_tensor
         ),
@@ -3789,7 +3621,10 @@ class Analyzer:
         selected_geos=selected_geos,
         selected_times=selected_times,
         use_kpi=use_kpi,
-    ).sel({constants.CHANNEL: rf_channel_values})
+    ).sel({
+        constants.CHANNEL: rf_channel_values,
+        constants.DISTRIBUTION: dist_type,
+    })
 
     data_vars = {
         constants.ROI: (
