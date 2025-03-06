@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-03-06
+
+* Add technical support for python 3.10.
 * Align `NaNs` in `spend_grid` and `incremental_outcome_grid` in the optimizer.
 * Fix the stopping criteria of target total ROI in flexible budget optimization.
 * Separate creation of the grid data and the optimization.
@@ -212,4 +215,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.2]: https://github.com/google/meridian/releases/tag/v1.0.2
 [1.0.3]: https://github.com/google/meridian/releases/tag/v1.0.3
 [1.0.4]: https://github.com/google/meridian/releases/tag/v1.0.4
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.4...HEAD
+[1.0.5]: https://github.com/google/meridian/releases/tag/v1.0.5
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.5...HEAD
