@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Fix issue #548: Make time coordinate regularity check less stringent.
+
 ## [1.0.5] - 2025-03-06
 
 * Add technical support for python 3.10.
