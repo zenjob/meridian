@@ -416,7 +416,7 @@ class OptimizationResults:
         tooltip=True, size=c.BAR_SIZE, cornerRadiusEnd=c.CORNER_RADIUS
     ).encode(
         color=alt.condition(
-            alt.expr.datum.spend > 0,
+            alt.datum.spend > 0,
             alt.value(c.CYAN_400),
             alt.value(c.RED_300),
         ),
