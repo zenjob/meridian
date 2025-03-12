@@ -62,17 +62,71 @@ class DataTensors(tf.experimental.ExtensionType):
     revenue_per_kpi: Optional tensor with dimensions `(n_geos, n_times)`.
   """
 
-  media: Optional[tf.Tensor] = None
-  media_spend: Optional[tf.Tensor] = None
-  reach: Optional[tf.Tensor] = None
-  frequency: Optional[tf.Tensor] = None
-  rf_spend: Optional[tf.Tensor] = None
-  organic_media: Optional[tf.Tensor] = None
-  organic_reach: Optional[tf.Tensor] = None
-  organic_frequency: Optional[tf.Tensor] = None
-  non_media_treatments: Optional[tf.Tensor] = None
-  controls: Optional[tf.Tensor] = None
-  revenue_per_kpi: Optional[tf.Tensor] = None
+  media: Optional[tf.Tensor]
+  media_spend: Optional[tf.Tensor]
+  reach: Optional[tf.Tensor]
+  frequency: Optional[tf.Tensor]
+  rf_spend: Optional[tf.Tensor]
+  organic_media: Optional[tf.Tensor]
+  organic_reach: Optional[tf.Tensor]
+  organic_frequency: Optional[tf.Tensor]
+  non_media_treatments: Optional[tf.Tensor]
+  controls: Optional[tf.Tensor]
+  revenue_per_kpi: Optional[tf.Tensor]
+
+  def __init__(
+      self,
+      media: Optional[tf.Tensor] = None,
+      media_spend: Optional[tf.Tensor] = None,
+      reach: Optional[tf.Tensor] = None,
+      frequency: Optional[tf.Tensor] = None,
+      rf_spend: Optional[tf.Tensor] = None,
+      organic_media: Optional[tf.Tensor] = None,
+      organic_reach: Optional[tf.Tensor] = None,
+      organic_frequency: Optional[tf.Tensor] = None,
+      non_media_treatments: Optional[tf.Tensor] = None,
+      controls: Optional[tf.Tensor] = None,
+      revenue_per_kpi: Optional[tf.Tensor] = None,
+  ):
+    self.media = tf.cast(media, tf.float32) if media is not None else None
+    self.media_spend = (
+        tf.cast(media_spend, tf.float32) if media_spend is not None else None
+    )
+    self.reach = tf.cast(reach, tf.float32) if reach is not None else None
+    self.frequency = (
+        tf.cast(frequency, tf.float32) if frequency is not None else None
+    )
+    self.rf_spend = (
+        tf.cast(rf_spend, tf.float32) if rf_spend is not None else None
+    )
+    self.organic_media = (
+        tf.cast(organic_media, tf.float32)
+        if organic_media is not None
+        else None
+    )
+    self.organic_reach = (
+        tf.cast(organic_reach, tf.float32)
+        if organic_reach is not None
+        else None
+    )
+    self.organic_frequency = (
+        tf.cast(organic_frequency, tf.float32)
+        if organic_frequency is not None
+        else None
+    )
+    self.non_media_treatments = (
+        tf.cast(non_media_treatments, tf.float32)
+        if non_media_treatments is not None
+        else None
+    )
+    self.controls = (
+        tf.cast(controls, tf.float32) if controls is not None else None
+    )
+    self.revenue_per_kpi = (
+        tf.cast(revenue_per_kpi, tf.float32)
+        if revenue_per_kpi is not None
+        else None
+    )
 
   def total_spend(self) -> tf.Tensor | None:
     """Returns the total spend tensor.
