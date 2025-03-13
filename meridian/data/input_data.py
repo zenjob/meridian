@@ -242,6 +242,7 @@ class InputData:
     self._validate_media_channels()
     self._validate_time_formats()
     self._validate_times()
+    self._validate_unique_geos()
 
   def _convert_geos_to_strings(self):
     """Converts geo coordinates to strings in all relevant DataArrays."""
@@ -618,6 +619,32 @@ class InputData:
               f"Invalid media_time label: {time.item()}. Expected format:"
               f" {constants.DATE_FORMAT}"
           ) from exc
+
+  def _check_unique_names(self, dim: str, array: xr.DataArray | None):
+    """Checks if a DataArray contains unique names on the specified dimension."""
+    if array is not None and dim in array.coords:
+      names = array.coords[dim].values.tolist()
+      if len(names) != len(set(names)):
+        raise ValueError(
+            f"`{dim}` names must be unique within the array `{array.name}`."
+        )
+
+  def _validate_unique_geos(self):
+    """Validates that the geos are unique across all arrays."""
+    for array in [
+        self.kpi,
+        self.revenue_per_kpi,
+        self.media,
+        self.controls,
+        self.population,
+        self.reach,
+        self.frequency,
+        self.organic_media,
+        self.organic_reach,
+        self.organic_frequency,
+        self.non_media_treatments,
+    ]:
+      self._check_unique_names(constants.GEO, array)
 
   def as_dataset(self) -> xr.Dataset:
     """Returns data as a single `xarray.Dataset` object."""

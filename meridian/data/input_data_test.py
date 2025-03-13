@@ -182,6 +182,43 @@ class InputDataTest(parameterized.TestCase):
           media_spend=self.media_spend,
       )
 
+  def test_validate_unique_geos(self):
+    media = test_utils.random_media_da(
+        n_geos=self.n_geos,
+        n_times=self.n_times,
+        n_media_times=self.n_times,
+        n_media_channels=self.n_media_channels,
+        explicit_geo_names=[
+            "geo1",
+            "geo2",
+            "geo3",
+            "geo4",
+            "geo5",
+            "geo6",
+            "geo7",
+            "geo8",
+            "geo9",
+            "geo9",
+        ],
+    )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex="`geo` names must be unique within the array `media`.",
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=self.population,
+          media=media,
+          media_spend=self.media_spend,
+          reach=self.not_lagged_reach,
+          frequency=self.not_lagged_frequency,
+          rf_spend=self.rf_spend,
+      )
+
   def test_validate_kpi_wrong_type(self):
     with self.assertRaisesRegex(
         ValueError,

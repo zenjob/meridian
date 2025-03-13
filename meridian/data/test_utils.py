@@ -519,6 +519,7 @@ def random_media_da(
     n_media_channels: int,
     seed: int = 0,
     date_format: str = c.DATE_FORMAT,
+    explicit_geo_names: Sequence[str] | None = None,
     explicit_time_index: Sequence[str] | None = None,
     explicit_media_channel_names: Sequence[str] | None = None,
     array_name: str = 'media',
@@ -535,6 +536,7 @@ def random_media_da(
     n_media_channels: Number of media channels
     seed: Random seed used by `np.random.seed()`
     date_format: The date format to use for time coordinate labels
+    explicit_geo_names: If given, ignore `n_geos` and use this as is.
     explicit_time_index: If given, ignore `date_format` and use this as is
     explicit_media_channel_names: If given, ignore `n_media_channels` and use
       this as is
@@ -558,6 +560,11 @@ def random_media_da(
           np.random.normal(5, 5, size=(n_geos, n_media_times, n_media_channels))
       )
   )
+  if explicit_geo_names is None:
+    geos = _sample_geos(n_geos, integer_geos)
+  else:
+    geos = explicit_geo_names
+
   if explicit_time_index is None:
     media_time = _sample_times(
         n_times=n_media_times,
@@ -576,7 +583,7 @@ def random_media_da(
       media,
       dims=['geo', 'media_time', channel_variable_name],
       coords={
-          'geo': _sample_geos(n_geos, integer_geos),
+          'geo': geos,
           'media_time': media_time,
           channel_variable_name: media_channels,
       },
