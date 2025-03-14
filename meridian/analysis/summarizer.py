@@ -85,7 +85,7 @@ class Summarizer:
       filepath: The path to the directory where the file will be saved.
       start_date: Optional start date selector, *inclusive*, in _yyyy-mm-dd_
         format.
-      end_date: Optional end date selector, *exclusive* in _yyyy-mm-dd_ format.
+      end_date: Optional end date selector, *inclusive* in _yyyy-mm-dd_ format.
     """
     os.makedirs(filepath, exist_ok=True)
     with open(os.path.join(filepath, filename), 'w') as f:
@@ -128,8 +128,12 @@ class Summarizer:
     template_env.globals[c.START_DATE] = start_date.strftime(
         f'%b {start_date.day}, %Y'
     )
-    template_env.globals[c.END_DATE] = end_date.strftime(
-        f'%b {end_date.day}, %Y'
+
+    interval_days = self._meridian.input_data.time_coordinates.interval_days
+    end_date_adjusted = end_date + pd.Timedelta(days=interval_days)
+
+    template_env.globals[c.END_DATE] = end_date_adjusted.strftime(
+        f'%b {end_date_adjusted.day}, %Y'
     )
 
     html_template = template_env.get_template('summary.html.jinja')

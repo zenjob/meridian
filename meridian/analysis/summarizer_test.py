@@ -274,7 +274,7 @@ class SummarizerTest(parameterized.TestCase):
     self.assertSequenceEqual(
         [chip.text.strip() for chip in chip_nodes if chip.text is not None],
         [
-            'Time period: Jan 1, 2022 - Jul 8, 2023',
+            'Time period: Jan 1, 2022 - Jul 15, 2023',
         ],
     )
 
@@ -289,8 +289,30 @@ class SummarizerTest(parameterized.TestCase):
     self.assertSequenceEqual(
         [chip.text.strip() for chip in chip_nodes if chip.text is not None],
         [
-            'Time period: Jan 1, 2022 - Jul 8, 2023',
+            'Time period: Jan 1, 2022 - Jul 15, 2023',
         ],
+    )
+
+  def test_output_chips_one_week(self):
+    start_date, end_date = dt.datetime(2022, 1, 1), dt.datetime(2022, 1, 1)
+
+    self.summarizer_revenue._meridian.expand_selected_time_dims.return_value = [
+        start_date.strftime(c.DATE_FORMAT)
+    ]
+
+    summary_html_dom = self._get_output_model_results_summary_html_dom(
+        summarizer_outcome=self.summarizer_revenue,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    chips_node = summary_html_dom.find('body/chips')
+    self.assertIsNotNone(chips_node)
+    chip_nodes = chips_node.findall('chip')
+
+    self.assertLen(chip_nodes, 1)
+    self.assertSequenceEqual(
+        [chip.text.strip() for chip in chip_nodes if chip.text is not None],
+        ['Time period: Jan 1, 2022 - Jan 8, 2022'],
     )
 
   def test_output_card_structure(self):
