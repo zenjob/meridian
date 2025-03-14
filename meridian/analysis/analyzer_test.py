@@ -4069,7 +4069,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
 
     # Assert that _compute_incremental_outcome_aggregate was called the right
     # number of times with the right arguments.
-    self.assertEqual(mock_compute_incremental_outcome_aggregate.call_count, 2)
+    self.assertEqual(mock_compute_incremental_outcome_aggregate.call_count, 4)
 
     # Both calls with include_non_paid_channels=True and given
     # non_media_baseline_values
