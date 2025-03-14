@@ -922,6 +922,36 @@ class InputDataTest(parameterized.TestCase):
           media_spend=media_spend2,
       )
 
+  def test_validate_different_geo_coords(self):
+    kpi = self.not_lagged_kpi.copy()
+    population = self.population.copy()
+    population.coords[constants.GEO] = [
+        "geo10",
+        "geo11",
+        "geo12",
+        "geo13",
+        "geo14",
+        "geo15",
+        "geo16",
+        "geo17",
+        "geo18",
+        "geo19",
+    ]
+
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex="`geo` coordinates of array `population` don't match.",
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=kpi,
+          kpi_type=constants.NON_REVENUE,
+          revenue_per_kpi=self.revenue_per_kpi,
+          population=population,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
   def test_not_matching_dimensions_media_spend_1d(self):
     media_spend_1d_2 = test_utils.random_media_spend_nd_da(
         n_media_channels=self.n_media_channels - 1
@@ -1094,7 +1124,7 @@ class InputDataTest(parameterized.TestCase):
   def test_get_n_top_largest_geos(self):
     population = xr.DataArray(
         data=[100, 5, 50, 10, 75, 25, 80, 30, 20, 95],
-        coords={constants.GEO: test_utils._sample_names(constants.GEO, 10)},
+        coords={constants.GEO: test_utils.sample_geos(10)},
         name=constants.POPULATION,
     )
     data = input_data.InputData(
@@ -1108,10 +1138,10 @@ class InputDataTest(parameterized.TestCase):
     )
 
     top_geos = data.get_n_top_largest_geos(3)
-    self.assertEqual(top_geos, ["geo0", "geo9", "geo6"])
+    self.assertEqual(top_geos, ["geo_0", "geo_9", "geo_6"])
 
     top_geos = data.get_n_top_largest_geos(5)
-    self.assertEqual(top_geos, ["geo0", "geo9", "geo6", "geo4", "geo2"])
+    self.assertEqual(top_geos, ["geo_0", "geo_9", "geo_6", "geo_4", "geo_2"])
 
   def test_get_all_channels_media_only(self):
     data = input_data.InputData(

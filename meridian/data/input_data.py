@@ -18,6 +18,7 @@ The `InputData` class is used to store all the input data to the model.
 """
 
 from collections import abc
+from collections.abc import Sequence
 import dataclasses
 import datetime as dt
 import functools
@@ -59,7 +60,7 @@ def _check_dim_collection(
     )
 
 
-def _check_dim_match(dim, arrays):
+def _check_dim_match(dim: str, arrays: Sequence[xr.DataArray]):
   """Verifies that the dimensions of the appropriate arrays match."""
   lengths = [len(array.coords[dim]) for array in arrays if array is not None]
   names = [array.name for array in arrays if array is not None]
@@ -67,6 +68,19 @@ def _check_dim_match(dim, arrays):
     raise ValueError(
         f"'{dim}' dimensions {lengths} of arrays {names} don't match."
     )
+
+
+def _check_coords_match(dim: str, arrays: Sequence[xr.DataArray]):
+  """Verifies that the coordinates of the appropriate arrays match."""
+  arrays = [arr for arr in arrays if arr is not None and dim in arr.coords]
+  if not arrays:
+    return
+  first_coords = arrays[0].coords[dim].values
+  for arr in arrays[1:]:
+    if not np.array_equal(arr.coords[dim].values, first_coords):
+      raise ValueError(
+          f"`{dim}` coordinates of array `{arr.name}` don't match."
+      )
 
 
 @dataclasses.dataclass
@@ -242,7 +256,7 @@ class InputData:
     self._validate_media_channels()
     self._validate_time_formats()
     self._validate_times()
-    self._validate_unique_geos()
+    self._validate_geos()
 
   def _convert_geos_to_strings(self):
     """Converts geo coordinates to strings in all relevant DataArrays."""
@@ -629,9 +643,9 @@ class InputData:
             f"`{dim}` names must be unique within the array `{array.name}`."
         )
 
-  def _validate_unique_geos(self):
-    """Validates that the geos are unique across all arrays."""
-    for array in [
+  def _validate_geos(self):
+    """Validates geo coordinates across relevant DataArrays."""
+    arrays_with_geos = [
         self.kpi,
         self.revenue_per_kpi,
         self.media,
@@ -643,8 +657,11 @@ class InputData:
         self.organic_reach,
         self.organic_frequency,
         self.non_media_treatments,
-    ]:
+    ]
+    for array in arrays_with_geos:
       self._check_unique_names(constants.GEO, array)
+
+    _check_coords_match(constants.GEO, arrays_with_geos)
 
   def as_dataset(self) -> xr.Dataset:
     """Returns data as a single `xarray.Dataset` object."""
