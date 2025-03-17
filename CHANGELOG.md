@@ -35,6 +35,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Allow `new_data` to have any number of time dimensions for `roi()`,
   `marginal_roi()`, `cpik()`, and `summary_metrics()`. This allows the use of
   forecasted data for analysis.
+* Add `optimize()` method to the `OptimizationGrid` dataclass.
 
 ## [1.0.5] - 2025-03-06
 
