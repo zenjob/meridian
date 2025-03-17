@@ -32,6 +32,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
   `frequency`.
 * Refactor `marginal_roi()` and the mROI calculation in `summary_metrics` to use
   the scaling factors in `incremental_outcome()`, removing duplicate code.
+* Allow `new_data` to have any number of time dimensions for `roi()`,
+  `marginal_roi()`, and `cpik()`. This allows the use of forecasted data for
+  analysis.
 
 ## [1.0.5] - 2025-03-06
 

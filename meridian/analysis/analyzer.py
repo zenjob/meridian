@@ -1831,7 +1831,7 @@ class Analyzer:
         default, all geos are included.
       selected_times: Optional list containing either a subset of dates to
         include or booleans with length equal to the number of time periods in
-        the `new_XXX` args, if provided. The incremental outcome corresponds to
+        the `new_data` args, if provided. The incremental outcome corresponds to
         incremental KPI generated during the `selected_times` arg by media
         executed during the `media_selected_times` arg. Note that if
         `use_kpi=False`, then `selected_times` can only include the time periods
@@ -2118,12 +2118,12 @@ class Analyzer:
       use_posterior: bool = True,
       new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
+      selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       by_reach: bool = True,
       use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
-  ) -> tf.Tensor | None:
+  ) -> tf.Tensor:
     """Calculates the marginal ROI prior or posterior distribution.
 
     The marginal ROI (mROI) numerator is the change in expected outcome (`kpi`
@@ -2134,7 +2134,7 @@ class Analyzer:
     If `new_data=None`, this method calculates marginal ROI conditional on the
     values of the paid media variables that the Meridian object was initialized
     with. The user can also override this historical data through the `new_data`
-    argument, as long as the new tensors` dimensions match. For example,
+    argument. For example,
 
     ```python
     new_data = DataTensors(media=new_media, frequency=new_frequency)
@@ -2159,14 +2159,16 @@ class Analyzer:
         `reach`, `frequency`, `rf_spend` and `revenue_per_kpi` data. If
         provided, the marginal ROI is calculated using the values of the tensors
         passed in `new_data` and the original values of all the remaining
-        tensors. The new tensors' dimensions must match the dimensions of the
-        corresponding original tensors from `meridian.input_data`. If `None`,
-        the marginal ROI is calculated using the original values of all the
-        tensors.
+        tensors. If `None`, the marginal ROI is calculated using the original
+        values of all the tensors. If any of the tensors in `new_data` is
+        provided with a different number of time periods than in `InputData`,
+        then all tensors must be provided with the same number of time periods.
       selected_geos: Optional. Contains a subset of geos to include. By default,
         all geos are included.
-      selected_times: Optional. Contains a subset of times to include. By
-        default, all time periods are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the `new_data` args, if provided. By default, all time periods are
+        included.
       aggregate_geos: If `True`, the expected revenue is summed over all of the
         regions.
       by_reach: Used for a channel with reach and frequency. If `True`, returns
@@ -2184,12 +2186,12 @@ class Analyzer:
       (n_media_channels + n_rf_channels))`. The `n_geos` dimension is dropped if
       `aggregate_geos=True`.
     """
-    self._check_revenue_data_exists(use_kpi)
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
         "aggregate_geos": aggregate_geos,
     }
+    self._check_revenue_data_exists(use_kpi)
     self._validate_geo_and_time_granularity(**dim_kwargs)
     required_values = [
         constants.MEDIA,
@@ -2204,7 +2206,6 @@ class Analyzer:
     filled_data = new_data.validate_and_fill_missing_data(
         required_tensors_names=required_values,
         meridian=self._meridian,
-        allow_modified_times=False,
     )
     numerator = self.incremental_outcome(
         new_data=filled_data,
@@ -2222,7 +2223,11 @@ class Analyzer:
     spend_inc = filled_data.total_spend() * incremental_increase
     if spend_inc is not None and spend_inc.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
-          spend_inc, aggregate_times=True, **dim_kwargs
+          spend_inc,
+          aggregate_times=True,
+          flexible_time_dim=True,
+          has_media_dim=True,
+          **dim_kwargs,
       )
     else:
       if not aggregate_geos:
@@ -2242,7 +2247,7 @@ class Analyzer:
       use_posterior: bool = True,
       new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
+      selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       use_kpi: bool = False,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
@@ -2256,8 +2261,8 @@ class Analyzer:
 
     If `new_data=None`, this method calculates ROI conditional on the values of
     the paid media variables that the Meridian object was initialized with. The
-    user can also override this historical data through the `new_data` argument,
-    as long as the new tensors' dimensions match. For example,
+    user can also override this historical data through the `new_data` argument.
+    For example,
 
     ```python
     new_data = DataTensors(media=new_media, frequency=new_frequency)
@@ -2277,14 +2282,17 @@ class Analyzer:
       new_data: Optional. DataTensors containing `media`, `media_spend`,
         `reach`, `frequency`, and `rf_spend`, and `revenue_per_kpi` data. If
         provided, the ROI is calculated using the values of the tensors passed
-        in `new_data` and the original values of all the remaining tensors. The
-        new tensors' dimensions must match the dimensions of the corresponding
-        original tensors from `meridian.input_data`. If `None`, the ROI is
-        calculated using the original values of all the tensors.
-      selected_geos: Optional list containing a subset of geos to include. By
-        default, all geos are included.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+        in `new_data` and the original values of all the remaining tensors. If
+        `None`, the ROI is calculated using the original values of all the
+        tensors. If any of the tensors in `new_data` is provided with a
+        different number of time periods than in `InputData`, then all tensors
+        must be provided with the same number of time periods.
+      selected_geos: Optional. Contains a subset of geos to include. By default,
+        all geos are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the `new_data` args, if provided. By default, all time periods are
+        included.
       aggregate_geos: Boolean. If `True`, the expected revenue is summed over
         all of the regions.
       use_kpi: If `False`, then revenue is used to calculate the ROI numerator.
@@ -2299,7 +2307,6 @@ class Analyzer:
       (n_media_channels + n_rf_channels))`. The `n_geos` dimension is dropped if
       `aggregate_geos=True`.
     """
-    self._check_revenue_data_exists(use_kpi)
     dim_kwargs = {
         "selected_geos": selected_geos,
         "selected_times": selected_times,
@@ -2313,6 +2320,7 @@ class Analyzer:
         "include_non_paid_channels": False,
         "aggregate_times": True,
     }
+    self._check_revenue_data_exists(use_kpi)
     self._validate_geo_and_time_granularity(**dim_kwargs)
     required_values = [
         constants.MEDIA,
@@ -2327,7 +2335,6 @@ class Analyzer:
     filled_data = new_data.validate_and_fill_missing_data(
         required_tensors_names=required_values,
         meridian=self._meridian,
-        allow_modified_times=False,
     )
     incremental_outcome = self.incremental_outcome(
         new_data=filled_data,
@@ -2338,7 +2345,11 @@ class Analyzer:
     spend = filled_data.total_spend()
     if spend is not None and spend.ndim == 3:
       denominator = self.filter_and_aggregate_geos_and_times(
-          spend, aggregate_times=True, **dim_kwargs
+          spend,
+          aggregate_times=True,
+          flexible_time_dim=True,
+          has_media_dim=True,
+          **dim_kwargs,
       )
     else:
       if not aggregate_geos:
@@ -2359,7 +2370,7 @@ class Analyzer:
       use_posterior: bool = True,
       new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
+      selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> tf.Tensor:
@@ -2371,8 +2382,8 @@ class Analyzer:
 
     If `new_data=None`, this method calculates CPIK conditional on the values of
     the paid media variables that the Meridian object was initialized with. The
-    user can also override this historical data through the `new_data` argument,
-    as long as the new tensors' dimensions match. For example,
+    user can also override this historical data through the `new_data` argument.
+    For example,
 
     ```python
     new_data = DataTensors(media=new_media, frequency=new_frequency)
@@ -2382,9 +2393,8 @@ class Analyzer:
     numerator is the total spend during the selected geos and time periods. An
     exception will be thrown if the spend of the InputData used to train the
     model does not have geo and time dimensions. (If the `new_data.media_spend`
-    and
-    `new_data.rf_spend` arguments are used with different dimensions than the
-    InputData spend, then an exception will be thrown since this is a likely
+    and `new_data.rf_spend` arguments are used with different dimensions than
+    the InputData spend, then an exception will be thrown since this is a likely
     user error.)
 
     Note that CPIK is simply 1/ROI, where ROI is obtained from a call to the
@@ -2396,14 +2406,17 @@ class Analyzer:
       new_data: Optional. DataTensors containing `media`, `media_spend`,
         `reach`, `frequency`, `rf_spend` and `revenue_per_kpi` data. If
         provided, the cpik is calculated using the values of the tensors passed
-        in `new_data` and the original values of all the remaining tensors. The
-        new tensors' dimensions must match the dimensions of the corresponding
-        original tensors from `meridian.input_data`. If `None`, the cpik is
-        calculated using the original values of all the tensors.
-      selected_geos: Optional list containing a subset of geos to include. By
-        default, all geos are included.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+        in `new_data` and the original values of all the remaining tensors. If
+        `None`, the ROI is calculated using the original values of all the
+        tensors. If any of the tensors in `new_data` is provided with a
+        different number of time periods than in `InputData`, then all tensors
+        must be provided with the same number of time periods.
+      selected_geos: Optional. Contains a subset of geos to include. By default,
+        all geos are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the `new_data` args, if provided. By default, all time periods are
+        included.
       aggregate_geos: Boolean. If `True`, the expected KPI is summed over all of
         the regions.
       batch_size: Integer representing the maximum draws per chain in each
