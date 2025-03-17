@@ -2766,7 +2766,7 @@ class Analyzer:
       marginal_roi_by_reach: bool = True,
       marginal_roi_incremental_increase: float = 0.01,
       selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
+      selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
       optimal_frequency: Sequence[float] | None = None,
@@ -2781,7 +2781,9 @@ class Analyzer:
     If `new_data=None`, this method calculates all the metrics conditional on
     the values of the data variables that the Meridian object was initialized
     with. The user can also override this historical data through the `new_data`
-    argument, as long as the new tensors` dimensions match. For example,
+    argument. For example, to override the media, frequency, and non-media
+    treatments data variables, the user can pass the following `new_data`
+    argument:
 
     ```python
     new_data = DataTensors(
@@ -2790,19 +2792,24 @@ class Analyzer:
         non_media_treatments=new_non_media_treatments)
     ```
 
+    Note that if `new_data` is provided with a different number of time periods
+    than in `InputData`, `pct_of_contribution` is not defined because
+    `expected_outcome()` is not defined for new time periods.
+
     Note that `mroi` and `effectiveness` metrics are not defined (`math.nan`)
     for the aggregate `"All Paid Channels"` channel dimension.
 
     Args:
       new_data: Optional `DataTensors` object with optional new tensors:
-        `media`, `reach`, `frequency`, `organic_media`, `organic_reach`,
-        `organic_frequency`, `non_media_treatments`, `controls`,
-        `revenue_per_kpi`. If provided, the summary metrics are calculated using
-        the values of the tensors passed in `new_data` and the original values
-        of all the remaining tensors. The new tensors' dimensions must match the
-        dimensions of the corresponding original tensors from
-        `meridian.input_data`. If `None`, the summary metrics are calculated
-        using the original values of all the tensors.
+        `media`, `media_spend`, `reach`, `frequency`, `rf_spend`,
+        `organic_media`, `organic_reach`, `organic_frequency`,
+        `non_media_treatments`, `controls`, `revenue_per_kpi`. If provided, the
+        summary metrics are calculated using the values of the tensors passed in
+        `new_data` and the original values of all the remaining tensors. If
+        `None`, the summary metrics are calculated using the original values of
+        all the tensors. If `new_data` is provided with a different number of
+        time periods than in `InputData`, then all tensors, except `controls`,
+        must have the same number of time periods.
       marginal_roi_by_reach: Boolean. Marginal ROI (mROI) is defined as the
         return on the next dollar spent. If this argument is `True`, the
         assumption is that the next dollar spent only impacts reach, holding
@@ -2815,8 +2822,10 @@ class Analyzer:
         when `include_non_paid_channels` is `False`.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the tensors in the `new_data` argument, if provided. By default, all
+        time periods are included.
       aggregate_geos: Boolean. If `True`, the expected outcome is summed over
         all of the regions.
       aggregate_times: Boolean. If `True`, the expected outcome is summed over
@@ -2868,6 +2877,7 @@ class Analyzer:
         "aggregate_times": aggregate_times,
     }
     batched_kwargs = {"batch_size": batch_size}
+    new_data = new_data or DataTensors()
     aggregated_impressions = self.get_aggregated_impressions(
         new_data=new_data,
         optimal_frequency=optimal_frequency,
@@ -2926,20 +2936,6 @@ class Analyzer:
             **batched_kwargs,
         )
     )
-    expected_outcome_prior = self.expected_outcome(
-        use_posterior=False,
-        new_data=new_data,
-        use_kpi=use_kpi,
-        **dim_kwargs,
-        **batched_kwargs,
-    )
-    expected_outcome_posterior = self.expected_outcome(
-        use_posterior=True,
-        new_data=new_data,
-        use_kpi=use_kpi,
-        **dim_kwargs,
-        **batched_kwargs,
-    )
 
     xr_dims = (
         ((constants.GEO,) if not aggregate_geos else ())
@@ -2965,11 +2961,20 @@ class Analyzer:
       )
       xr_coords[constants.GEO] = ([constants.GEO], geo_dims)
     if not aggregate_times:
-      time_dims = (
-          self._meridian.input_data.time.data
-          if selected_times is None
-          else selected_times
-      )
+      # Get the time coordinates for flexible time dimensions.
+      modified_times = new_data.get_modified_times(self._meridian)
+      if modified_times is None:
+        times = self._meridian.input_data.time.data
+      else:
+        times = np.arange(modified_times)
+
+      if selected_times is None:
+        time_dims = times
+      elif _is_bool_list(selected_times):
+        indices = np.where(selected_times)
+        time_dims = times[indices]
+      else:
+        time_dims = selected_times
       xr_coords[constants.TIME] = ([constants.TIME], time_dims)
     xr_dims_with_ci_and_distribution = xr_dims + (
         constants.METRIC,
@@ -3000,15 +3005,6 @@ class Analyzer:
         confidence_level=confidence_level,
         include_median=True,
     )
-    pct_of_contribution = self._compute_pct_of_contribution(
-        incremental_outcome_prior=incremental_outcome_prior,
-        incremental_outcome_posterior=incremental_outcome_posterior,
-        expected_outcome_prior=expected_outcome_prior,
-        expected_outcome_posterior=expected_outcome_posterior,
-        xr_dims=xr_dims_with_ci_and_distribution,
-        xr_coords=xr_coords_with_ci_and_distribution,
-        confidence_level=confidence_level,
-    )
     effectiveness = self._compute_effectiveness_aggregate(
         incremental_outcome_prior=incremental_outcome_prior,
         incremental_outcome_posterior=incremental_outcome_posterior,
@@ -3022,6 +3018,33 @@ class Analyzer:
         # because the media execution metric is generally not consistent across
         # channels.
     ).where(lambda ds: ds.channel != constants.ALL_CHANNELS)
+
+    if new_data.get_modified_times(self._meridian) is None:
+      expected_outcome_prior = self.expected_outcome(
+          use_posterior=False,
+          new_data=new_data,
+          use_kpi=use_kpi,
+          **dim_kwargs,
+          **batched_kwargs,
+      )
+      expected_outcome_posterior = self.expected_outcome(
+          use_posterior=True,
+          new_data=new_data,
+          use_kpi=use_kpi,
+          **dim_kwargs,
+          **batched_kwargs,
+      )
+      pct_of_contribution = self._compute_pct_of_contribution(
+          incremental_outcome_prior=incremental_outcome_prior,
+          incremental_outcome_posterior=incremental_outcome_posterior,
+          expected_outcome_prior=expected_outcome_prior,
+          expected_outcome_posterior=expected_outcome_posterior,
+          xr_dims=xr_dims_with_ci_and_distribution,
+          xr_coords=xr_coords_with_ci_and_distribution,
+          confidence_level=confidence_level,
+      )
+    else:
+      pct_of_contribution = xr.Dataset()
 
     if include_non_paid_channels:
       # If non-paid channels are included, return only the non-paid metrics.
@@ -3058,7 +3081,9 @@ class Analyzer:
       spend_list.append(new_spend_tensors.rf_spend)
     # TODO Add support for 1-dimensional spend.
     aggregated_spend = self.filter_and_aggregate_geos_and_times(
-        tensor=tf.concat(spend_list, axis=-1), **dim_kwargs
+        tensor=tf.concat(spend_list, axis=-1),
+        flexible_time_dim=True,
+        **dim_kwargs,
     )
     spend_with_total = tf.concat(
         [aggregated_spend, tf.reduce_sum(aggregated_spend, -1, keepdims=True)],
@@ -3144,7 +3169,7 @@ class Analyzer:
       self,
       new_data: DataTensors | None = None,
       selected_geos: Sequence[str] | None = None,
-      selected_times: Sequence[str] | None = None,
+      selected_times: Sequence[str] | Sequence[bool] | None = None,
       aggregate_geos: bool = True,
       aggregate_times: bool = True,
       optimal_frequency: Sequence[float] | None = None,
@@ -3158,14 +3183,14 @@ class Analyzer:
         `organic_frequency`, and `non_media_treatments` tensors. If `new_data`
         argument is used, then the aggregated impressions are computed using the
         values of the tensors passed in the `new_data` argument and the original
-        values of all the remaining tensors. The new tensors' dimensions must
-        match the dimensions of the corresponding original tensors from
-        `meridian.input_data`. If `None`, the existing tensors from the Meridian
-        object are used.
+        values of all the remaining tensors. If `None`, the existing tensors
+        from the Meridian object are used.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the tensors in the `new_data` argument, if provided. By default, all
+        time periods are included.
       aggregate_geos: Boolean. If `True`, the expected outcome is summed over
         all of the regions.
       aggregate_times: Boolean. If `True`, the expected outcome is summed over
@@ -3199,11 +3224,13 @@ class Analyzer:
     data_tensors = new_data.validate_and_fill_missing_data(
         tensor_names_list, self._meridian
     )
+    n_times = (
+        data_tensors.get_modified_times(self._meridian)
+        or self._meridian.n_times
+    )
     impressions_list = []
     if self._meridian.n_media_channels > 0:
-      impressions_list.append(
-          data_tensors.media[:, -self._meridian.n_times :, :]
-      )
+      impressions_list.append(data_tensors.media[:, -n_times:, :])
 
     if self._meridian.n_rf_channels > 0:
       if optimal_frequency is None:
@@ -3211,15 +3238,12 @@ class Analyzer:
       else:
         new_frequency = tf.ones_like(data_tensors.frequency) * optimal_frequency
       impressions_list.append(
-          data_tensors.reach[:, -self._meridian.n_times :, :]
-          * new_frequency[:, -self._meridian.n_times :, :]
+          data_tensors.reach[:, -n_times:, :] * new_frequency[:, -n_times:, :]
       )
 
     if include_non_paid_channels:
       if self._meridian.n_organic_media_channels > 0:
-        impressions_list.append(
-            data_tensors.organic_media[:, -self._meridian.n_times :, :]
-        )
+        impressions_list.append(data_tensors.organic_media[:, -n_times:, :])
       if self._meridian.n_organic_rf_channels > 0:
         if optimal_frequency is None:
           new_organic_frequency = data_tensors.organic_frequency
@@ -3228,8 +3252,8 @@ class Analyzer:
               tf.ones_like(data_tensors.organic_frequency) * optimal_frequency
           )
         impressions_list.append(
-            data_tensors.organic_reach[:, -self._meridian.n_times :, :]
-            * new_organic_frequency[:, -self._meridian.n_times :, :]
+            data_tensors.organic_reach[:, -n_times:, :]
+            * new_organic_frequency[:, -n_times:, :]
         )
       if self._meridian.n_non_media_channels > 0:
         impressions_list.append(data_tensors.non_media_treatments)
@@ -3240,6 +3264,7 @@ class Analyzer:
         selected_times=selected_times,
         aggregate_geos=aggregate_geos,
         aggregate_times=aggregate_times,
+        flexible_time_dim=True,
     )
 
   def baseline_summary_metrics(

@@ -1357,6 +1357,75 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertNotIn(constants.MROI, media_summary.data_vars)
       self.assertNotIn(constants.CPIK, media_summary.data_vars)
 
+  def test_summary_metrics_new_times_data_returns_correct_variables(self):
+    summary_metrics = self.analyzer_media_and_rf.summary_metrics(
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -15:, :],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -15:, :
+            ],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -15:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -15:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -15:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -15:
+            ],
+        )
+    )
+    self.assertEqual(
+        list(summary_metrics.data_vars.keys()),
+        [
+            constants.IMPRESSIONS,
+            constants.PCT_OF_IMPRESSIONS,
+            constants.SPEND,
+            constants.PCT_OF_SPEND,
+            constants.CPM,
+            constants.INCREMENTAL_OUTCOME,
+            constants.ROI,
+            constants.EFFECTIVENESS,
+            constants.MROI,
+            constants.CPIK,
+        ],
+    )
+
+  def test_summary_metrics_new_times_data_aggregate_times_false(self):
+    summary_metrics = self.analyzer_media_and_rf.summary_metrics(
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -5:, :],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -5:, :
+            ],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -5:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -5:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -5:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -5:
+            ],
+        ),
+        selected_times=[False, False, True, True, False],
+        aggregate_times=False,
+    )
+    self.assertEqual(list(summary_metrics.time), [2, 3])
+    self.assertEqual(
+        list(summary_metrics.data_vars.keys()),
+        [
+            "impressions",
+            "pct_of_impressions",
+            "spend",
+            "pct_of_spend",
+            "cpm",
+            "incremental_outcome",
+        ],
+    )
+
   @parameterized.product(
       aggregate_geos=[False, True],
       aggregate_times=[False, True],
