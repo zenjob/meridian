@@ -28,6 +28,7 @@ import math
 import os
 import tempfile
 from typing import Any
+import warnings
 from xml.etree import ElementTree as ET
 
 from absl.testing import absltest
@@ -1995,6 +1996,42 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     self.assertLen(
         optimization_results.spend_ratio, _N_MEDIA_CHANNELS + _N_RF_CHANNELS
     )
+
+  def test_optimize_when_target_roi_not_met_raises_warning(self):
+    with self.assertWarnsRegex(
+        UserWarning, 'Target ROI constraint was not met.'
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=False, target_roi=1000
+      )
+
+  def test_optimize_when_no_warning_raised_for_roi_constraint(self):
+    with warnings.catch_warnings(record=True) as w_list:
+      # Ensure only warnings in the analyzer module are not captured
+      warnings.filterwarnings(action='ignore', module=analyzer.__name__)
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=False, target_roi=1e-6
+      )
+      # Check that no warnings were raised
+      self.assertEmpty(w_list, '\n'.join([str(w.message) for w in w_list]))
+
+  def test_optimize_when_target_mroi_not_met_raises_warning(self):
+    with self.assertWarnsRegex(
+        UserWarning, 'Target marginal ROI constraint was not met.'
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=False, target_mroi=1000
+      )
+
+  def test_optimize_when_no_warning_raised_for_mroi_constraint(self):
+    with warnings.catch_warnings(record=True) as w_list:
+      # Ensure only warnings in the analyzer module are not captured
+      warnings.filterwarnings(action='ignore', module=analyzer.__name__)
+      self.budget_optimizer_media_and_rf.optimize(
+          fixed_budget=False, target_mroi=1e-6
+      )
+      # Check that no warnings were raised
+      self.assertEmpty(w_list, '\n'.join([str(w.message) for w in w_list]))
 
 
 class OptimizerPlotsTest(absltest.TestCase):
