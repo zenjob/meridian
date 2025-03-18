@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.6] - 2025-03-18
+
 * Fix issue #548: Make time coordinate regularity check less stringent.
 * Force `DataTensors` to have all tensors with `dtype=tf.float32`.
 * Refactor new data validation and data filling into the `DataTensors` class.
@@ -232,4 +234,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.3]: https://github.com/google/meridian/releases/tag/v1.0.3
 [1.0.4]: https://github.com/google/meridian/releases/tag/v1.0.4
 [1.0.5]: https://github.com/google/meridian/releases/tag/v1.0.5
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.5...HEAD
+[1.0.6]: https://github.com/google/meridian/releases/tag/v1.0.6
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.6...HEAD
