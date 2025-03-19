@@ -1553,19 +1553,19 @@ class InputDataLoaderTest(parameterized.TestCase):
           'non_NA_in_lagged_period',
           'non_NA_in_lagged_period',
           (
-              'NA values found in non-media columns outside the lagged-media'
-              " period ['2021-01-04', '2021-01-11'] (continuous window of"
-              ' 100% NA values in all non-media columns).'
+              "NA values found in columns ['kpi', 'control_0', 'control_1',"
+              " 'population', 'revenue_per_kpi', 'media_spend_0',"
+              " 'media_spend_1', 'media_spend_2', 'rf_spend_0', 'rf_spend_1']"
+              ' within the modeling time window (time periods where the KPI is'
+              ' modeled).'
           ),
       ),
       (
           'NA_outside_lagged_period',
           'NA_outside_lagged_period',
           (
-              'NA values found in non-media columns outside the lagged-media'
-              " period ['2021-01-04', '2021-01-11', '2021-01-18']"
-              ' (continuous window of 100% NA values in all non-media'
-              ' columns).'
+              "NA values found in columns ['kpi'] within the modeling time"
+              ' window (time periods where the KPI is modeled).'
           ),
       ),
   )
