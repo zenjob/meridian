@@ -23,6 +23,14 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.7] - 2025-03-19
+
+* Bump tensorflow to 2.18.
+* Bump tensorflow-probability to 0.25.
+* Bump numpy to 2.0.2.
+* Bump pandas to 2.2.2.
+* Bump scipy to 1.13.1.
+
 ## [1.0.6] - 2025-03-18
 
 * Fix issue #548: Make time coordinate regularity check less stringent.
@@ -235,4 +243,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.4]: https://github.com/google/meridian/releases/tag/v1.0.4
 [1.0.5]: https://github.com/google/meridian/releases/tag/v1.0.5
 [1.0.6]: https://github.com/google/meridian/releases/tag/v1.0.6
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.6...HEAD
+[1.0.7]: https://github.com/google/meridian/releases/tag/v1.0.7
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.7...HEAD
