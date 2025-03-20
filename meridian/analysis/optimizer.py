@@ -37,6 +37,7 @@ import xarray as xr
 
 __all__ = [
     'BudgetOptimizer',
+    'OptimizationGrid',
     'OptimizationResults',
 ]
 
@@ -490,7 +491,7 @@ class OptimizationResults:
             title=formatter.custom_title_params(
                 summary_text.SPEND_ALLOCATION_CHART_TITLE
             ),
-            width=c.VEGALITE_FACET_DEFAULT_WIDTH
+            width=c.VEGALITE_FACET_DEFAULT_WIDTH,
         )
     )
 
@@ -1330,12 +1331,18 @@ class BudgetOptimizer:
     """Creates a OptimizationGrid for optimization.
 
     Args:
-      historical_spend: ndarray of shape `(n_paid_channels,)` with arrgegated
-        historical spend per paid channel.
-      spend_bound_lower: ndarray of dimension `(n_total_channels,)` containing
-        the lower constraint spend for each channel.
-      spend_bound_upper: ndarray of dimension `(n_total_channels,)` containing
-        the upper constraint spend for each channel.
+      historical_spend: ndarray of shape `(n_paid_channels,)` with aggregated
+        historical spend per paid channel. Consider using
+        `InputData.get_paid_channels_argument_builder()` to construct this
+        argument.
+      spend_bound_lower: ndarray of dimension `(n_paid_channels,)` containing
+        the lower constraint spend for each channel. Consider using
+        `InputData.get_paid_channels_argument_builder()` to construct this
+        argument.
+      spend_bound_upper: ndarray of dimension `(n_paid_channels,)` containing
+        the upper constraint spend for each channel. Consider using
+        `InputData.get_paid_channels_argument_builder()` to construct this
+        argument.
       selected_times: Sequence of strings representing the time dimensions in
         `meridian.input_data.time` to use for optimization.
       round_factor: The round factor used for the optimization grid.
