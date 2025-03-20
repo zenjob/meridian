@@ -3414,11 +3414,12 @@ class Analyzer:
 
   def optimal_freq(
       self,
+      new_data: DataTensors | None = None,
       freq_grid: Sequence[float] | None = None,
       use_posterior: bool = True,
       use_kpi: bool = False,
       selected_geos: Sequence[str | int] | None = None,
-      selected_times: Sequence[str | int] | None = None,
+      selected_times: Sequence[str | int | bool] | None = None,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
   ) -> xr.Dataset:
     """Calculates the optimal frequency that maximizes posterior mean ROI.
@@ -3429,10 +3430,27 @@ class Analyzer:
     number of impressions remains unchanged as frequency varies. Meridian solves
     for the frequency at which posterior mean ROI is optimized.
 
+    If `new_data=None`, this method calculates the opptimal frequency on the
+    values of the paid RF variables that the Meridian object was initialized
+    with. The user can override this historical data through the `new_data`
+    argument. For example,
+
+    ```python
+    new_data = DataTensors(reach=new_reach, frequency=new_frequency)
+    ```
+
     Note: The ROI numerator is revenue if `use_kpi` is `False`, otherwise, the
     ROI numerator is KPI units.
 
     Args:
+      new_data: Optional `DataTensors` object containing `reach`, `frequency`,
+        `rf_spend`, and `revenue_per_kpi`. If provided, the optimal frequency is
+        calculated using the values of the tensors passed in `new_data` and the
+        original values of all the remaining tensors. If `None`, the historical
+        data used to initialize the Meridian object is used. If any of the
+        tensors in `new_data` is provided with a different number of time
+        periods than in `InputData`, then all tensors must be provided with the
+        same number of time periods.
       freq_grid: List of frequency values. The ROI of each channel is calculated
         for each frequency value in the list. By default, the list includes
         numbers from `1.0` to the maximum frequency in increments of `0.1`.
@@ -3443,8 +3461,10 @@ class Analyzer:
         revenue.
       selected_geos: Optional list containing a subset of geos to include. By
         default, all geos are included.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+      selected_times: Optional list containing either a subset of dates to
+        include or booleans with length equal to the number of time periods in
+        the `new_data` args, if provided. By default, all time periods are
+        included.
       confidence_level: Confidence level for prior and posterior credible
         intervals, represented as a value between zero and one.
 
@@ -3475,6 +3495,7 @@ class Analyzer:
       ValueError: If there are no channels with reach and frequency data.
     """
     dist_type = constants.POSTERIOR if use_posterior else constants.PRIOR
+    new_data = new_data or DataTensors()
     if self._meridian.n_rf_channels == 0:
       raise ValueError(
           "Must have at least one channel with reach and frequency data."
@@ -3484,7 +3505,34 @@ class Analyzer:
           f"sample_{dist_type}() must be called prior to calling this method."
       )
 
-    max_freq = np.max(np.array(self._meridian.rf_tensors.frequency))
+    filled_data = new_data.validate_and_fill_missing_data(
+        [
+            constants.REACH,
+            constants.FREQUENCY,
+            constants.RF_SPEND,
+            constants.REVENUE_PER_KPI,
+        ],
+        self._meridian,
+    )
+    # TODO: Once treatment type filtering is added, remove adding
+    # dummy media and media spend to `roi()` and `summary_metrics()`. This is a
+    # hack to use `roi()` and `summary_metrics()` for RF only analysis.
+    has_media = self._meridian.n_media_channels > 0
+    n_media_times = (
+        filled_data.get_modified_times(self._meridian)
+        or self._meridian.n_media_times
+    )
+    n_times = (
+        filled_data.get_modified_times(self._meridian) or self._meridian.n_times
+    )
+    dummy_media = tf.ones(
+        (self._meridian.n_geos, n_media_times, self._meridian.n_media_channels)
+    )
+    dummy_media_spend = tf.ones(
+        (self._meridian.n_geos, n_times, self._meridian.n_media_channels)
+    )
+
+    max_freq = np.max(np.array(filled_data.frequency))
     if freq_grid is None:
       freq_grid = np.arange(1, max_freq, 0.1)
 
@@ -3494,14 +3542,18 @@ class Analyzer:
     metric_grid = np.zeros((len(freq_grid), self._meridian.n_rf_channels, 4))
 
     for i, freq in enumerate(freq_grid):
-      new_frequency = tf.ones_like(self._meridian.rf_tensors.frequency) * freq
-      new_reach = (
-          self._meridian.rf_tensors.frequency
-          * self._meridian.rf_tensors.reach
-          / new_frequency
+      new_frequency = tf.ones_like(filled_data.frequency) * freq
+      new_reach = filled_data.frequency * filled_data.reach / new_frequency
+      new_roi_data = DataTensors(
+          reach=new_reach,
+          frequency=new_frequency,
+          rf_spend=filled_data.rf_spend,
+          revenue_per_kpi=filled_data.revenue_per_kpi,
+          media=dummy_media if has_media else None,
+          media_spend=dummy_media_spend if has_media else None,
       )
       metric_grid_temp = self.roi(
-          new_data=DataTensors(reach=new_reach, frequency=new_frequency),
+          new_data=new_roi_data,
           use_posterior=use_posterior,
           selected_geos=selected_geos,
           selected_times=selected_times,
@@ -3521,20 +3573,25 @@ class Analyzer:
 
     optimal_frequency = [freq_grid[i] for i in optimal_freq_idx]
     optimal_frequency_tensor = tf.convert_to_tensor(
-        tf.ones_like(self._meridian.rf_tensors.frequency) * optimal_frequency,
+        tf.ones_like(filled_data.frequency) * optimal_frequency,
         tf.float32,
     )
     optimal_reach = (
-        self._meridian.rf_tensors.frequency
-        * self._meridian.rf_tensors.reach
-        / optimal_frequency_tensor
+        filled_data.frequency * filled_data.reach / optimal_frequency_tensor
+    )
+
+    new_summary_metrics_data = DataTensors(
+        reach=optimal_reach,
+        frequency=optimal_frequency_tensor,
+        rf_spend=filled_data.rf_spend,
+        revenue_per_kpi=filled_data.revenue_per_kpi,
+        media=dummy_media if has_media else None,
+        media_spend=dummy_media_spend if has_media else None,
     )
 
     # Compute the optimized metrics based on the optimal frequency.
     optimized_metrics_by_reach = self.summary_metrics(
-        new_data=DataTensors(
-            reach=optimal_reach, frequency=optimal_frequency_tensor
-        ),
+        new_data=new_summary_metrics_data,
         marginal_roi_by_reach=True,
         selected_geos=selected_geos,
         selected_times=selected_times,
@@ -3544,9 +3601,7 @@ class Analyzer:
         constants.DISTRIBUTION: dist_type,
     })
     optimized_metrics_by_frequency = self.summary_metrics(
-        new_data=DataTensors(
-            reach=optimal_reach, frequency=optimal_frequency_tensor
-        ),
+        new_data=new_summary_metrics_data,
         marginal_roi_by_reach=False,
         selected_geos=selected_geos,
         selected_times=selected_times,

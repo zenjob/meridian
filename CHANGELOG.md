@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Add a `new_data` argument to `analyzer.optimal_freq()`.
+
 ## [1.0.7] - 2025-03-19
 
 * Bump tensorflow to 2.18.

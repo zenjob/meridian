@@ -788,34 +788,42 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         atol=1e-3,
     )
 
-  def test_marginal_roi_media_and_rf_new_data_modified_times(self):
+  def test_marginal_roi_new_times_data_correct(self):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    mroi = self.analyzer_media_and_rf.marginal_roi(
+    max_lag = 15
+    n_new_times = 15
+    total_times = max_lag + n_new_times
+    actual = self.analyzer_media_and_rf.marginal_roi(
         new_data=analyzer.DataTensors(
-            media=self.meridian_media_and_rf.media_tensors.media[..., -15:, :],
-            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
-                ..., -15:, :
+            media=self.meridian_media_and_rf.media_tensors.media[
+                ..., -total_times:, :
             ],
-            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -15:, :],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -total_times:, :
+            ],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[
+                ..., -total_times:, :
+            ],
             frequency=self.meridian_media_and_rf.rf_tensors.frequency[
-                ..., -15:, :
+                ..., -total_times:, :
             ],
             rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
-                ..., -15:, :
+                ..., -total_times:, :
             ],
             revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
-                ..., -15:
+                ..., -total_times:
             ],
         ),
+        selected_times=[False] * max_lag + [True] * n_new_times,
     )
-    self.assertAllClose(
-        mroi,
-        tf.convert_to_tensor(test_utils.MROI_MEDIA_AND_RF_NEW_TIMES_DATA),
-        rtol=1e-3,
-        atol=1e-3,
+    expected = self.analyzer_media_and_rf.marginal_roi(
+        selected_times=list(self.input_data_media_and_rf.time.values)[
+            -n_new_times:
+        ]
     )
+    self.assertAllClose(actual, expected, rtol=1e-3, atol=1e-3)
 
   def test_roi_wrong_new_data_dims_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
@@ -901,34 +909,42 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertAllClose(expected_roi, roi)
 
-  def test_roi_media_and_rf_new_params_returns_correct_shape(self):
+  def test_roi_media_and_rf_new_params_correct(self):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    roi = self.analyzer_media_and_rf.roi(
+    max_lag = 15
+    n_new_times = 15
+    total_times = max_lag + n_new_times
+    actual = self.analyzer_media_and_rf.roi(
         new_data=analyzer.DataTensors(
-            media=self.meridian_media_and_rf.media_tensors.media[..., -15:, :],
-            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
-                ..., -15:, :
+            media=self.meridian_media_and_rf.media_tensors.media[
+                ..., -total_times:, :
             ],
-            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -15:, :],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -total_times:, :
+            ],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[
+                ..., -total_times:, :
+            ],
             frequency=self.meridian_media_and_rf.rf_tensors.frequency[
-                ..., -15:, :
+                ..., -total_times:, :
             ],
             rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
-                ..., -15:, :
+                ..., -total_times:, :
             ],
             revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
-                ..., -15:
+                ..., -total_times:
             ],
-        )
+        ),
+        selected_times=[False] * max_lag + [True] * n_new_times,
     )
-    self.assertAllClose(
-        roi,
-        tf.convert_to_tensor(test_utils.ROI_NEW_TIMES_DATA),
-        rtol=1e-3,
-        atol=1e-3,
+    expected = self.analyzer_media_and_rf.roi(
+        selected_times=list(self.input_data_media_and_rf.time.values)[
+            -n_new_times:
+        ]
     )
+    self.assertAllClose(actual, expected)
 
   @parameterized.product(
       use_posterior=[False, True],
@@ -969,6 +985,43 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         / self.analyzer_media_and_rf.incremental_outcome(use_kpi=True)
     )
     self.assertAllClose(expected_cpik, cpik)
+
+  def test_cpik_new_times_data_correct(self):
+    model.Meridian.inference_data = mock.PropertyMock(
+        return_value=self.inference_data_media_and_rf
+    )
+    max_lag = 15
+    n_new_times = 15
+    total_times = max_lag + n_new_times
+    actual = self.analyzer_media_and_rf.cpik(
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[
+                ..., -total_times:, :
+            ],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -total_times:, :
+            ],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[
+                ..., -total_times:, :
+            ],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -total_times:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -total_times:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -total_times:
+            ],
+        ),
+        selected_times=[False] * max_lag + [True] * n_new_times,
+    )
+    expected = self.analyzer_media_and_rf.cpik(
+        selected_times=list(self.input_data_media_and_rf.time.values)[
+            -n_new_times:
+        ]
+    )
+    self.assertAllClose(actual, expected)
 
   def test_hill_histogram_column_names(self):
     hill_histogram_table = (
@@ -1585,6 +1638,36 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertEqual(actual.confidence_level, expected.confidence_level)
     self.assertEqual(actual.use_posterior, expected.use_posterior)
+
+  def test_optimal_freq_new_times_data_correct(self):
+    max_lag = 15
+    n_new_times = 15
+    total_times = max_lag + n_new_times
+    actual = self.analyzer_media_and_rf.optimal_freq(
+        new_data=analyzer.DataTensors(
+            reach=self.meridian_media_and_rf.rf_tensors.reach[
+                ..., -total_times:, :
+            ],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -total_times:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -total_times:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -total_times:
+            ],
+        ),
+        freq_grid=[1.0, 2.0, 3.0],
+        selected_times=[False] * max_lag + [True] * n_new_times,
+    )
+    expected = self.analyzer_media_and_rf.optimal_freq(
+        selected_times=list(self.input_data_media_and_rf.time.values)[
+            -n_new_times:
+        ],
+        freq_grid=[1.0, 2.0, 3.0],
+    )
+    xr.testing.assert_allclose(actual, expected)
 
   def test_rhat_media_and_rf_correct(self):
     rhat = self.analyzer_media_and_rf.get_rhat()
