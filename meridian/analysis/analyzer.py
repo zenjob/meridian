@@ -1841,8 +1841,8 @@ class Analyzer:
         include or booleans with length equal to the number of time periods in
         `new_data`, if provided. If `new_data` is provided,
         `media_selected_times` can select any subset of time periods in
-        `new_data`. If `new_data is not provided, `media_selected_times` selects
-        from `InputData.time`. The incremental outcome corresponds to
+        `new_data`. If `new_data` is not provided, `media_selected_times`
+        selects from `InputData.time`. The incremental outcome corresponds to
         incremental KPI generated during the `selected_times` arg by treatment
         variables executed during the `media_selected_times` arg. For each
         channel, the incremental outcome is defined as the difference between
