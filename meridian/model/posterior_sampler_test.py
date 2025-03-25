@@ -1385,6 +1385,78 @@ class PosteriorMCMCSamplerTest(
           inference_data=inference_data,
       )
 
+  @parameterized.named_parameters(
+      dict(testcase_name="seed_is_none", seed=None),
+      dict(testcase_name="seed_is_int", seed=42),
+      dict(testcase_name="seed_is_pair", seed=[42, 123]),
+  )
+  def test_sample_posterior_with_seed(self, seed):
+    if seed is not None:
+      seed = tfp.random.sanitize_seed(seed)
+    mock_sample_posterior = self.enter_context(
+        mock.patch.object(
+            posterior_sampler,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_and_rf,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+    meridian.sample_posterior(
+        n_chains=self._N_CHAINS,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+        seed=seed,
+    )
+    mock_sample_posterior.assert_called_with(
+        n_draws=self._N_BURNIN + self._N_KEEP,
+        joint_dist=mock.ANY,
+        n_chains=self._N_CHAINS,
+        num_adaptation_steps=self._N_ADAPT,
+        current_state=None,
+        init_step_size=None,
+        dual_averaging_kwargs=None,
+        max_tree_depth=10,
+        max_energy_diff=500.0,
+        unrolled_leapfrog_steps=1,
+        parallel_iterations=10,
+        seed=seed,
+    )
+
+  @parameterized.named_parameters(
+      dict(testcase_name="seed_is_invalid_sequence", seed=[1, 2, 3]),
+  )
+  def test_sample_posterior_with_invalid_seed_sequence(self, seed):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Invalid seed: Must be either a single integer (stateful seed) or a"
+        " pair of two integers (stateless seed). See"
+        " [tfp.random.sanitize_seed](https://www.tensorflow.org/probability/api_docs/python/tfp/random/sanitize_seed)"
+        " for details.",
+    ):
+      model_spec = spec.ModelSpec()
+      meridian = model.Meridian(
+          input_data=self.short_input_data_with_media_and_rf,
+          model_spec=model_spec,
+      )
+      meridian.sample_posterior(
+          n_chains=self._N_CHAINS,
+          n_adapt=self._N_ADAPT,
+          n_burnin=self._N_BURNIN,
+          n_keep=self._N_KEEP,
+          seed=seed,
+      )
+
 
 if __name__ == "__main__":
   absltest.main()

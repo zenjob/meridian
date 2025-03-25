@@ -393,7 +393,7 @@ class PosteriorMCMCSampler:
       max_energy_diff: float = 500.0,
       unrolled_leapfrog_steps: int = 1,
       parallel_iterations: int = 10,
-      seed: Sequence[int] | None = None,
+      seed: Sequence[int] | int | None = None,
       **pins,
   ) -> az.InferenceData:
     """Runs Markov Chain Monte Carlo (MCMC) sampling of posterior distributions.
@@ -441,9 +441,10 @@ class PosteriorMCMCSampler:
         trajectory length implied by `max_tree_depth`. Defaults is `1`.
       parallel_iterations: Number of iterations allowed to run in parallel. Must
         be a positive integer. For more information, see `tf.while_loop`.
-      seed: Used to set the seed for reproducible results. For more information,
-        see [PRNGS and seeds]
-        (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
+      seed: An `int32[2]` Tensor or a Python list or tuple of 2 `int`s, which
+        will be treated as stateless seeds; or a Python `int` or `None`, which
+        will be treated as stateful seeds. See [tfp.random.sanitize_seed]
+        (https://www.tensorflow.org/probability/api_docs/python/tfp/random/sanitize_seed).
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
 
@@ -457,7 +458,14 @@ class PosteriorMCMCSampler:
         [ResourceExhaustedError when running Meridian.sample_posterior]
         (https://developers.google.com/meridian/docs/advanced-modeling/model-debugging#gpu-oom-error).
     """
-    seed = tfp.random.sanitize_seed(seed) if seed else None
+    if seed is not None and isinstance(seed, Sequence) and len(seed) != 2:
+      raise ValueError(
+          "Invalid seed: Must be either a single integer (stateful seed) or a"
+          " pair of two integers (stateless seed). See"
+          " [tfp.random.sanitize_seed](https://www.tensorflow.org/probability/api_docs/python/tfp/random/sanitize_seed)"
+          " for details."
+      )
+    seed = tfp.random.sanitize_seed(seed) if seed is not None else None
     n_chains_list = [n_chains] if isinstance(n_chains, int) else n_chains
     total_chains = np.sum(n_chains_list)
 
