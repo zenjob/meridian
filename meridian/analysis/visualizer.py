@@ -32,7 +32,9 @@ import xarray as xr
 __all__ = [
     'ModelDiagnostics',
     'ModelFit',
+    'MediaSummary',
     'ReachAndFrequency',
+    'MediaEffects',
 ]
 
 
