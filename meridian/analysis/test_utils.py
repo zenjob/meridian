@@ -2812,16 +2812,13 @@ def generate_predictive_accuracy_table(
   shape = [len(metric), len(geo_granularity)]
   dims = [c.METRIC, c.GEO_GRANULARITY]
   coords = {
-      c.METRIC: ([c.METRIC], metric),
-      c.GEO_GRANULARITY: ([c.GEO_GRANULARITY], geo_granularity),
+      c.METRIC: metric,
+      c.GEO_GRANULARITY: geo_granularity,
   }
   if with_holdout:
     shape.append(len(evaluation_set))
     dims.append(c.EVALUATION_SET_VAR)
-    coords[c.EVALUATION_SET_VAR] = (
-        [c.EVALUATION_SET_VAR],
-        evaluation_set,
-    )
+    coords[c.EVALUATION_SET_VAR] = evaluation_set
   np.random.seed(0)
   value = np.random.lognormal(0, 1, size=shape)
   ds = xr.Dataset(
@@ -3011,14 +3008,8 @@ def generate_predictive_accuracy_data(holdout_id: bool = False) -> xr.Dataset:
 
   xr_dims = [c.METRIC, c.GEO_GRANULARITY]
   xr_coords = {
-      c.METRIC: (
-          [c.METRIC],
-          [c.R_SQUARED, c.MAPE, c.WMAPE],
-      ),
-      c.GEO_GRANULARITY: (
-          [c.GEO_GRANULARITY],
-          [c.GEO, c.NATIONAL],
-      ),
+      c.METRIC: [c.R_SQUARED, c.MAPE, c.WMAPE],
+      c.GEO_GRANULARITY: [c.GEO, c.NATIONAL],
   }
   rsquared_arr = [np.random.uniform(0.0, 1.0) for _ in range(2)]
   mape_arr = [np.random.uniform(0.0, 1.0) for _ in range(2)]
@@ -3043,10 +3034,7 @@ def generate_predictive_accuracy_data(holdout_id: bool = False) -> xr.Dataset:
     )
 
     xr_dims.append(c.EVALUATION_SET_VAR)
-    xr_coords[c.EVALUATION_SET_VAR] = (
-        [c.EVALUATION_SET_VAR],
-        list(c.EVALUATION_SET),
-    )
+    xr_coords[c.EVALUATION_SET_VAR] = list(c.EVALUATION_SET)
     xr_data = {c.VALUE: (xr_dims, stacked_total)}
 
   return xr.Dataset(data_vars=xr_data, coords=xr_coords)

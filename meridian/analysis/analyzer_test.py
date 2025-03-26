@@ -1527,20 +1527,14 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
     )
     expected = xr.Dataset(
         coords={
-            constants.FREQUENCY: ([constants.FREQUENCY], [1.0, 2.0, 3.0]),
-            constants.RF_CHANNEL: (
-                [constants.RF_CHANNEL],
-                ["rf_ch_0", "rf_ch_1"],
-            ),
-            constants.METRIC: (
-                [constants.METRIC],
-                [
-                    constants.MEAN,
-                    constants.MEDIAN,
-                    constants.CI_LO,
-                    constants.CI_HI,
-                ],
-            ),
+            constants.FREQUENCY: [1.0, 2.0, 3.0],
+            constants.RF_CHANNEL: ["rf_ch_0", "rf_ch_1"],
+            constants.METRIC: [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         },
         data_vars={
             constants.ROI: (
@@ -3484,20 +3478,14 @@ class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
     )
     expected = xr.Dataset(
         coords={
-            constants.FREQUENCY: ([constants.FREQUENCY], [1.0, 2.0, 3.0]),
-            constants.RF_CHANNEL: (
-                [constants.RF_CHANNEL],
-                ["rf_ch_0", "rf_ch_1"],
-            ),
-            constants.METRIC: (
-                [constants.METRIC],
-                [
-                    constants.MEAN,
-                    constants.MEDIAN,
-                    constants.CI_LO,
-                    constants.CI_HI,
-                ],
-            ),
+            constants.FREQUENCY: [1.0, 2.0, 3.0],
+            constants.RF_CHANNEL: ["rf_ch_0", "rf_ch_1"],
+            constants.METRIC: [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         },
         data_vars={
             constants.ROI: (
@@ -3989,20 +3977,14 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     )
     expected = xr.Dataset(
         coords={
-            constants.FREQUENCY: ([constants.FREQUENCY], [1.0, 2.0, 3.0]),
-            constants.RF_CHANNEL: (
-                [constants.RF_CHANNEL],
-                ["rf_ch_0", "rf_ch_1"],
-            ),
-            constants.METRIC: (
-                [constants.METRIC],
-                [
-                    constants.MEAN,
-                    constants.MEDIAN,
-                    constants.CI_LO,
-                    constants.CI_HI,
-                ],
-            ),
+            constants.FREQUENCY: [1.0, 2.0, 3.0],
+            constants.RF_CHANNEL: ["rf_ch_0", "rf_ch_1"],
+            constants.METRIC: [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         },
         data_vars={
             constants.ROI: (

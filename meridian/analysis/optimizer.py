@@ -1432,14 +1432,8 @@ class BudgetOptimizer:
     return xr.Dataset(
         data_vars=data_vars,
         coords={
-            c.GRID_SPEND_INDEX: (
-                [c.GRID_SPEND_INDEX],
-                np.arange(0, len(spend_grid)),
-            ),
-            c.CHANNEL: (
-                [c.CHANNEL],
-                self._meridian.input_data.get_all_paid_channels(),
-            ),
+            c.GRID_SPEND_INDEX: np.arange(0, len(spend_grid)),
+            c.CHANNEL: self._meridian.input_data.get_all_paid_channels(),
         },
         attrs={c.SPEND_STEP_SIZE: spend_step_size},
     )
@@ -1724,14 +1718,8 @@ class BudgetOptimizer:
     return xr.Dataset(
         data_vars=data_vars,
         coords={
-            c.CHANNEL: (
-                [c.CHANNEL],
-                self._meridian.input_data.get_all_paid_channels(),
-            ),
-            c.METRIC: (
-                [c.METRIC],
-                [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI],
-            ),
+            c.CHANNEL: self._meridian.input_data.get_all_paid_channels(),
+            c.METRIC: [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI],
         },
         attrs=attributes | (attrs or {}),
     )

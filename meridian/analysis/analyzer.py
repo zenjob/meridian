@@ -2579,21 +2579,15 @@ class Analyzer:
 
     # Set up the coordinates.
     coords = {
-        constants.METRIC: (
-            [constants.METRIC],
-            [constants.MEAN, constants.CI_LO, constants.CI_HI],
-        ),
+        constants.METRIC: [constants.MEAN, constants.CI_LO, constants.CI_HI],
     }
 
     if not aggregate_geos:
-      coords[constants.GEO] = ([constants.GEO], mmm.input_data.geo.data)
+      coords[constants.GEO] = mmm.input_data.geo.data
     if not aggregate_times:
-      coords[constants.TIME] = ([constants.TIME], mmm.input_data.time.data)
+      coords[constants.TIME] = mmm.input_data.time.data
     if can_split_by_holdout:
-      coords[constants.EVALUATION_SET_VAR] = (
-          [constants.EVALUATION_SET_VAR],
-          list(constants.EVALUATION_SET),
-      )
+      coords[constants.EVALUATION_SET_VAR] = list(constants.EVALUATION_SET)
 
     # Set up the dimensions.
     actual_dims = ((constants.GEO,) if not aggregate_geos else ()) + (
@@ -2947,19 +2941,14 @@ class Analyzer:
         if include_non_paid_channels
         else self._meridian.input_data.get_all_paid_channels()
     )
-    xr_coords = {
-        constants.CHANNEL: (
-            [constants.CHANNEL],
-            list(channels) + [constants.ALL_CHANNELS],
-        ),
-    }
+    xr_coords = {constants.CHANNEL: list(channels) + [constants.ALL_CHANNELS]}
     if not aggregate_geos:
       geo_dims = (
           self._meridian.input_data.geo.data
           if selected_geos is None
           else selected_geos
       )
-      xr_coords[constants.GEO] = ([constants.GEO], geo_dims)
+      xr_coords[constants.GEO] = geo_dims
     if not aggregate_times:
       # Get the time coordinates for flexible time dimensions.
       modified_times = new_data.get_modified_times(self._meridian)
@@ -2975,25 +2964,19 @@ class Analyzer:
         time_dims = times[indices]
       else:
         time_dims = selected_times
-      xr_coords[constants.TIME] = ([constants.TIME], time_dims)
+      xr_coords[constants.TIME] = time_dims
     xr_dims_with_ci_and_distribution = xr_dims + (
         constants.METRIC,
         constants.DISTRIBUTION,
     )
     xr_coords_with_ci_and_distribution = {
-        constants.METRIC: (
-            [constants.METRIC],
-            [
-                constants.MEAN,
-                constants.MEDIAN,
-                constants.CI_LO,
-                constants.CI_HI,
-            ],
-        ),
-        constants.DISTRIBUTION: (
-            [constants.DISTRIBUTION],
-            [constants.PRIOR, constants.POSTERIOR],
-        ),
+        constants.METRIC: [
+            constants.MEAN,
+            constants.MEDIAN,
+            constants.CI_LO,
+            constants.CI_HI,
+        ],
+        constants.DISTRIBUTION: [constants.PRIOR, constants.POSTERIOR],
         **xr_coords,
     }
     incremental_outcome = _central_tendency_and_ci_by_prior_and_posterior(
@@ -3323,41 +3306,33 @@ class Analyzer:
         + ((constants.TIME,) if not aggregate_times else ())
         + (constants.CHANNEL,)
     )
-    xr_coords = {
-        constants.CHANNEL: ([constants.CHANNEL], [constants.BASELINE]),
-    }
+    xr_coords = {constants.CHANNEL: [constants.BASELINE]}
     if not aggregate_geos:
       geo_dims = (
           self._meridian.input_data.geo.data
           if selected_geos is None
           else selected_geos
       )
-      xr_coords[constants.GEO] = ([constants.GEO], geo_dims)
+      xr_coords[constants.GEO] = geo_dims
     if not aggregate_times:
       time_dims = (
           self._meridian.input_data.time.data
           if selected_times is None
           else selected_times
       )
-      xr_coords[constants.TIME] = ([constants.TIME], time_dims)
+      xr_coords[constants.TIME] = time_dims
     xr_dims_with_ci_and_distribution = xr_dims + (
         constants.METRIC,
         constants.DISTRIBUTION,
     )
     xr_coords_with_ci_and_distribution = {
-        constants.METRIC: (
-            [constants.METRIC],
-            [
-                constants.MEAN,
-                constants.MEDIAN,
-                constants.CI_LO,
-                constants.CI_HI,
-            ],
-        ),
-        constants.DISTRIBUTION: (
-            [constants.DISTRIBUTION],
-            [constants.PRIOR, constants.POSTERIOR],
-        ),
+        constants.METRIC: [
+            constants.MEAN,
+            constants.MEDIAN,
+            constants.CI_LO,
+            constants.CI_HI,
+        ],
+        constants.DISTRIBUTION: [constants.PRIOR, constants.POSTERIOR],
         **xr_coords,
     }
 
@@ -3649,17 +3624,14 @@ class Analyzer:
     return xr.Dataset(
         data_vars=data_vars,
         coords={
-            constants.FREQUENCY: ([constants.FREQUENCY], freq_grid),
-            constants.RF_CHANNEL: ([constants.RF_CHANNEL], rf_channel_values),
-            constants.METRIC: (
-                [constants.METRIC],
-                [
-                    constants.MEAN,
-                    constants.MEDIAN,
-                    constants.CI_LO,
-                    constants.CI_HI,
-                ],
-            ),
+            constants.FREQUENCY: freq_grid,
+            constants.RF_CHANNEL: rf_channel_values,
+            constants.METRIC: [
+                constants.MEAN,
+                constants.MEDIAN,
+                constants.CI_LO,
+                constants.CI_HI,
+            ],
         },
         attrs={
             constants.CONFIDENCE_LEVEL: confidence_level,
@@ -3732,14 +3704,12 @@ class Analyzer:
 
     xr_dims = [constants.METRIC, constants.GEO_GRANULARITY]
     xr_coords = {
-        constants.METRIC: (
-            [constants.METRIC],
-            [constants.R_SQUARED, constants.MAPE, constants.WMAPE],
-        ),
-        constants.GEO_GRANULARITY: (
-            [constants.GEO_GRANULARITY],
-            [constants.GEO, constants.NATIONAL],
-        ),
+        constants.METRIC: [
+            constants.R_SQUARED,
+            constants.MAPE,
+            constants.WMAPE,
+        ],
+        constants.GEO_GRANULARITY: [constants.GEO, constants.NATIONAL],
     }
     if self._meridian.revenue_per_kpi is not None:
       input_tensor = self._meridian.kpi * self._meridian.revenue_per_kpi
@@ -3770,10 +3740,7 @@ class Analyzer:
       dataset = xr.Dataset(data_vars=xr_data, coords=xr_coords)
     else:
       xr_dims.append(constants.EVALUATION_SET_VAR)
-      xr_coords[constants.EVALUATION_SET_VAR] = (
-          [constants.EVALUATION_SET_VAR],
-          list(constants.EVALUATION_SET),
-      )
+      xr_coords[constants.EVALUATION_SET_VAR] = list(constants.EVALUATION_SET)
 
       holdout_id = self._filter_holdout_id_for_selected_geos_and_times(
           self._meridian.model_spec.holdout_id, selected_geos, selected_times
@@ -4090,22 +4057,13 @@ class Analyzer:
       )
     spend_einsum = tf.einsum("k,m->km", np.array(spend_multipliers), spend)
     xr_coords = {
-        constants.CHANNEL: (
-            [constants.CHANNEL],
-            self._meridian.input_data.get_all_paid_channels(),
-        ),
-        constants.METRIC: (
-            [constants.METRIC],
-            [
-                constants.MEAN,
-                constants.CI_LO,
-                constants.CI_HI,
-            ],
-        ),
-        constants.SPEND_MULTIPLIER: (
-            [constants.SPEND_MULTIPLIER],
-            spend_multipliers,
-        ),
+        constants.CHANNEL: self._meridian.input_data.get_all_paid_channels(),
+        constants.METRIC: [
+            constants.MEAN,
+            constants.CI_LO,
+            constants.CI_HI,
+        ],
+        constants.SPEND_MULTIPLIER: spend_multipliers,
     }
     xr_data_vars = {
         constants.SPEND: (
@@ -4174,19 +4132,10 @@ class Analyzer:
         constants.DISTRIBUTION,
     ]
     xr_coords = {
-        constants.TIME_UNITS: ([constants.TIME_UNITS], l_range),
-        constants.CHANNEL: (
-            [constants.CHANNEL],
-            rf_channel_values,
-        ),
-        constants.DISTRIBUTION: (
-            [constants.DISTRIBUTION],
-            [constants.PRIOR, constants.POSTERIOR],
-        ),
-        constants.METRIC: (
-            [constants.METRIC],
-            [constants.MEAN, constants.CI_LO, constants.CI_HI],
-        ),
+        constants.TIME_UNITS: l_range,
+        constants.CHANNEL: rf_channel_values,
+        constants.DISTRIBUTION: [constants.PRIOR, constants.POSTERIOR],
+        constants.METRIC: [constants.MEAN, constants.CI_LO, constants.CI_HI],
     }
     final_df = pd.DataFrame()
 
@@ -4200,7 +4149,7 @@ class Analyzer:
       )
       final_df = pd.concat([final_df, adstock_df_rf], axis=0)
     if self._meridian.n_media_channels > 0:
-      xr_coords[constants.CHANNEL] = ([constants.CHANNEL], media_channel_values)
+      xr_coords[constants.CHANNEL] = media_channel_values
       adstock_df_m = self._get_adstock_dataframe(
           constants.MEDIA,
           l_range,
@@ -4284,19 +4233,10 @@ class Analyzer:
         constants.DISTRIBUTION,
     ]
     xr_coords = {
-        constants.MEDIA_UNITS: ([constants.MEDIA_UNITS], linspace_filler),
-        constants.CHANNEL: (
-            [constants.CHANNEL],
-            list(channels),
-        ),
-        constants.DISTRIBUTION: (
-            [constants.DISTRIBUTION],
-            [constants.PRIOR, constants.POSTERIOR],
-        ),
-        constants.METRIC: (
-            [constants.METRIC],
-            [constants.MEAN, constants.CI_LO, constants.CI_HI],
-        ),
+        constants.MEDIA_UNITS: linspace_filler,
+        constants.CHANNEL: list(channels),
+        constants.DISTRIBUTION: [constants.PRIOR, constants.POSTERIOR],
+        constants.METRIC: [constants.MEAN, constants.CI_LO, constants.CI_HI],
     }
     # Expanding the linspace by one dimension since the HillTransformer requires
     # 3-dimensional input as (geo, time, channel).

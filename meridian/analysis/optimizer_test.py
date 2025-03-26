@@ -193,8 +193,8 @@ def _create_budget_data(
   return xr.Dataset(
       data_vars=data_vars,
       coords={
-          c.CHANNEL: ([c.CHANNEL], channels),
-          c.METRIC: ([c.METRIC], [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI]),
+          c.CHANNEL: channels,
+          c.METRIC: [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI],
       },
       attrs=attributes | (attrs or {}),
   )
@@ -886,14 +886,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             ),
         },
         coords={
-            c.GRID_SPEND_INDEX: (
-                [c.GRID_SPEND_INDEX],
-                np.arange(0, len(expected_spend_grid)),
-            ),
-            c.CHANNEL: (
-                [c.CHANNEL],
-                self.input_data_media_and_rf.get_all_channels(),
-            ),
+            c.GRID_SPEND_INDEX: np.arange(0, len(expected_spend_grid)),
+            c.CHANNEL: self.input_data_media_and_rf.get_all_channels(),
         },
     )
 
