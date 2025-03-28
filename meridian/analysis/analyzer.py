@@ -181,6 +181,13 @@ class DataTensors(tf.experimental.ExtensionType):
         return new_tensor.shape[1]
     return None
 
+  def filter_fields(self, fields: Sequence[str]) -> Self:
+    """Returns a new DataTensors object with only the specified fields."""
+    output = {}
+    for field in fields:
+      output[field] = getattr(self, field)
+    return DataTensors(**output)
+
   def validate_and_fill_missing_data(
       self,
       required_tensors_names: Sequence[str],
@@ -1455,16 +1462,7 @@ class Analyzer:
     if new_data is None:
       new_data = DataTensors()
 
-    required_fields = [
-        constants.CONTROLS,
-        constants.MEDIA,
-        constants.REACH,
-        constants.FREQUENCY,
-        constants.ORGANIC_MEDIA,
-        constants.ORGANIC_REACH,
-        constants.ORGANIC_FREQUENCY,
-        constants.NON_MEDIA_TREATMENTS,
-    ]
+    required_fields = constants.NON_REVENUE_DATA
     filled_tensors = new_data.validate_and_fill_missing_data(
         required_tensors_names=required_fields,
         meridian=self._meridian,
@@ -1922,16 +1920,9 @@ class Analyzer:
     if new_data is None:
       new_data = DataTensors()
 
-    required_params = [
-        constants.MEDIA,
-        constants.REACH,
-        constants.FREQUENCY,
-        constants.ORGANIC_MEDIA,
-        constants.ORGANIC_REACH,
-        constants.ORGANIC_FREQUENCY,
-        constants.NON_MEDIA_TREATMENTS,
-        constants.REVENUE_PER_KPI,
-    ]
+    required_params = constants.PAID_DATA
+    if include_non_paid_channels:
+      required_params += constants.NON_PAID_DATA
     data_tensors = new_data.validate_and_fill_missing_data(
         required_tensors_names=required_params, meridian=self._meridian
     )
@@ -2193,14 +2184,7 @@ class Analyzer:
     }
     self._check_revenue_data_exists(use_kpi)
     self._validate_geo_and_time_granularity(**dim_kwargs)
-    required_values = [
-        constants.MEDIA,
-        constants.MEDIA_SPEND,
-        constants.REACH,
-        constants.FREQUENCY,
-        constants.RF_SPEND,
-        constants.REVENUE_PER_KPI,
-    ]
+    required_values = constants.PERFORMANCE_DATA
     if not new_data:
       new_data = DataTensors()
     filled_data = new_data.validate_and_fill_missing_data(
@@ -2208,7 +2192,7 @@ class Analyzer:
         meridian=self._meridian,
     )
     numerator = self.incremental_outcome(
-        new_data=filled_data,
+        new_data=filled_data.filter_fields(constants.PAID_DATA),
         scaling_factor0=1,
         scaling_factor1=1 + incremental_increase,
         inverse_transform_outcome=True,
@@ -2322,14 +2306,7 @@ class Analyzer:
     }
     self._check_revenue_data_exists(use_kpi)
     self._validate_geo_and_time_granularity(**dim_kwargs)
-    required_values = [
-        constants.MEDIA,
-        constants.MEDIA_SPEND,
-        constants.REACH,
-        constants.FREQUENCY,
-        constants.RF_SPEND,
-        constants.REVENUE_PER_KPI,
-    ]
+    required_values = constants.PERFORMANCE_DATA
     if not new_data:
       new_data = DataTensors()
     filled_data = new_data.validate_and_fill_missing_data(
@@ -2337,7 +2314,7 @@ class Analyzer:
         meridian=self._meridian,
     )
     incremental_outcome = self.incremental_outcome(
-        new_data=filled_data,
+        new_data=filled_data.filter_fields(constants.PAID_DATA),
         **incremental_outcome_kwargs,
         **dim_kwargs,
     )
@@ -2873,7 +2850,7 @@ class Analyzer:
     batched_kwargs = {"batch_size": batch_size}
     new_data = new_data or DataTensors()
     aggregated_impressions = self.get_aggregated_impressions(
-        new_data=new_data,
+        new_data=new_data.filter_fields(constants.IMPRESSIONS_DATA),
         optimal_frequency=optimal_frequency,
         include_non_paid_channels=include_non_paid_channels,
         **dim_kwargs,
@@ -2886,9 +2863,12 @@ class Analyzer:
         axis=-1,
     )
 
+    incremental_outcome_fields = list(
+        constants.PAID_DATA + constants.NON_PAID_DATA
+    )
     incremental_outcome_prior = self.compute_incremental_outcome_aggregate(
         use_posterior=False,
-        new_data=new_data,
+        new_data=new_data.filter_fields(incremental_outcome_fields),
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         non_media_baseline_values=non_media_baseline_values,
@@ -2897,7 +2877,7 @@ class Analyzer:
     )
     incremental_outcome_posterior = self.compute_incremental_outcome_aggregate(
         use_posterior=True,
-        new_data=new_data,
+        new_data=new_data.filter_fields(incremental_outcome_fields),
         use_kpi=use_kpi,
         include_non_paid_channels=include_non_paid_channels,
         non_media_baseline_values=non_media_baseline_values,
@@ -2906,7 +2886,7 @@ class Analyzer:
     )
     incremental_outcome_mroi_prior = self.compute_incremental_outcome_aggregate(
         use_posterior=False,
-        new_data=new_data,
+        new_data=new_data.filter_fields(incremental_outcome_fields),
         use_kpi=use_kpi,
         by_reach=marginal_roi_by_reach,
         scaling_factor0=1,
@@ -2919,7 +2899,7 @@ class Analyzer:
     incremental_outcome_mroi_posterior = (
         self.compute_incremental_outcome_aggregate(
             use_posterior=True,
-            new_data=new_data,
+            new_data=new_data.filter_fields(incremental_outcome_fields),
             use_kpi=use_kpi,
             by_reach=marginal_roi_by_reach,
             scaling_factor0=1,
@@ -3005,14 +2985,14 @@ class Analyzer:
     if new_data.get_modified_times(self._meridian) is None:
       expected_outcome_prior = self.expected_outcome(
           use_posterior=False,
-          new_data=new_data,
+          new_data=new_data.filter_fields(constants.NON_REVENUE_DATA),
           use_kpi=use_kpi,
           **dim_kwargs,
           **batched_kwargs,
       )
       expected_outcome_posterior = self.expected_outcome(
           use_posterior=True,
-          new_data=new_data,
+          new_data=new_data.filter_fields(constants.NON_REVENUE_DATA),
           use_kpi=use_kpi,
           **dim_kwargs,
           **batched_kwargs,
@@ -3053,11 +3033,9 @@ class Analyzer:
     # If non-paid channels are not included, return all metrics, paid and
     # non-paid.
     spend_list = []
-    if new_data is None:
-      new_data = DataTensors()
-    new_spend_tensors = new_data.validate_and_fill_missing_data(
-        [constants.MEDIA_SPEND, constants.RF_SPEND], self._meridian
-    )
+    new_spend_tensors = new_data.filter_fields(
+        constants.SPEND_DATA
+    ).validate_and_fill_missing_data(constants.SPEND_DATA, self._meridian)
     if self._meridian.n_media_channels > 0:
       spend_list.append(new_spend_tensors.media_spend)
     if self._meridian.n_rf_channels > 0:
@@ -3119,7 +3097,7 @@ class Analyzer:
       cpik = self._compute_cpik_aggregate(
           incremental_kpi_prior=self.compute_incremental_outcome_aggregate(
               use_posterior=False,
-              new_data=new_data,
+              new_data=new_data.filter_fields(incremental_outcome_fields),
               use_kpi=True,
               include_non_paid_channels=False,
               **dim_kwargs,
@@ -3127,7 +3105,7 @@ class Analyzer:
           ),
           incremental_kpi_posterior=self.compute_incremental_outcome_aggregate(
               use_posterior=True,
-              new_data=new_data,
+              new_data=new_data.filter_fields(incremental_outcome_fields),
               use_kpi=True,
               include_non_paid_channels=False,
               **dim_kwargs,
@@ -3190,18 +3168,13 @@ class Analyzer:
       (or `(n_channels,)` if geos and times are aggregated) with aggregate
       impression values per channel.
     """
-    tensor_names_list = [
+    tensor_names_list = (
         constants.MEDIA,
         constants.REACH,
         constants.FREQUENCY,
-    ]
+    )
     if include_non_paid_channels:
-      tensor_names_list.extend([
-          constants.ORGANIC_MEDIA,
-          constants.ORGANIC_REACH,
-          constants.ORGANIC_FREQUENCY,
-          constants.NON_MEDIA_TREATMENTS,
-      ])
+      tensor_names_list += constants.NON_PAID_DATA
     if new_data is None:
       new_data = DataTensors()
     data_tensors = new_data.validate_and_fill_missing_data(
@@ -3481,12 +3454,7 @@ class Analyzer:
       )
 
     filled_data = new_data.validate_and_fill_missing_data(
-        [
-            constants.REACH,
-            constants.FREQUENCY,
-            constants.RF_SPEND,
-            constants.REVENUE_PER_KPI,
-        ],
+        constants.RF_DATA,
         self._meridian,
     )
     # TODO: Once treatment type filtering is added, remove adding
@@ -4026,7 +3994,7 @@ class Analyzer:
       )
       inc_outcome_temp = self.incremental_outcome(
           use_posterior=use_posterior,
-          new_data=new_data,
+          new_data=new_data.filter_fields(constants.PAID_DATA),
           inverse_transform_outcome=True,
           batch_size=batch_size,
           use_kpi=use_kpi,

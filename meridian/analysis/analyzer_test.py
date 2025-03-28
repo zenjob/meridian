@@ -852,8 +852,8 @@ class AnalyzerTest(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         "If the time dimension of a variable in `new_data` is modified, then"
         " all variables must be provided in `new_data`. The following variables"
-        " are missing: `['media', 'media_spend', 'reach', 'frequency',"
-        " 'revenue_per_kpi']`.",
+        " are missing: `['media', 'reach', 'frequency', 'revenue_per_kpi',"
+        " 'media_spend']`.",
     ):
       self.analyzer_media_and_rf.roi(
           new_data=analyzer.DataTensors(
