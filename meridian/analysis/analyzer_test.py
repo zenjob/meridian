@@ -3919,7 +3919,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.analyzer_kpi.roi(use_kpi=False)
 
-  def test_use_kpi_no_revenue_per_kpi_correct_usage_response_curves(self):
+  def test_use_kpi_correct_usage_response_curves(self):
     mock_incremental_outcome = self.enter_context(
         mock.patch.object(
             self.analyzer_kpi,
@@ -3931,7 +3931,7 @@ class AnalyzerKpiTest(tf.test.TestCase, parameterized.TestCase):
             )),
         )
     )
-    self.analyzer_kpi.response_curves()
+    self.analyzer_kpi.response_curves(use_kpi=True)
     _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertEqual(mock_kwargs["use_kpi"], True)
 

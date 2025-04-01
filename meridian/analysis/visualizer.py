@@ -887,11 +887,13 @@ class MediaEffects:
       A Dataset displaying the response curves data.
     """
     selected_times_list = list(selected_times) if selected_times else None
+    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     return self._analyzer.response_curves(
         spend_multipliers=list(np.arange(0, 2.2, c.RESPONSE_CURVE_STEP_SIZE)),
         confidence_level=confidence_level,
         selected_times=selected_times_list,
         by_reach=by_reach,
+        use_kpi=use_kpi,
     )
 
   @functools.lru_cache(maxsize=128)

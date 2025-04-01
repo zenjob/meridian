@@ -3903,6 +3903,7 @@ class Analyzer:
       selected_times: Sequence[str] | None = None,
       by_reach: bool = True,
       use_optimal_frequency: bool = False,
+      use_kpi: bool = False,
       confidence_level: float = constants.DEFAULT_CONFIDENCE_LEVEL,
       batch_size: int = constants.DEFAULT_BATCH_SIZE,
   ) -> xr.Dataset:
@@ -3930,6 +3931,8 @@ class Analyzer:
         frequency.
       use_optimal_frequency: If `True`, uses the optimal frequency to plot the
         response curves. Defaults to `False`.
+      use_kpi: A boolean flag indicating whether to use KPI instead of revenue
+        to generate the response curves. Defaults to `False`.
       confidence_level: Confidence level for prior and posterior credible
         intervals, represented as a value between zero and one.
       batch_size: Integer representing the maximum draws per chain in each
@@ -3941,7 +3944,6 @@ class Analyzer:
         An `xarray.Dataset` containing the data needed to visualize response
         curves.
     """
-    use_kpi = self._meridian.input_data.revenue_per_kpi is None
     if self._meridian.is_national:
       _warn_if_geo_arg_in_kwargs(
           selected_geos=selected_geos,

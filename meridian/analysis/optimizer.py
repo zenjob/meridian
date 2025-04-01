@@ -699,6 +699,7 @@ class OptimizationResults:
         use_posterior=self.optimization_grid.use_posterior,
         selected_times=selected_times,
         by_reach=True,
+        use_kpi=not self.nonoptimized_data.attrs[c.IS_REVENUE_KPI],
         use_optimal_frequency=self.optimization_grid.use_optimal_frequency,
     )
 
