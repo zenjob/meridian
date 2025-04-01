@@ -1457,6 +1457,63 @@ class PosteriorMCMCSamplerTest(
           seed=seed,
       )
 
+  @parameterized.named_parameters(
+      dict(testcase_name="seed_is_none", initial_seed=None),
+      dict(
+          testcase_name="seed_is_int",
+          initial_seed=123,
+      ),
+      dict(
+          testcase_name="seed_is_pair",
+          initial_seed=[123, 456],
+      ),
+  )
+  def test_sample_posterior_seed_increment(self, initial_seed):
+    n_chains_list = [self._N_CHAINS, self._N_CHAINS]
+    mock_sample_posterior = self.enter_context(
+        mock.patch.object(
+            posterior_sampler,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_and_rf,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_and_rf,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=n_chains_list,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+        seed=initial_seed,
+    )
+
+    calls = mock_sample_posterior.call_args_list
+    self.assertLen(calls, len(n_chains_list))
+
+    _, kwargs0 = calls[0]
+    _, kwargs1 = calls[1]
+
+    sanitized_seeds = []
+    if initial_seed is None:
+      sanitized_seeds.append(None)
+      sanitized_seeds.append(None)
+      self.assertIsNone(kwargs0["seed"])
+      self.assertIsNone(kwargs1["seed"])
+    else:
+      sanitized_seed0 = kwargs0["seed"]
+      sanitized_seed1 = kwargs1["seed"]
+      self.assertAllEqual(sanitized_seed1, [x + 1 for x in sanitized_seed0])
+
 
 if __name__ == "__main__":
   absltest.main()
