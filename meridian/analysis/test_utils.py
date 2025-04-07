@@ -2926,7 +2926,9 @@ def generate_all_summary_metrics(aggregate_times: bool = True) -> xr.Dataset:
   channel.append(c.ALL_CHANNELS)
   metric = [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI]
   distribution = [c.PRIOR, c.POSTERIOR]
-  time = [f"time_{i}" for i in range(5)]
+  time = pd.date_range("2023-01-01", freq="W-SUN", periods=5).format(
+      formatter=lambda x: x.strftime("%Y-%m-%d")
+  )
 
   np.random.seed(0)
 

@@ -1733,6 +1733,101 @@ class MediaSummary:
     )
     return plot
 
+  def plot_channel_contribution_bump_chart(self) -> alt.Chart:
+    """Plots a bump chart of channel contribution rank over time (Quarterly).
+
+    This chart shows the relative rank of each channel's contribution,
+    including the baseline, based on incremental outcome at the end of each
+    quarter. Rank 1 represents the highest contribution.
+
+    Returns:
+      An Altair plot showing the contribution rank per channel by quarter.
+    """
+    outcome_df = self._transform_contribution_metrics(
+        include_non_paid=True, aggregate_times=False
+    )
+    outcome_df[c.CHANNEL] = outcome_df[c.CHANNEL].str.upper()
+    outcome_df[c.TIME] = pd.to_datetime(outcome_df[c.TIME])
+
+    outcome_df['rank'] = outcome_df.groupby(c.TIME)[c.INCREMENTAL_OUTCOME].rank(
+        method='first', ascending=False
+    )
+
+    # Filter data to keep only the last available date within each quarter
+    # for a quarterly view of ranking changes.
+    unique_times = pd.Series(outcome_df[c.TIME].unique()).sort_values()
+    quarters = unique_times.dt.to_period('Q')
+    quarterly_dates = unique_times[~quarters.duplicated(keep='last')]
+    quarterly_rank_df = outcome_df[
+        outcome_df[c.TIME].isin(quarterly_dates)
+    ].copy()
+
+    legend_order = [c.BASELINE.upper()] + sorted([
+        channel
+        for channel in quarterly_rank_df[c.CHANNEL].unique()
+        if channel != c.BASELINE.upper()
+    ])
+
+    plot = (
+        alt.Chart(quarterly_rank_df, width=c.VEGALITE_FACET_DEFAULT_WIDTH)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(
+                f'{c.TIME}:T',
+                title='Time period',
+                axis=alt.Axis(
+                    format='%Y Q%q',
+                    grid=False,
+                    domainColor=c.GREY_300,
+                ),
+            ),
+            y=alt.Y(
+                'rank:Q',
+                title='Contribution Rank',
+                axis=alt.Axis(
+                    ticks=False,
+                    domain=False,
+                    labelPadding=c.PADDING_10,
+                    tickMinStep=1,
+                    format='d',
+                ),
+                scale=alt.Scale(
+                    zero=False,
+                    reverse=True,
+                ),
+            ),
+            color=alt.Color(
+                f'{c.CHANNEL}:N',
+                legend=alt.Legend(
+                    labelFontSize=c.AXIS_FONT_SIZE,
+                    labelFont=c.FONT_ROBOTO,
+                    title=None,
+                ),
+                scale=alt.Scale(domain=legend_order),
+                sort=legend_order,
+            ),
+            tooltip=[
+                alt.Tooltip(f'{c.TIME}:T', format='%Y Q%q', title='Quarter'),
+                alt.Tooltip(f'{c.CHANNEL}:N', title='Channel'),
+                alt.Tooltip('rank:O', title='Rank'),
+                alt.Tooltip(
+                    f'{c.INCREMENTAL_OUTCOME}:Q',
+                    format=',.0f',
+                    title='Incremental Outcome',
+                ),
+            ],
+        )
+        .properties(
+            title=formatter.custom_title_params(
+                summary_text.CHANNEL_CONTRIB_RANK_CHART_TITLE
+            )
+        )
+        .configure_axis(titlePadding=c.PADDING_10, **formatter.TEXT_CONFIG)
+        .configure_view(strokeOpacity=0)
+    )
+
+    return plot
+
   def plot_contribution_waterfall_chart(self) -> alt.Chart:
     """Plots a waterfall chart of the contribution share per channel.
 

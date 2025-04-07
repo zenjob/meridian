@@ -46,6 +46,9 @@ CHANNEL_CONTRIB_BY_TIME_CHART_ID = 'channel-contrib-by-time-chart'
 CHANNEL_CONTRIB_BY_TIME_CHART_TITLE = (
     'Contribution over time by baseline and marketing channels'
 )
+CHANNEL_CONTRIB_RANK_CHART_TITLE = (
+    'Contribution rank over time by baseline and marketing channels'
+)
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'
