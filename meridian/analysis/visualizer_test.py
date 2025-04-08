@@ -1826,10 +1826,10 @@ class MediaSummaryTest(parameterized.TestCase):
         list(df.columns),
         [c.TIME, c.CHANNEL, c.INCREMENTAL_OUTCOME, c.PCT_OF_CONTRIBUTION],
     )
-    self.assertIn(c.BASELINE.upper(), list(df.channel))
+    self.assertIn(c.BASELINE, list(df.channel))
     self.assertEqual(
         df[c.CHANNEL].iloc[0],
-        c.BASELINE.upper(),
+        c.BASELINE,
         "Baseline should be last for stacking",
     )
 
@@ -1963,19 +1963,19 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.encoding.y["axis"]["tickMinStep"], 1)
 
     expected_legend_order = [
-        "BASELINE",
-        "CH_0",
-        "CH_1",
-        "CH_2",
-        "NON_MEDIA_0",
-        "NON_MEDIA_1",
-        "ORGANIC_MEDIA_0",
-        "ORGANIC_MEDIA_1",
-        "ORGANIC_MEDIA_2",
-        "ORGANIC_MEDIA_3",
-        "ORGANIC_RF_CH_0",
-        "RF_CH_0",
-        "RF_CH_1",
+        "baseline",
+        "ch_0",
+        "ch_1",
+        "ch_2",
+        "non_media_0",
+        "non_media_1",
+        "organic_media_0",
+        "organic_media_1",
+        "organic_media_2",
+        "organic_media_3",
+        "organic_rf_ch_0",
+        "rf_ch_0",
+        "rf_ch_1",
     ]
     self.assertListEqual(
         plot.encoding.color["scale"].domain, expected_legend_order
@@ -2070,26 +2070,26 @@ class MediaSummaryTest(parameterized.TestCase):
     # Q1 (2023-03-26): Base(3000), Ch3(1200), Ch1(1000), Ch2(800)
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == c.BASELINE.upper()),
+            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == c.BASELINE),
             "rank",
         ].item(),
         1.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "CH3"), "rank"
+            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "Ch3"), "rank"
         ].item(),
         2.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "CH1"), "rank"
+            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "Ch1"), "rank"
         ].item(),
         3.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "CH2"), "rank"
+            (df[c.TIME] == q1_date) & (df[c.CHANNEL] == "Ch2"), "rank"
         ].item(),
         4.0,
     )
@@ -2097,26 +2097,26 @@ class MediaSummaryTest(parameterized.TestCase):
     # Q2 (2023-06-25): Base(3300), Ch2(1300), Ch1(1100), Ch3(900)
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == c.BASELINE.upper()),
+            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == c.BASELINE),
             "rank",
         ].item(),
         1.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "CH2"), "rank"
+            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "Ch2"), "rank"
         ].item(),
         2.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "CH1"), "rank"
+            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "Ch1"), "rank"
         ].item(),
         3.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "CH3"), "rank"
+            (df[c.TIME] == q2_date) & (df[c.CHANNEL] == "Ch3"), "rank"
         ].item(),
         4.0,
     )
@@ -2124,33 +2124,33 @@ class MediaSummaryTest(parameterized.TestCase):
     # Q3 (2023-09-24): Ch3(4600), Base(4500), Ch1(1500), Ch2(1400)
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "CH3"),
+            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "Ch3"),
             "rank",
         ].item(),
         1.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == c.BASELINE.upper()),
+            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == c.BASELINE),
             "rank",
         ].item(),
         2.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "CH1"), "rank"
+            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "Ch1"), "rank"
         ].item(),
         3.0,
     )
     self.assertEqual(
         df.loc[
-            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "CH2"), "rank"
+            (df[c.TIME] == q3_date) & (df[c.CHANNEL] == "Ch2"), "rank"
         ].item(),
         4.0,
     )
 
     # Verify correct channels are present (Baseline + the mocked channels)
-    expected_channels_in_plot = {"CH1", "CH2", "CH3", c.BASELINE.upper()}
+    expected_channels_in_plot = {"Ch1", "Ch2", "Ch3", c.BASELINE}
     self.assertSetEqual(set(df[c.CHANNEL].unique()), expected_channels_in_plot)
 
   def test_media_summary_plot_waterfall_chart_correct_data(self):

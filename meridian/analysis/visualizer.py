@@ -1647,26 +1647,25 @@ class MediaSummary:
     outcome_df = self._transform_contribution_metrics(
         include_non_paid=True, aggregate_times=False
     )
-    outcome_df[c.CHANNEL] = outcome_df[c.CHANNEL].str.upper()
 
     # Ensure proper ordering for the stacked area chart. Baseline should be at
     # the bottom.  Separate the *stacking* order from the *legend* order.
     stack_order = sorted([
         channel
         for channel in outcome_df[c.CHANNEL].unique()
-        if channel != c.BASELINE.upper()
-    ]) + [c.BASELINE.upper()]
+        if channel != c.BASELINE
+    ]) + [c.BASELINE]
 
-    legend_order = [c.BASELINE.upper()] + sorted([
+    legend_order = [c.BASELINE] + sorted([
         channel
         for channel in outcome_df[c.CHANNEL].unique()
-        if channel != c.BASELINE.upper()
+        if channel != c.BASELINE
     ])
 
     # Get the minimum incremental outcome for baseline across all time periods
     # as the lower bound for the stacked area chart.
     min_y = (
-        outcome_df[outcome_df[c.CHANNEL] == c.BASELINE.upper()]
+        outcome_df[outcome_df[c.CHANNEL] == c.BASELINE]
         .groupby(c.TIME)[c.INCREMENTAL_OUTCOME]
         .min()
         .min()
@@ -1746,7 +1745,6 @@ class MediaSummary:
     outcome_df = self._transform_contribution_metrics(
         include_non_paid=True, aggregate_times=False
     )
-    outcome_df[c.CHANNEL] = outcome_df[c.CHANNEL].str.upper()
     outcome_df[c.TIME] = pd.to_datetime(outcome_df[c.TIME])
 
     outcome_df['rank'] = outcome_df.groupby(c.TIME)[c.INCREMENTAL_OUTCOME].rank(
@@ -1762,10 +1760,10 @@ class MediaSummary:
         outcome_df[c.TIME].isin(quarterly_dates)
     ].copy()
 
-    legend_order = [c.BASELINE.upper()] + sorted([
+    legend_order = [c.BASELINE] + sorted([
         channel
         for channel in quarterly_rank_df[c.CHANNEL].unique()
-        if channel != c.BASELINE.upper()
+        if channel != c.BASELINE
     ])
 
     plot = (

@@ -46,9 +46,18 @@ CHANNEL_CONTRIB_BY_TIME_CHART_ID = 'channel-contrib-by-time-chart'
 CHANNEL_CONTRIB_BY_TIME_CHART_TITLE = (
     'Contribution over time by baseline and marketing channels'
 )
+CHANNEL_CONTRIB_BY_TIME_CHART_DESCRIPTION = """Note: This chart shows the
+estimated incremental {outcome} attributed to each channel and the baseline over
+the selected time period. It helps visualize how contributions have changed."""
+
+CHANNEL_CONTRIB_RANK_CHART_ID = 'channel-contrib-rank-chart'
 CHANNEL_CONTRIB_RANK_CHART_TITLE = (
     'Contribution rank over time by baseline and marketing channels'
 )
+CHANNEL_CONTRIB_RANK_CHART_DESCRIPTION = """Note: This chart shows the relative
+rank of each channel's contribution, including the baseline, based on
+incremental {outcome} at the end of each quarter. Rank 1 represents the highest
+contribution."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'

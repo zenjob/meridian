@@ -23,10 +23,6 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
-* Add `plot_channel_contribution_bump_chart` method to `MediaSummary` in the
-  visualizer.
-* Add `plot_channel_contribution_area_chart` method to `MediaSummary` in the
-  visualizer.
 * Update contribution calculation methods in `MediaSummary` with
   `aggregate_times` parameter to support granular time.
 * Add a `new_data` argument to `analyzer.optimal_freq()`.
@@ -35,7 +31,11 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Fix response curves for KPI-based optimization.
 * Add `plot_channel_contribution_area_chart` method to `MediaSummary` in the
   visualizer.
+* Add `plot_channel_contribution_bump_chart` method to `MediaSummary` in the
+  visualizer.
 * Add organic media support for adstock decay in analyzer.
+* Add channel contribution area chart and channel contribution bump chart to
+  model results summary report in the summarizer.
 
 ## [1.0.7] - 2025-03-19
 
