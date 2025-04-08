@@ -36,6 +36,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add organic media support for adstock decay in analyzer.
 * Add channel contribution area chart and channel contribution bump chart to
   model results summary report in the summarizer.
+* Add an extra check for zeros or negative values in `revenue_per_kpi`.
 
 ## [1.0.7] - 2025-03-19
 
