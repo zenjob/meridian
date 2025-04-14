@@ -40,6 +40,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add Add per-channel constraints parameters to
  `OptimizationGrid.optimize(...)`.
 * Add organic media support for hill curves in analyzer.
+* Add organic media support for `plot_hill_curves` in visualizer.
 
 ## [1.0.7] - 2025-03-19
 

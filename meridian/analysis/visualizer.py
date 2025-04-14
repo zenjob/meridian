@@ -16,8 +16,8 @@
 
 from collections.abc import Sequence
 import functools
+from typing import Mapping
 import warnings
-
 import altair as alt
 from meridian import constants as c
 from meridian.analysis import analyzer
@@ -1176,7 +1176,7 @@ class MediaEffects:
       confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       include_prior: bool = True,
       include_ci: bool = True,
-  ) -> alt.Chart | list[alt.Chart]:
+  ) -> Mapping[str, alt.Chart]:
     """Plots the Hill curves for each channel.
 
     Args:
@@ -1187,22 +1187,23 @@ class MediaEffects:
       include_ci: If `True`, plots the credible interval. Defaults to `True`.
 
     Returns:
-      A faceted Altair plot showing the histogram, prior and posterior lines,
-      and bands for the Hill saturation curves. When there are both media and
-      RF channels, a list of 2 faceted Altair plots are returned: one
-      for the media channels and another for the RF channels.
+      A dictionary mapping channel type constants (`media`, `rf`, and
+      `organic_media`) to their respective Altair chart objects. Keys are only
+      present if charts for that type were generated (i.e., if the
+      corresponding channels exist in the data). Returns an empty dictionary if
+      no relevant channels are found.
     """
     hill_curves_dataframe = self.hill_curves_dataframe(
         confidence_level=confidence_level
     )
     channel_types = list(set(hill_curves_dataframe[c.CHANNEL_TYPE]))
-    plot_media, plot_rf = None, None
+    plots: dict[str, alt.Chart] = {}
 
     if c.MEDIA in channel_types:
       media_df = hill_curves_dataframe[
           hill_curves_dataframe[c.CHANNEL_TYPE] == c.MEDIA
       ]
-      plot_media = self._plot_hill_curves_helper(
+      plots[c.MEDIA] = self._plot_hill_curves_helper(
           media_df, include_prior, include_ci
       )
 
@@ -1210,14 +1211,19 @@ class MediaEffects:
       rf_df = hill_curves_dataframe[
           hill_curves_dataframe[c.CHANNEL_TYPE] == c.RF
       ]
-      plot_rf = self._plot_hill_curves_helper(rf_df, include_prior, include_ci)
+      plots[c.RF] = self._plot_hill_curves_helper(
+          rf_df, include_prior, include_ci
+      )
 
-    if plot_media and plot_rf:
-      return [plot_media, plot_rf]
-    elif plot_media:
-      return plot_media
-    else:
-      return plot_rf
+    if c.ORGANIC_MEDIA in channel_types:
+      organic_media_df = hill_curves_dataframe[
+          hill_curves_dataframe[c.CHANNEL_TYPE] == c.ORGANIC_MEDIA
+      ]
+      plots[c.ORGANIC_MEDIA] = self._plot_hill_curves_helper(
+          organic_media_df, include_prior, include_ci
+      )
+
+    return plots
 
   def _plot_hill_curves_helper(
       self,
@@ -1237,13 +1243,26 @@ class MediaEffects:
     Returns:
       A faceted Altair plot showing the histogram and prior+posterior lines and
       bands for the Hill curves.
+
+    Raises:
+      ValueError: If the input DataFrame is empty, missing the channel_type
+        column, or contains an unsupported channel type.
     """
-    if c.MEDIA in list(df_channel_type[c.CHANNEL_TYPE]):
+    channel_type = df_channel_type[c.CHANNEL_TYPE].iloc[0]
+    if channel_type == c.MEDIA:
+      x_axis_title = summary_text.HILL_X_AXIS_MEDIA_LABEL
+      shaded_area_title = summary_text.HILL_SHADED_REGION_MEDIA_LABEL
+    elif channel_type == c.RF:
+      x_axis_title = summary_text.HILL_X_AXIS_RF_LABEL
+      shaded_area_title = summary_text.HILL_SHADED_REGION_RF_LABEL
+    elif channel_type == c.ORGANIC_MEDIA:
       x_axis_title = summary_text.HILL_X_AXIS_MEDIA_LABEL
       shaded_area_title = summary_text.HILL_SHADED_REGION_MEDIA_LABEL
     else:
-      x_axis_title = summary_text.HILL_X_AXIS_RF_LABEL
-      shaded_area_title = summary_text.HILL_SHADED_REGION_RF_LABEL
+      raise ValueError(
+          f"Unsupported channel type '{channel_type}' found in Hill curve data."
+          ' Expected one of: {c.MEDIA}, {c.RF}, {c.ORGANIC_MEDIA}.'
+      )
     domain_list = [
         c.POSTERIOR,
         c.PRIOR,
