@@ -23,6 +23,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Add support for optimization with forecasted data.
+* Deprecate `get_historical_spend` for `get_aggregated_spend` with `new_data`
+  support.
+
 ## [1.0.8] - 2025-04-08
 
 * Update contribution calculation methods in `MediaSummary` with
@@ -39,8 +43,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add channel contribution area chart and channel contribution bump chart to
   model results summary report in the summarizer.
 * Add an extra check for zeros or negative values in `revenue_per_kpi`.
-* Add Add per-channel constraints parameters to
- `OptimizationGrid.optimize(...)`.
+* Add per-channel constraints parameters to `OptimizationGrid.optimize(...)`.
 * Add organic media support for hill curves in analyzer.
 * Add organic media support for `plot_hill_curves` in visualizer.
 
