@@ -149,6 +149,7 @@ class Meridian:
     self._validate_paid_media_prior_type()
     self._validate_geo_invariants()
     self._validate_time_invariants()
+    self._validate_kpi_transformer()
 
   @property
   def input_data(self) -> data.InputData:
@@ -823,6 +824,19 @@ class Meridian:
           " across geo and not across time, they are collinear with geo and"
           " redundant in a model with geo main effects. To address this, drop"
           " the listed variables that do not vary across time."
+      )
+
+  def _validate_kpi_transformer(self):
+    """Validates the KPI transformer."""
+    if (
+        self.kpi_transformer.population_scaled_stdev == 0
+        and self.model_spec.paid_media_prior_type
+        in constants.PAID_MEDIA_ROI_PRIOR_TYPES
+    ):
+      kpi = "kpi" if self.is_national else "population_scaled_kpi"
+      raise ValueError(
+          f"`{kpi}` cannot be constant with"
+          f" {self.model_spec.paid_media_prior_type} prior type."
       )
 
   def adstock_hill_media(

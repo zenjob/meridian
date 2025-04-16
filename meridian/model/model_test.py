@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from collections.abc import Collection, Mapping, Sequence
+import dataclasses
 import os
 from unittest import mock
 import warnings
@@ -454,8 +455,7 @@ class ModelTest(
           any(
               f"Custom prior(s) `{ignored_priors}` are ignored when"
               " `paid_media_prior_type` is set to"
-              f' "{paid_media_prior_type}".'
-              in str(warning.message)
+              f' "{paid_media_prior_type}".' in str(warning.message)
               for warning in w
           )
       )
@@ -727,6 +727,99 @@ class ModelTest(
               dataset, kpi_type=constants.NON_REVENUE
           )
       )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="paid_media_prior_type_roi",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+      ),
+      dict(
+          testcase_name="paid_media_prior_type_mroi",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+      ),
+  )
+  def test_init_validate_kpi_transformer(self, paid_media_prior_type: str):
+    valid_input_data = self.input_data_with_media_and_rf
+    kpi = valid_input_data.kpi
+    kpi.data = np.zeros_like(kpi.data)
+    zero_kpi_input_data = dataclasses.replace(
+        valid_input_data,
+        kpi=kpi,
+    )
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "`population_scaled_kpi` cannot be constant with"
+        f" {paid_media_prior_type} prior type.",
+    ):
+      model.Meridian(
+          input_data=zero_kpi_input_data,
+          model_spec=spec.ModelSpec(
+              paid_media_prior_type=paid_media_prior_type,
+          ),
+      )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="paid_media_prior_type_roi",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_ROI,
+      ),
+      dict(
+          testcase_name="paid_media_prior_type_mroi",
+          paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_MROI,
+      ),
+  )
+  def test_init_validate_kpi_transformer_national_model(
+      self, paid_media_prior_type: str
+  ):
+    valid_input_data = self.national_input_data_media_only
+    kpi = valid_input_data.kpi
+    kpi.data = np.zeros_like(kpi.data)
+    zero_kpi_input_data = dataclasses.replace(
+        valid_input_data,
+        kpi=kpi,
+    )
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        f"`kpi` cannot be constant with {paid_media_prior_type} prior type.",
+    ):
+      model.Meridian(
+          input_data=zero_kpi_input_data,
+          model_spec=spec.ModelSpec(
+              paid_media_prior_type=paid_media_prior_type,
+          ),
+      )
+
+  def test_init_validate_kpi_transformer_ok(self):
+    valid_input_data = self.input_data_with_media_and_rf
+    kpi = valid_input_data.kpi
+    kpi.data = np.zeros_like(kpi.data)
+    zero_kpi_input_data = dataclasses.replace(
+        valid_input_data,
+        kpi=kpi,
+    )
+    meridian = model.Meridian(
+        input_data=zero_kpi_input_data,
+        model_spec=spec.ModelSpec(
+            paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+        ),
+    )
+
+    valid_national_input_data = self.national_input_data_media_only
+    national_kpi = valid_national_input_data.kpi
+    national_kpi.data = np.zeros_like(national_kpi.data)
+    zero_kpi_national_input_data = dataclasses.replace(
+        valid_national_input_data,
+        kpi=national_kpi,
+    )
+    national_meridian = model.Meridian(
+        input_data=zero_kpi_national_input_data,
+        model_spec=spec.ModelSpec(
+            paid_media_prior_type=constants.PAID_MEDIA_PRIOR_TYPE_COEFFICIENT,
+        ),
+    )
+
+    self.assertIsNotNone(meridian)
+    self.assertIsNotNone(national_meridian)
 
   def test_broadcast_prior_distribution_is_called_in_meridian_init(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)

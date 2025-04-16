@@ -26,6 +26,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add support for optimization with forecasted data.
 * Deprecate `get_historical_spend` for `get_aggregated_spend` with `new_data`
   support.
+* Raise an error when `kpi_scaled` is all zero and `paid_media_prior_type` is
+  anything other than "coefficient".
 
 ## [1.0.8] - 2025-04-08
 
