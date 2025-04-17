@@ -1017,8 +1017,16 @@ class OptimizationResults:
 
   def _gen_optimization_summary(self) -> str:
     """Generates HTML optimization summary output (as sanitized content str)."""
-    self.template_env.globals[c.START_DATE] = self.optimized_data.start_date
-    self.template_env.globals[c.END_DATE] = self.optimized_data.end_date
+    start_date = tc.normalize_date(self.optimized_data.start_date)
+    self.template_env.globals[c.START_DATE] = start_date.strftime(
+        f'%b {start_date.day}, %Y'
+    )
+    interval_days = self.meridian.input_data.time_coordinates.interval_days
+    end_date = tc.normalize_date(self.optimized_data.end_date)
+    end_date_adjusted = end_date + pd.Timedelta(days=interval_days)
+    self.template_env.globals[c.END_DATE] = end_date_adjusted.strftime(
+        f'%b {end_date_adjusted.day}, %Y'
+    )
 
     html_template = self.template_env.get_template('summary.html.jinja')
     return html_template.render(

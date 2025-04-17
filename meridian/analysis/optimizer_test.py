@@ -3115,8 +3115,10 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
     meridian.input_data.kpi_type = c.REVENUE
     meridian.input_data.revenue_per_kpi = self.revenue_per_kpi
+    meridian.input_data.time_coordinates.interval_days = 7
     meridian_kpi_output.input_data.kpi_type = c.NON_REVENUE
     meridian_kpi_output.input_data.revenue_per_kpi = None
+    meridian_kpi_output.input_data.time_coordinates.interval_days = 7
 
     self.budget_optimizer = optimizer.BudgetOptimizer(meridian)
     self.budget_optimizer_kpi_output = optimizer.BudgetOptimizer(
@@ -3249,7 +3251,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertSequenceEqual(
         [chip.text.strip() for chip in chip_nodes if chip.text is not None],
         [
-            'Time period: 2021-01-25 - 2021-12-27',
+            'Time period: Jan 25, 2021 - Jan 3, 2022',
         ],
     )
 

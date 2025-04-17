@@ -33,6 +33,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
   charts.
 * Update channel contribution over time charts in Summarizer to toggle weekly vs
   quarterly granularity based on the selected time period length.
+* Adjust the optimization summary to display dates in the same format as
+  "Marketing Mix Modeling Report".
 
 ## [1.0.8] - 2025-04-08
 
