@@ -1657,18 +1657,36 @@ class MediaSummary:
     self._marginal_roi_by_reach = marginal_roi_by_reach
     self._non_media_baseline_values = non_media_baseline_values
 
-  def plot_channel_contribution_area_chart(self) -> alt.Chart:
+  def plot_channel_contribution_area_chart(
+      self, time_granularity: str = c.QUARTERLY
+  ) -> alt.Chart:
     """Plots a stacked area chart of the contribution share per channel by time.
+
+    Args:
+      time_granularity: The granularity for the time axis. Options are `weekly`
+        or `quarterly`. Defaults to `quarterly`.
 
     Returns:
       An Altair plot showing the contribution share per channel by time.
+
+    Raises:
+      ValueError: If time_granularity is not one of the allowed constants.
     """
+    if time_granularity not in c.TIME_GRANULARITIES:
+      raise ValueError(
+          f'time_granularity must be one of {c.TIME_GRANULARITIES}'
+      )
+
+    x_axis_format = (
+        c.DATE_FORMAT if time_granularity == c.WEEKLY else c.QUARTER_FORMAT
+    )
+
     outcome_df = self._transform_contribution_metrics(
         include_non_paid=True, aggregate_times=False
     )
 
     # Ensure proper ordering for the stacked area chart. Baseline should be at
-    # the bottom.  Separate the *stacking* order from the *legend* order.
+    # the bottom. Separate the *stacking* order from the *legend* order.
     stack_order = sorted([
         channel
         for channel in outcome_df[c.CHANNEL].unique()
@@ -1701,7 +1719,7 @@ class MediaSummary:
                 f'{c.TIME}:T',
                 title='Time period',
                 axis=alt.Axis(
-                    format='%Y Q%q',
+                    format=x_axis_format,
                     grid=False,
                     tickCount=8,
                     domainColor=c.GREY_300,
@@ -1735,7 +1753,7 @@ class MediaSummary:
                 sort=legend_order,
             ),
             tooltip=[
-                alt.Tooltip(f'{c.TIME}:T', format='%Y-%m-%d'),
+                alt.Tooltip(f'{c.TIME}:T', format=c.DATE_FORMAT),
                 c.CHANNEL,
                 alt.Tooltip(f'{c.INCREMENTAL_OUTCOME}:Q', format=',.2f'),
             ],
@@ -1751,16 +1769,31 @@ class MediaSummary:
     )
     return plot
 
-  def plot_channel_contribution_bump_chart(self) -> alt.Chart:
-    """Plots a bump chart of channel contribution rank over time (Quarterly).
+  def plot_channel_contribution_bump_chart(
+      self, time_granularity: str = c.QUARTERLY
+  ) -> alt.Chart:
+    """Plots a bump chart of channel contribution rank over time.
 
     This chart shows the relative rank of each channel's contribution,
-    including the baseline, based on incremental outcome at the end of each
+    including the baseline, based on incremental outcome. Depending on the
+    time_granularity, ranks are shown either weekly or at the end of each
     quarter. Rank 1 represents the highest contribution.
 
+    Args:
+      time_granularity: The granularity for the time axis. Options are `weekly`
+        or `quarterly`. Defaults to `quarterly`.
+
     Returns:
-      An Altair plot showing the contribution rank per channel by quarter.
+      An Altair plot showing the contribution rank per channel by time.
+
+    Raises:
+      ValueError: If time_granularity is not one of the allowed constants.
     """
+    if time_granularity not in c.TIME_GRANULARITIES:
+      raise ValueError(
+          f'time_granularity must be one of {c.TIME_GRANULARITIES}'
+      )
+
     outcome_df = self._transform_contribution_metrics(
         include_non_paid=True, aggregate_times=False
     )
@@ -1770,30 +1803,37 @@ class MediaSummary:
         method='first', ascending=False
     )
 
-    # Filter data to keep only the last available date within each quarter
-    # for a quarterly view of ranking changes.
-    unique_times = pd.Series(outcome_df[c.TIME].unique()).sort_values()
-    quarters = unique_times.dt.to_period('Q')
-    quarterly_dates = unique_times[~quarters.duplicated(keep='last')]
-    quarterly_rank_df = outcome_df[
-        outcome_df[c.TIME].isin(quarterly_dates)
-    ].copy()
+    if time_granularity == c.QUARTERLY:
+      # Filter data to keep only the last available date within each quarter
+      # for a quarterly view of ranking changes.
+      unique_times = pd.Series(outcome_df[c.TIME].unique()).sort_values()
+      quarters = unique_times.dt.to_period('Q')
+      quarterly_dates = unique_times[~quarters.duplicated(keep='last')]
+      plot_df = outcome_df[outcome_df[c.TIME].isin(quarterly_dates)].copy()
+      x_axis_format = c.QUARTER_FORMAT
+      tooltip_time_format = c.QUARTER_FORMAT
+      tooltip_time_title = 'Quarter'
+    else:
+      plot_df = outcome_df.copy()
+      x_axis_format = c.DATE_FORMAT
+      tooltip_time_format = c.DATE_FORMAT
+      tooltip_time_title = 'Week'
 
     legend_order = [c.BASELINE] + sorted([
         channel
-        for channel in quarterly_rank_df[c.CHANNEL].unique()
+        for channel in plot_df[c.CHANNEL].unique()
         if channel != c.BASELINE
     ])
 
     plot = (
-        alt.Chart(quarterly_rank_df, width=c.VEGALITE_FACET_DEFAULT_WIDTH)
+        alt.Chart(plot_df, width=c.VEGALITE_FACET_DEFAULT_WIDTH)
         .mark_line(point=True)
         .encode(
             x=alt.X(
                 f'{c.TIME}:T',
                 title='Time period',
                 axis=alt.Axis(
-                    format='%Y Q%q',
+                    format=x_axis_format,
                     grid=False,
                     domainColor=c.GREY_300,
                 ),
@@ -1824,7 +1864,11 @@ class MediaSummary:
                 sort=legend_order,
             ),
             tooltip=[
-                alt.Tooltip(f'{c.TIME}:T', format='%Y Q%q', title='Quarter'),
+                alt.Tooltip(
+                    f'{c.TIME}:T',
+                    format=tooltip_time_format,
+                    title=tooltip_time_title,
+                ),
                 alt.Tooltip(f'{c.CHANNEL}:N', title='Channel'),
                 alt.Tooltip('rank:O', title='Rank'),
                 alt.Tooltip(

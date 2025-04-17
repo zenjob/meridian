@@ -1881,9 +1881,6 @@ class MediaSummaryTest(parameterized.TestCase):
       plot = self.media_summary_revenue.plot_channel_contribution_area_chart()
 
     encoding = plot.encoding
-    self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
-    self.assertEqual(encoding.x["title"], "Time period")
-    self.assertEqual(encoding.x["axis"]["format"], "%Y Q%q")
     self.assertEqual(encoding.y.shorthand, f"{c.INCREMENTAL_OUTCOME}:Q")
     self.assertEqual(encoding.y["title"], "Revenue")
     self.assertEqual(encoding.color.shorthand, f"{c.CHANNEL}:N")
@@ -1891,6 +1888,56 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertIsNotNone(encoding.order)
     self.assertEqual(encoding.order["sort"], "descending")
     self.assertIsNotNone(encoding.tooltip)
+
+  def test_plot_channel_contribution_area_chart_encoding_x_axis_quarterly(self):
+    summary_metrics = test_utils.generate_all_summary_metrics(
+        aggregate_times=False
+    )
+    with mock.patch.object(
+        visualizer.MediaSummary, "get_all_summary_metrics"
+    ) as mock_all_metrics:
+      mock_all_metrics.return_value = summary_metrics
+      plot = self.media_summary_revenue.plot_channel_contribution_area_chart()
+
+    encoding = plot.encoding
+
+    self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.x["title"], "Time period")
+    self.assertEqual(encoding.x["axis"]["format"], "%Y Q%q")
+    self.assertFalse(encoding.x["axis"]["grid"])
+    self.assertEqual(encoding.x["axis"]["tickCount"], 8)
+    self.assertEqual(encoding.x["axis"]["domainColor"], c.GREY_300)
+
+    self.assertIsInstance(encoding.tooltip, list)
+    self.assertLen(encoding.tooltip, 3)
+    self.assertEqual(encoding.tooltip[0].shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.tooltip[0]["format"], "%Y-%m-%d")
+
+  def test_plot_channel_contribution_area_chart_encoding_x_axis_weekly(self):
+    summary_metrics = test_utils.generate_all_summary_metrics(
+        aggregate_times=False
+    )
+    with mock.patch.object(
+        visualizer.MediaSummary, "get_all_summary_metrics"
+    ) as mock_all_metrics:
+      mock_all_metrics.return_value = summary_metrics
+      plot = self.media_summary_revenue.plot_channel_contribution_area_chart(
+          time_granularity=c.WEEKLY
+      )
+
+    encoding = plot.encoding
+
+    self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.x["title"], "Time period")
+    self.assertEqual(encoding.x["axis"]["format"], "%Y-%m-%d")
+    self.assertFalse(encoding.x["axis"]["grid"])
+    self.assertEqual(encoding.x["axis"]["tickCount"], 8)
+    self.assertEqual(encoding.x["axis"]["domainColor"], c.GREY_300)
+
+    self.assertIsInstance(encoding.tooltip, list)
+    self.assertLen(encoding.tooltip, 3)
+    self.assertEqual(encoding.tooltip[0].shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.tooltip[0]["format"], "%Y-%m-%d")
 
   def test_media_summary_plot_channel_contribution_area_chart_y_axis_label(
       self,
@@ -1987,10 +2034,6 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(plot.mark.type, "line")
     self.assertTrue(plot.mark.point)
 
-    self.assertEqual(plot.encoding.x.shorthand, f"{c.TIME}:T")
-    self.assertEqual(plot.encoding.x["title"], "Time period")
-    self.assertEqual(plot.encoding.x["axis"]["format"], "%Y Q%q")
-
     self.assertEqual(plot.encoding.y.shorthand, "rank:Q")
     self.assertEqual(plot.encoding.y["title"], "Contribution Rank")
     self.assertTrue(plot.encoding.y["scale"].reverse)
@@ -2020,6 +2063,60 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertEqual(
         plot.title.text, summary_text.CHANNEL_CONTRIB_RANK_CHART_TITLE
     )
+
+  def test_plot_channel_contribution_bump_chart_encoding_x_axis_quarterly(self):
+    summary_metrics = test_utils.generate_all_summary_metrics(
+        aggregate_times=False
+    )
+
+    with mock.patch.object(
+        visualizer.MediaSummary, "get_all_summary_metrics"
+    ) as mock_all_metrics:
+      mock_all_metrics.return_value = summary_metrics
+      plot = self.media_summary_revenue.plot_channel_contribution_bump_chart()
+    encoding = plot.encoding
+
+    self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.x["title"], "Time period")
+    self.assertEqual(encoding.x["axis"].format, "%Y Q%q")
+    self.assertFalse(encoding.x["axis"].grid)
+
+    tooltip_defs = encoding.tooltip
+    tooltip_list_dict = [item.to_dict() for item in tooltip_defs]
+
+    self.assertLen(tooltip_list_dict, 4)
+    self.assertEqual(tooltip_list_dict[0]["field"], c.TIME)
+    self.assertEqual(tooltip_list_dict[0]["type"], "temporal")
+    self.assertEqual(tooltip_list_dict[0]["format"], "%Y Q%q")
+    self.assertEqual(tooltip_list_dict[0]["title"], "Quarter")
+
+  def test_plot_channel_contribution_bump_chart_encoding_x_axis_weekly(self):
+    summary_metrics = test_utils.generate_all_summary_metrics(
+        aggregate_times=False
+    )
+
+    with mock.patch.object(
+        visualizer.MediaSummary, "get_all_summary_metrics"
+    ) as mock_all_metrics:
+      mock_all_metrics.return_value = summary_metrics
+      plot = self.media_summary_revenue.plot_channel_contribution_bump_chart(
+          time_granularity=c.WEEKLY
+      )
+    encoding = plot.encoding
+
+    self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
+    self.assertEqual(encoding.x["title"], "Time period")
+    self.assertEqual(encoding.x["axis"].format, "%Y-%m-%d")
+    self.assertFalse(encoding.x["axis"].grid)
+
+    tooltip_defs = encoding.tooltip
+    tooltip_list_dict = [item.to_dict() for item in tooltip_defs]
+
+    self.assertLen(tooltip_list_dict, 4)
+    self.assertEqual(tooltip_list_dict[0]["field"], c.TIME)
+    self.assertEqual(tooltip_list_dict[0]["type"], "temporal")
+    self.assertEqual(tooltip_list_dict[0]["format"], "%Y-%m-%d")
+    self.assertEqual(tooltip_list_dict[0]["title"], "Week")
 
   def test_media_summary_plot_channel_contribution_bump_chart_correct_data(
       self,

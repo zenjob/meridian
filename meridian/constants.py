@@ -51,6 +51,8 @@ GREY_300 = '#DADCE0'
 
 # Example: "2024-01-09"
 DATE_FORMAT = '%Y-%m-%d'
+# Example: "2024 Q1"
+QUARTER_FORMAT = '%Y Q%q'
 
 # Input data variables.
 KPI = 'kpi'
@@ -614,3 +616,8 @@ CARD_STATS = 'stats'
 # VegaLite common params.
 VEGALITE_FACET_DEFAULT_WIDTH = 400
 VEGALITE_FACET_LARGE_WIDTH = 500
+
+# Time Granularity Constants
+WEEKLY = 'weekly'
+QUARTERLY = 'quarterly'
+TIME_GRANULARITIES = frozenset({WEEKLY, QUARTERLY})

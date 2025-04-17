@@ -29,6 +29,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Raise an error when `kpi_scaled` is all zero and `paid_media_prior_type` is
   anything other than "coefficient".
 * Prevent negative media effect priors when using lognormal distribution.
+* Add support for weekly time granularity to the contribution area and bump
+  charts.
 
 ## [1.0.8] - 2025-04-08
 
