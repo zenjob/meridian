@@ -167,7 +167,9 @@ class Summarizer:
         self._create_model_fit_card_html(
             template_env, selected_times=selected_times
         ),
-        self._create_outcome_contrib_card_html(template_env, media_summary),
+        self._create_outcome_contrib_card_html(
+            template_env, media_summary, selected_times=selected_times
+        ),
         self._create_performance_breakdown_card_html(
             template_env, media_summary
         ),
@@ -267,16 +269,30 @@ class Summarizer:
       self,
       template_env: jinja2.Environment,
       media_summary: visualizer.MediaSummary,
+      selected_times: Sequence[str] | None,
   ) -> str:
     """Creates the HTML snippet for the Outcome Contrib card."""
     outcome = self._kpi_or_revenue()
+
+    num_selected_times = (
+        self._meridian.n_times
+        if selected_times is None
+        else len(selected_times)
+    )
+    time_granularity = (
+        c.WEEKLY
+        if num_selected_times < c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS
+        else c.QUARTERLY
+    )
 
     channel_contrib_area_chart = formatter.ChartSpec(
         id=summary_text.CHANNEL_CONTRIB_BY_TIME_CHART_ID,
         description=summary_text.CHANNEL_CONTRIB_BY_TIME_CHART_DESCRIPTION.format(
             outcome=outcome
         ),
-        chart_json=media_summary.plot_channel_contribution_area_chart().to_json(),
+        chart_json=media_summary.plot_channel_contribution_area_chart(
+            time_granularity=time_granularity
+        ).to_json(),
     )
 
     channel_contrib_bump_chart = formatter.ChartSpec(
@@ -284,7 +300,9 @@ class Summarizer:
         description=summary_text.CHANNEL_CONTRIB_RANK_CHART_DESCRIPTION.format(
             outcome=outcome
         ),
-        chart_json=media_summary.plot_channel_contribution_bump_chart().to_json(),
+        chart_json=media_summary.plot_channel_contribution_bump_chart(
+            time_granularity=time_granularity
+        ).to_json(),
     )
     channel_drivers_chart = formatter.ChartSpec(
         id=summary_text.CHANNEL_DRIVERS_CHART_ID,

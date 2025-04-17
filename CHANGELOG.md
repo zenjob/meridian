@@ -31,6 +31,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Prevent negative media effect priors when using lognormal distribution.
 * Add support for weekly time granularity to the contribution area and bump
   charts.
+* Update channel contribution over time charts in Summarizer to toggle weekly vs
+  quarterly granularity based on the selected time period length.
 
 ## [1.0.8] - 2025-04-08
 

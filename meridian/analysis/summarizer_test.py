@@ -20,6 +20,7 @@ from xml.etree import ElementTree as ET
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jinja2
 from meridian import constants as c
 from meridian.analysis import analyzer
 from meridian.analysis import summarizer
@@ -30,7 +31,6 @@ from meridian.data import test_utils as data_test_utils
 from meridian.data import time_coordinates as tc
 from meridian.model import model
 import xarray as xr
-
 
 _EARLIEST_DATE = dt.datetime(2022, 1, 1)
 _NUM_WEEKS = 80
@@ -113,6 +113,10 @@ class SummarizerTest(parameterized.TestCase):
 
     self._stub_plotters()
     self._stub_for_insights()
+
+    self.mock_template_env = mock.create_autospec(
+        jinja2.Environment, instance=True
+    )
 
   def tearDown(self):
     super().tearDown()
@@ -885,6 +889,74 @@ class SummarizerTest(parameterized.TestCase):
     ).text
 
     self.assertIn('Rf_Ch_1 and Ch_0 drove the most', insights_text)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'weekly_short_range',
+          'num_time_points': c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS - 1,
+          'use_n_times': False,
+          'expected_granularity': c.WEEKLY,
+      },
+      {
+          'testcase_name': 'quarterly_threshold_range',
+          'num_time_points': c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS,
+          'use_n_times': False,
+          'expected_granularity': c.QUARTERLY,
+      },
+      {
+          'testcase_name': 'quarterly_long_range',
+          'num_time_points': c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS + 50,
+          'use_n_times': False,
+          'expected_granularity': c.QUARTERLY,
+      },
+      {
+          'testcase_name': 'weekly_n_times_fallback',
+          'num_time_points': c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS - 5,
+          'use_n_times': True,
+          'expected_granularity': c.WEEKLY,
+      },
+      {
+          'testcase_name': 'quarterly_n_times_fallback',
+          'num_time_points': c.QUARTERLY_SUMMARY_THRESHOLD_WEEKS + 10,
+          'use_n_times': True,
+          'expected_granularity': c.QUARTERLY,
+      },
+  )
+  def test_outcome_contrib_card_time_granularity_direct(
+      self,
+      num_time_points: int,
+      use_n_times: bool,
+      expected_granularity: str,
+  ):
+    self.media_summary_class.return_value = self.media_summary
+    media_summary = self.media_summary
+
+    media_summary.plot_channel_contribution_area_chart.reset_mock()
+    media_summary.plot_channel_contribution_bump_chart.reset_mock()
+
+    if use_n_times:
+      with mock.patch.object(
+          self.summarizer_revenue._meridian, 'n_times', num_time_points
+      ):
+        self.summarizer_revenue._create_outcome_contrib_card_html(
+            template_env=self.mock_template_env,
+            media_summary=media_summary,
+            selected_times=None,
+        )
+    else:
+      arg_selected_times = [f'time_{i}' for i in range(num_time_points)]
+      self.summarizer_revenue._create_outcome_contrib_card_html(
+          template_env=self.mock_template_env,
+          media_summary=media_summary,
+          selected_times=arg_selected_times,
+      )
+
+    media_summary.plot_channel_contribution_area_chart.assert_called_once_with(
+        time_granularity=expected_granularity
+    )
+    media_summary.plot_channel_contribution_bump_chart.assert_called_once_with(
+        time_granularity=expected_granularity
+    )
 
   def test_performance_breakdown_card_plotters_called(self):
     media_summary = self.media_summary
