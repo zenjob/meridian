@@ -35,6 +35,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
   quarterly granularity based on the selected time period length.
 * Adjust the optimization summary to display dates in the same format as
   "Marketing Mix Modeling Report".
+* Increase width of model fit and channel contribution over time charts in the
+  Visualizer.
 
 ## [1.0.8] - 2025-04-08
 

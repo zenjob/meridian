@@ -1903,7 +1903,7 @@ class MediaSummaryTest(parameterized.TestCase):
 
     self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
     self.assertEqual(encoding.x["title"], "Time period")
-    self.assertEqual(encoding.x["axis"]["format"], "%Y Q%q")
+    self.assertEqual(encoding.x["axis"]["format"], "%Y %b")
     self.assertFalse(encoding.x["axis"]["grid"])
     self.assertEqual(encoding.x["axis"]["tickCount"], 8)
     self.assertEqual(encoding.x["axis"]["domainColor"], c.GREY_300)
@@ -2078,7 +2078,7 @@ class MediaSummaryTest(parameterized.TestCase):
 
     self.assertEqual(encoding.x.shorthand, f"{c.TIME}:T")
     self.assertEqual(encoding.x["title"], "Time period")
-    self.assertEqual(encoding.x["axis"].format, "%Y Q%q")
+    self.assertEqual(encoding.x["axis"].format, "%Y %b")
     self.assertFalse(encoding.x["axis"].grid)
 
     tooltip_defs = encoding.tooltip
@@ -2087,7 +2087,7 @@ class MediaSummaryTest(parameterized.TestCase):
     self.assertLen(tooltip_list_dict, 4)
     self.assertEqual(tooltip_list_dict[0]["field"], c.TIME)
     self.assertEqual(tooltip_list_dict[0]["type"], "temporal")
-    self.assertEqual(tooltip_list_dict[0]["format"], "%Y Q%q")
+    self.assertEqual(tooltip_list_dict[0]["format"], "%Y %b")
     self.assertEqual(tooltip_list_dict[0]["title"], "Quarter")
 
   def test_plot_channel_contribution_bump_chart_encoding_x_axis_weekly(self):

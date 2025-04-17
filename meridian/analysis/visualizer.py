@@ -465,14 +465,14 @@ class ModelFit:
     else:
       y_axis_label = summary_text.KPI_LABEL
     plot = (
-        alt.Chart(model_fit_df, width=c.VEGALITE_FACET_DEFAULT_WIDTH)
+        alt.Chart(model_fit_df, width=c.VEGALITE_FACET_EXTRA_LARGE_WIDTH)
         .mark_line()
         .encode(
             x=alt.X(
                 f'{c.TIME}:T',
                 title='Time period',
                 axis=alt.Axis(
-                    format='%Y %b',
+                    format=c.QUARTER_FORMAT,
                     grid=False,
                     tickCount=8,
                     domainColor=c.GREY_300,
@@ -1709,7 +1709,7 @@ class MediaSummary:
     )
 
     plot = (
-        alt.Chart(outcome_df, width=c.VEGALITE_FACET_LARGE_WIDTH)
+        alt.Chart(outcome_df, width=c.VEGALITE_FACET_EXTRA_LARGE_WIDTH)
         .mark_area()
         .transform_calculate(
             sort_channel=f'indexof({stack_order}, datum.channel)'
@@ -1748,6 +1748,7 @@ class MediaSummary:
                     labelFontSize=c.AXIS_FONT_SIZE,
                     labelFont=c.FONT_ROBOTO,
                     title=None,
+                    orient='bottom',
                 ),
                 scale=alt.Scale(domain=legend_order),
                 sort=legend_order,
@@ -1826,7 +1827,7 @@ class MediaSummary:
     ])
 
     plot = (
-        alt.Chart(plot_df, width=c.VEGALITE_FACET_DEFAULT_WIDTH)
+        alt.Chart(plot_df, width=c.VEGALITE_FACET_EXTRA_LARGE_WIDTH)
         .mark_line(point=True)
         .encode(
             x=alt.X(
@@ -1859,6 +1860,7 @@ class MediaSummary:
                     labelFontSize=c.AXIS_FONT_SIZE,
                     labelFont=c.FONT_ROBOTO,
                     title=None,
+                    orient='bottom',
                 ),
                 scale=alt.Scale(domain=legend_order),
                 sort=legend_order,
