@@ -1606,6 +1606,7 @@ class NonPaidModelTest(
             roi_m=tfp.distributions.Deterministic(0),
             roi_rf=tfp.distributions.Deterministic(0),
         ),
+        media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
     )
     meridian = model.Meridian(
         input_data=self.short_input_data_non_media,

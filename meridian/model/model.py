@@ -411,6 +411,7 @@ class Meridian:
         set_total_media_contribution_prior=set_total_media_contribution_prior,
         kpi=np.sum(self.input_data.kpi.values),
         total_spend=agg_total_spend,
+        media_effects_dist=self.media_effects_dist,
     )
 
   @functools.cached_property

@@ -100,6 +100,7 @@ class PriorDistributionTest(parameterized.TestCase):
         set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
+        media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
     )
 
   def assert_distribution_params_are_equal(
@@ -254,6 +255,7 @@ class PriorDistributionTest(parameterized.TestCase):
         set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
+        media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
     )
 
     scalar_distributions_list = [
@@ -356,6 +358,7 @@ class PriorDistributionTest(parameterized.TestCase):
         set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
+        media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
     )
 
     # Validate `tau_g_excl_baseline` distribution.
@@ -480,6 +483,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
       self.assertLen(warns, 1)
       for w in warns:
@@ -565,6 +569,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -640,6 +645,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -708,6 +714,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -776,6 +783,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -820,6 +828,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -864,6 +873,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
 
   @parameterized.named_parameters(
@@ -956,6 +966,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=False,
           kpi=1.0,
           total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
       self.assertLen(warns, number_of_warnings)
       for w in warns:
@@ -1150,6 +1161,7 @@ class PriorDistributionTest(parameterized.TestCase):
           set_total_media_contribution_prior=True,
           kpi=kpi,
           total_spend=total_spend,
+          media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
       )
       self.assertLen(warns, number_of_warnings)
       for w in warns:
@@ -1298,6 +1310,7 @@ class PriorDistributionTest(parameterized.TestCase):
         set_total_media_contribution_prior=False,
         kpi=1.0,
         total_spend=np.array([]),
+        media_effects_dist=c.MEDIA_EFFECTS_NORMAL,
     )
     distribution.__setstate__(distribution.__getstate__())
 
@@ -1319,6 +1332,66 @@ class PriorDistributionTest(parameterized.TestCase):
     self.assert_distribution_params_are_equal(
         distribution.parameters, expected_distribution.parameters
     )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='roi_m',
+          distribution=prior_distribution.PriorDistribution(
+              roi_m=tfp.distributions.Normal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 0.9, name=c.ROI_M
+              )
+          ),
+          dist_name=c.ROI_M,
+      ),
+      dict(
+          testcase_name='roi_rf',
+          distribution=prior_distribution.PriorDistribution(
+              roi_rf=tfp.distributions.Normal(0.0, 0.9, name=c.ROI_RF)
+          ),
+          dist_name=c.ROI_RF,
+      ),
+      dict(
+          testcase_name='mroi_m',
+          distribution=prior_distribution.PriorDistribution(
+              mroi_m=tfp.distributions.Normal(0.5, 0.9, name=c.MROI_M)
+          ),
+          dist_name=c.MROI_M,
+      ),
+      dict(
+          testcase_name='mroi_rf',
+          distribution=prior_distribution.PriorDistribution(
+              mroi_rf=tfp.distributions.Normal(
+                  [0.0, 0.0, 0.0, 0.0], 0.9, name=c.MROI_RF
+              )
+          ),
+          dist_name=c.MROI_RF,
+      ),
+  )
+  def test_check_for_negative_effect(
+      self, distribution: tfp.distributions.Distribution, dist_name: str
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Media priors must have non-negative support when'
+        ' `media_effects_dist`="log_normal". Found negative effect in'
+        f' {dist_name}.',
+    ):
+      distribution.broadcast(
+          n_geos=_N_GEOS_NATIONAL,
+          n_media_channels=_N_MEDIA_CHANNELS,
+          n_rf_channels=_N_RF_CHANNELS,
+          n_organic_media_channels=0,
+          n_organic_rf_channels=0,
+          n_controls=_N_CONTROLS,
+          n_non_media_channels=0,
+          sigma_shape=_N_GEOS_NATIONAL,
+          n_knots=_N_KNOTS,
+          is_national=False,
+          set_total_media_contribution_prior=False,
+          kpi=1.0,
+          total_spend=np.array([]),
+          media_effects_dist=c.MEDIA_EFFECTS_LOG_NORMAL,
+      )
 
   @parameterized.named_parameters(
       dict(
