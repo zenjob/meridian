@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-04-17
+
 * Add support for optimization with forecasted data.
 * Deprecate `get_historical_spend` for `get_aggregated_spend` with `new_data`
   support.
@@ -280,4 +282,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.6]: https://github.com/google/meridian/releases/tag/v1.0.6
 [1.0.7]: https://github.com/google/meridian/releases/tag/v1.0.7
 [1.0.8]: https://github.com/google/meridian/releases/tag/v1.0.8
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.8...HEAD
+[1.0.9]: https://github.com/google/meridian/releases/tag/v1.0.9
+[Unreleased]: https://github.com/google/meridian/compare/v1.0.9...HEAD
