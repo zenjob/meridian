@@ -293,6 +293,57 @@ class ModelTest(
           ),
       )
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="roi_m",
+          prior_dist=prior_distribution.PriorDistribution(
+              roi_m=tfp.distributions.Normal(
+                  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 0.9, name=constants.ROI_M
+              )
+          ),
+          dist_name=constants.ROI_M,
+      ),
+      dict(
+          testcase_name="roi_rf",
+          prior_dist=prior_distribution.PriorDistribution(
+              roi_rf=tfp.distributions.Normal(0.0, 0.9, name=constants.ROI_RF)
+          ),
+          dist_name=constants.ROI_RF,
+      ),
+      dict(
+          testcase_name="mroi_m",
+          prior_dist=prior_distribution.PriorDistribution(
+              mroi_m=tfp.distributions.Normal(0.5, 0.9, name=constants.MROI_M)
+          ),
+          dist_name=constants.MROI_M,
+      ),
+      dict(
+          testcase_name="mroi_rf",
+          prior_dist=prior_distribution.PriorDistribution(
+              mroi_rf=tfp.distributions.Normal(
+                  [0.0, 0.0, 0.0, 0.0], 0.9, name=constants.MROI_RF
+              )
+          ),
+          dist_name=constants.MROI_RF,
+      ),
+  )
+  def test_check_for_negative_effect(
+      self, prior_dist: prior_distribution.PriorDistribution, dist_name: str
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Media priors must have non-negative support when"
+        ' `media_effects_dist`="log_normal". Found negative effect in'
+        f" {dist_name}.",
+    ):
+      model.Meridian(
+          input_data=self.input_data_with_media_and_rf,
+          model_spec=spec.ModelSpec(
+              media_effects_dist=constants.MEDIA_EFFECTS_LOG_NORMAL,
+              prior=prior_dist,
+          ),
+      )
+
   def test_custom_priors_not_passed_in_ok(self):
     meridian = model.Meridian(
         input_data=self.input_data_non_revenue_no_revenue_per_kpi,

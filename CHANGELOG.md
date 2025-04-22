@@ -24,6 +24,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 
 * Change `VEGALITE_FACET_EXTRA_LARGE_WIDTH` from 900 to 700.
+* Prevent negative media effect priors when using lognormal distribution upon
+  model init.
 
 ## [1.0.9] - 2025-04-17
 

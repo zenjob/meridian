@@ -34,6 +34,7 @@ from meridian.model import spec
 from meridian.model import transformers
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 
 __all__ = [
@@ -65,6 +66,21 @@ def _warn_setting_national_args(**kwargs):
           f"In a nationally aggregated model, the `{kwarg}` will be reset to"
           f" `{constants.NATIONAL_MODEL_SPEC_ARGS[kwarg]}`."
       )
+
+
+def _check_for_negative_effect(
+    dist: tfp.distributions.Distribution, media_effects_dist: str
+):
+  """Checks for negative effect in the model."""
+  if (
+      media_effects_dist == constants.MEDIA_EFFECTS_LOG_NORMAL
+      and np.any(dist.cdf(0)) > 0
+  ):
+    raise ValueError(
+        "Media priors must have non-negative support when"
+        f' `media_effects_dist`="{media_effects_dist}". Found negative effect'
+        f" in {dist.name}."
+    )
 
 
 class Meridian:
@@ -146,11 +162,10 @@ class Meridian:
           unique_sigma_for_each_geo=self.model_spec.unique_sigma_for_each_geo,
       )
     self._warn_setting_ignored_priors()
-
     self._set_total_media_contribution_prior = False
     self._validate_mroi_priors_non_revenue()
     self._validate_roi_priors_non_revenue()
-
+    self._check_for_negative_effects()
     self._validate_geo_invariants()
     self._validate_time_invariants()
     self._validate_kpi_transformer()
@@ -409,7 +424,6 @@ class Meridian:
         set_total_media_contribution_prior=self._set_total_media_contribution_prior,
         kpi=np.sum(self.input_data.kpi.values),
         total_spend=agg_total_spend,
-        media_effects_dist=self.media_effects_dist,
     )
 
   @functools.cached_property
@@ -765,6 +779,15 @@ class Meridian:
             ' `{constants.ROI_M}` or `media_prior_type` is not "roi", KPI is'
             " non-revenue and revenue per kpi data is missing."
         )
+
+  def _check_for_negative_effects(self):
+    prior = self.model_spec.prior
+    if self.n_media_channels > 0:
+      _check_for_negative_effect(prior.roi_m, self.media_effects_dist)
+      _check_for_negative_effect(prior.mroi_m, self.media_effects_dist)
+    if self.n_rf_channels > 0:
+      _check_for_negative_effect(prior.roi_rf, self.media_effects_dist)
+      _check_for_negative_effect(prior.mroi_rf, self.media_effects_dist)
 
   def _validate_geo_invariants(self):
     """Validates non-national model invariants."""

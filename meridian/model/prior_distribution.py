@@ -455,7 +455,6 @@ class PriorDistribution:
       set_total_media_contribution_prior: bool,
       kpi: float,
       total_spend: np.ndarray,
-      media_effects_dist: str,
   ) -> PriorDistribution:
     """Returns a new `PriorDistribution` with broadcast distribution attributes.
 
@@ -481,8 +480,6 @@ class PriorDistribution:
         `set_total_media_contribution_prior=True`.
       total_spend: Spend per media channel summed across geos and time. Required
         if `set_total_media_contribution_prior=True`.
-      media_effects_dist: A string to specify the distribution of media random
-        effects across geos.
 
     Returns:
       A new `PriorDistribution` broadcast from this prior distribution,
@@ -753,20 +750,16 @@ class PriorDistribution:
     else:
       roi_m_converted = self.roi_m
       roi_rf_converted = self.roi_rf
-
-    _check_for_negative_effect(roi_m_converted, media_effects_dist)
     roi_m = tfp.distributions.BatchBroadcast(
         roi_m_converted, n_media_channels, name=constants.ROI_M
     )
-    _check_for_negative_effect(roi_rf_converted, media_effects_dist)
     roi_rf = tfp.distributions.BatchBroadcast(
         roi_rf_converted, n_rf_channels, name=constants.ROI_RF
     )
-    _check_for_negative_effect(self.mroi_m, media_effects_dist)
+
     mroi_m = tfp.distributions.BatchBroadcast(
         self.mroi_m, n_media_channels, name=constants.MROI_M
     )
-    _check_for_negative_effect(self.mroi_rf, media_effects_dist)
     mroi_rf = tfp.distributions.BatchBroadcast(
         self.mroi_rf, n_rf_channels, name=constants.MROI_RF
     )
@@ -866,21 +859,6 @@ def _get_total_media_contribution_prior(
       np.log(roi_mean * np.exp(-(lognormal_sigma**2) / 2)), dtype=tf.float32
   )
   return tfp.distributions.LogNormal(lognormal_mu, lognormal_sigma, name=name)
-
-
-def _check_for_negative_effect(
-    dist: tfp.distributions.Distribution, media_effects_dist: str
-):
-  """Checks for negative effect in the model."""
-  if (
-      media_effects_dist == constants.MEDIA_EFFECTS_LOG_NORMAL
-      and np.any(dist.cdf(0)) > 0
-  ):
-    raise ValueError(
-        'Media priors must have non-negative support when'
-        f' `media_effects_dist`="{media_effects_dist}". Found negative effect'
-        f' in {dist.name}.'
-    )
 
 
 def distributions_are_equal(
