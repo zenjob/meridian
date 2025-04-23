@@ -183,6 +183,30 @@ class ModelSpecTest(parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
       spec.ModelSpec(rf_roi_calibration_period=np.random.normal(size=shape))
 
+  def test_spec_inits_disallowed_roi_calibration_fails(self):
+    shape = (3, 7)
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The `roi_calibration_period` should be `None` unless"
+        " `media_prior_type` is 'roi'.",
+    ):
+      spec.ModelSpec(
+          media_prior_type="mroi",
+          roi_calibration_period=np.random.normal(size=shape),
+      )
+
+  def test_spec_inits_disallowed_rf_roi_calibration_fails(self):
+    shape = (3, 7)
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The `rf_roi_calibration_period` should be `None` unless"
+        " `rf_prior_type` is 'roi'.",
+    ):
+      spec.ModelSpec(
+          rf_prior_type="coefficient",
+          rf_roi_calibration_period=np.random.normal(size=shape),
+      )
+
   @parameterized.named_parameters(
       (
           "zero",

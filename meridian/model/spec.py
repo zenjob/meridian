@@ -20,7 +20,6 @@ from meridian import constants
 from meridian.model import prior_distribution
 import numpy as np
 
-
 __all__ = [
     "ModelSpec",
 ]
@@ -30,9 +29,18 @@ def _validate_roi_calibration_period(
     array: np.ndarray | None,
     array_name: str,
     channel_dim_name: str,
+    prior_type: str,
+    prior_type_name: str,
 ):
   """Validates the ROI calibration period array."""
-  if array is not None and len(array.shape) != 2:
+  if array is None:
+    return
+  if prior_type != constants.TREATMENT_PRIOR_TYPE_ROI:
+    raise ValueError(
+        f"The `{array_name}` should be `None` unless `{prior_type_name}` is"
+        f" '{constants.TREATMENT_PRIOR_TYPE_ROI}'."
+    )
+  if len(array.shape) != 2:
     raise ValueError(
         f"The shape of the `{array_name}` array {array.shape} should be"
         f" 2-dimensional (`n_media_times` x `{channel_dim_name}`)."
@@ -178,14 +186,18 @@ class ModelSpec:
           f" {sorted(list(constants.PAID_TREATMENT_PRIOR_TYPES))}."
       )
     _validate_roi_calibration_period(
-        self.roi_calibration_period,
-        "roi_calibration_period",
-        "n_media_channels",
+        array=self.roi_calibration_period,
+        array_name="roi_calibration_period",
+        channel_dim_name="n_media_channels",
+        prior_type=self.media_prior_type,
+        prior_type_name="media_prior_type",
     )
     _validate_roi_calibration_period(
-        self.rf_roi_calibration_period,
-        "rf_roi_calibration_period",
-        "n_rf_channels",
+        array=self.rf_roi_calibration_period,
+        array_name="rf_roi_calibration_period",
+        channel_dim_name="n_rf_channels",
+        prior_type=self.rf_prior_type,
+        prior_type_name="rf_prior_type",
     )
 
     # Validate knots.
