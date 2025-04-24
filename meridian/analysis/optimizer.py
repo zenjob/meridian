@@ -1394,6 +1394,7 @@ class BudgetOptimizer:
       An `OptimizationResults` object containing optimized budget allocation
       datasets, along with some of the intermediate values used to derive them.
     """
+    new_data = new_data or analyzer.DataTensors()
     _validate_budget(
         fixed_budget=fixed_budget,
         budget=budget,
@@ -1446,7 +1447,7 @@ class BudgetOptimizer:
         spend.non_optimized, optimization_grid.round_factor
     ).astype(int)
     nonoptimized_data = self._create_budget_dataset(
-        new_data=new_data,
+        new_data=new_data.filter_fields(c.PAID_DATA + (c.TIME,)),
         use_posterior=use_posterior,
         use_kpi=use_kpi,
         hist_spend=optimization_grid.historical_spend,
@@ -1457,7 +1458,7 @@ class BudgetOptimizer:
         use_historical_budget=use_historical_budget,
     )
     nonoptimized_data_with_optimal_freq = self._create_budget_dataset(
-        new_data=new_data,
+        new_data=new_data.filter_fields(c.PAID_DATA + (c.TIME,)),
         use_posterior=use_posterior,
         use_kpi=use_kpi,
         hist_spend=optimization_grid.historical_spend,
@@ -1476,7 +1477,7 @@ class BudgetOptimizer:
     elif target_mroi:
       constraints[c.TARGET_MROI] = target_mroi
     optimized_data = self._create_budget_dataset(
-        new_data=new_data,
+        new_data=new_data.filter_fields(c.PAID_DATA + (c.TIME,)),
         use_posterior=use_posterior,
         use_kpi=use_kpi,
         hist_spend=optimization_grid.historical_spend,
