@@ -118,6 +118,8 @@ class Meridian:
       tensors.
     total_spend: A tensor containing total spend, including
       `media_tensors.media_spend` and `rf_tensors.rf_spend`.
+    total_outcome: A tensor containing the total outcome, aggregated over geos
+      and times.
     controls_transformer: A `ControlsTransformer` to scale controls tensors
       using the model's controls data.
     non_media_transformer: A `CenteringAndScalingTransformer` to scale non-media
@@ -230,6 +232,12 @@ class Meridian:
   def total_spend(self) -> tf.Tensor:
     return tf.convert_to_tensor(
         self.input_data.get_total_spend(), dtype=tf.float32
+    )
+
+  @functools.cached_property
+  def total_outcome(self) -> tf.Tensor:
+    return tf.convert_to_tensor(
+        self.input_data.get_total_outcome(), dtype=tf.float32
     )
 
   @property
