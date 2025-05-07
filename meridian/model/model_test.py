@@ -1645,13 +1645,13 @@ class NonPaidModelTest(
             " from the input data."
         ),
     )
-    self.assertIsNotNone(meridian.non_media_treatments_scaled)
+    self.assertIsNotNone(meridian.non_media_treatments_normalized)
     self.assertIsNotNone(
         self.input_data_non_media_and_organic.non_media_treatments
     )
     # pytype: disable=attribute-error
     self.assertAllEqual(
-        meridian.non_media_treatments_scaled.shape,
+        meridian.non_media_treatments_normalized.shape,
         self.input_data_non_media_and_organic.non_media_treatments.shape,
         msg=(
             "Shape of `_non_media_treatments_scaled` does not match the shape"
@@ -1694,7 +1694,8 @@ class NonPaidModelTest(
             len(self.input_data_non_media_and_organic.non_media_channel),
         ],
         msg=(
-            "Shape of `non_media_transformer._population_scaling_factors` does"
+            "Shape of"
+            " `non_media_transformer._population_scaling_factors` does"
             " not match (`n_geos`, `n_non_media_channels`)."
         ),
     )
@@ -1715,7 +1716,7 @@ class NonPaidModelTest(
     # pytype: disable=attribute-error
     self.assertAllClose(
         meridian.non_media_transformer.inverse(
-            meridian.non_media_treatments_scaled
+            meridian.non_media_treatments_normalized
         ),
         self.input_data_non_media_and_organic.non_media_treatments,
         atol=atol,
@@ -1958,7 +1959,7 @@ class NonPaidModelTest(
         )
         + tf.einsum(
             "gtn,gn->gt",
-            meridian.non_media_treatments_scaled,
+            meridian.non_media_treatments_normalized,
             par[constants.GAMMA_GN][0, :, :],
         )
     )

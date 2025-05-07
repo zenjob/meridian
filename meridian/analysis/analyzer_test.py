@@ -4265,7 +4265,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="mix_as_floats",
           use_posterior=True,
           expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MIX,
-          non_media_baseline_values=["min", 3.630, 2.448, "min"],
+          non_media_baseline_values=["min", 15.695609, 11.22775, "min"],
       ),
       dict(
           testcase_name="all_fixed",
@@ -4316,7 +4316,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
         "The number of non-media channels (4) does not match the number of"
-        " baseline types (3).",
+        " baseline values (3).",
     ):
       self.analyzer_non_media.incremental_outcome(
           non_media_baseline_values=["min", "max", "min"],
@@ -4326,8 +4326,8 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
   def test_incremental_outcome_wrong_baseline_type_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        "Invalid non_media_baseline_values value: 'wrong'. Only float numbers"
-        " and strings 'min' and 'max' are supported.",
+        "Invalid `non_media_baseline_values` value: 'wrong'. Only float"
+        " numbers and strings 'min' and 'max' are supported.",
     ):
       self.analyzer_non_media.incremental_outcome(
           non_media_baseline_values=["min", "max", "max", "wrong"],
@@ -4412,6 +4412,38 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         kwargs["non_media_baseline_values"], [0.0, "max", 1.0, "min"]
     )
+
+  def test_incremental_outcome_impl_without_non_media_baseline_raises_exception(
+      self,
+  ):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`non_media_treatments_baseline_normalized` must be passed to"
+        " `_incremental_outcome_impl` when `non_media_treatments` data is"
+        " present.",
+    ):
+      self.analyzer_non_media._incremental_outcome_impl(
+          data_tensors=analyzer.DataTensors(
+              non_media_treatments=self.meridian_non_media.non_media_treatments
+          ),
+          dist_tensors=analyzer.DistributionTensors(),
+      )
+
+  def test_get_incremental_kpi_without_non_media_baseline_raises_exception(
+      self,
+  ):
+    with self.assertRaisesRegex(
+        ValueError,
+        "`non_media_treatments_baseline_normalized` must be passed to"
+        " `_get_incremental_kpi` when `non_media_treatments` data is"
+        " present.",
+    ):
+      self.analyzer_non_media._get_incremental_kpi(
+          data_tensors=analyzer.DataTensors(
+              non_media_treatments=self.meridian_non_media.non_media_treatments
+          ),
+          dist_tensors=analyzer.DistributionTensors(),
+      )
 
 
 class AnalyzerOrganicMediaTest(tf.test.TestCase, parameterized.TestCase):

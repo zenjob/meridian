@@ -180,6 +180,20 @@ class CenteringAndScalingTransformerTest(absltest.TestCase):
           self._controls4[:, :, c],
       )
 
+  def test_output_population_scaled_no_population_scaling(self):
+    for c in [1, 3, 4]:
+      population_scaled_controls = (
+          self._controls4[..., c] / self._population[:, None]
+      )
+      tf.debugging.assert_near(
+          self._transformer.forward(
+              population_scaled_controls, apply_population_scaling=False
+          )[..., c],
+          self._transformer.forward(
+              self._controls4, apply_population_scaling=True
+          )[..., c],
+      )
+
 
 class KpiTransformerTest(absltest.TestCase):
 

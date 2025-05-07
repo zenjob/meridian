@@ -346,9 +346,17 @@ class Meridian:
     return self.controls_transformer.forward(self.controls)
 
   @functools.cached_property
-  def non_media_treatments_scaled(self) -> tf.Tensor | None:
+  def non_media_treatments_normalized(self) -> tf.Tensor | None:
+    """Normalized non-media treatments.
+
+    The non-media treatments values are scaled by population (for channels where
+    `non_media_population_scaling_id` is `True`) and normalized by centering and
+    scaling with means and standard deviations.
+    """
     if self.non_media_transformer is not None:
-      return self.non_media_transformer.forward(self.non_media_treatments)  # pytype: disable=attribute-error
+      return self.non_media_transformer.forward(
+          self.non_media_treatments
+      )  # pytype: disable=attribute-error
     else:
       return None
 
@@ -811,7 +819,7 @@ class Meridian:
     )
     if self.input_data.non_media_treatments is not None:
       self._check_if_no_geo_variation(
-          self.non_media_treatments_scaled,
+          self.non_media_treatments_normalized,
           constants.NON_MEDIA_TREATMENTS,
           self.input_data.non_media_treatments.coords[
               constants.NON_MEDIA_CHANNEL

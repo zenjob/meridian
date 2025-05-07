@@ -140,9 +140,21 @@ class CenteringAndScalingTransformer(TensorTransformer):
       self._stdevs = tf.math.reduce_std(tensor, axis=(0, 1))
 
   @tf.function(jit_compile=True)
-  def forward(self, tensor: tf.Tensor) -> tf.Tensor:
-    """Scales a given tensor using the stored coefficients."""
-    if self._population_scaling_factors is not None:
+  def forward(
+      self, tensor: tf.Tensor, apply_population_scaling: bool = True
+  ) -> tf.Tensor:
+    """Scales a given tensor using the stored coefficients.
+
+    Args:
+      tensor: A tensor of dimension `(n_geos, n_times, n_channels)` to
+        transform.
+      apply_population_scaling: Whether to apply population scaling before the
+        normalization by means and standard deviations.
+    """
+    if (
+        apply_population_scaling
+        and self._population_scaling_factors is not None
+    ):
       tensor /= self._population_scaling_factors[:, None, :]
     return tf.math.divide_no_nan(tensor - self._means, self._stdevs)
 

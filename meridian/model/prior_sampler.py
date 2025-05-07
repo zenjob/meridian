@@ -600,7 +600,7 @@ class PriorDistributionSampler:
     )
     non_media_treatments_vars = (
         self._sample_non_media_treatments_priors(n_draws, seed)
-        if mmm.non_media_treatments_scaled is not None
+        if mmm.non_media_treatments_normalized is not None
         else {}
     )
 

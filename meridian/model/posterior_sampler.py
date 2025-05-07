@@ -110,7 +110,7 @@ class PosteriorMCMCSampler:
     organic_media_tensors = mmm.organic_media_tensors
     organic_rf_tensors = mmm.organic_rf_tensors
     controls_scaled = mmm.controls_scaled
-    non_media_treatments_scaled = mmm.non_media_treatments_scaled
+    non_media_treatments_normalized = mmm.non_media_treatments_normalized
     media_effects_dist = mmm.media_effects_dist
     adstock_hill_media_fn = mmm.adstock_hill_media
     adstock_hill_rf_fn = mmm.adstock_hill_rf
@@ -349,7 +349,7 @@ class PosteriorMCMCSampler:
             gamma_n + xi_n * gamma_gn_dev, name=constants.GAMMA_GN
         )
         y_pred = y_pred_combined_media + tf.einsum(
-            "gtn,gn->gt", non_media_treatments_scaled, gamma_gn
+            "gtn,gn->gt", non_media_treatments_normalized, gamma_gn
         )
       else:
         y_pred = y_pred_combined_media
