@@ -15,6 +15,7 @@
 """Defines model specification parameters for Meridian."""
 
 import dataclasses
+from typing import Sequence
 import warnings
 
 from meridian import constants
@@ -115,6 +116,14 @@ class ModelSpec:
       is the spend during this time period. (Spend data by time period is
       required). If `None`, all times are used. Only used if `rf_prior_type` is
       `'roi'`. Default: `None`.
+    non_media_baseline_values: Optional list with the shape
+      `(n_non_media_channels,)`. Each element is either a float (which means
+      that the fixed value will be used as baseline for the given channel) or
+      one of the strings `"min"` or `"max"` (which mean that the global minimum
+      or maximum value will be used as baseline for the scaled values of the
+      given non_media treatments channel). If `None`, the minimum value is used
+      as baseline for each non-media treatments channel. This attribute is used
+      as the default value for the corresponding argument to `Analyzer` methods.
     knots: An optional integer or list of integers indicating the knots used to
       estimate time effects. When `knots` is a list of integers, the knot
       locations are provided by that list. Zero corresponds to a knot at the
@@ -165,6 +174,7 @@ class ModelSpec:
   paid_media_prior_type: str | None = None
   roi_calibration_period: np.ndarray | None = None
   rf_roi_calibration_period: np.ndarray | None = None
+  non_media_baseline_values: Sequence[float | str] | None = None
   knots: int | list[int] | None = None
   baseline_geo: int | str | None = None
   holdout_id: np.ndarray | None = None

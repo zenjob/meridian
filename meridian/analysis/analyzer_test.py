@@ -4247,25 +4247,45 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="all_min",
           use_posterior=True,
           expected_result=test_utils.INC_OUTCOME_NON_MEDIA_USE_POSTERIOR,
-          non_media_baseline_values=["min", "min", "min", "min"],
+          non_media_baseline_values=[
+              -7.229473,
+              -7.1908092,
+              -3.0269506,
+              -6.3038673,
+          ],
       ),
       dict(
           testcase_name="all_max",
           use_posterior=True,
           expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MAX,
-          non_media_baseline_values=["max", "max", "max", "max"],
+          non_media_baseline_values=[
+              14.567047,
+              15.695609,
+              11.22775,
+              14.682818,
+          ],
       ),
       dict(
           testcase_name="mix",
           use_posterior=True,
           expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MIX,
-          non_media_baseline_values=["min", "max", "max", "min"],
+          non_media_baseline_values=[
+              -7.229473,
+              15.695609,
+              11.22775,
+              -6.3038673,
+          ],
       ),
       dict(
           testcase_name="mix_as_floats",
           use_posterior=True,
           expected_result=test_utils.INC_OUTCOME_NON_MEDIA_MIX,
-          non_media_baseline_values=["min", 15.695609, 11.22775, "min"],
+          non_media_baseline_values=[
+              -7.229473,
+              15.695609,
+              11.22775,
+              -6.3038673,
+          ],
       ),
       dict(
           testcase_name="all_fixed",
@@ -4278,15 +4298,15 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
       self,
       use_posterior: bool,
       expected_result: np.ndarray,
-      non_media_baseline_values: Sequence[float | str] | None,
+      non_media_baseline_values: Sequence[float] | None,
   ):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_non_media
     )
     outcome = self.analyzer_non_media.incremental_outcome(
         use_posterior=use_posterior,
-        non_media_baseline_values=non_media_baseline_values,
         include_non_paid_channels=True,
+        non_media_baseline_values=non_media_baseline_values,
     )
     self.assertAllClose(
         outcome,
@@ -4319,18 +4339,18 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
         " baseline values (3).",
     ):
       self.analyzer_non_media.incremental_outcome(
-          non_media_baseline_values=["min", "max", "min"],
+          non_media_baseline_values=[13, -4, 2.8],
           include_non_paid_channels=True,
       )
 
   def test_incremental_outcome_wrong_baseline_type_raises_exception(self):
     with self.assertRaisesWithLiteralMatch(
         ValueError,
-        "Invalid `non_media_baseline_values` value: 'wrong'. Only float"
-        " numbers and strings 'min' and 'max' are supported.",
+        "Invalid `non_media_baseline_values` value: 'min'. Only float"
+        " numbers are supported.",
     ):
       self.analyzer_non_media.incremental_outcome(
-          non_media_baseline_values=["min", "max", "max", "wrong"],
+          non_media_baseline_values=["min", "max", "max", 5.0],
           include_non_paid_channels=True,
       )
 
@@ -4356,7 +4376,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     ) as mock_compute_incremental_outcome_aggregate:
       self.analyzer_non_media.summary_metrics(
           include_non_paid_channels=True,
-          non_media_baseline_values=[0.0, "max", 1.0, "min"],
+          non_media_baseline_values=[0.0, 7, 1.0, -1],
       )
 
     # Assert that _compute_incremental_outcome_aggregate was called the right
@@ -4368,9 +4388,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     for call in mock_compute_incremental_outcome_aggregate.call_args_list:
       _, kwargs = call
       self.assertEqual(kwargs["include_non_paid_channels"], True)
-      self.assertEqual(
-          kwargs["non_media_baseline_values"], [0.0, "max", 1.0, "min"]
-      )
+      self.assertEqual(kwargs["non_media_baseline_values"], [0.0, 7, 1.0, -1])
 
   def test_baseline_summary_metrics_with_non_media_baseline_values(self):
     # Call baseline_summary_metrics with non-default value of
@@ -4381,7 +4399,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
         wraps=self.analyzer_non_media._calculate_baseline_expected_outcome,
     ) as mock_calculate_baseline_expected_outcome:
       self.analyzer_non_media.baseline_summary_metrics(
-          non_media_baseline_values=[0.0, "max", 1.0, "min"],
+          non_media_baseline_values=[0.0, 3, 1.0, 4.5],
       )
 
     # Assert that _calculate_baseline_expected_outcome was called the right
@@ -4389,9 +4407,7 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(mock_calculate_baseline_expected_outcome.call_count, 2)
     for call in mock_calculate_baseline_expected_outcome.call_args_list:
       _, kwargs = call
-      self.assertEqual(
-          kwargs["non_media_baseline_values"], [0.0, "max", 1.0, "min"]
-      )
+      self.assertEqual(kwargs["non_media_baseline_values"], [0.0, 3, 1.0, 4.5])
 
   def test_expected_vs_actual_with_non_media_baseline_values(self):
     # Call expected_vs_actual with non-default value of
@@ -4402,16 +4418,14 @@ class AnalyzerNonMediaTest(tf.test.TestCase, parameterized.TestCase):
         wraps=self.analyzer_non_media._calculate_baseline_expected_outcome,
     ) as mock_calculate_baseline_expected_outcome:
       self.analyzer_non_media.expected_vs_actual_data(
-          non_media_baseline_values=[0.0, "max", 1.0, "min"],
+          non_media_baseline_values=[0.0, 22, 1.0, 2.2],
       )
 
     # Assert that _calculate_baseline_expected_outcome was called the right
     # number of times with the right arguments.
     self.assertEqual(mock_calculate_baseline_expected_outcome.call_count, 1)
     _, kwargs = mock_calculate_baseline_expected_outcome.call_args
-    self.assertEqual(
-        kwargs["non_media_baseline_values"], [0.0, "max", 1.0, "min"]
-    )
+    self.assertEqual(kwargs["non_media_baseline_values"], [0.0, 22, 1.0, 2.2])
 
   def test_incremental_outcome_impl_without_non_media_baseline_raises_exception(
       self,

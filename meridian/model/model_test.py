@@ -2296,6 +2296,106 @@ class NonPaidModelTest(
           inference_data=inference_data,
       )
 
+  def test_compute_non_media_treatments_baseline_wrong_baseline_values_shape_raises_exception(
+      self,
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "The number of non-media channels (2) does not match the number of"
+        " baseline values (3).",
+    ):
+      mmm = model.Meridian(
+          input_data=self.input_data_non_media_and_organic,
+          model_spec=spec.ModelSpec(
+              non_media_baseline_values=["min", "max", "min"]
+          ),
+      )
+      _ = mmm.compute_non_media_treatments_baseline()
+
+  def test_compute_non_media_treatments_baseline_fails_with_wrong_baseline_type(
+      self,
+  ):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        "Invalid non_media_baseline_values value: 'wrong'. Only"
+        " float numbers and strings 'min' and 'max' are supported.",
+    ):
+      mmm = model.Meridian(
+          input_data=self.input_data_non_media_and_organic,
+          model_spec=spec.ModelSpec(
+              non_media_baseline_values=[
+                  "max",
+                  "wrong",
+              ]
+          ),
+      )
+      _ = mmm.compute_non_media_treatments_baseline()
+
+  def test_compute_non_media_treatments_baseline_default(self):
+    """Tests default baseline calculation (all 'min')."""
+    meridian = model.Meridian(
+        input_data=self.input_data_non_media_and_organic,
+        model_spec=spec.ModelSpec(non_media_baseline_values=None),
+    )
+    non_media_treatments = meridian.non_media_treatments
+    expected_baseline = tf.reduce_min(non_media_treatments, axis=[0, 1])
+    actual_baseline = meridian.compute_non_media_treatments_baseline()
+    self.assertAllClose(expected_baseline, actual_baseline)
+
+  def test_compute_non_media_treatments_baseline_strings(self):
+    """Tests baseline calculation with 'min' and 'max' strings."""
+    meridian = model.Meridian(
+        input_data=self.input_data_non_media_and_organic,
+        model_spec=spec.ModelSpec(
+            non_media_baseline_values=["min", "max"]
+        ),
+    )
+    non_media_treatments = meridian.non_media_treatments
+    expected_baseline_min = tf.reduce_min(
+        non_media_treatments[..., 0], axis=[0, 1]
+    )
+    expected_baseline_max = tf.reduce_max(
+        non_media_treatments[..., 1], axis=[0, 1]
+    )
+    expected_baseline = tf.stack(
+        [expected_baseline_min, expected_baseline_max], axis=-1
+    )
+    actual_baseline = meridian.compute_non_media_treatments_baseline()
+    self.assertAllClose(expected_baseline, actual_baseline)
+
+  def test_compute_non_media_treatments_baseline_floats(self):
+    """Tests baseline calculation with float values."""
+    baseline_values = [10.5, -2.3]
+    meridian = model.Meridian(
+        input_data=self.input_data_non_media_and_organic,
+        model_spec=spec.ModelSpec(
+            non_media_baseline_values=baseline_values
+        ),
+    )
+    expected_baseline = tf.cast(baseline_values, tf.float32)
+    actual_baseline = meridian.compute_non_media_treatments_baseline()
+    self.assertAllClose(expected_baseline, actual_baseline)
+
+  def test_compute_non_media_treatments_baseline_mixed(self):
+    """Tests baseline calculation with mixed float and string values."""
+    baseline_values = ["min", 5.0]
+    meridian = model.Meridian(
+        input_data=self.input_data_non_media_and_organic,
+        model_spec=spec.ModelSpec(
+            non_media_baseline_values=baseline_values
+        ),
+    )
+    non_media_treatments = meridian.non_media_treatments
+    expected_baseline_min = tf.reduce_min(
+        non_media_treatments[..., 0], axis=[0, 1]
+    )
+    expected_baseline_float = tf.cast(baseline_values[1], tf.float32)
+    expected_baseline = tf.stack(
+        [expected_baseline_min, expected_baseline_float], axis=-1
+    )
+    actual_baseline = meridian.compute_non_media_treatments_baseline()
+    self.assertAllClose(expected_baseline, actual_baseline)
+
 
 if __name__ == "__main__":
   absltest.main()

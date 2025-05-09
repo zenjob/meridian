@@ -1405,7 +1405,7 @@ class MediaSummary:
       confidence_level: float = c.DEFAULT_CONFIDENCE_LEVEL,
       selected_times: Sequence[str] | None = None,
       marginal_roi_by_reach: bool = True,
-      non_media_baseline_values: Sequence[str | float] | None = None,
+      non_media_baseline_values: Sequence[float] | None = None,
   ):
     """Initializes the media summary metrics based on the model data and params.
 
@@ -1420,13 +1420,11 @@ class MediaSummary:
         next dollar spent only impacts reach, holding frequency constant.  If
         this argument is False, we assume the next dollar spent only impacts
         frequency, holding reach constant.
-      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
-        Each element is either a float (which means that the fixed value will be
-        used as baseline for the given channel) or one of the strings "min" or
-        "max" (which mean that the global minimum or maximum value will be used
-        as baseline for the values of the given non_media treatment channel). If
-        None, the minimum value is used as baseline for each non_media treatment
-        channel.
+      non_media_baseline_values: Optional list of shape
+        `(n_non_media_channels,)`. Each element is a float denoting the fixed
+        value which will be used as baseline for the given channel. If `None`,
+        the values defined with `ModelSpec.non_media_baseline_values`
+        will be used.
     """
     self._meridian = meridian
     self._analyzer = analyzer.Analyzer(meridian)
@@ -1629,7 +1627,7 @@ class MediaSummary:
       confidence_level: float | None = None,
       selected_times: Sequence[str] | None = None,
       marginal_roi_by_reach: bool = True,
-      non_media_baseline_values: Sequence[str | float] | None = None,
+      non_media_baseline_values: Sequence[float] | None = None,
   ):
     """Runs the computation for the media summary metrics with new parameters.
 
@@ -1644,13 +1642,11 @@ class MediaSummary:
         dollar spent only impacts reach, holding frequency constant. If `False`,
         the assumption is the next dollar spent only impacts frequency, holding
         reach constant.
-      non_media_baseline_values: Optional list of shape (n_non_media_channels,).
-        Each element is either a float (which means that the fixed value will be
-        used as baseline for the given channel) or one of the strings "min" or
-        "max" (which mean that the global minimum or maximum value will be used
-        as baseline for the values of the given non_media treatment channel). If
-        None, the minimum value is used as baseline for each non_media treatment
-        channel.
+      non_media_baseline_values: Optional list of shape
+        `(n_non_media_channels,)`. Each element is a float denoting the fixed
+        value which will be used as baseline for the given channel. If `None`,
+        the values defined with `ModelSpec.non_media_baseline_values`
+        will be used.
     """
     self._confidence_level = confidence_level or self._confidence_level
     self._selected_times = selected_times

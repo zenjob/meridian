@@ -1559,17 +1559,18 @@ class MediaSummaryTest(parameterized.TestCase):
     self.media_summary_revenue_2 = visualizer.MediaSummary(meridian_revenue_2)
 
   def test_media_summary_init_non_media_baseline_values(self):
-    non_media_baseline_values = ["min", "max"]
+    non_media_baseline_values = [2, 3]
     media_summary = visualizer.MediaSummary(
         self.meridian_revenue,
         non_media_baseline_values=non_media_baseline_values,
     )
     self.assertEqual(
-        media_summary._non_media_baseline_values, non_media_baseline_values
+        media_summary._non_media_baseline_values,
+        non_media_baseline_values,
     )
 
   def test_media_summary_get_all_summary_metrics_calls_analyzer_correctly(self):
-    non_media_baseline_values = [1.0, "max"]
+    non_media_baseline_values = [1.0, 3.0]
     media_summary = visualizer.MediaSummary(
         self.meridian_revenue,
         non_media_baseline_values=non_media_baseline_values,
@@ -1586,12 +1587,13 @@ class MediaSummaryTest(parameterized.TestCase):
 
   def test_media_summary_update_non_media_baseline_values(self):
     media_summary = visualizer.MediaSummary(self.meridian_revenue)
-    non_media_baseline_values = [1.0, "max"]
+    non_media_baseline_values = [1.0, 0.5]
     media_summary.update_summary_metrics(
         non_media_baseline_values=non_media_baseline_values
     )
     self.assertEqual(
-        media_summary._non_media_baseline_values, non_media_baseline_values
+        media_summary._non_media_baseline_values,
+        non_media_baseline_values,
     )
 
   def test_media_summary_plot_contribution_waterfall_different_scenarios(self):

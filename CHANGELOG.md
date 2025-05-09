@@ -27,6 +27,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Prevent negative media effect priors when using lognormal distribution upon
   model init.
 * Add an optional `optimization_grid` arg to the optimizer.
+* Fix `incremental_outcome` to accept unscaled `non_media_treatments_baseline`.
 
 ## [1.0.9] - 2025-04-17
 

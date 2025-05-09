@@ -16,6 +16,7 @@
 
 from collections.abc import Mapping, Sequence
 import functools
+import numbers
 import os
 import warnings
 
@@ -130,6 +131,8 @@ class Meridian:
       median value.
     non_media_treatments_scaled: The non-media treatment tensor normalized by
       population and by the median value.
+    non_media_treatments_baseline: The baseline values of the non-media
+      treatment tensor.
     kpi_scaled: The KPI tensor normalized by population and by the median value.
     media_effects_dist: A string to specify the distribution of media random
       effects across geos.
@@ -453,6 +456,87 @@ class Meridian:
   ) -> posterior_sampler.PosteriorMCMCSampler:
     """A `PosteriorMCMCSampler` callable bound to this model."""
     return posterior_sampler.PosteriorMCMCSampler(self)
+
+  def compute_non_media_treatments_baseline(
+      self,
+      non_media_baseline_values: Sequence[str | float] | None = None,
+  ) -> tf.Tensor:
+    """Computes the baseline for each non-media treatment channel.
+
+    Args:
+      non_media_baseline_values: Optional list of shape
+        `(n_non_media_channels,)`. Each element is either a float (which means
+        that the fixed value will be used as baseline for the given channel) or
+        one of the strings "min" or "max" (which mean that the global minimum or
+        maximum value will be used as baseline for the values of the given
+        non_media treatment channel). If float values are provided, it is
+        expected that they are scaled by population for the channels where
+        `model_spec.non_media_population_scaling_id` is `True`. If `None`, the
+        `model_spec.non_media_baseline_values` is used, which defaults to the
+        minimum value for each non_media treatment channel.
+
+    Returns:
+      A tensor of shape `(n_non_media_channels,)` containing the
+      baseline values for each non-media treatment channel.
+    """
+    if non_media_baseline_values is None:
+      non_media_baseline_values = self.model_spec.non_media_baseline_values
+
+    if self.model_spec.non_media_population_scaling_id is not None:
+      scaling_factors = tf.where(
+          self.model_spec.non_media_population_scaling_id,
+          self.population[:, tf.newaxis, tf.newaxis],
+          tf.ones_like(self.population)[:, tf.newaxis, tf.newaxis],
+      )
+    else:
+      scaling_factors = tf.ones_like(self.population)[:, tf.newaxis, tf.newaxis]
+
+    non_media_treatments_population_scaled = tf.math.divide_no_nan(
+        self.non_media_treatments, scaling_factors
+    )
+
+    if non_media_baseline_values is None:
+      # If non_media_treatments_baseline_values is not provided, use the minimum
+      # value for each non_media treatment channel as the baseline.
+      non_media_baseline_values_filled = [
+          constants.NON_MEDIA_BASELINE_MIN
+      ] * non_media_treatments_population_scaled.shape[-1]
+    else:
+      non_media_baseline_values_filled = non_media_baseline_values
+
+    if non_media_treatments_population_scaled.shape[-1] != len(
+        non_media_baseline_values_filled
+    ):
+      raise ValueError(
+          "The number of non-media channels"
+          f" ({non_media_treatments_population_scaled.shape[-1]}) does not"
+          " match the number of baseline values"
+          f" ({len(non_media_baseline_values_filled)})."
+      )
+
+    baseline_list = []
+    for channel in range(non_media_treatments_population_scaled.shape[-1]):
+      baseline_value = non_media_baseline_values_filled[channel]
+
+      if baseline_value == constants.NON_MEDIA_BASELINE_MIN:
+        baseline_for_channel = tf.reduce_min(
+            non_media_treatments_population_scaled[..., channel], axis=[0, 1]
+        )
+      elif baseline_value == constants.NON_MEDIA_BASELINE_MAX:
+        baseline_for_channel = tf.reduce_max(
+            non_media_treatments_population_scaled[..., channel], axis=[0, 1]
+        )
+      elif isinstance(baseline_value, numbers.Number):
+        baseline_for_channel = tf.cast(baseline_value, tf.float32)
+      else:
+        raise ValueError(
+            f"Invalid non_media_baseline_values value: '{baseline_value}'. Only"
+            " float numbers and strings 'min' and 'max' are supported."
+        )
+
+      baseline_list.append(baseline_for_channel)
+
+    return tf.stack(baseline_list, axis=-1)
 
   def expand_selected_time_dims(
       self,
