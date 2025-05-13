@@ -31,6 +31,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add spend allocation per geo and time if per-channel spend is provided.
 * Validate no time variation for non-media treatments, organic media, and
   organic reach.
+* Add optimizer parameters `start_date` and `end_date` to replace
+  `selected_times`.
 
 ## [1.0.9] - 2025-04-17
 
