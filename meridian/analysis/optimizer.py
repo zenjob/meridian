@@ -1144,21 +1144,26 @@ class OptimizationResults:
         - self.nonoptimized_data.total_incremental_outcome
     )
     inc_outcome_prefix = '+' if inc_outcome_diff > 0 else ''
+    currency = '$' if outcome == c.REVENUE else ''
     non_optimized_inc_outcome = formatter.StatsSpec(
         title=summary_text.NON_OPTIMIZED_INC_OUTCOME_LABEL.format(
             outcome=outcome
         ),
-        stat=formatter.format_monetary_num(
-            self.nonoptimized_data.total_incremental_outcome,
+        stat=formatter.compact_number(
+            n=self.nonoptimized_data.total_incremental_outcome,
+            precision=0,
+            currency=currency,
         ),
     )
     optimized_inc_outcome = formatter.StatsSpec(
         title=summary_text.OPTIMIZED_INC_OUTCOME_LABEL.format(outcome=outcome),
-        stat=formatter.format_monetary_num(
-            self.optimized_data.total_incremental_outcome,
+        stat=formatter.compact_number(
+            n=self.optimized_data.total_incremental_outcome,
+            precision=0,
+            currency=currency,
         ),
         delta=inc_outcome_prefix
-        + formatter.format_monetary_num(inc_outcome_diff),
+        + formatter.compact_number(inc_outcome_diff, 0, currency),
     )
     return [
         non_optimized_budget,
