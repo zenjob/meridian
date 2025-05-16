@@ -83,6 +83,31 @@ def _check_coords_match(dim: str, arrays: Sequence[xr.DataArray]):
       )
 
 
+def _aggregate_spend(
+    spend: xr.DataArray, calibration_period: np.ndarray | None
+) -> np.ndarray | None:
+  """Aggregates spend for each channel over the calibration period.
+
+  Args:
+    spend: An array with shape `(n_geos, n_times, n_channels)` to aggregate.
+    calibration_period: An optional boolean array of shape `(n_media_times,
+      n_channels)`. If provided, spend is filtered according to this period.
+
+  Returns:
+    A 1-D array of aggregated media spend per channel, or `None` if `spend` is
+    `None`.
+  """
+  if spend is None:
+    return None
+
+  if calibration_period is None:
+    return np.sum(spend, axis=(0, 1))
+
+  # Select the last `n_times` from the `calibration_period`
+  factors = np.where(calibration_period[-spend.shape[1] :, :], 1, 0)
+  return np.einsum("gtm,tm->m", spend, factors)
+
+
 @dataclasses.dataclass
 class InputData:
   """A data container for advertising data in a format supported by Meridian.
@@ -290,13 +315,30 @@ class InputData:
     else:
       return self.media_spend
 
-  @functools.cached_property
+  @property
   def allocated_rf_spend(self) -> xr.DataArray | None:
     """Returns the allocated RF spend for each geo and time."""
     if self.rf_spend is not None and len(self.rf_spend.shape) == 1:
       return self._allocate_spend(self.rf_spend, self.reach * self.frequency)
     else:
       return self.rf_spend
+
+  def aggregate_media_spend(
+      self, calibration_period: np.ndarray | None = None
+  ) -> np.ndarray | None:
+    """Aggregates media spend by channel over the calibration period."""
+    return _aggregate_spend(
+        spend=self.allocated_media_spend, calibration_period=calibration_period
+    )
+
+  def aggregate_rf_spend(
+      self, calibration_period: np.ndarray | None = None
+  ) -> np.ndarray | None:
+    """Aggregates RF spend by channel over the calibration period."""
+    return _aggregate_spend(
+        spend=self.allocated_rf_spend,
+        calibration_period=calibration_period,
+    )
 
   @property
   def geo(self) -> xr.DataArray:

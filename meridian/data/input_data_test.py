@@ -1485,6 +1485,74 @@ class InputDataTest(parameterized.TestCase):
     # All channels had zero total units, expect all NaN allocation
     self.assertTrue(np.isnan(allocated_spend).all())
 
+  def test_get_aggregated_media_spend_no_cal(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        media=self.not_lagged_media,  # media_spend's time dim matches kpi time
+        media_spend=self.media_spend,  # self.media_spend has n_times
+    )
+    result = data.aggregate_media_spend(calibration_period=None)
+    expected_sum = self.media_spend.values.sum(axis=(0, 1))
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_media_spend_with_cal_mixed(self):
+    n_spend_times = self.media_spend.shape[1]
+    n_channels = self.media_spend.shape[2]
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+    # Create a mixed calibration period
+    calibration_period = np.random.choice(
+        [True, False], size=(n_spend_times, n_channels)
+    )
+    result = data.aggregate_media_spend(calibration_period=calibration_period)
+
+    factors = np.where(calibration_period.astype(bool), 1.0, 0.0)
+    expected_sum = np.einsum("gtm,tm->m", self.media_spend.values, factors)
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_rf_spend_no_cal(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        reach=self.not_lagged_reach,  # rf_spend's time dim matches kpi time
+        frequency=self.not_lagged_frequency,
+        rf_spend=self.rf_spend,  # self.rf_spend has n_times
+    )
+    result = data.aggregate_rf_spend(calibration_period=None)
+    expected_sum = self.rf_spend.values.sum(axis=(0, 1))
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_rf_spend_with_cal_mixed(self):
+    n_spend_times = self.rf_spend.shape[1]
+    n_channels = self.rf_spend.shape[2]
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        reach=self.not_lagged_reach,
+        frequency=self.not_lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+    calibration_period = np.random.choice(
+        [True, False], size=(n_spend_times, n_channels)
+    )
+    result = data.aggregate_rf_spend(calibration_period=calibration_period)
+    factors = np.where(calibration_period.astype(bool), 1.0, 0.0)
+    expected_sum = np.einsum("gtm,tm->m", self.rf_spend.values, factors)
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
 
 class NonpaidInputDataTest(parameterized.TestCase):
   """Tests for non-paid InputData."""

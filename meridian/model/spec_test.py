@@ -32,6 +32,9 @@ class ModelSpecTest(parameterized.TestCase):
     self.assertFalse(model_spec.unique_sigma_for_each_geo)
     self.assertEqual(model_spec.effective_media_prior_type, "roi")
     self.assertEqual(model_spec.effective_rf_prior_type, "roi")
+    self.assertEqual(model_spec.organic_media_prior_type, "contribution")
+    self.assertEqual(model_spec.organic_rf_prior_type, "contribution")
+    self.assertEqual(model_spec.non_media_treatments_prior_type, "contribution")
     self.assertIsNone(model_spec.roi_calibration_period)
     self.assertIsNone(model_spec.rf_roi_calibration_period)
     self.assertIsNone(model_spec.knots)
@@ -71,46 +74,143 @@ class ModelSpecTest(parameterized.TestCase):
       spec.ModelSpec(media_effects_dist=dist)
 
   @parameterized.named_parameters(
-      ("roi_roi", "roi", "roi"),
-      ("mroi_coefficient", "mroi", "coefficient"),
-      ("coefficient_roi", "coefficient", "roi"),
+      dict(
+          testcase_name="default",
+          media_prior_type="roi",
+          rf_prior_type="roi",
+          organic_media_prior_type="contribution",
+          organic_rf_prior_type="contribution",
+          non_media_treatments_prior_type="contribution",
+      ),
+      dict(
+          testcase_name="mixed1",
+          media_prior_type="mroi",
+          rf_prior_type="coefficient",
+          organic_media_prior_type="coefficient",
+          organic_rf_prior_type="contribution",
+          non_media_treatments_prior_type="coefficient",
+      ),
+      dict(
+          testcase_name="mixed2",
+          media_prior_type="coefficient",
+          rf_prior_type="contribution",
+          organic_media_prior_type="contribution",
+          organic_rf_prior_type="coefficient",
+          non_media_treatments_prior_type="contribution",
+      ),
+      dict(
+          testcase_name="mixed3",
+          media_prior_type="contribution",
+          rf_prior_type="mroi",
+          organic_media_prior_type="coefficient",
+          organic_rf_prior_type="coefficient",
+          non_media_treatments_prior_type="contribution",
+      ),
   )
   def test_spec_inits_valid_prior_type_works(
-      self, media_prior_type, rf_prior_type
+      self,
+      media_prior_type: str,
+      rf_prior_type: str,
+      organic_media_prior_type: str,
+      organic_rf_prior_type: str,
+      non_media_treatments_prior_type: str,
   ):
     model_spec = spec.ModelSpec(
-        media_prior_type=media_prior_type, rf_prior_type=rf_prior_type
+        media_prior_type=media_prior_type,
+        rf_prior_type=rf_prior_type,
+        organic_media_prior_type=organic_media_prior_type,
+        organic_rf_prior_type=organic_rf_prior_type,
+        non_media_treatments_prior_type=non_media_treatments_prior_type,
     )
     self.assertEqual(model_spec.effective_media_prior_type, media_prior_type)
     self.assertEqual(model_spec.effective_rf_prior_type, rf_prior_type)
+    self.assertEqual(
+        model_spec.organic_media_prior_type, organic_media_prior_type
+    )
+    self.assertEqual(model_spec.organic_rf_prior_type, organic_rf_prior_type)
+    self.assertEqual(
+        model_spec.non_media_treatments_prior_type,
+        non_media_treatments_prior_type,
+    )
 
   @parameterized.named_parameters(
       (
           "empty",
           "",
           "roi",
+          "coefficient",
+          "contribution",
+          "coefficient",
           (
               "The `media_prior_type` parameter '' must be one of"
-              " ['coefficient', 'mroi', 'roi']."
+              " ['coefficient', 'contribution', 'mroi', 'roi']."
           ),
       ),
       (
           "invalid",
           "coefficient",
           "invalid",
+          "contribution",
+          "coefficient",
+          "contribution",
           (
               "The `rf_prior_type` parameter 'invalid' must be one"
-              " of ['coefficient', 'mroi', 'roi']."
+              " of ['coefficient', 'contribution', 'mroi', 'roi']."
+          ),
+      ),
+      (
+          "roi_organic_media",
+          "coefficient",
+          "coefficient",
+          "roi",
+          "coefficient",
+          "coefficient",
+          (
+              "The `organic_media_prior_type` parameter 'roi' must be one"
+              " of ['coefficient', 'contribution']."
+          ),
+      ),
+      (
+          "mroi_organic_rf",
+          "roi",
+          "mroi",
+          "coefficient",
+          "mroi",
+          "coefficient",
+          (
+              "The `organic_rf_prior_type` parameter 'mroi' must be one"
+              " of ['coefficient', 'contribution']."
+          ),
+      ),
+      (
+          "contribution_non_media_treatments",
+          "roi",
+          "roi",
+          "contribution",
+          "coefficient",
+          "roi",
+          (
+              "The `non_media_treatments_prior_type` parameter 'roi'"
+              " must be one of ['coefficient', 'contribution']."
           ),
       ),
   )
   def test_spec_inits_invalid_prior_type_fails(
-      self, media_prior_type, rf_prior_type, error_message
+      self,
+      media_prior_type: str,
+      rf_prior_type: str,
+      organic_media_prior_type: str,
+      organic_rf_prior_type: str,
+      non_media_treatments_prior_type: str,
+      error_message,
   ):
     with self.assertRaisesWithLiteralMatch(ValueError, error_message):
       spec.ModelSpec(
           media_prior_type=media_prior_type,
           rf_prior_type=rf_prior_type,
+          organic_media_prior_type=organic_media_prior_type,
+          organic_rf_prior_type=organic_rf_prior_type,
+          non_media_treatments_prior_type=non_media_treatments_prior_type,
       )
 
   def test_spec_inits_valid_roi_calibration_works(self):

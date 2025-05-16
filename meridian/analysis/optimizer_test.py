@@ -886,7 +886,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     budget_optimizer_media_and_rf = optimizer.BudgetOptimizer(
         meridian_media_and_rf
     )
-
     optimization_results = budget_optimizer_media_and_rf.optimize(
         start_date='2021-01-25',
         end_date='2021-03-08',
