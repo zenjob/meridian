@@ -60,7 +60,7 @@ def _check_dim_collection(
     )
 
 
-def _check_dim_match(dim: str, arrays: Sequence[xr.DataArray]):
+def _check_dim_match(dim: str, arrays: Sequence[xr.DataArray | None]):
   """Verifies that the dimensions of the appropriate arrays match."""
   lengths = [len(array.coords[dim]) for array in arrays if array is not None]
   names = [array.name for array in arrays if array is not None]
@@ -499,7 +499,8 @@ class InputData:
 
   def _validate_names(self):
     """Verifies that the names of the data arrays are correct."""
-    arrays = [
+    # Must match the order of constants.POSSIBLE_INPUT_DATA_ARRAY_NAMES!
+    arrays = (
         self.kpi,
         self.controls,
         self.population,
@@ -513,7 +514,7 @@ class InputData:
         self.reach,
         self.frequency,
         self.rf_spend,
-    ]
+    )
 
     for array, name in zip(arrays, constants.POSSIBLE_INPUT_DATA_ARRAY_NAMES):
       if array is not None and array.name != name:
