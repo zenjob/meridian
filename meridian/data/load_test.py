@@ -15,7 +15,7 @@
 from collections.abc import Mapping, Sequence
 import copy
 import dataclasses
-from datetime import datetime
+import datetime
 import os
 import warnings
 from absl.testing import absltest
@@ -26,6 +26,10 @@ from meridian.data import test_utils
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+
+_DATETIME = datetime.datetime
+_UNIT_TEST_DATA_DIR_NAME = 'unit_testing_data'
 
 
 class InputDataLoaderTest(parameterized.TestCase):
@@ -341,7 +345,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     )
 
     datetime_values = [
-        datetime.strptime(time, constants.DATE_FORMAT)
+        _DATETIME.strptime(time, constants.DATE_FORMAT)
         for time in dataset.coords[constants.TIME].values
     ]
     dataset_with_datetime_values = dataset.assign_coords({
@@ -842,7 +846,7 @@ class InputDataLoaderTest(parameterized.TestCase):
   def test_dataframe_data_loader_datetime_values(self):
     df = self._sample_df_with_media_and_rf
     df[constants.TIME] = df[constants.TIME].map(
-        lambda time: datetime.strptime(time, constants.DATE_FORMAT)
+        lambda time: _DATETIME.strptime(time, constants.DATE_FORMAT)
     )
 
     coord_to_columns = load.CoordToColumns(
@@ -1659,7 +1663,9 @@ class InputDataLoaderTest(parameterized.TestCase):
     this test, the same dataset is generated and compared to the data read from
     the CSV file.
     """
-    csv_file = os.path.join(os.path.dirname(__file__), 'sample', file_name)
+    csv_file = os.path.join(
+        os.path.dirname(__file__), _UNIT_TEST_DATA_DIR_NAME, file_name
+    )
     if n_media_channels and n_rf_channels:
       coord_to_columns = self._correct_coord_to_columns_media_and_rf
     elif n_media_channels:
@@ -1755,7 +1761,9 @@ class InputDataLoaderTest(parameterized.TestCase):
     CSV files differ in `population` and `geo` columns. All these files are
     considered equivalent to the `CsvDataLoader`.
     """
-    csv_file = os.path.join(os.path.dirname(__file__), 'sample', file_name)
+    csv_file = os.path.join(
+        os.path.dirname(__file__), _UNIT_TEST_DATA_DIR_NAME, file_name
+    )
     loader = load.CsvDataLoader(
         csv_path=csv_file,
         coord_to_columns=coord_to_columns,
@@ -1767,7 +1775,9 @@ class InputDataLoaderTest(parameterized.TestCase):
 
     expected_loader = load.CsvDataLoader(
         csv_path=os.path.join(
-            os.path.dirname(__file__), 'sample', 'expected_national_data.csv'
+            os.path.dirname(__file__),
+            _UNIT_TEST_DATA_DIR_NAME,
+            'expected_national_data.csv',
         ),
         coord_to_columns=test_utils.NATIONAL_COORD_TO_COLUMNS_W_POPULATION_W_GEO,
         kpi_type=constants.NON_REVENUE,
@@ -1787,7 +1797,7 @@ class InputDataLoaderTest(parameterized.TestCase):
     """Tests loading data without `revenue_per_kpi`."""
     csv_file = os.path.join(
         os.path.dirname(__file__),
-        'sample',
+        _UNIT_TEST_DATA_DIR_NAME,
         'sample_data_no_revenue_per_kpi.csv',
     )
     coord_to_columns = test_utils.sample_coord_to_columns(
@@ -2111,7 +2121,9 @@ class NonPaidInputDataLoaderTest(parameterized.TestCase):
       n_organic_media_channels: Number of organic media channels.
       n_organic_rf_channels: Number of organic RF channels.
     """
-    csv_file = os.path.join(os.path.dirname(__file__), 'sample', file_name)
+    csv_file = os.path.join(
+        os.path.dirname(__file__), _UNIT_TEST_DATA_DIR_NAME, file_name
+    )
     coord_to_columns = self._correct_coord_to_columns_with_non_media
     media_to_channel = (
         self._correct_media_to_channel if n_media_channels else None

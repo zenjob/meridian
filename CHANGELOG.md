@@ -23,6 +23,9 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+* Rename the directory of unit testing datasets from `sample` to
+  `unit_testing_data` and add a README.
+
 ## [1.1.0] - 2025-05-20
 
 * Add `media_prior_type`, `rf_prior_type`, `organic_media_prior_type`,

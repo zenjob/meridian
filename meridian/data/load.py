@@ -198,7 +198,7 @@ class XrDatasetDataLoader(InputDataLoader):
       self.dataset = dataset.rename(name_mapping)
 
     # Add a `geo` dimension if it is not already present.
-    if (constants.GEO) not in self.dataset.dims.keys():
+    if (constants.GEO) not in self.dataset.sizes.keys():
       self.dataset = self.dataset.expand_dims(dim=[constants.GEO], axis=0)
 
     if len(self.dataset.coords[constants.GEO]) == 1:
@@ -228,7 +228,7 @@ class XrDatasetDataLoader(InputDataLoader):
           compat='override',
       )
 
-    if constants.MEDIA_TIME not in self.dataset.dims.keys():
+    if constants.MEDIA_TIME not in self.dataset.sizes.keys():
       self._add_media_time()
     self._normalize_time_coordinates(constants.TIME)
     self._normalize_time_coordinates(constants.MEDIA_TIME)
