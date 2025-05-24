@@ -175,8 +175,9 @@ class PriorDistributionSampler:
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
 
     Returns:
-      A mapping of RF parameter names to a tensor of shape `[n_draws, n_geos,
-      n_rf_channels]` or `[n_draws, n_rf_channels]` containing the samples.
+      A mapping of RF parameter names to a tensor of shape
+      `[n_draws, n_geos, n_rf_channels]` or `[n_draws, n_rf_channels]`
+      containing the samples.
     """
     mmm = self._meridian
 
@@ -269,9 +270,9 @@ class PriorDistributionSampler:
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
 
     Returns:
-      A mapping of organic media parameter names to a tensor of shape [n_draws,
-      n_geos, n_organic_media_channels] or [n_draws, n_organic_media_channels]
-      containing the samples.
+      A mapping of organic media parameter names to a tensor of shape
+      `[n_draws, n_geos, n_organic_media_channels]` or
+      `[n_draws, n_organic_media_channels]` containing the samples.
     """
     mmm = self._meridian
 
@@ -352,9 +353,9 @@ class PriorDistributionSampler:
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
 
     Returns:
-      A mapping of organic RF parameter names to a tensor of shape [n_draws,
-      n_geos, n_organic_rf_channels] or [n_draws, n_organic_rf_channels]
-      containing the samples.
+      A mapping of organic RF parameter names to a tensor of shape
+      `[n_draws, n_geos, n_organic_rf_channels]` or
+      `[n_draws, n_organic_rf_channels]` containing the samples.
     """
     mmm = self._meridian
 
@@ -436,9 +437,8 @@ class PriorDistributionSampler:
 
     Returns:
       A mapping of non-media treatment parameter names to a tensor of shape
-      [n_draws,
-      n_geos, n_non_media_channels] or [n_draws, n_non_media_channels]
-      containing the samples.
+      `[n_draws, n_geos, n_non_media_channels]` or
+      `[n_draws, n_non_media_channels]` containing the samples.
     """
     mmm = self._meridian
 
@@ -470,8 +470,7 @@ class PriorDistributionSampler:
           mmm.compute_non_media_treatments_baseline()
       )
       linear_predictor_counterfactual_difference = (
-          mmm.non_media_treatments_normalized
-          - baseline_scaled
+          mmm.non_media_treatments_normalized - baseline_scaled
       )
       gamma_n_value = mmm.calculate_beta_x(
           is_non_media=True,
@@ -517,8 +516,6 @@ class PriorDistributionSampler:
     tau_g_excl_baseline = prior.tau_g_excl_baseline.sample(**sample_kwargs)
     base_vars = {
         constants.KNOT_VALUES: prior.knot_values.sample(**sample_kwargs),
-        constants.GAMMA_C: prior.gamma_c.sample(**sample_kwargs),
-        constants.XI_C: prior.xi_c.sample(**sample_kwargs),
         constants.SIGMA: prior.sigma.sample(**sample_kwargs),
         constants.TAU_G: (
             _get_tau_g(
@@ -527,6 +524,7 @@ class PriorDistributionSampler:
             ).sample()
         ),
     }
+
     base_vars[constants.MU_T] = tfp.distributions.Deterministic(
         tf.einsum(
             "...k,kt->...t",
@@ -536,16 +534,24 @@ class PriorDistributionSampler:
         name=constants.MU_T,
     ).sample()
 
-    gamma_gc_dev = tfp.distributions.Sample(
-        tfp.distributions.Normal(0, 1),
-        [mmm.n_geos, mmm.n_controls],
-        name=constants.GAMMA_GC_DEV,
-    ).sample(**sample_kwargs)
-    base_vars[constants.GAMMA_GC] = tfp.distributions.Deterministic(
-        base_vars[constants.GAMMA_C][..., tf.newaxis, :]
-        + base_vars[constants.XI_C][..., tf.newaxis, :] * gamma_gc_dev,
-        name=constants.GAMMA_GC,
-    ).sample()
+    # Omit gamma_c, xi_c, and gamma_gc parameters from sampled distributions if
+    # there are no control variables in the model.
+    if mmm.n_controls:
+      base_vars |= {
+          constants.GAMMA_C: prior.gamma_c.sample(**sample_kwargs),
+          constants.XI_C: prior.xi_c.sample(**sample_kwargs),
+      }
+
+      gamma_gc_dev = tfp.distributions.Sample(
+          tfp.distributions.Normal(0, 1),
+          [mmm.n_geos, mmm.n_controls],
+          name=constants.GAMMA_GC_DEV,
+      ).sample(**sample_kwargs)
+      base_vars[constants.GAMMA_GC] = tfp.distributions.Deterministic(
+          base_vars[constants.GAMMA_C][..., tf.newaxis, :]
+          + base_vars[constants.XI_C][..., tf.newaxis, :] * gamma_gc_dev,
+          name=constants.GAMMA_GC,
+      ).sample()
 
     media_vars = (
         self._sample_media_priors(n_draws, seed)

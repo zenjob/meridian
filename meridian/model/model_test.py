@@ -1092,14 +1092,32 @@ class ModelTest(
 
   def test_scaled_data_shape(self):
     meridian = model.Meridian(input_data=self.input_data_with_media_and_rf)
+    self.assertIsNotNone(meridian.controls_scaled)
     self.assertAllEqual(
-        meridian.controls_scaled.shape,
+        meridian.controls_scaled.shape,  # pytype: disable=attribute-error
         self.input_data_with_media_and_rf.controls.shape,
         msg=(
             "Shape of `_controls_scaled` does not match the shape of `controls`"
             " from the input data."
         ),
     )
+    self.assertAllEqual(
+        meridian.kpi_scaled.shape,
+        self.input_data_with_media_and_rf.kpi.shape,
+        msg=(
+            "Shape of `_kpi_scaled` does not match the shape of"
+            " `kpi` from the input data."
+        ),
+    )
+
+  def test_scaled_data_no_controls(self):
+    meridian = model.Meridian(
+        input_data=self.input_data_with_media_and_rf_no_controls
+    )
+    self.assertEqual(meridian.n_controls, 0)
+    self.assertIsNone(meridian.controls)
+    self.assertIsNone(meridian.controls_transformer)
+    self.assertIsNone(meridian.controls_scaled)
     self.assertAllEqual(
         meridian.kpi_scaled.shape,
         self.input_data_with_media_and_rf.kpi.shape,
@@ -1118,15 +1136,16 @@ class ModelTest(
     meridian = model.Meridian(
         input_data=self.input_data_with_media_and_rf, model_spec=model_spec
     )
+    self.assertIsNotNone(meridian.controls_transformer)
     self.assertIsNotNone(
-        meridian.controls_transformer._population_scaling_factors,
+        meridian.controls_transformer._population_scaling_factors,  # pytype: disable=attribute-error
         msg=(
             "`_population_scaling_factors` not set for the controls"
             " transformer."
         ),
     )
     self.assertAllEqual(
-        meridian.controls_transformer._population_scaling_factors.shape,
+        meridian.controls_transformer._population_scaling_factors.shape,  # pytype: disable=attribute-error
         [
             len(self.input_data_with_media_and_rf.geo),
             len(self.input_data_with_media_and_rf.control_variable),
@@ -1144,7 +1163,7 @@ class ModelTest(
     # errors.
     atol = np.finfo(np.float32).eps * 100
     self.assertAllClose(
-        meridian.controls_transformer.inverse(meridian.controls_scaled),
+        meridian.controls_transformer.inverse(meridian.controls_scaled),  # pytype: disable=attribute-error
         self.input_data_with_media_and_rf.controls,
         atol=atol,
     )
@@ -1655,8 +1674,9 @@ class NonPaidModelTest(
 
   def test_scaled_data_shape(self):
     meridian = model.Meridian(input_data=self.input_data_non_media_and_organic)
+    self.assertIsNotNone(meridian.controls_scaled)
     self.assertAllEqual(
-        meridian.controls_scaled.shape,
+        meridian.controls_scaled.shape,  # pytype: disable=attribute-error
         self.input_data_non_media_and_organic.controls.shape,
         msg=(
             "Shape of `_controls_scaled` does not match the shape of `controls`"
@@ -1726,7 +1746,7 @@ class NonPaidModelTest(
     # errors.
     atol = np.finfo(np.float32).eps * 100
     self.assertAllClose(
-        meridian.controls_transformer.inverse(meridian.controls_scaled),
+        meridian.controls_transformer.inverse(meridian.controls_scaled),  # pytype: disable=attribute-error
         self.input_data_non_media_and_organic.controls,
         atol=atol,
     )
@@ -2454,9 +2474,7 @@ class NonPaidModelTest(
     """Tests baseline calculation with 'min' and 'max' strings."""
     meridian = model.Meridian(
         input_data=self.input_data_non_media_and_organic,
-        model_spec=spec.ModelSpec(
-            non_media_baseline_values=["min", "max"]
-        ),
+        model_spec=spec.ModelSpec(non_media_baseline_values=["min", "max"]),
     )
     non_media_treatments = meridian.non_media_treatments
     expected_baseline_min = tf.reduce_min(
@@ -2476,9 +2494,7 @@ class NonPaidModelTest(
     baseline_values = [10.5, -2.3]
     meridian = model.Meridian(
         input_data=self.input_data_non_media_and_organic,
-        model_spec=spec.ModelSpec(
-            non_media_baseline_values=baseline_values
-        ),
+        model_spec=spec.ModelSpec(non_media_baseline_values=baseline_values),
     )
     expected_baseline = tf.cast(baseline_values, tf.float32)
     actual_baseline = meridian.compute_non_media_treatments_baseline()
@@ -2489,9 +2505,7 @@ class NonPaidModelTest(
     baseline_values = ["min", 5.0]
     meridian = model.Meridian(
         input_data=self.input_data_non_media_and_organic,
-        model_spec=spec.ModelSpec(
-            non_media_baseline_values=baseline_values
-        ),
+        model_spec=spec.ModelSpec(non_media_baseline_values=baseline_values),
     )
     non_media_treatments = meridian.non_media_treatments
     expected_baseline_min = tf.reduce_min(

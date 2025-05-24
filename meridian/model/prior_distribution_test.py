@@ -330,6 +330,98 @@ class PriorDistributionTest(parameterized.TestCase):
     ):
       self.assert_distribution_params_are_equal(scal, broad)
 
+  def test_broadcast_no_controls_preserves_distribution(self):
+    distribution = prior_distribution.PriorDistribution()
+    broadcast_distribution = distribution.broadcast(
+        n_geos=_N_GEOS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+        n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+        n_controls=0,
+        n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+        sigma_shape=_N_GEOS,
+        n_knots=_N_KNOTS,
+        is_national=False,
+        set_total_media_contribution_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
+    )
+
+    scalar_distributions_list = [
+        distribution.knot_values,
+        distribution.tau_g_excl_baseline,
+        distribution.alpha_m,
+        distribution.alpha_rf,
+        distribution.alpha_om,
+        distribution.alpha_orf,
+        distribution.ec_m,
+        distribution.ec_rf,
+        distribution.ec_om,
+        distribution.ec_orf,
+        distribution.beta_m,
+        distribution.beta_rf,
+        distribution.beta_om,
+        distribution.beta_orf,
+        distribution.eta_m,
+        distribution.eta_rf,
+        distribution.eta_om,
+        distribution.eta_orf,
+        distribution.gamma_c,
+        distribution.gamma_n,
+        distribution.xi_c,
+        distribution.xi_n,
+        distribution.slope_m,
+        distribution.slope_rf,
+        distribution.slope_om,
+        distribution.slope_orf,
+        distribution.sigma,
+        distribution.roi_m,
+        distribution.roi_rf,
+        distribution.mroi_m,
+        distribution.mroi_rf,
+    ]
+
+    broadcast_distributions_list = [
+        broadcast_distribution.knot_values.parameters[c.DISTRIBUTION],
+        broadcast_distribution.tau_g_excl_baseline.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.gamma_c.parameters[c.DISTRIBUTION],
+        broadcast_distribution.gamma_n.parameters[c.DISTRIBUTION],
+        broadcast_distribution.xi_c.parameters[c.DISTRIBUTION],
+        broadcast_distribution.xi_n.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.sigma.parameters[c.DISTRIBUTION],
+        broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.roi_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_rf.parameters[c.DISTRIBUTION],
+    ]
+
+    # Compare Distributions.
+    for scal, broad in zip(
+        scalar_distributions_list, broadcast_distributions_list
+    ):
+      self.assert_distribution_params_are_equal(scal, broad)
+
   @parameterized.named_parameters(('one_sigma', False), ('unique_sigmas', True))
   def test_broadcast_preserves_shape(self, unique_sigma_for_each_geo: bool):
     sigma_shape = _N_GEOS if unique_sigma_for_each_geo else 1

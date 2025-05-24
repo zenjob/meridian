@@ -18,6 +18,7 @@ import dataclasses
 import datetime
 import os
 import warnings
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from meridian import constants
@@ -705,7 +706,7 @@ class InputDataLoaderTest(parameterized.TestCase):
             " coordinate names ('geo', 'time', 'media_time',"
             " 'control_variable', 'organic_media_channel',"
             " 'organic_rf_channel', 'non_media_channel', 'media_channel',"
-            " 'rf_channel') or array names ('kpi', 'controls', 'population',"
+            " 'rf_channel') or array names ('kpi', 'population', 'controls',"
             " 'revenue_per_kpi', 'organic_media', 'organic_reach',"
             " 'organic_frequency', 'non_media_treatments', 'media',"
             " 'media_spend', 'reach', 'frequency', 'rf_spend')."
@@ -768,6 +769,78 @@ class InputDataLoaderTest(parameterized.TestCase):
         data.revenue_per_kpi, expected_dataset[constants.REVENUE_PER_KPI]
     )
     xr.testing.assert_equal(data.controls, expected_dataset[constants.CONTROLS])
+    xr.testing.assert_equal(
+        data.population, expected_dataset[constants.POPULATION]
+    )
+    xr.testing.assert_equal(data.media, expected_dataset[constants.MEDIA])
+    xr.testing.assert_equal(
+        data.media_spend, expected_dataset[constants.MEDIA_SPEND]
+    )
+    xr.testing.assert_equal(data.reach, expected_dataset[constants.REACH])
+    xr.testing.assert_equal(
+        data.frequency, expected_dataset[constants.FREQUENCY]
+    )
+    xr.testing.assert_equal(data.rf_spend, expected_dataset[constants.RF_SPEND])
+
+  def test_dataframe_data_loader_no_controls_works(self):
+    df = test_utils.random_dataframe(
+        n_geos=self._N_GEOS,
+        n_times=self._N_TIMES,
+        n_media_times=self._N_TIMES,
+        n_controls=None,
+        n_media_channels=self._N_MEDIA_CHANNELS,
+        n_rf_channels=self._N_RF_CHANNELS,
+    )
+    changed_mapping = {
+        constants.KPI: 'Revenue',
+        constants.GEO: 'City',
+        constants.TIME: 'Date',
+        constants.REVENUE_PER_KPI: 'unit_price',
+        constants.POPULATION: 'Population',
+    }
+    df = df.rename(columns=changed_mapping)
+
+    coord_to_columns = load.CoordToColumns(
+        kpi='Revenue',
+        geo='City',
+        time='Date',
+        revenue_per_kpi='unit_price',
+        population='Population',
+        controls=None,
+        media=test_utils._sample_names('media_', self._N_MEDIA_CHANNELS),
+        media_spend=test_utils._sample_names(
+            'media_spend_', self._N_MEDIA_CHANNELS
+        ),
+        reach=test_utils._sample_names('reach_', self._N_RF_CHANNELS),
+        frequency=test_utils._sample_names('frequency_', self._N_RF_CHANNELS),
+        rf_spend=test_utils._sample_names('rf_spend_', self._N_RF_CHANNELS),
+    )
+    loader = load.DataFrameDataLoader(
+        df=df,
+        coord_to_columns=coord_to_columns,
+        kpi_type=constants.NON_REVENUE,
+        media_to_channel=self._correct_media_to_channel,
+        media_spend_to_channel=self._correct_media_spend_to_channel,
+        reach_to_channel=self._correct_reach_to_channel,
+        frequency_to_channel=self._correct_frequency_to_channel,
+        rf_spend_to_channel=self._correct_rf_spend_to_channel,
+    )
+    data = loader.load()
+
+    expected_dataset = test_utils.random_dataset(
+        n_geos=self._N_GEOS,
+        n_times=self._N_TIMES,
+        n_media_times=self._N_TIMES,
+        n_controls=None,
+        n_media_channels=self._N_MEDIA_CHANNELS,
+        n_rf_channels=self._N_RF_CHANNELS,
+    )
+
+    xr.testing.assert_equal(data.kpi, expected_dataset[constants.KPI])
+    xr.testing.assert_equal(
+        data.revenue_per_kpi, expected_dataset[constants.REVENUE_PER_KPI]
+    )
+    self.assertIsNone(data.controls)
     xr.testing.assert_equal(
         data.population, expected_dataset[constants.POPULATION]
     )
@@ -1301,32 +1374,38 @@ class InputDataLoaderTest(parameterized.TestCase):
     expected_controls = [
         expected_df.get(c) for c in loader.coord_to_columns.controls
     ]
+
     self.assertTrue((data.kpi.values == expected_kpi).all())
-    if data.revenue_per_kpi is not None:
-      self.assertTrue(
-          (data.revenue_per_kpi.values == expected_revenue_per_kpi).all()
-      )
-    if data.media is not None:
-      self.assertTrue(
-          (
-              np.sort(data.media.values, axis=None)
-              == np.sort(expected_media, axis=None)
-          ).all()
-      )
-    if data.media_spend is not None:
-      self.assertTrue(
-          (
-              np.sort(data.media_spend.values, axis=None)
-              == np.sort(expected_media_spend, axis=None)
-          ).all()
-      )
+    self.assertTrue((data.population.values == expected_population).all())
+
+    self.assertIsNotNone(data.revenue_per_kpi)
+    self.assertTrue(
+        (data.revenue_per_kpi.values == expected_revenue_per_kpi).all()  # pytype: disable=attribute-error
+    )
+
+    self.assertIsNotNone(data.media)
     self.assertTrue(
         (
-            np.sort(data.controls.values, axis=None)
+            np.sort(data.media.values, axis=None)  # pytype: disable=attribute-error
+            == np.sort(expected_media, axis=None)
+        ).all()
+    )
+
+    self.assertIsNotNone(data.media_spend)
+    self.assertTrue(
+        (
+            np.sort(data.media_spend.values, axis=None)  # pytype: disable=attribute-error
+            == np.sort(expected_media_spend, axis=None)
+        ).all()
+    )
+
+    self.assertIsNotNone(data.controls)
+    self.assertTrue(
+        (
+            np.sort(data.controls.values, axis=None)  # pytype: disable=attribute-error
             == np.sort(expected_controls, axis=None)
         ).all()
     )
-    self.assertTrue((data.population.values == expected_population).all())
 
   def test_coords_to_columns_works(self):
     coord_to_columns = load.CoordToColumns(
@@ -1557,8 +1636,8 @@ class InputDataLoaderTest(parameterized.TestCase):
           'non_NA_in_lagged_period',
           'non_NA_in_lagged_period',
           (
-              "NA values found in columns ['kpi', 'control_0', 'control_1',"
-              " 'population', 'revenue_per_kpi', 'media_spend_0',"
+              "NA values found in columns ['kpi', 'population', 'control_0',"
+              " 'control_1', 'revenue_per_kpi', 'media_spend_0',"
               " 'media_spend_1', 'media_spend_2', 'rf_spend_0', 'rf_spend_1']"
               ' within the modeling time window (time periods where the KPI is'
               ' modeled).'

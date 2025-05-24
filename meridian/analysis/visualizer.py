@@ -1493,8 +1493,7 @@ class MediaSummary:
     Returns:
       An `xarray.Dataset` containing the following:
         - **Coordinates:** `channel`, `metric` (`mean`, `median`, `ci_lo`,
-        `ci_hi`),
-          `distribution` (`prior`, `posterior`)
+          `ci_hi`), `distribution` (`prior`, `posterior`)
         - **Data variables:** `incremental_outcome`, `pct_of_contribution`,
           `effectiveness`.
     """

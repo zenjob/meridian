@@ -79,7 +79,7 @@ class XrDatasetDataLoader(InputDataLoader):
     """Constructor.
 
     The coordinates of the input dataset should be: `time`, `media_time`,
-    `control_variable`, `geo` (optional for a national model),
+    `control_variable` (optional), `geo` (optional for a national model),
     `non_media_channel` (optional), `organic_media_channel` (optional),
     `organic_rf_channel` (optional), and
     either `media_channel`, `rf_channel`, or both.
@@ -93,7 +93,7 @@ class XrDatasetDataLoader(InputDataLoader):
 
     *   `kpi`: `(geo, time)`
     *   `revenue_per_kpi`: `(geo, time)`
-    *   `controls`: `(geo, time, control_variable)`
+    *   `controls`: `(geo, time, control_variable)` - optional
     *   `population`: `(geo)`
     *   `media`: `(geo, media_time, media_channel)` - optional
     *   `media_spend`: `(geo, time, media_channel)`, `(1, time, media_channel)`,
@@ -113,7 +113,7 @@ class XrDatasetDataLoader(InputDataLoader):
 
     *   `kpi`: `([1,] time)`
     *   `revenue_per_kpi`: `([1,] time)`
-    *   `controls`: `([1,] time, control_variable)`
+    *   `controls`: `([1,] time, control_variable)` - optional
     *   `population`: `([1],)` - this array is optional for national data
     *   `media`: `([1,] media_time, media_channel)` - optional
     *   `media_spend`: `([1,] time, media_channel)` or
@@ -349,14 +349,17 @@ class XrDatasetDataLoader(InputDataLoader):
     # Arrays in which NAs are expected in the lagged-media period.
     na_arrays = [
         constants.KPI,
-        constants.CONTROLS,
     ]
 
-    na_mask = self.dataset[constants.KPI].isnull().any(
-        dim=constants.GEO
-    ) | self.dataset[constants.CONTROLS].isnull().any(
-        dim=[constants.GEO, constants.CONTROL_VARIABLE]
-    )
+    na_mask = self.dataset[constants.KPI].isnull().any(dim=constants.GEO)
+
+    if constants.CONTROLS in self.dataset.data_vars.keys():
+      na_arrays.append(constants.CONTROLS)
+      na_mask |= (
+          self.dataset[constants.CONTROLS]
+          .isnull()
+          .any(dim=[constants.GEO, constants.CONTROL_VARIABLE])
+      )
 
     if constants.NON_MEDIA_TREATMENTS in self.dataset.data_vars.keys():
       na_arrays.append(constants.NON_MEDIA_TREATMENTS)
@@ -427,11 +430,12 @@ class XrDatasetDataLoader(InputDataLoader):
         .dropna(dim=constants.TIME)
         .rename({constants.TIME: new_time})
     )
-    new_dataset[constants.CONTROLS] = (
-        new_dataset[constants.CONTROLS]
-        .dropna(dim=constants.TIME)
-        .rename({constants.TIME: new_time})
-    )
+    if constants.CONTROLS in new_dataset.data_vars.keys():
+      new_dataset[constants.CONTROLS] = (
+          new_dataset[constants.CONTROLS]
+          .dropna(dim=constants.TIME)
+          .rename({constants.TIME: new_time})
+      )
     if constants.NON_MEDIA_TREATMENTS in new_dataset.data_vars.keys():
       new_dataset[constants.NON_MEDIA_TREATMENTS] = (
           new_dataset[constants.NON_MEDIA_TREATMENTS]
@@ -466,6 +470,11 @@ class XrDatasetDataLoader(InputDataLoader):
 
   def load(self) -> input_data.InputData:
     """Returns an `InputData` object containing the data from the dataset."""
+    controls = (
+        self.dataset.controls
+        if constants.CONTROLS in self.dataset.data_vars.keys()
+        else None
+    )
     revenue_per_kpi = (
         self.dataset.revenue_per_kpi
         if constants.REVENUE_PER_KPI in self.dataset.data_vars.keys()
@@ -519,9 +528,9 @@ class XrDatasetDataLoader(InputDataLoader):
     return input_data.InputData(
         kpi=self.dataset.kpi,
         kpi_type=self.kpi_type,
-        revenue_per_kpi=revenue_per_kpi,
-        controls=self.dataset.controls,
         population=self.dataset.population,
+        controls=controls,
+        revenue_per_kpi=revenue_per_kpi,
         media=media,
         media_spend=media_spend,
         reach=reach,
@@ -539,14 +548,14 @@ class CoordToColumns:
   """A mapping between the desired and actual column names in the input data.
 
   Attributes:
-    controls: List of column names containing `controls` values in the input
-      data.
     time: Name of column containing `time` values in the input data.
-    kpi: Name of column containing `kpi` values in the input data.
-    revenue_per_kpi: Name of column containing `revenue_per_kpi` values in the
-      input data.
     geo:  Name of column containing `geo` values in the input data. This field
       is optional for a national model.
+    kpi: Name of column containing `kpi` values in the input data.
+    controls: List of column names containing `controls` values in the input
+      data. Optional.
+    revenue_per_kpi: Name of column containing `revenue_per_kpi` values in the
+      input data. Optional. Will be overridden if model KPI type is "revenue".
     population: Name of column containing `population` values in the input data.
       This field is optional for a national model.
     media: List of column names containing `media` values in the input data.
@@ -567,11 +576,11 @@ class CoordToColumns:
       values in the input data.
   """
 
-  controls: Sequence[str]
   time: str = constants.TIME
-  kpi: str = constants.KPI
-  revenue_per_kpi: str | None = None
   geo: str = constants.GEO
+  kpi: str = constants.KPI
+  controls: Sequence[str] | None = None
+  revenue_per_kpi: str | None = None
   population: str = constants.POPULATION
   # Media data
   media: Sequence[str] | None = None
@@ -607,7 +616,7 @@ class DataFrameDataLoader(InputDataLoader):
   to the DataFrame column names if they are different. The fields are:
 
   *   `geo`, `time`, `kpi`, `revenue_per_kpi`, `population` (single column)
-  *   `controls` (multiple columns)
+  *   `controls` (multiple columns, optional)
   *   (1) `media`, `media_spend` (multiple columns)
   *   (2) `reach`, `frequency`, `rf_spend` (multiple columns)
   *   `non_media_treatments` (multiple columns, optional)
@@ -953,9 +962,10 @@ class DataFrameDataLoader(InputDataLoader):
     not_lagged_columns = []
     coords = [
         constants.KPI,
-        constants.CONTROLS,
         constants.POPULATION,
     ]
+    if self.coord_to_columns.controls is not None:
+      coords.append(constants.CONTROLS)
     if self.coord_to_columns.revenue_per_kpi is not None:
       coords.append(constants.REVENUE_PER_KPI)
     if self.coord_to_columns.media_spend is not None:
@@ -1042,17 +1052,20 @@ class DataFrameDataLoader(InputDataLoader):
         .to_frame()
         .to_xarray()
     )
-    controls_xr = (
-        df_indexed[self.coord_to_columns.controls]
-        .stack()
-        .rename(constants.CONTROLS)
-        .rename_axis(
-            [constants.GEO, constants.TIME, constants.CONTROL_VARIABLE]
-        )
-        .to_frame()
-        .to_xarray()
-    )
-    dataset = xr.combine_by_coords([kpi_xr, population_xr, controls_xr])
+    dataset = xr.combine_by_coords([kpi_xr, population_xr])
+
+    if self.coord_to_columns.controls is not None:
+      controls_xr = (
+          df_indexed[self.coord_to_columns.controls]
+          .stack()
+          .rename(constants.CONTROLS)
+          .rename_axis(
+              [constants.GEO, constants.TIME, constants.CONTROL_VARIABLE]
+          )
+          .to_frame()
+          .to_xarray()
+      )
+      dataset = xr.combine_by_coords([dataset, controls_xr])
 
     if self.coord_to_columns.non_media_treatments is not None:
       non_media_xr = (
@@ -1224,7 +1237,7 @@ class CsvDataLoader(InputDataLoader):
   CSV column names, if they are different. The fields are:
 
   *   `geo`, `time`, `kpi`, `revenue_per_kpi`, `population` (single column)
-  *   `controls` (multiple columns)
+  *   `controls` (multiple columns, optional)
   *   (1) `media`, `media_spend` (multiple columns)
   *   (2) `reach`, `frequency`, `rf_spend` (multiple columns)
   *   `non_media_treatments` (multiple columns, optional)

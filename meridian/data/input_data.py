@@ -121,11 +121,11 @@ class InputData:
       `revenue_per_kpi` exists, ROI calibration is used and the analysis is run
       on revenue. When the `revenue_per_kpi` doesn't exist for the same
       `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
-    controls: A DataArray of dimensions `(n_geos, n_times, n_controls)`
-      containing control variable values.
     population: A DataArray of dimensions `(n_geos,)` containing the population
       of each group. This variable is used to scale the KPI and media for
       modeling.
+    controls: An optional DataArray of dimensions `(n_geos, n_times,
+      n_controls)` containing control variable values.
     revenue_per_kpi: An optional DataArray of dimensions `(n_geos, n_times)`
       containing the average revenue amount per KPI unit. Although modeling is
       done on `kpi`, model analysis and optimization are done on `KPI *
@@ -275,8 +275,8 @@ class InputData:
 
   kpi: xr.DataArray
   kpi_type: str
-  controls: xr.DataArray
   population: xr.DataArray
+  controls: xr.DataArray | None = None
   revenue_per_kpi: xr.DataArray | None = None
   media: xr.DataArray | None = None
   media_spend: xr.DataArray | None = None
@@ -409,9 +409,12 @@ class InputData:
       return None
 
   @property
-  def control_variable(self) -> xr.DataArray:
+  def control_variable(self) -> xr.DataArray | None:
     """Returns the control variable dimension."""
-    return self.controls[constants.CONTROL_VARIABLE]
+    if self.controls is not None:
+      return self.controls[constants.CONTROL_VARIABLE]
+    else:
+      return None
 
   @property
   def media_spend_has_geo_dimension(self) -> bool:
@@ -502,8 +505,8 @@ class InputData:
     # Must match the order of constants.POSSIBLE_INPUT_DATA_ARRAY_NAMES!
     arrays = (
         self.kpi,
-        self.controls,
         self.population,
+        self.controls,
         self.revenue_per_kpi,
         self.organic_media,
         self.organic_reach,
@@ -786,9 +789,10 @@ class InputData:
     """Returns data as a single `xarray.Dataset` object."""
     data = [
         self.kpi,
-        self.controls,
         self.population,
     ]
+    if self.controls is not None:
+      data.append(self.controls)
     if self.revenue_per_kpi is not None:
       data.append(self.revenue_per_kpi)
     if self.media is not None:

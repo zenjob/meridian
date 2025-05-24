@@ -788,7 +788,7 @@ class Analyzer:
         tensors are expected to be scaled by their corresponding transformers.
       dist_tensors: A `DistributionTensors` container with the distribution
         tensors for media, RF, organic media, organic RF, non-media treatments,
-        and controls.
+        and controls (if available).
 
     Returns:
       Tensor representing computed kpi means.
@@ -803,17 +803,15 @@ class Analyzer:
         )
     )
 
-    result = (
-        tau_gt
-        + tf.einsum(
-            "...gtm,...gm->...gt", combined_media_transformed, combined_beta
-        )
-        + tf.einsum(
-            "...gtc,...gc->...gt",
-            data_tensors.controls,
-            dist_tensors.gamma_gc,
-        )
+    result = tau_gt + tf.einsum(
+        "...gtm,...gm->...gt", combined_media_transformed, combined_beta
     )
+    if self._meridian.controls is not None:
+      result += tf.einsum(
+          "...gtc,...gc->...gt",
+          data_tensors.controls,
+          dist_tensors.gamma_gc,
+      )
     if data_tensors.non_media_treatments is not None:
       result += tf.einsum(
           "...gtm,...gm->...gt",
@@ -1464,11 +1462,14 @@ class Analyzer:
         (n_chains, 0, self._meridian.n_geos, self._meridian.n_times)
     )
     batch_starting_indices = np.arange(n_draws, step=batch_size)
-    param_list = [
-        constants.MU_T,
-        constants.TAU_G,
-        constants.GAMMA_GC,
-    ] + self._get_causal_param_names(include_non_paid_channels=True)
+    param_list = (
+        [
+            constants.MU_T,
+            constants.TAU_G,
+        ]
+        + ([constants.GAMMA_GC] if self._meridian.n_controls else [])
+        + self._get_causal_param_names(include_non_paid_channels=True)
+    )
     outcome_means_temps = []
     for start_index in batch_starting_indices:
       stop_index = np.min([n_draws, start_index + batch_size])

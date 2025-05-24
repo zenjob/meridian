@@ -78,6 +78,53 @@ class PosteriorMCMCSamplerTest(
         tf.zeros(shape=(self._N_DRAWS, self._N_GEOS, self._N_TIMES_SHORT)),
     )
 
+  def test_get_joint_dist_zeros_no_controls_data(self):
+    model_spec = spec.ModelSpec(
+        prior=prior_distribution.PriorDistribution(
+            knot_values=tfp.distributions.Deterministic(0),
+            tau_g_excl_baseline=tfp.distributions.Deterministic(0),
+            beta_m=tfp.distributions.Deterministic(0),
+            beta_rf=tfp.distributions.Deterministic(0),
+            eta_m=tfp.distributions.Deterministic(0),
+            eta_rf=tfp.distributions.Deterministic(0),
+            gamma_c=tfp.distributions.Deterministic(0),
+            xi_c=tfp.distributions.Deterministic(0),
+            alpha_m=tfp.distributions.Deterministic(0),
+            alpha_rf=tfp.distributions.Deterministic(0),
+            ec_m=tfp.distributions.Deterministic(0),
+            ec_rf=tfp.distributions.Deterministic(0),
+            slope_m=tfp.distributions.Deterministic(0),
+            slope_rf=tfp.distributions.Deterministic(0),
+            sigma=tfp.distributions.Deterministic(0),
+            roi_m=tfp.distributions.Deterministic(0),
+            roi_rf=tfp.distributions.Deterministic(0),
+        ),
+        media_effects_dist=constants.MEDIA_EFFECTS_NORMAL,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_only_no_controls,
+        model_spec=model_spec,
+    )
+    sample = (
+        meridian.posterior_sampler_callable._get_joint_dist_unpinned().sample(
+            self._N_DRAWS
+        )
+    )
+    self.assertAllEqual(
+        sample.y,
+        tf.zeros(shape=(self._N_DRAWS, self._N_GEOS, self._N_TIMES_SHORT)),
+    )
+
+    # Without controls data, controls-related distributions should be absent.
+    with self.assertRaises(AttributeError):
+      _ = sample.gamma_gc
+    with self.assertRaises(AttributeError):
+      _ = sample.xi_c
+    with self.assertRaises(AttributeError):
+      _ = sample.gamma_gc_dev
+    with self.assertRaises(AttributeError):
+      _ = sample.gamma_gc
+
   @parameterized.product(
       paid_media_prior_type=[
           constants.TREATMENT_PRIOR_TYPE_ROI,
@@ -785,6 +832,57 @@ class PosteriorMCMCSamplerTest(
               self._N_KEEP,
           ),
       )
+
+  def test_sample_posterior_media_only_no_controls_returns_correct_shape(self):
+    mock_sample_posterior = self.enter_context(
+        mock.patch.object(
+            posterior_sampler,
+            "_xla_windowed_adaptive_nuts",
+            autospec=True,
+            return_value=collections.namedtuple(
+                "StatesAndTrace", ["all_states", "trace"]
+            )(
+                all_states=self.test_posterior_states_media_only_no_controls,
+                trace=self.test_trace,
+            ),
+        )
+    )
+    model_spec = spec.ModelSpec(
+        roi_calibration_period=self._ROI_CALIBRATION_PERIOD,
+    )
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_only_no_controls,
+        model_spec=model_spec,
+    )
+
+    meridian.sample_posterior(
+        n_chains=self._N_CHAINS,
+        n_adapt=self._N_ADAPT,
+        n_burnin=self._N_BURNIN,
+        n_keep=self._N_KEEP,
+    )
+
+    mock_sample_posterior.assert_called_with(
+        n_draws=self._N_BURNIN + self._N_KEEP,
+        joint_dist=mock.ANY,
+        n_chains=self._N_CHAINS,
+        num_adaptation_steps=self._N_ADAPT,
+        current_state=None,
+        init_step_size=None,
+        dual_averaging_kwargs=None,
+        max_tree_depth=10,
+        max_energy_diff=500.0,
+        unrolled_leapfrog_steps=1,
+        parallel_iterations=10,
+        seed=None,
+    )
+
+    # Control parameters should not exist in the inference data posteriors.
+    for param in (
+        constants.CONTROL_PARAMETERS + constants.GEO_CONTROL_PARAMETERS
+    ):
+      with self.assertRaises(AttributeError):
+        getattr(meridian.inference_data.posterior, param)
 
   def test_sample_posterior_rf_only_returns_correct_shape(self):
     mock_sample_posterior = self.enter_context(

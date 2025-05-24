@@ -201,6 +201,64 @@ class PriorDistributionSamplerTest(
       for param in params:
         self.assertEqual(param.shape, shape)
 
+  def test_sample_prior_media_only_no_controls_returns_correct_shape(self):
+    self.enter_context(
+        mock.patch.object(
+            prior_sampler.PriorDistributionSampler,
+            "_sample_prior",
+            autospec=True,
+            return_value=self.test_dist_media_only_no_controls,
+        )
+    )
+
+    model_spec = spec.ModelSpec()
+    meridian = model.Meridian(
+        input_data=self.short_input_data_with_media_only_no_controls,
+        model_spec=model_spec,
+    )
+    meridian.sample_prior(n_draws=self._N_DRAWS)
+    knots_shape = (1, self._N_DRAWS, self._N_TIMES_SHORT)
+    media_channel_shape = (1, self._N_DRAWS, self._N_MEDIA_CHANNELS)
+    sigma_shape = (
+        (1, self._N_DRAWS, self._N_GEOS)
+        if meridian.unique_sigma_for_each_geo
+        else (1, self._N_DRAWS, 1)
+    )
+    geo_shape = (1, self._N_DRAWS, self._N_GEOS)
+    time_shape = (1, self._N_DRAWS, self._N_TIMES_SHORT)
+    geo_media_channel_shape = geo_shape + (self._N_MEDIA_CHANNELS,)
+
+    media_parameters = list(constants.MEDIA_PARAMETER_NAMES)
+    media_parameters.remove(constants.BETA_GM)
+
+    prior = meridian.inference_data.prior
+    shape_to_params = {
+        knots_shape: [
+            getattr(prior, attr) for attr in constants.KNOTS_PARAMETERS
+        ],
+        media_channel_shape: [
+            getattr(prior, attr) for attr in media_parameters
+        ],
+        sigma_shape: [
+            getattr(prior, attr) for attr in constants.SIGMA_PARAMETERS
+        ],
+        geo_shape: [getattr(prior, attr) for attr in constants.GEO_PARAMETERS],
+        time_shape: [
+            getattr(prior, attr) for attr in constants.TIME_PARAMETERS
+        ],
+        geo_media_channel_shape: [
+            getattr(prior, attr) for attr in constants.GEO_MEDIA_PARAMETERS
+        ],
+    }
+    for shape, params in shape_to_params.items():
+      for param in params:
+        self.assertEqual(param.shape, shape)
+
+    # Control parameters should not exist in the inference data priors.
+    for attr in constants.CONTROL_PARAMETERS + constants.GEO_CONTROL_PARAMETERS:
+      with self.assertRaises(AttributeError):
+        getattr(meridian.inference_data.prior, attr)
+
   def test_sample_prior_rf_only_returns_correct_shape(self):
     self.enter_context(
         mock.patch.object(

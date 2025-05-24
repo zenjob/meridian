@@ -537,6 +537,27 @@ class InputDataTest(parameterized.TestCase):
     self.assertIsNone(data.frequency)
     self.assertIsNone(data.rf_spend)
 
+  def test_construct_from_random_dataarrays_media_only_no_controls(self):
+    data = input_data.InputData(
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+
+    xr.testing.assert_equal(data.kpi, self.not_lagged_kpi)
+    xr.testing.assert_equal(data.revenue_per_kpi, self.revenue_per_kpi)
+    self.assertIsNone(data.controls)
+    self.assertIsNone(data.control_variable)
+    xr.testing.assert_equal(data.population, self.population)
+    xr.testing.assert_equal(data.media, self.not_lagged_media)
+    xr.testing.assert_equal(data.media_spend, self.media_spend)
+    self.assertIsNone(data.reach)
+    self.assertIsNone(data.frequency)
+    self.assertIsNone(data.rf_spend)
+
   def test_construct_from_random_dataarrays_rf_only(self):
     data = input_data.InputData(
         controls=self.not_lagged_controls,

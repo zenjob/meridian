@@ -120,8 +120,6 @@ class PosteriorMCMCSampler:
     def joint_dist_unpinned():
       # Sample directly from prior.
       knot_values = yield prior_broadcast.knot_values
-      gamma_c = yield prior_broadcast.gamma_c
-      xi_c = yield prior_broadcast.xi_c
       sigma = yield prior_broadcast.sigma
 
       tau_g_excl_baseline = yield tfp.distributions.Sample(
@@ -377,19 +375,25 @@ class PosteriorMCMCSampler:
         combined_beta = tf.concat([combined_beta, beta_gorf], axis=-1)
 
       sigma_gt = tf.transpose(tf.broadcast_to(sigma, [n_times, n_geos]))
-      gamma_gc_dev = yield tfp.distributions.Sample(
-          tfp.distributions.Normal(0, 1),
-          [n_geos, n_controls],
-          name=constants.GAMMA_GC_DEV,
+      y_pred_combined_media = tau_gt + tf.einsum(
+          "gtm,gm->gt", combined_media_transformed, combined_beta
       )
-      gamma_gc = yield tfp.distributions.Deterministic(
-          gamma_c + xi_c * gamma_gc_dev, name=constants.GAMMA_GC
-      )
-      y_pred_combined_media = (
-          tau_gt
-          + tf.einsum("gtm,gm->gt", combined_media_transformed, combined_beta)
-          + tf.einsum("gtc,gc->gt", controls_scaled, gamma_gc)
-      )
+      # Omit gamma_c, xi_c, and gamma_gc from joint distribution output if
+      # there are no control variables in the model.
+      if n_controls:
+        gamma_c = yield prior_broadcast.gamma_c
+        xi_c = yield prior_broadcast.xi_c
+        gamma_gc_dev = yield tfp.distributions.Sample(
+            tfp.distributions.Normal(0, 1),
+            [n_geos, n_controls],
+            name=constants.GAMMA_GC_DEV,
+        )
+        gamma_gc = yield tfp.distributions.Deterministic(
+            gamma_c + xi_c * gamma_gc_dev, name=constants.GAMMA_GC
+        )
+        y_pred_combined_media += tf.einsum(
+            "gtc,gc->gt", controls_scaled, gamma_gc
+        )
 
       if mmm.non_media_treatments is not None:
         xi_n = yield prior_broadcast.xi_n

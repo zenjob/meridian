@@ -214,7 +214,9 @@ class Meridian:
     )
 
   @functools.cached_property
-  def controls(self) -> tf.Tensor:
+  def controls(self) -> tf.Tensor | None:
+    if self.input_data.controls is None:
+      return None
     return tf.convert_to_tensor(self.input_data.controls, dtype=tf.float32)
 
   @functools.cached_property
@@ -271,6 +273,8 @@ class Meridian:
 
   @property
   def n_controls(self) -> int:
+    if self.input_data.control_variable is None:
+      return 0
     return len(self.input_data.control_variable)
 
   @property
@@ -304,7 +308,13 @@ class Meridian:
     )
 
   @functools.cached_property
-  def controls_transformer(self) -> transformers.CenteringAndScalingTransformer:
+  def controls_transformer(
+      self,
+  ) -> transformers.CenteringAndScalingTransformer | None:
+    """Returns a `CenteringAndScalingTransformer` for controls, if it exists."""
+    if self.controls is None:
+      return None
+
     if self.model_spec.control_population_scaling_id is not None:
       controls_population_scaling_id = tf.convert_to_tensor(
           self.model_spec.control_population_scaling_id, dtype=bool
@@ -343,8 +353,12 @@ class Meridian:
     return transformers.KpiTransformer(self.kpi, self.population)
 
   @functools.cached_property
-  def controls_scaled(self) -> tf.Tensor:
-    return self.controls_transformer.forward(self.controls)
+  def controls_scaled(self) -> tf.Tensor | None:
+    if self.controls is not None:
+      # If `controls` is defined, then `controls_transformer` is also defined.
+      return self.controls_transformer.forward(self.controls)  # pytype: disable=attribute-error
+    else:
+      return None
 
   @functools.cached_property
   def non_media_treatments_normalized(self) -> tf.Tensor | None:
@@ -894,11 +908,12 @@ class Meridian:
     if self.is_national:
       return
 
-    self._check_if_no_geo_variation(
-        self.controls_scaled,
-        constants.CONTROLS,
-        self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
-    )
+    if self.input_data.controls is not None:
+      self._check_if_no_geo_variation(
+          self.controls_scaled,
+          constants.CONTROLS,
+          self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
+      )
     if self.input_data.non_media_treatments is not None:
       self._check_if_no_geo_variation(
           self.non_media_treatments_normalized,
@@ -971,12 +986,12 @@ class Meridian:
 
   def _validate_time_invariants(self):
     """Validates model time invariants."""
-
-    self._check_if_no_time_variation(
-        self.controls_scaled,
-        constants.CONTROLS,
-        self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
-    )
+    if self.input_data.controls is not None:
+      self._check_if_no_time_variation(
+          self.controls_scaled,
+          constants.CONTROLS,
+          self.input_data.controls.coords[constants.CONTROL_VARIABLE].values,
+      )
     if self.input_data.non_media_treatments is not None:
       self._check_if_no_time_variation(
           self.non_media_treatments_normalized,
@@ -1356,29 +1371,34 @@ class Meridian:
       self, n_chains: int, n_draws: int
   ) -> Mapping[str, np.ndarray | Sequence[str]]:
     """Creates data coordinates for inference data."""
-    media_channel_values = (
+    media_channel_names = (
         self.input_data.media_channel
         if self.input_data.media_channel is not None
         else np.array([])
     )
-    rf_channel_values = (
+    rf_channel_names = (
         self.input_data.rf_channel
         if self.input_data.rf_channel is not None
         else np.array([])
     )
-    organic_media_channel_values = (
+    organic_media_channel_names = (
         self.input_data.organic_media_channel
         if self.input_data.organic_media_channel is not None
         else np.array([])
     )
-    organic_rf_channel_values = (
+    organic_rf_channel_names = (
         self.input_data.organic_rf_channel
         if self.input_data.organic_rf_channel is not None
         else np.array([])
     )
-    non_media_channel_values = (
+    non_media_channel_names = (
         self.input_data.non_media_channel
         if self.input_data.non_media_channel is not None
+        else np.array([])
+    )
+    control_variable_names = (
+        self.input_data.control_variable
+        if self.input_data.control_variable is not None
         else np.array([])
     )
     return {
@@ -1388,12 +1408,12 @@ class Meridian:
         constants.TIME: self.input_data.time,
         constants.MEDIA_TIME: self.input_data.media_time,
         constants.KNOTS: np.arange(self.knot_info.n_knots),
-        constants.CONTROL_VARIABLE: self.input_data.control_variable,
-        constants.NON_MEDIA_CHANNEL: non_media_channel_values,
-        constants.MEDIA_CHANNEL: media_channel_values,
-        constants.RF_CHANNEL: rf_channel_values,
-        constants.ORGANIC_MEDIA_CHANNEL: organic_media_channel_values,
-        constants.ORGANIC_RF_CHANNEL: organic_rf_channel_values,
+        constants.CONTROL_VARIABLE: control_variable_names,
+        constants.NON_MEDIA_CHANNEL: non_media_channel_names,
+        constants.MEDIA_CHANNEL: media_channel_names,
+        constants.RF_CHANNEL: rf_channel_names,
+        constants.ORGANIC_MEDIA_CHANNEL: organic_media_channel_names,
+        constants.ORGANIC_RF_CHANNEL: organic_rf_channel_names,
     }
 
   def create_inference_data_dims(self) -> Mapping[str, Sequence[str]]:

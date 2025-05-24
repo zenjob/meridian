@@ -44,6 +44,10 @@ _TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH = os.path.join(
     _TEST_DIR,
     "sample_prior_media_only.nc",
 )
+_TEST_SAMPLE_PRIOR_MEDIA_ONLY_NO_CONTROLS_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_prior_media_only_no_controls.nc",
+)
 _TEST_SAMPLE_PRIOR_RF_ONLY_PATH = os.path.join(
     _TEST_DIR,
     "sample_prior_rf_only.nc",
@@ -55,6 +59,10 @@ _TEST_SAMPLE_POSTERIOR_MEDIA_AND_RF_PATH = os.path.join(
 _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH = os.path.join(
     _TEST_DIR,
     "sample_posterior_media_only.nc",
+)
+_TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_NO_CONTROLS_PATH = os.path.join(
+    _TEST_DIR,
+    "sample_posterior_media_only_no_controls.nc",
 )
 _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH = os.path.join(
     _TEST_DIR,
@@ -2551,6 +2559,7 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
             seed=0,
         )
     )
+
     model_spec = spec.ModelSpec(max_lag=15)
     cls.meridian_media_only = model.Meridian(
         input_data=cls.input_data_media_only, model_spec=model_spec
@@ -3240,6 +3249,82 @@ class AnalyzerMediaOnlyTest(tf.test.TestCase, parameterized.TestCase):
   ):
     actual = self.analyzer_media_only.get_aggregated_spend(include_media=False)
     self.assertAllEqual(actual.data, [])
+
+
+class AnalyzerMediaOnlyNoControlsTest(tf.test.TestCase, parameterized.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    super(AnalyzerMediaOnlyNoControlsTest, cls).setUpClass()
+
+    cls.input_data_media_only_no_controls = (
+        data_test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=_N_GEOS,
+            n_times=_N_TIMES,
+            n_media_times=_N_MEDIA_TIMES,
+            n_controls=0,
+            n_media_channels=_N_MEDIA_CHANNELS,
+            seed=0,
+        )
+    )
+
+    model_spec = spec.ModelSpec(max_lag=15)
+    cls.meridian_media_only_no_controls = model.Meridian(
+        input_data=cls.input_data_media_only_no_controls, model_spec=model_spec
+    )
+    cls.analyzer_media_only_no_controls = analyzer.Analyzer(
+        cls.meridian_media_only_no_controls
+    )
+
+    cls.inference_data_media_only_no_controls = _build_inference_data(
+        _TEST_SAMPLE_PRIOR_MEDIA_ONLY_NO_CONTROLS_PATH,
+        _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_NO_CONTROLS_PATH,
+    )
+
+    cls.enter_context(
+        mock.patch.object(
+            model.Meridian,
+            "inference_data",
+            new=property(
+                lambda unused_self: cls.inference_data_media_only_no_controls
+            ),
+        )
+    )
+
+  @parameterized.product(
+      use_posterior=[False, True],
+      aggregate_geos=[False, True],
+      aggregate_times=[False, True],
+      geos_to_include=[None, ["geo_1", "geo_3"]],
+      times_to_include=[None, ["2021-04-19", "2021-09-13", "2021-12-13"]],
+  )
+  def test_expected_outcome_media_only_no_controls_returns_correct_shape(
+      self,
+      use_posterior: bool,
+      aggregate_geos: bool,
+      aggregate_times: bool,
+      geos_to_include: Sequence[str] | None,
+      times_to_include: Sequence[str] | None,
+  ):
+    outcome = self.analyzer_media_only_no_controls.expected_outcome(
+        use_posterior=use_posterior,
+        aggregate_geos=aggregate_geos,
+        aggregate_times=aggregate_times,
+        selected_geos=geos_to_include,
+        selected_times=times_to_include,
+    )
+    expected_shape = (_N_CHAINS, _N_KEEP) if use_posterior else (1, _N_DRAWS)
+    if not aggregate_geos:
+      expected_shape += (
+          (len(geos_to_include),) if geos_to_include is not None else (_N_GEOS,)
+      )
+    if not aggregate_times:
+      expected_shape += (
+          (len(times_to_include),)
+          if times_to_include is not None
+          else (_N_TIMES,)
+      )
+    self.assertEqual(outcome.shape, expected_shape)
 
 
 class AnalyzerRFOnlyTest(tf.test.TestCase, parameterized.TestCase):
