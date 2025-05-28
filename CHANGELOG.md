@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-05-28
+
 * Rename the directory of unit testing datasets from `sample` to
   `unit_testing_data` and add a README.
 * Make `controls` data optional in the model.
@@ -305,4 +307,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.8]: https://github.com/google/meridian/releases/tag/v1.0.8
 [1.0.9]: https://github.com/google/meridian/releases/tag/v1.0.9
 [1.1.0]: https://github.com/google/meridian/releases/tag/v1.1.0
-[Unreleased]: https://github.com/google/meridian/compare/v1.1.0...HEAD
+[1.1.1]: https://github.com/google/meridian/releases/tag/v1.1.1
+[Unreleased]: https://github.com/google/meridian/compare/v1.1.1...HEAD
