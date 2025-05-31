@@ -15,6 +15,9 @@
 """Data handling API for Meridian."""
 
 from meridian.data import arg_builder
+from meridian.data import data_frame_input_data_builder
 from meridian.data import input_data
+from meridian.data import input_data_builder
 from meridian.data import load
+from meridian.data import nd_array_input_data_builder
 from meridian.data import time_coordinates
