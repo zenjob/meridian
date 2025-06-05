@@ -24,6 +24,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 
 * Add new `InputDataBuilder` APIs.
+* Keep rounded spend as int64 in optimizer.
 
 ## [1.1.1] - 2025-05-28
 
