@@ -1452,7 +1452,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       self.budget_optimizer_media_and_rf.optimize(budget=-10_000)
 
   def test_get_optimization_bounds_correct(self):
-    (lower_bound, upper_bound) = optimizer._get_optimization_bounds(
+    (lower_bound, upper_bound) = optimizer.get_optimization_bounds(
         n_channels=5,
         spend=np.array([10642.5, 22222.0, 33333.0, 44444.0, 55555.0]),
         round_factor=-2,

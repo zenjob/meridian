@@ -223,7 +223,7 @@ class OptimizationGrid:
     if spend_constraint_upper is None:
       spend_constraint_upper = spend_constraint_default
     (optimization_lower_bound, optimization_upper_bound) = (
-        _get_optimization_bounds(
+        get_optimization_bounds(
             n_channels=len(self.channels),
             spend=spend,
             round_factor=self.round_factor,
@@ -1664,7 +1664,7 @@ class BudgetOptimizer:
     )
     spend = budget * valid_pct_of_spend
     (optimization_lower_bound, optimization_upper_bound) = (
-        _get_optimization_bounds(
+        get_optimization_bounds(
             n_channels=n_channels,
             spend=spend,
             round_factor=optimization_grid.round_factor,
@@ -1829,7 +1829,7 @@ class BudgetOptimizer:
     spend = budget * valid_pct_of_spend
     round_factor = _get_round_factor(budget, gtol)
     (optimization_lower_bound, optimization_upper_bound) = (
-        _get_optimization_bounds(
+        get_optimization_bounds(
             n_channels=n_paid_channels,
             spend=spend,
             round_factor=round_factor,
@@ -2511,7 +2511,7 @@ def _get_spend_bounds(
   return spend_bounds
 
 
-def _get_optimization_bounds(
+def get_optimization_bounds(
     n_channels: int,
     spend: np.ndarray,
     round_factor: int,
