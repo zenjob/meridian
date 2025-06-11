@@ -62,6 +62,7 @@ dev = [
 # Installed through `pip install -e .[colab]`
 colab = [
   "psutil",
+  "python-calamine",  # For parsing the included simulated .xlsx files.
 ]
 # GPU deps
 # Installed through `pip install -e .[and-cuda]`
