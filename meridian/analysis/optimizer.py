@@ -1307,36 +1307,57 @@ class BudgetOptimizer:
   ) -> OptimizationResults:
     """Finds the optimal budget allocation that maximizes outcome.
 
-    Optimization depends on the following:
-    1. Flighting pattern (the relative allocation of a channels' media units
-       across geos and time periods, which is held fixed for each channel)
-    2. Cost per media unit (This is assumed to be constant for each channel, and
-       can optionally vary by geo and/or time period)
-    3. `pct_of_spend` (center of the spend box constraint for each channel)
-    4. `budget` (total budget used for fixed budget scenarios)
+    Define B to be the historical spend of a channel within `selected_geos` and
+    between `start_date` and `end_date`. When the optimization assigns a new
+    budget N to this channel, the historical media units for each geo and time
+    period are assumed to scale by the ratio N / B. Media units prior to
+    `selected_times` are also scaled by N / B. The incremental outcome of each
+    channel is aggregated over `selected_geos` and between `start_date` and
+    `end_date`.
 
-    By default, these values are assigned based on the historical data. The
-    `pct_of_spend` and `budget` are optimization arguments that can be
-    overridden directly. Passing `new_data.media` (or `new_data.reach` or
-    `new_data.frequency`) will override both the flighting pattern and cost per
-    media unit. Passing `new_data.spend` (or `new_data.rf_spend) will only
-    override the cost per media unit.
+    The incremental outcome includes the (lagged) amount generated between
+    `start_date` and `end_date` by media executed prior to `start_date`, but it
+    excludes the (lagged) amount generated after `end_date` by media executed
+    between `start_date` and `end_date`. This definition does not require any
+    assumptions about media execution levels, media costs, or revenue per kpi
+    for time periods after `end_date`.
 
-    If `new_data` is passed with a different number of time periods than the
-    historical data, then all of the optimization parameters will be inferred
-    from it. Default values for `pct_of_spend` and `budget` (if
-    `fixed_budget=True`) will be inferred from the `new_data`, but can be
-    overridden using the `pct_of_spend` and `budget` arguments.
+    These assumptions are equivalent to assuming that for each channel, neither
+    the flighting pattern nor the cost per media unit depend on the overall
+    budget assigned to that channel.
 
-    If `start_date` or `end_date` is specified, then the default values are
-    inferred based on the subset of time periods specified. Both start and end
-    time selectors should align with the Meridian time dimension coordinates in
-    the underlying model if optimizing the original data. If `new_data` is
-    provided with a different number of time periods than in `InputData`, then
-    the start and end time coordinates must match the time dimensions in
-    `new_data.time`. By default, all times periods are used. Either start or
-    end time component can be `None` to represent the first or the last time
-    coordinate, respectively.
+    The following optimization parameters are assigned default values based on
+    the model input data:
+    1. Flighting pattern. This is the relative allocation of a channel's media
+       units across geos and time periods. By default, the historical flighting
+       pattern is used. The default can be overridden by passing
+       `new_data.media`. The flighting pattern is held constant during
+       optimization and does not depend on the overall budget assigned to the
+       channel.
+    2. Cost per media unit. By default, the historical spend divided by
+       historical media units is used. This can optionally vary by geo or time
+       period or both depending on whether the spend data has geo and time
+       dimensions. The default can be overridden by passing `new_data.spend`.
+       The cost per media unit is held constant during optimization and does not
+       depend on the overall budget assigned to the channel.
+    3. Center of the spend box constraint for each channel. By default, the
+       historical percentage of spend within `selected_geos` and between
+       `start_date` and `end_date` is used. This can be overridden by passing
+       `pct_of_spend`.
+    4. Total budget to be allocated (for fixed budget scenarios only). By
+       default, the historical spend within `selected_geos` and between
+       `start_date` and `end_date` is used. This can be overridden by passing
+       `budget`.
+
+    Passing `new_data.media` (or `new_data.reach` or `new_data.frequency`) will
+    override both the flighting pattern and cost per media unit. Passing
+    `new_data.spend` (or `new_data.rf_spend) will only override the cost per
+    media unit.
+
+    If `start_date` or `end_date` is specified, these values must be selected
+    from `new_data.time` (if provided) or from `Meridian.n_times` (if
+    `new_data.time` is not provided). The `start_date` and `end_date` default to
+    the first and last time periods, respectively.
 
     Args:
       new_data: An optional `DataTensors` container with optional tensors:
@@ -1355,9 +1376,13 @@ class BudgetOptimizer:
         dimension coordinates for the duration to run the optimization on.
         Please Use `start_date` and `end_date` instead.
       start_date: Optional start date selector, *inclusive*, in _yyyy-mm-dd_
-        format. Default is `None`, i.e. the first time period.
+        format. Default is the first time period of `Meridian.InputData.time` if
+        `new_data` is not provided; otherwise it is the first time period of
+        `new_data.time`.
       end_date: Optional end date selector, *inclusive* in _yyyy-mm-dd_ format.
-        Default is `None`, i.e. the last time period.
+        Default is the last time period of `Meridian.InputData.time` if
+        `new_data` is not provided; otherwise it is the last time period of
+        `new_data.time`.
       fixed_budget: Boolean indicating whether it's a fixed budget optimization
         or flexible budget optimization. Defaults to `True`. If `False`, must
         specify either `target_roi` or `target_mroi`.

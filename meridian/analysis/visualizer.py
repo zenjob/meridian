@@ -876,9 +876,14 @@ class MediaEffects:
     Args:
       confidence_level: Confidence level for modeled response credible
         intervals, represented as a value between zero and one. Default is 0.9.
-      selected_times: Optional list of a subset of time dimensions to include.
-        By default, all times are included. Times should match the time
-        dimensions from `meridian.InputData`.
+      selected_times: Optional list containing a subset of time dimensions to
+        include. The x-axis corresponds to spend within these time periods. The
+        y-axis corresponds to the incremental outcome generated within these
+        time periods under the counterfactual where media units in each geo and
+        time period are scaled by the ratio of x-axis spend to historical spend.
+        (Media units for time periods prior to to `selected_times` are also
+        scaled by this ratio). By default, all times are included. Times should
+        match the time dimensions from `meridian.InputData`.
       by_reach: For the channel w/ reach and frequency, return the response
         curves by reach given fixed frequency if true; return the response
         curves by frequency given fixed reach if false.
@@ -972,8 +977,13 @@ class MediaEffects:
     Args:
       confidence_level: Confidence level to update to for the response curve
         credible intervals, represented as a value between zero and one.
-      selected_times: Optional list containing a subset of times to include. By
-        default, all time periods are included.
+      selected_times: Optional list containing a subset of time dimensions to
+        include. The x-axis corresponds to spend within these time periods. The
+        y-axis corresponds to the incremental outcome generated within these
+        time periods under the counterfactual where media units in each geo and
+        time period are multiplied by the corresponding multiplier (including
+        time periods prior to to `selected_times`). By default, all time periods
+        are included.
       by_reach: For the channel w/ reach and frequency, return the response
         curves by reach given fixed frequency if true; return the response
         curves by frequency given fixed reach if false.
