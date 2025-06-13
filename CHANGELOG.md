@@ -23,7 +23,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-06-11
+
 * Add new `InputDataBuilder` APIs.
+* `DataFrameDataLoader` to use new `DataFrameInputDataBuilder` API under the hood. These changes are backwards compatible.
 * Keep rounded spend as int64 in optimizer.
 
 ## [1.1.1] - 2025-05-28
@@ -312,4 +315,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.9]: https://github.com/google/meridian/releases/tag/v1.0.9
 [1.1.0]: https://github.com/google/meridian/releases/tag/v1.1.0
 [1.1.1]: https://github.com/google/meridian/releases/tag/v1.1.1
-[Unreleased]: https://github.com/google/meridian/compare/v1.1.1...HEAD
+[1.1.2]: https://github.com/google/meridian/releases/tag/v1.1.2
+[Unreleased]: https://github.com/google/meridian/compare/v1.1.2...HEAD
