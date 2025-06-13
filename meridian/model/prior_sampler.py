@@ -600,7 +600,7 @@ class PriorDistributionSampler:
         see [PRNGS and seeds]
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
     """
-    prior_draws = self._sample_prior(n_draws, seed=seed)
+    prior_draws = self._sample_prior(n_draws=n_draws, seed=seed)
     # Create Arviz InferenceData for prior draws.
     prior_coords = self._meridian.create_inference_data_coords(1, n_draws)
     prior_dims = self._meridian.create_inference_data_dims()

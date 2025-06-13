@@ -1447,7 +1447,9 @@ class Meridian:
         see [PRNGS and seeds]
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
     """
-    prior_inference_data = self.prior_sampler_callable(n_draws, seed)
+    prior_inference_data = self.prior_sampler_callable(
+        n_draws=n_draws, seed=seed
+    )
     self.inference_data.extend(prior_inference_data, join="right")
 
   def sample_posterior(
@@ -1528,18 +1530,18 @@ class Meridian:
         (https://developers.google.com/meridian/docs/advanced-modeling/model-debugging#gpu-oom-error).
     """
     posterior_inference_data = self.posterior_sampler_callable(
-        n_chains,
-        n_adapt,
-        n_burnin,
-        n_keep,
-        current_state,
-        init_step_size,
-        dual_averaging_kwargs,
-        max_tree_depth,
-        max_energy_diff,
-        unrolled_leapfrog_steps,
-        parallel_iterations,
-        seed,
+        n_chains=n_chains,
+        n_adapt=n_adapt,
+        n_burnin=n_burnin,
+        n_keep=n_keep,
+        current_state=current_state,
+        init_step_size=init_step_size,
+        dual_averaging_kwargs=dual_averaging_kwargs,
+        max_tree_depth=max_tree_depth,
+        max_energy_diff=max_energy_diff,
+        unrolled_leapfrog_steps=unrolled_leapfrog_steps,
+        parallel_iterations=parallel_iterations,
+        seed=seed,
         **pins,
     )
     self.inference_data.extend(posterior_inference_data, join="right")
