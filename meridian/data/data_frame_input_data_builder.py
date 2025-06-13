@@ -22,6 +22,11 @@ from meridian.data import input_data_builder
 import pandas as pd
 
 
+__all__ = [
+    'DataFrameInputDataBuilder',
+]
+
+
 class DataFrameInputDataBuilder(input_data_builder.InputDataBuilder):
   """Builds `InputData` from DataFrames."""
 

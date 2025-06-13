@@ -22,6 +22,11 @@ import numpy as np
 import xarray as xr
 
 
+__all__ = [
+    'NDArrayInputDataBuilder',
+]
+
+
 class NDArrayInputDataBuilder(input_data_builder.InputDataBuilder):
   """Builds `InputData` from n-dimensional arrays."""
 

@@ -31,6 +31,11 @@ import numpy as np
 import xarray as xr
 
 
+__all__ = [
+    'InputDataBuilder',
+]
+
+
 class InputDataBuilder(abc.ABC):
   """Abstract base class for `InputData` builders."""
 
