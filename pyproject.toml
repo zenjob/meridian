@@ -69,6 +69,9 @@ colab = [
 and-cuda = [
   "tensorflow[and-cuda] >= 2.18, < 2.19",
 ]
+# MLflow deps
+# Installed through `pip install -e .[mlflow]`
+mlflow = ["mlflow"]
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide
