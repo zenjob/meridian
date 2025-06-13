@@ -234,16 +234,13 @@ class DataFrameInputDataBuilder(input_data_builder.InputDataBuilder):
     media_df = df.copy()
 
     ### Validate ###
-    self._validate_cols(
-        media_df,
-        media_cols + media_spend_cols + [time_col],
-        [geo_col],
-    )
+    # For a media dataframe, media and media_spend columns may be the same
+    # (e.g. if using media spend as media execution value), so here we validate
+    # execution and spend columns separately when checking for duplicates.
+    self._validate_cols(media_df, media_cols + [time_col], [geo_col])
+    self._validate_cols(media_df, media_spend_cols + [time_col], [geo_col])
     self._validate_coords(media_df, geo_col, time_col)
-    self._validate_channel_cols(
-        media_channels,
-        [media_cols, media_spend_cols],
-    )
+    self._validate_channel_cols(media_channels, [media_cols, media_spend_cols])
     ### Transform ###
     media_data = media_df.set_index([geo_col, time_col])[media_cols]
     media_data.columns = media_channels
