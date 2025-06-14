@@ -28,6 +28,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 * Add new `InputDataBuilder` APIs.
 * `DataFrameDataLoader` to use new `DataFrameInputDataBuilder` API under the hood. These changes are backwards compatible.
 * Keep rounded spend as int64 in optimizer.
+* Add MLflow autologging support.
 
 ## [1.1.1] - 2025-05-28
 

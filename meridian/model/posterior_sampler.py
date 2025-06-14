@@ -85,9 +85,13 @@ class PosteriorMCMCSampler:
   def __init__(self, meridian: "model.Meridian"):
     self._meridian = meridian
 
+  @property
+  def model(self) -> "model.Meridian":
+    return self._meridian
+
   def _get_joint_dist_unpinned(self) -> tfp.distributions.Distribution:
     """Returns a `JointDistributionCoroutineAutoBatched` function for MCMC."""
-    mmm = self._meridian
+    mmm = self.model
     mmm.populate_cached_properties()
 
     # This lists all the derived properties and states of this Meridian object
@@ -453,7 +457,7 @@ class PosteriorMCMCSampler:
     return joint_dist_unpinned
 
   def _get_joint_dist(self) -> tfp.distributions.Distribution:
-    mmm = self._meridian
+    mmm = self.model
     y = (
         tf.where(mmm.holdout_id, 0.0, mmm.kpi_scaled)
         if mmm.holdout_id is not None
@@ -476,7 +480,7 @@ class PosteriorMCMCSampler:
       parallel_iterations: int = 10,
       seed: Sequence[int] | int | None = None,
       **pins,
-  ) -> az.InferenceData:
+  ) -> None:
     """Runs Markov Chain Monte Carlo (MCMC) sampling of posterior distributions.
 
     For more information about the arguments, see [`windowed_adaptive_nuts`]
@@ -528,9 +532,6 @@ class PosteriorMCMCSampler:
         (https://www.tensorflow.org/probability/api_docs/python/tfp/random/sanitize_seed).
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
-
-    Returns:
-      An Arviz `InferenceData` object containing posterior samples only.
 
     Throws:
       MCMCOOMError: If the model is out of memory. Try reducing `n_keep` or pass
@@ -589,10 +590,10 @@ class PosteriorMCMCSampler:
         if k not in constants.UNSAVED_PARAMETERS
     }
     # Create Arviz InferenceData for posterior draws.
-    posterior_coords = self._meridian.create_inference_data_coords(
+    posterior_coords = self.model.create_inference_data_coords(
         total_chains, n_keep
     )
-    posterior_dims = self._meridian.create_inference_data_dims()
+    posterior_dims = self.model.create_inference_data_dims()
     infdata_posterior = az.convert_to_inference_data(
         mcmc_states, coords=posterior_coords, dims=posterior_dims
     )
@@ -654,4 +655,7 @@ class PosteriorMCMCSampler:
         dims=sample_stats_dims,
         group="sample_stats",
     )
-    return az.concat(infdata_posterior, infdata_trace, infdata_sample_stats)
+    posterior_inference_data = az.concat(
+        infdata_posterior, infdata_trace, infdata_sample_stats
+    )
+    self.model.inference_data.extend(posterior_inference_data, join="right")

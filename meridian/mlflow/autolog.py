@@ -21,6 +21,7 @@ from typing import Any, Callable
 
 import arviz as az
 import meridian
+from meridian.analysis import visualizer
 import mlflow
 from mlflow.utils.autologging_utils import autologging_integration, safe_patch
 from meridian.model import model
@@ -79,6 +80,7 @@ def _log_priors(model_spec: spec.ModelSpec) -> None:
 def autolog(
     disable: bool = False,  # pylint: disable=unused-argument
     silent: bool = False,  # pylint: disable=unused-argument
+    log_metrics: bool = False,
 ) -> None:
   """Enables MLflow tracking for Meridian.
 
@@ -87,6 +89,9 @@ def autolog(
   Args:
     disable: Whether to disable autologging.
     silent: Whether to suppress all event logs and warnings from MLflow.
+    log_metrics: Whether model metrics should be logged. Enabling this option
+      involves the creation of post-modeling objects to compute relevant
+      performance metrics. Metrics include R-Squared, MAPE, and wMAPE values.
   """
 
   def patch_meridian_init(
@@ -122,7 +127,16 @@ def autolog(
           f"sample_posterior.{param}", kwargs.get(param, "default")
       )
 
-    return original(self, *args, **kwargs)
+    original(self, *args, **kwargs)
+    if log_metrics:
+      model_diagnostics = visualizer.ModelDiagnostics(self.model)
+      df_diag = model_diagnostics.predictive_accuracy_table()
+
+      get_metric = lambda n: df_diag[df_diag.metric == n].value.to_list()[0]
+
+      mlflow.log_metric("R_Squared", get_metric("R_Squared"))
+      mlflow.log_metric("MAPE", get_metric("MAPE"))
+      mlflow.log_metric("wMAPE", get_metric("wMAPE"))
 
   safe_patch(FLAVOR_NAME, model.Meridian, "__init__", patch_meridian_init)
   safe_patch(

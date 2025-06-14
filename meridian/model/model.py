@@ -1447,10 +1447,7 @@ class Meridian:
         see [PRNGS and seeds]
         (https://github.com/tensorflow/probability/blob/main/PRNGS.md).
     """
-    prior_inference_data = self.prior_sampler_callable(
-        n_draws=n_draws, seed=seed
-    )
-    self.inference_data.extend(prior_inference_data, join="right")
+    self.prior_sampler_callable(n_draws=n_draws, seed=seed)
 
   def sample_posterior(
       self,
@@ -1529,7 +1526,7 @@ class Meridian:
         [ResourceExhaustedError when running Meridian.sample_posterior]
         (https://developers.google.com/meridian/docs/advanced-modeling/model-debugging#gpu-oom-error).
     """
-    posterior_inference_data = self.posterior_sampler_callable(
+    self.posterior_sampler_callable(
         n_chains=n_chains,
         n_adapt=n_adapt,
         n_burnin=n_burnin,
@@ -1544,7 +1541,6 @@ class Meridian:
         seed=seed,
         **pins,
     )
-    self.inference_data.extend(posterior_inference_data, join="right")
 
 
 def save_mmm(mmm: Meridian, file_path: str):

@@ -588,11 +588,8 @@ class PriorDistributionSampler:
         | non_media_treatments_vars
     )
 
-  def __call__(self, n_draws: int, seed: int | None = None) -> az.InferenceData:
+  def __call__(self, n_draws: int, seed: int | None = None) -> None:
     """Draws samples from prior distributions.
-
-    Returns:
-      An Arviz `InferenceData` object containing prior samples only.
 
     Args:
       n_draws: Number of samples drawn from the prior distribution.
@@ -604,6 +601,7 @@ class PriorDistributionSampler:
     # Create Arviz InferenceData for prior draws.
     prior_coords = self._meridian.create_inference_data_coords(1, n_draws)
     prior_dims = self._meridian.create_inference_data_dims()
-    return az.convert_to_inference_data(
+    prior_inference_data = az.convert_to_inference_data(
         prior_draws, coords=prior_coords, dims=prior_dims, group=constants.PRIOR
     )
+    self._meridian.inference_data.extend(prior_inference_data, join="right")
