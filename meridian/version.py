@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Meridian API."""
+"""Module for Meridian version."""
 
-from meridian import analysis
-from meridian import data
-from meridian import model
-from meridian.version import __version__
+__version__ = "1.1.2"

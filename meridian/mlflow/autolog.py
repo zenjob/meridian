@@ -20,7 +20,6 @@ import json
 from typing import Any, Callable
 
 import arviz as az
-import meridian
 from meridian.analysis import visualizer
 import mlflow
 from mlflow.utils.autologging_utils import autologging_integration, safe_patch
@@ -28,6 +27,7 @@ from meridian.model import model
 from meridian.model import posterior_sampler
 from meridian.model import prior_sampler
 from meridian.model import spec
+from meridian.version import __version__
 import numpy as np
 import tensorflow_probability as tfp
 
@@ -37,7 +37,7 @@ FLAVOR_NAME = "meridian"
 
 def _log_versions() -> None:
   """Logs Meridian and ArviZ versions."""
-  mlflow.log_param("meridian_version", meridian.__version__)
+  mlflow.log_param("meridian_version", __version__)
   mlflow.log_param("arviz_version", az.__version__)
 
 

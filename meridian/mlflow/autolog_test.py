@@ -17,7 +17,6 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import arviz as az
-import meridian
 from meridian import constants
 from meridian.analysis import analyzer
 from meridian.data import test_utils
@@ -27,6 +26,7 @@ from meridian.model import model
 from meridian.model import posterior_sampler
 from meridian.model import prior_sampler
 from meridian.model import spec
+from meridian.version import __version__
 
 
 INPUT_DATA = test_utils.sample_input_data_revenue(n_media_channels=1)
@@ -45,7 +45,7 @@ def _create_prior_distribution_log_entry(
 
 
 DEFAULT_EXPECTED_CALLS = [
-    ("meridian_version", meridian.__version__),
+    ("meridian_version", __version__),
     ("arviz_version", az.__version__),
     ("spec.media_effects_dist", constants.MEDIA_EFFECTS_LOG_NORMAL),
     ("spec.hill_before_adstock", False),
