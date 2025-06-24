@@ -23,6 +23,8 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.1.3] - 2025-06-23
+
 * Add MLflow autologging support.
 * Fix bug where channels were being mapped to the wrong column name.
 * Add the ability to set `max_frequency` to `optimal_freq()` and update the
@@ -323,4 +325,5 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.1.0]: https://github.com/google/meridian/releases/tag/v1.1.0
 [1.1.1]: https://github.com/google/meridian/releases/tag/v1.1.1
 [1.1.2]: https://github.com/google/meridian/releases/tag/v1.1.2
-[Unreleased]: https://github.com/google/meridian/compare/v1.1.2...HEAD
+[1.1.3]: https://github.com/google/meridian/releases/tag/v1.1.3
+[Unreleased]: https://github.com/google/meridian/compare/v1.1.3...HEAD
