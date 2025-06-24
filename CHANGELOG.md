@@ -24,6 +24,7 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 ## [Unreleased]
 
 * Add MLflow autologging support.
+* Fix bug where channels were being mapped to the wrong column name.
 
 ## [1.1.2] - 2025-06-11
 

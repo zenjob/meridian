@@ -816,12 +816,55 @@ class DataFrameDataLoader(InputDataLoader):
         'organic_frequency': 'organic_frequency_to_channel',
     })
     for coord_name, channel_dict in required_mappings.items():
-      if (
-          getattr(self.coord_to_columns, coord_name, None) is not None
-          and getattr(self, channel_dict, None) is None
+      if getattr(self.coord_to_columns, coord_name, None) is not None:
+        if getattr(self, channel_dict, None) is None:
+          raise ValueError(
+              f"When {coord_name} data is provided, '{channel_dict}' is"
+              ' required.'
+          )
+        else:
+          if set(getattr(self, channel_dict)) != set(
+              getattr(self.coord_to_columns, coord_name)
+          ):
+            raise ValueError(
+                f'The {channel_dict} keys must have the same set of values as'
+                f' the {coord_name} columns.'
+            )
+    if (
+        self.media_to_channel is not None
+        and self.media_spend_to_channel is not None
+    ):
+      if set(self.media_to_channel.values()) != set(
+          self.media_spend_to_channel.values()
       ):
         raise ValueError(
-            f"When {coord_name} data is provided, '{channel_dict}' is required."
+            'The media and media_spend columns must have the same set of'
+            ' channels.'
+        )
+    if (
+        self.reach_to_channel is not None
+        and self.frequency_to_channel is not None
+        and self.rf_spend_to_channel is not None
+    ):
+      if (
+          set(self.reach_to_channel.values())
+          != set(self.frequency_to_channel.values())
+          != set(self.rf_spend_to_channel.values())
+      ):
+        raise ValueError(
+            'The reach, frequency, and rf_spend columns must have the same set'
+            ' of channels.'
+        )
+    if (
+        self.organic_reach_to_channel is not None
+        and self.organic_frequency_to_channel is not None
+    ):
+      if set(self.organic_reach_to_channel.values()) != set(
+          self.organic_frequency_to_channel.values()
+      ):
+        raise ValueError(
+            'The organic_reach and organic_frequency columns must have the'
+            ' same set of channels.'
         )
 
   def load(self) -> input_data.InputData:
@@ -861,28 +904,36 @@ class DataFrameDataLoader(InputDataLoader):
           self.coord_to_columns.geo,
       )
     if (
-        self.coord_to_columns.media is not None
-        and self.media_to_channel is not None
+        self.media_to_channel is not None
+        and self.media_spend_to_channel is not None
     ):
+      sorted_channels = sorted(self.media_to_channel.values())
+      inv_media_map = {v: k for k, v in self.media_to_channel.items()}
+      inv_spend_map = {v: k for k, v in self.media_spend_to_channel.items()}
+
       builder.with_media(
           self.df,
-          list(self.coord_to_columns.media),
-          list(self.coord_to_columns.media_spend),
-          list(self.media_to_channel.values()),
+          [inv_media_map[ch] for ch in sorted_channels],
+          [inv_spend_map[ch] for ch in sorted_channels],
+          sorted_channels,
           self.coord_to_columns.time,
           self.coord_to_columns.geo,
       )
-
     if (
-        self.coord_to_columns.reach is not None
-        and self.reach_to_channel is not None
+        self.reach_to_channel is not None
+        and self.frequency_to_channel is not None
+        and self.rf_spend_to_channel is not None
     ):
+      sorted_channels = sorted(self.reach_to_channel.values())
+      inv_reach_map = {v: k for k, v in self.reach_to_channel.items()}
+      inv_freq_map = {v: k for k, v in self.frequency_to_channel.items()}
+      inv_rf_spend_map = {v: k for k, v in self.rf_spend_to_channel.items()}
       builder.with_reach(
           self.df,
-          list(self.coord_to_columns.reach),
-          list(self.coord_to_columns.frequency),
-          list(self.coord_to_columns.rf_spend),
-          list(self.reach_to_channel.values()),
+          [inv_reach_map[ch] for ch in sorted_channels],
+          [inv_freq_map[ch] for ch in sorted_channels],
+          [inv_rf_spend_map[ch] for ch in sorted_channels],
+          sorted_channels,
           self.coord_to_columns.time,
           self.coord_to_columns.geo,
       )
@@ -895,14 +946,19 @@ class DataFrameDataLoader(InputDataLoader):
           self.coord_to_columns.geo,
       )
     if (
-        self.coord_to_columns.organic_reach is not None
-        and self.organic_reach_to_channel is not None
+        self.organic_reach_to_channel is not None
+        and self.organic_frequency_to_channel is not None
     ):
+      sorted_channels = sorted(self.organic_reach_to_channel.values())
+      inv_reach_map = {v: k for k, v in self.organic_reach_to_channel.items()}
+      inv_freq_map = {
+          v: k for k, v in self.organic_frequency_to_channel.items()
+      }
       builder.with_organic_reach(
           self.df,
-          list(self.coord_to_columns.organic_reach),
-          list(self.coord_to_columns.organic_frequency),
-          list(self.organic_reach_to_channel.values()),
+          [inv_reach_map[ch] for ch in sorted_channels],
+          [inv_freq_map[ch] for ch in sorted_channels],
+          sorted_channels,
           self.coord_to_columns.time,
           self.coord_to_columns.geo,
       )
