@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -252,6 +252,23 @@ class InputDataTest(parameterized.TestCase):
           media_spend=self.media_spend,
       )
 
+  def test_validate_revenue_per_kpi_negative_values(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        expected_regex=(
+            "Revenue per KPI values must not be all zero or negative."
+        ),
+    ):
+      input_data.InputData(
+          controls=self.not_lagged_controls,
+          kpi=self.not_lagged_kpi,
+          kpi_type=constants.REVENUE,
+          population=self.population,
+          revenue_per_kpi=self.revenue_per_kpi * 0,
+          media=self.not_lagged_media,
+          media_spend=self.media_spend,
+      )
+
   def test_validate_media_channels_duplicate_names(self):
     media = test_utils.random_media_da(
         n_geos=self.n_geos,
@@ -268,11 +285,13 @@ class InputDataTest(parameterized.TestCase):
         ],
     )
 
-    with self.assertRaisesRegex(
+    with self.assertRaisesWithLiteralMatch(
         ValueError,
-        expected_regex=(
-            "Media channel names across `media_channel` and `rf_channel` must"
-            " be unique."
+        expected_exception_message=(
+            "Channel names across `media_channel`, `rf_channel`,"
+            " `organic_media_channel`, `organic_rf_channel`, and"
+            " `non_media_channel` must be unique. Channel `ch_5` is present in"
+            " multiple channel types: ['media_channel', 'media_channel']."
         ),
     ):
       input_data.InputData(
@@ -297,11 +316,13 @@ class InputDataTest(parameterized.TestCase):
         ],
     )
 
-    with self.assertRaisesRegex(
+    with self.assertRaisesWithLiteralMatch(
         ValueError,
-        expected_regex=(
-            "Media channel names across `media_channel` and `rf_channel` must"
-            " be unique."
+        expected_exception_message=(
+            "Channel names across `media_channel`, `rf_channel`,"
+            " `organic_media_channel`, `organic_rf_channel`, and"
+            " `non_media_channel` must be unique. Channel `rf_ch_1` is present"
+            " in multiple channel types: ['rf_channel', 'rf_channel']."
         ),
     ):
       input_data.InputData(
@@ -333,11 +354,13 @@ class InputDataTest(parameterized.TestCase):
         ],
     )
 
-    with self.assertRaisesRegex(
+    with self.assertRaisesWithLiteralMatch(
         ValueError,
-        expected_regex=(
-            "Media channel names across `media_channel` and `rf_channel` must"
-            " be unique."
+        expected_exception_message=(
+            "Channel names across `media_channel`, `rf_channel`,"
+            " `organic_media_channel`, `organic_rf_channel`, and"
+            " `non_media_channel` must be unique. Channel `ch_5` is present in"
+            " multiple channel types: ['media_channel', 'media_channel']."
         ),
     ):
       input_data.InputData(
@@ -379,11 +402,13 @@ class InputDataTest(parameterized.TestCase):
         ],
     )
 
-    with self.assertRaisesRegex(
+    with self.assertRaisesWithLiteralMatch(
         ValueError,
-        expected_regex=(
-            "Media channel names across `media_channel` and `rf_channel` must"
-            " be unique."
+        expected_exception_message=(
+            "Channel names across `media_channel`, `rf_channel`,"
+            " `organic_media_channel`, `organic_rf_channel`, and"
+            " `non_media_channel` must be unique. Channel `ch_2` is present in"
+            " multiple channel types: ['media_channel', 'rf_channel']."
         ),
     ):
       input_data.InputData(
@@ -505,6 +530,27 @@ class InputDataTest(parameterized.TestCase):
     xr.testing.assert_equal(data.kpi, self.not_lagged_kpi)
     xr.testing.assert_equal(data.revenue_per_kpi, self.revenue_per_kpi)
     xr.testing.assert_equal(data.controls, self.not_lagged_controls)
+    xr.testing.assert_equal(data.population, self.population)
+    xr.testing.assert_equal(data.media, self.not_lagged_media)
+    xr.testing.assert_equal(data.media_spend, self.media_spend)
+    self.assertIsNone(data.reach)
+    self.assertIsNone(data.frequency)
+    self.assertIsNone(data.rf_spend)
+
+  def test_construct_from_random_dataarrays_media_only_no_controls(self):
+    data = input_data.InputData(
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+
+    xr.testing.assert_equal(data.kpi, self.not_lagged_kpi)
+    xr.testing.assert_equal(data.revenue_per_kpi, self.revenue_per_kpi)
+    self.assertIsNone(data.controls)
+    self.assertIsNone(data.control_variable)
     xr.testing.assert_equal(data.population, self.population)
     xr.testing.assert_equal(data.media, self.not_lagged_media)
     xr.testing.assert_equal(data.media_spend, self.media_spend)
@@ -727,7 +773,6 @@ class InputDataTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(testcase_name="geo_time_channel", n_geos=10, n_times=100),
       dict(testcase_name="channel", n_geos=None, n_times=None),
-      dict(testcase_name="geo_channel", n_geos=10, n_times=None),
   )
   def test_rf_spend_properties(self, n_geos: int | None, n_times: int | None):
     rf_spend = test_utils.random_rf_spend_nd_da(
@@ -782,7 +827,6 @@ class InputDataTest(parameterized.TestCase):
         media=self.not_lagged_media,
         media_spend=self.media_spend_1d,
     )
-
     xr.testing.assert_equal(data.kpi, self.not_lagged_kpi)
     xr.testing.assert_equal(data.revenue_per_kpi, self.revenue_per_kpi)
     xr.testing.assert_equal(data.media, self.not_lagged_media)
@@ -1384,6 +1428,152 @@ class InputDataTest(parameterized.TestCase):
     self.assertTrue(spend in total_spend for spend in self.rf_spend)
     self.assertTrue(spend in total_spend for spend in self.media_spend)
 
+  def test_allocate_media_spend_basic(self):
+    """Tests basic allocation, dimensions, and total spend conservation."""
+    data = input_data.InputData(
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        media=self.lagged_media,
+        media_spend=xr.DataArray(
+            [1000, 2000, 3000, 4000, 5000, 6000],
+            coords=[self.lagged_media[constants.MEDIA_CHANNEL].media_channel],
+            dims=[constants.MEDIA_CHANNEL],
+            name=constants.MEDIA_SPEND,
+        ),
+    )
+    allocated_spend = data.allocated_media_spend
+
+    # 1. Verify dimensions
+    self.assertEqual(
+        allocated_spend.dims,  # pytype: disable=attribute-error
+        (constants.GEO, constants.TIME, constants.MEDIA_CHANNEL),
+    )
+    self.assertLen(allocated_spend[constants.GEO], self.n_geos)
+    self.assertLen(allocated_spend[constants.TIME], self.n_times)
+    self.assertLen(
+        allocated_spend[constants.MEDIA_CHANNEL], self.n_media_channels
+    )
+    # Verify time coordinates match kpi time, not media_time
+    np.testing.assert_array_equal(
+        allocated_spend[constants.TIME].values, self.lagged_kpi.time
+    )
+
+    # 2. Verify total spend conservation per channel
+    total_allocated = allocated_spend.sum(dim=[constants.GEO, constants.TIME])  # pytype: disable=attribute-error
+    xr.testing.assert_allclose(total_allocated, data.media_spend)
+
+  def test_allocate_rf_spend_all_zero_media(self):
+    """Tests allocation when all media units across all channels are zero."""
+    reach_zeros = xr.DataArray(
+        np.zeros((self.n_geos, self.n_lagged_media_times, self.n_rf_channels)),
+        coords=[
+            self.lagged_reach[constants.GEO].geo,
+            self.lagged_reach[constants.MEDIA_TIME].media_time,
+            self.lagged_reach[constants.RF_CHANNEL].rf_channel,
+        ],
+        dims=[constants.GEO, constants.MEDIA_TIME, constants.RF_CHANNEL],
+        name=constants.REACH,
+    )
+    data = input_data.InputData(
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        controls=self.lagged_controls,
+        kpi=self.lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=self.revenue_per_kpi,
+        population=self.population,
+        reach=reach_zeros,
+        frequency=self.lagged_frequency,
+        rf_spend=xr.DataArray(
+            [1000, 2000],
+            coords=[self.lagged_reach[constants.RF_CHANNEL].rf_channel],
+            dims=[constants.RF_CHANNEL],
+            name=constants.RF_SPEND,
+        ),
+    )
+
+    allocated_spend = data.allocated_rf_spend
+
+    # Verify dimensions are still correct
+    self.assertEqual(
+        allocated_spend.dims,  # pytype: disable=attribute-error
+        (constants.GEO, constants.TIME, constants.RF_CHANNEL),
+    )
+
+    # All channels had zero total units, expect all NaN allocation
+    self.assertTrue(np.isnan(allocated_spend).all())
+
+  def test_get_aggregated_media_spend_no_cal(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        media=self.not_lagged_media,  # media_spend's time dim matches kpi time
+        media_spend=self.media_spend,  # self.media_spend has n_times
+    )
+    result = data.aggregate_media_spend(calibration_period=None)
+    expected_sum = self.media_spend.values.sum(axis=(0, 1))
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_media_spend_with_cal_mixed(self):
+    n_spend_times = self.media_spend.shape[1]
+    n_channels = self.media_spend.shape[2]
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        media=self.not_lagged_media,
+        media_spend=self.media_spend,
+    )
+    # Create a mixed calibration period
+    calibration_period = np.random.choice(
+        [True, False], size=(n_spend_times, n_channels)
+    )
+    result = data.aggregate_media_spend(calibration_period=calibration_period)
+
+    factors = np.where(calibration_period.astype(bool), 1.0, 0.0)
+    expected_sum = np.einsum("gtm,tm->m", self.media_spend.values, factors)
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_rf_spend_no_cal(self):
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        reach=self.not_lagged_reach,  # rf_spend's time dim matches kpi time
+        frequency=self.not_lagged_frequency,
+        rf_spend=self.rf_spend,  # self.rf_spend has n_times
+    )
+    result = data.aggregate_rf_spend(calibration_period=None)
+    expected_sum = self.rf_spend.values.sum(axis=(0, 1))
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
+  def test_get_aggregated_rf_spend_with_cal_mixed(self):
+    n_spend_times = self.rf_spend.shape[1]
+    n_channels = self.rf_spend.shape[2]
+    data = input_data.InputData(
+        controls=self.not_lagged_controls,
+        kpi=self.not_lagged_kpi,
+        kpi_type=constants.NON_REVENUE,
+        population=self.population,
+        reach=self.not_lagged_reach,
+        frequency=self.not_lagged_frequency,
+        rf_spend=self.rf_spend,
+    )
+    calibration_period = np.random.choice(
+        [True, False], size=(n_spend_times, n_channels)
+    )
+    result = data.aggregate_rf_spend(calibration_period=calibration_period)
+    factors = np.where(calibration_period.astype(bool), 1.0, 0.0)
+    expected_sum = np.einsum("gtm,tm->m", self.rf_spend.values, factors)
+    np.testing.assert_array_almost_equal(result, expected_sum)
+
 
 class NonpaidInputDataTest(parameterized.TestCase):
   """Tests for non-paid InputData."""
@@ -1508,6 +1698,48 @@ class NonpaidInputDataTest(parameterized.TestCase):
         channels.tolist(),
         expected_paid_channels,
     )
+
+  def test_get_total_outcome_no_revenue(self):
+    """Tests get_total_outcome when revenue_per_kpi is None."""
+    data = input_data.InputData(
+        controls=self.controls,
+        kpi=self.kpi,
+        kpi_type=constants.NON_REVENUE,
+        revenue_per_kpi=None,  # Explicitly set to None
+        non_media_treatments=self.non_media_treatments,
+        population=self.population,
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        organic_media=self.lagged_organic_media,
+        organic_reach=self.lagged_organic_reach,
+        organic_frequency=self.lagged_organic_frequency,
+    )
+    total_outcome = data.get_total_outcome()
+    expected_outcome = np.sum(self.kpi.values)
+    # Use xarray testing for potential floating point comparisons
+    self.assertAlmostEqual(total_outcome, expected_outcome)
+
+  def test_get_total_outcome_with_revenue(self):
+    """Tests get_total_outcome when revenue_per_kpi is provided."""
+    data = input_data.InputData(
+        controls=self.controls,
+        kpi=self.kpi,
+        kpi_type=constants.NON_REVENUE,  # kpi_type shouldn't affect this calc
+        revenue_per_kpi=self.revenue_per_kpi,  # Provided
+        non_media_treatments=self.non_media_treatments,
+        population=self.population,
+        media=self.lagged_media,
+        media_spend=self.media_spend,
+        organic_media=self.lagged_organic_media,
+        organic_reach=self.lagged_organic_reach,
+        organic_frequency=self.lagged_organic_frequency,
+    )
+    total_outcome = data.get_total_outcome()
+    expected_outcome = np.sum(self.kpi.values * self.revenue_per_kpi.values)
+    # Use xarray testing for potential floating point comparisons
+    # Need to convert expected_outcome to a 0-d DataArray for assert_allclose
+    expected_outcome_da = xr.DataArray(expected_outcome)
+    self.assertAlmostEqual(total_outcome, expected_outcome_da)
 
 
 if __name__ == "__main__":

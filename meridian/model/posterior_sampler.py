@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -85,9 +85,13 @@ class PosteriorMCMCSampler:
   def __init__(self, meridian: "model.Meridian"):
     self._meridian = meridian
 
+  @property
+  def model(self) -> "model.Meridian":
+    return self._meridian
+
   def _get_joint_dist_unpinned(self) -> tfp.distributions.Distribution:
     """Returns a `JointDistributionCoroutineAutoBatched` function for MCMC."""
-    mmm = self._meridian
+    mmm = self.model
     mmm.populate_cached_properties()
 
     # This lists all the derived properties and states of this Meridian object
@@ -110,23 +114,16 @@ class PosteriorMCMCSampler:
     organic_media_tensors = mmm.organic_media_tensors
     organic_rf_tensors = mmm.organic_rf_tensors
     controls_scaled = mmm.controls_scaled
-    non_media_treatments_scaled = mmm.non_media_treatments_scaled
+    non_media_treatments_normalized = mmm.non_media_treatments_normalized
     media_effects_dist = mmm.media_effects_dist
     adstock_hill_media_fn = mmm.adstock_hill_media
     adstock_hill_rf_fn = mmm.adstock_hill_rf
-    get_roi_prior_beta_m_value_fn = (
-        mmm.prior_sampler_callable.get_roi_prior_beta_m_value
-    )
-    get_roi_prior_beta_rf_value_fn = (
-        mmm.prior_sampler_callable.get_roi_prior_beta_rf_value
-    )
+    total_outcome = mmm.total_outcome
 
     @tfp.distributions.JointDistributionCoroutineAutoBatched
     def joint_dist_unpinned():
       # Sample directly from prior.
       knot_values = yield prior_broadcast.knot_values
-      gamma_c = yield prior_broadcast.gamma_c
-      xi_c = yield prior_broadcast.xi_c
       sigma = yield prior_broadcast.sigma
 
       tau_g_excl_baseline = yield tfp.distributions.Sample(
@@ -167,26 +164,39 @@ class PosteriorMCMCSampler:
             ec=ec_m,
             slope=slope_m,
         )
-        prior_type = mmm.model_spec.paid_media_prior_type
-        if prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
-          if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
-            roi_or_mroi_m = yield prior_broadcast.roi_m
+        prior_type = mmm.model_spec.effective_media_prior_type
+        if prior_type == constants.TREATMENT_PRIOR_TYPE_COEFFICIENT:
+          beta_m = yield prior_broadcast.beta_m
+        else:
+          if prior_type == constants.TREATMENT_PRIOR_TYPE_ROI:
+            treatment_parameter_m = yield prior_broadcast.roi_m
+          elif prior_type == constants.TREATMENT_PRIOR_TYPE_MROI:
+            treatment_parameter_m = yield prior_broadcast.mroi_m
+          elif prior_type == constants.TREATMENT_PRIOR_TYPE_CONTRIBUTION:
+            treatment_parameter_m = yield prior_broadcast.contribution_m
           else:
-            roi_or_mroi_m = yield prior_broadcast.mroi_m
-          beta_m_value = get_roi_prior_beta_m_value_fn(
-              alpha_m,
-              beta_gm_dev,
-              ec_m,
-              eta_m,
-              roi_or_mroi_m,
-              slope_m,
-              media_transformed,
+            raise ValueError(f"Unsupported prior type: {prior_type}")
+          incremental_outcome_m = (
+              treatment_parameter_m * media_tensors.prior_denominator
+          )
+          linear_predictor_counterfactual_difference = (
+              mmm.linear_predictor_counterfactual_difference_media(
+                  media_transformed=media_transformed,
+                  alpha_m=alpha_m,
+                  ec_m=ec_m,
+                  slope_m=slope_m,
+              )
+          )
+          beta_m_value = mmm.calculate_beta_x(
+              is_non_media=False,
+              incremental_outcome_x=incremental_outcome_m,
+              linear_predictor_counterfactual_difference=linear_predictor_counterfactual_difference,
+              eta_x=eta_m,
+              beta_gx_dev=beta_gm_dev,
           )
           beta_m = yield tfp.distributions.Deterministic(
               beta_m_value, name=constants.BETA_M
           )
-        else:
-          beta_m = yield prior_broadcast.beta_m
 
         beta_eta_combined = beta_m + eta_m * beta_gm_dev
         beta_gm_value = (
@@ -220,27 +230,39 @@ class PosteriorMCMCSampler:
             slope=slope_rf,
         )
 
-        prior_type = mmm.model_spec.paid_media_prior_type
-        if prior_type in constants.PAID_MEDIA_ROI_PRIOR_TYPES:
-          if prior_type == constants.PAID_MEDIA_PRIOR_TYPE_ROI:
-            roi_or_mroi_rf = yield prior_broadcast.roi_rf
+        prior_type = mmm.model_spec.effective_rf_prior_type
+        if prior_type == constants.TREATMENT_PRIOR_TYPE_COEFFICIENT:
+          beta_rf = yield prior_broadcast.beta_rf
+        else:
+          if prior_type == constants.TREATMENT_PRIOR_TYPE_ROI:
+            treatment_parameter_rf = yield prior_broadcast.roi_rf
+          elif prior_type == constants.TREATMENT_PRIOR_TYPE_MROI:
+            treatment_parameter_rf = yield prior_broadcast.mroi_rf
+          elif prior_type == constants.TREATMENT_PRIOR_TYPE_CONTRIBUTION:
+            treatment_parameter_rf = yield prior_broadcast.contribution_rf
           else:
-            roi_or_mroi_rf = yield prior_broadcast.mroi_rf
-          beta_rf_value = get_roi_prior_beta_rf_value_fn(
-              alpha_rf,
-              beta_grf_dev,
-              ec_rf,
-              eta_rf,
-              roi_or_mroi_rf,
-              slope_rf,
-              rf_transformed,
+            raise ValueError(f"Unsupported prior type: {prior_type}")
+          incremental_outcome_rf = (
+              treatment_parameter_rf * rf_tensors.prior_denominator
+          )
+          linear_predictor_counterfactual_difference = (
+              mmm.linear_predictor_counterfactual_difference_rf(
+                  rf_transformed=rf_transformed,
+                  alpha_rf=alpha_rf,
+                  ec_rf=ec_rf,
+                  slope_rf=slope_rf,
+              )
+          )
+          beta_rf_value = mmm.calculate_beta_x(
+              is_non_media=False,
+              incremental_outcome_x=incremental_outcome_rf,
+              linear_predictor_counterfactual_difference=linear_predictor_counterfactual_difference,
+              eta_x=eta_rf,
+              beta_gx_dev=beta_grf_dev,
           )
           beta_rf = yield tfp.distributions.Deterministic(
-              beta_rf_value,
-              name=constants.BETA_RF,
+              beta_rf_value, name=constants.BETA_RF
           )
-        else:
-          beta_rf = yield prior_broadcast.beta_rf
 
         beta_eta_combined = beta_rf + eta_rf * beta_grf_dev
         beta_grf_value = (
@@ -272,7 +294,24 @@ class PosteriorMCMCSampler:
             ec=ec_om,
             slope=slope_om,
         )
-        beta_om = yield prior_broadcast.beta_om
+        prior_type = mmm.model_spec.organic_media_prior_type
+        if prior_type == constants.TREATMENT_PRIOR_TYPE_COEFFICIENT:
+          beta_om = yield prior_broadcast.beta_om
+        elif prior_type == constants.TREATMENT_PRIOR_TYPE_CONTRIBUTION:
+          contribution_om = yield prior_broadcast.contribution_om
+          incremental_outcome_om = contribution_om * total_outcome
+          beta_om_value = mmm.calculate_beta_x(
+              is_non_media=False,
+              incremental_outcome_x=incremental_outcome_om,
+              linear_predictor_counterfactual_difference=organic_media_transformed,
+              eta_x=eta_om,
+              beta_gx_dev=beta_gom_dev,
+          )
+          beta_om = yield tfp.distributions.Deterministic(
+              beta_om_value, name=constants.BETA_OM
+          )
+        else:
+          raise ValueError(f"Unsupported prior type: {prior_type}")
 
         beta_eta_combined = beta_om + eta_om * beta_gom_dev
         beta_gom_value = (
@@ -306,7 +345,24 @@ class PosteriorMCMCSampler:
             slope=slope_orf,
         )
 
-        beta_orf = yield prior_broadcast.beta_orf
+        prior_type = mmm.model_spec.organic_rf_prior_type
+        if prior_type == constants.TREATMENT_PRIOR_TYPE_COEFFICIENT:
+          beta_orf = yield prior_broadcast.beta_orf
+        elif prior_type == constants.TREATMENT_PRIOR_TYPE_CONTRIBUTION:
+          contribution_orf = yield prior_broadcast.contribution_orf
+          incremental_outcome_orf = contribution_orf * total_outcome
+          beta_orf_value = mmm.calculate_beta_x(
+              is_non_media=False,
+              incremental_outcome_x=incremental_outcome_orf,
+              linear_predictor_counterfactual_difference=organic_rf_transformed,
+              eta_x=eta_orf,
+              beta_gx_dev=beta_gorf_dev,
+          )
+          beta_orf = yield tfp.distributions.Deterministic(
+              beta_orf_value, name=constants.BETA_ORF
+          )
+        else:
+          raise ValueError(f"Unsupported prior type: {prior_type}")
 
         beta_eta_combined = beta_orf + eta_orf * beta_gorf_dev
         beta_gorf_value = (
@@ -323,33 +379,62 @@ class PosteriorMCMCSampler:
         combined_beta = tf.concat([combined_beta, beta_gorf], axis=-1)
 
       sigma_gt = tf.transpose(tf.broadcast_to(sigma, [n_times, n_geos]))
-      gamma_gc_dev = yield tfp.distributions.Sample(
-          tfp.distributions.Normal(0, 1),
-          [n_geos, n_controls],
-          name=constants.GAMMA_GC_DEV,
+      y_pred_combined_media = tau_gt + tf.einsum(
+          "gtm,gm->gt", combined_media_transformed, combined_beta
       )
-      gamma_gc = yield tfp.distributions.Deterministic(
-          gamma_c + xi_c * gamma_gc_dev, name=constants.GAMMA_GC
-      )
-      y_pred_combined_media = (
-          tau_gt
-          + tf.einsum("gtm,gm->gt", combined_media_transformed, combined_beta)
-          + tf.einsum("gtc,gc->gt", controls_scaled, gamma_gc)
-      )
+      # Omit gamma_c, xi_c, and gamma_gc from joint distribution output if
+      # there are no control variables in the model.
+      if n_controls:
+        gamma_c = yield prior_broadcast.gamma_c
+        xi_c = yield prior_broadcast.xi_c
+        gamma_gc_dev = yield tfp.distributions.Sample(
+            tfp.distributions.Normal(0, 1),
+            [n_geos, n_controls],
+            name=constants.GAMMA_GC_DEV,
+        )
+        gamma_gc = yield tfp.distributions.Deterministic(
+            gamma_c + xi_c * gamma_gc_dev, name=constants.GAMMA_GC
+        )
+        y_pred_combined_media += tf.einsum(
+            "gtc,gc->gt", controls_scaled, gamma_gc
+        )
 
       if mmm.non_media_treatments is not None:
-        gamma_n = yield prior_broadcast.gamma_n
         xi_n = yield prior_broadcast.xi_n
         gamma_gn_dev = yield tfp.distributions.Sample(
             tfp.distributions.Normal(0, 1),
             [n_geos, n_non_media_channels],
             name=constants.GAMMA_GN_DEV,
         )
+        prior_type = mmm.model_spec.non_media_treatments_prior_type
+        if prior_type == constants.TREATMENT_PRIOR_TYPE_COEFFICIENT:
+          gamma_n = yield prior_broadcast.gamma_n
+        elif prior_type == constants.TREATMENT_PRIOR_TYPE_CONTRIBUTION:
+          contribution_n = yield prior_broadcast.contribution_n
+          incremental_outcome_n = contribution_n * total_outcome
+          baseline_scaled = mmm.non_media_transformer.forward(  # pytype: disable=attribute-error
+              mmm.compute_non_media_treatments_baseline()
+          )
+          linear_predictor_counterfactual_difference = (
+              non_media_treatments_normalized - baseline_scaled
+          )
+          gamma_n_value = mmm.calculate_beta_x(
+              is_non_media=True,
+              incremental_outcome_x=incremental_outcome_n,
+              linear_predictor_counterfactual_difference=linear_predictor_counterfactual_difference,
+              eta_x=xi_n,
+              beta_gx_dev=gamma_gn_dev,
+          )
+          gamma_n = yield tfp.distributions.Deterministic(
+              gamma_n_value, name=constants.GAMMA_N
+          )
+        else:
+          raise ValueError(f"Unsupported prior type: {prior_type}")
         gamma_gn = yield tfp.distributions.Deterministic(
             gamma_n + xi_n * gamma_gn_dev, name=constants.GAMMA_GN
         )
         y_pred = y_pred_combined_media + tf.einsum(
-            "gtn,gn->gt", non_media_treatments_scaled, gamma_gn
+            "gtn,gn->gt", non_media_treatments_normalized, gamma_gn
         )
       else:
         y_pred = y_pred_combined_media
@@ -372,7 +457,7 @@ class PosteriorMCMCSampler:
     return joint_dist_unpinned
 
   def _get_joint_dist(self) -> tfp.distributions.Distribution:
-    mmm = self._meridian
+    mmm = self.model
     y = (
         tf.where(mmm.holdout_id, 0.0, mmm.kpi_scaled)
         if mmm.holdout_id is not None
@@ -395,7 +480,7 @@ class PosteriorMCMCSampler:
       parallel_iterations: int = 10,
       seed: Sequence[int] | int | None = None,
       **pins,
-  ) -> az.InferenceData:
+  ) -> None:
     """Runs Markov Chain Monte Carlo (MCMC) sampling of posterior distributions.
 
     For more information about the arguments, see [`windowed_adaptive_nuts`]
@@ -448,9 +533,6 @@ class PosteriorMCMCSampler:
       **pins: These are used to condition the provided joint distribution, and
         are passed directly to `joint_dist.experimental_pin(**pins)`.
 
-    Returns:
-      An Arviz `InferenceData` object containing posterior samples only.
-
     Throws:
       MCMCOOMError: If the model is out of memory. Try reducing `n_keep` or pass
         a list of integers as `n_chains` to sample chains serially. For more
@@ -494,6 +576,8 @@ class PosteriorMCMCSampler:
             " integers as `n_chains` to sample chains serially (see"
             " https://developers.google.com/meridian/docs/advanced-modeling/model-debugging#gpu-oom-error)"
         ) from error
+      if seed is not None:
+        seed += 1
       states.append(mcmc.all_states._asdict())
       traces.append(mcmc.trace)
 
@@ -506,10 +590,10 @@ class PosteriorMCMCSampler:
         if k not in constants.UNSAVED_PARAMETERS
     }
     # Create Arviz InferenceData for posterior draws.
-    posterior_coords = self._meridian.create_inference_data_coords(
+    posterior_coords = self.model.create_inference_data_coords(
         total_chains, n_keep
     )
-    posterior_dims = self._meridian.create_inference_data_dims()
+    posterior_dims = self.model.create_inference_data_dims()
     infdata_posterior = az.convert_to_inference_data(
         mcmc_states, coords=posterior_coords, dims=posterior_dims
     )
@@ -571,4 +655,7 @@ class PosteriorMCMCSampler:
         dims=sample_stats_dims,
         group="sample_stats",
     )
-    return az.concat(infdata_posterior, infdata_trace, infdata_sample_stats)
+    posterior_inference_data = az.concat(
+        infdata_posterior, infdata_trace, infdata_sample_stats
+    )
+    self.model.inference_data.extend(posterior_inference_data, join="right")

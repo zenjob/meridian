@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,11 +65,23 @@ _REQUIRED_COORDS = immutabledict.immutabledict({
     c.MEDIA_TIME: _sample_times(n_times=3),
     c.CONTROL_VARIABLE: ['control_0', 'control_1'],
 })
+_NON_MEDIA_COORDS = immutabledict.immutabledict(
+    {c.NON_MEDIA_CHANNEL: ['non_media_channel_0', 'non_media_channel_1']}
+)
 _MEDIA_COORDS = immutabledict.immutabledict(
     {c.MEDIA_CHANNEL: ['media_channel_0', 'media_channel_1', 'media_channel_2']}
 )
+_ORGANIC_MEDIA_COORDS = immutabledict.immutabledict({
+    c.ORGANIC_MEDIA_CHANNEL: [
+        'organic_media_channel_0',
+        'organic_media_channel_1',
+    ]
+})
 _RF_COORDS = immutabledict.immutabledict(
     {c.RF_CHANNEL: ['rf_channel_0', 'rf_channel_1']}
+)
+_ORGANIC_RF_COORDS = immutabledict.immutabledict(
+    {c.ORGANIC_RF_CHANNEL: ['organic_rf_channel_0', 'organic_rf_channel_1']}
 )
 
 _REQUIRED_DATA_VARS = immutabledict.immutabledict({
@@ -371,6 +383,67 @@ DATASET_WITHOUT_TIME_VARIATION_IN_REACH = xr.Dataset(
             [
                 [[8.1, 8.2], [8.3, 8.4], [8.5, 8.8]],
                 [[8.11, 8.21], [8.31, 8.41], [8.51, 8.61]],
+            ],
+        ),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_ORGANIC_MEDIA = xr.Dataset(
+    coords=_REQUIRED_COORDS
+    | _MEDIA_COORDS
+    | _RF_COORDS
+    | _ORGANIC_MEDIA_COORDS,
+    data_vars=_REQUIRED_DATA_VARS
+    | _MEDIA_DATA_VARS
+    | _RF_DATA_VARS
+    | _OPTIONAL_DATA_VARS
+    | {
+        c.ORGANIC_MEDIA: (
+            ['geo', 'media_time', 'organic_media_channel'],
+            [
+                [[2.1, 2.2], [2.1, 2.21], [2.1, 2.2]],
+                [[2.7, 2.8], [2.7, 2.8], [2.7, 2.8]],
+            ],
+        ),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_ORGANIC_REACH = xr.Dataset(
+    coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS | _ORGANIC_RF_COORDS,
+    data_vars=_REQUIRED_DATA_VARS
+    | _MEDIA_DATA_VARS
+    | _RF_DATA_VARS
+    | _OPTIONAL_DATA_VARS
+    | {
+        c.ORGANIC_REACH: (
+            ['geo', 'media_time', 'organic_rf_channel'],
+            [
+                [[2.1, 2.2], [2.11, 2.2], [2.1, 2.2]],
+                [[2.7, 2.8], [2.7, 2.8], [2.7, 2.8]],
+            ],
+        ),
+        c.ORGANIC_FREQUENCY: (
+            ['geo', 'media_time', 'organic_rf_channel'],
+            [
+                [[7.1, 7.2], [7.3, 7.4], [7.5, 7.6]],
+                [[7.11, 7.21], [7.31, 7.41], [7.51, 7.61]],
+            ],
+        ),
+    },
+)
+
+DATASET_WITHOUT_TIME_VARIATION_IN_NON_MEDIA_TREATMENTS = xr.Dataset(
+    coords=_REQUIRED_COORDS | _MEDIA_COORDS | _RF_COORDS | _NON_MEDIA_COORDS,
+    data_vars=_REQUIRED_DATA_VARS
+    | _MEDIA_DATA_VARS
+    | _RF_DATA_VARS
+    | _OPTIONAL_DATA_VARS
+    | {
+        c.NON_MEDIA_TREATMENTS: (
+            ['geo', 'time', 'non_media_channel'],
+            [
+                [[2.1, 2.2], [2.1, 2.2], [2.1, 2.2]],
+                [[2.7, 2.8], [2.7, 2.8], [2.7, 2.8]],
             ],
         ),
     },
@@ -742,11 +815,11 @@ def random_controls_da(
 
 def random_kpi_da(
     media: xr.DataArray,
-    controls: xr.DataArray,
     n_geos: int,
     n_times: int,
     n_media_channels: int,
-    n_controls: int,
+    n_controls: int | None = None,
+    controls: xr.DataArray | None = None,
     seed: int = 0,
     integer_geos: bool = False,
 ) -> xr.DataArray:
@@ -762,19 +835,26 @@ def random_kpi_da(
       n_media_channels,
       axis=2,
   )
-  control_geo_sd = abs(np.random.normal(0, 5, size=n_geos))
-  control_geo_sd = np.repeat(
-      np.repeat(control_geo_sd[:, np.newaxis], n_times, axis=1)[
-          ..., np.newaxis
-      ],
-      n_controls,
-      axis=2,
-  )
+  if n_controls:
+    control_geo_sd = abs(np.random.normal(0, 5, size=n_geos))
+    control_geo_sd = np.repeat(
+        np.repeat(control_geo_sd[:, np.newaxis], n_times, axis=1)[
+            ..., np.newaxis
+        ],
+        n_controls,
+        axis=2,
+    )
+  else:
+    control_geo_sd = 0
 
   # Simulates outcome which is the dependent variable. Typically this is the
   # number of units sold, but it can be any metric (e.g. revenue).
   media_portion = np.random.normal(media_common, media_geo_sd).sum(axis=2)
-  control_portion = np.random.normal(controls, control_geo_sd).sum(axis=2)
+  if controls is not None:
+    control_portion = np.random.normal(controls, control_geo_sd).sum(axis=2)
+  else:
+    control_portion = 0
+
   error = np.random.normal(0, 2, size=(n_geos, n_times))
   kpi = abs(media_portion + control_portion + error)
 
@@ -1085,7 +1165,7 @@ def random_dataset(
     n_geos: int,
     n_times: int,
     n_media_times: int,
-    n_controls: int,
+    n_controls: int | None = None,
     n_non_media_channels: int | None = None,
     n_organic_media_channels: int | None = None,
     n_organic_rf_channels: int | None = None,
@@ -1095,7 +1175,7 @@ def random_dataset(
     seed: int = 0,
     remove_media_time: bool = False,
     integer_geos: bool = False,
-):
+) -> xr.Dataset:
   """Generates a random dataset."""
   if n_media_channels:
     media = random_media_da(
@@ -1156,14 +1236,18 @@ def random_dataset(
   else:
     revenue_per_kpi = None
 
-  controls = random_controls_da(
-      media=media if n_media_channels else reach,
-      n_geos=n_geos,
-      n_times=n_times,
-      n_controls=n_controls,
-      seed=seed,
-      integer_geos=integer_geos,
-  )
+  if n_controls:
+    controls = random_controls_da(
+        media=media if n_media_channels else reach,
+        n_geos=n_geos,
+        n_times=n_times,
+        n_controls=n_controls,
+        seed=seed,
+        integer_geos=integer_geos,
+    )
+  else:
+    controls = None
+
   if n_non_media_channels:
     non_media_treatments = random_non_media_treatments_da(
         media=media if n_media_channels else reach,
@@ -1222,7 +1306,9 @@ def random_dataset(
       n_geos=n_geos, seed=seed, integer_geos=integer_geos
   )
 
-  dataset = xr.combine_by_coords([kpi, population, controls])
+  dataset = xr.combine_by_coords(
+      [kpi, population] + ([controls] if controls is not None else [])
+  )
   if revenue_per_kpi is not None:
     dataset = xr.combine_by_coords([dataset, revenue_per_kpi])
   if media is not None:
@@ -1271,7 +1357,7 @@ def random_dataset(
 
 def dataset_to_dataframe(
     dataset: xr.Dataset,
-    controls_column_names: list[str],
+    controls_column_names: list[str] | None = None,
     media_column_names: list[str] | None = None,
     media_spend_column_names: list[str] | None = None,
     reach_column_names: list[str] | None = None,
@@ -1320,10 +1406,15 @@ def dataset_to_dataframe(
   )
   population = dataset[c.POPULATION].to_dataframe(name=c.POPULATION)
 
-  controls = dataset[c.CONTROLS].to_dataframe(name=c.CONTROLS).unstack()
-  controls.columns = controls_column_names
+  if controls_column_names is not None:
+    controls = dataset[c.CONTROLS].to_dataframe(name=c.CONTROLS).unstack()
+    controls.columns = controls_column_names
+  else:
+    controls = None
 
-  result = kpi.join(revenue_per_kpi).join(population).join(controls)
+  result = kpi.join(revenue_per_kpi).join(population)
+  if controls is not None:
+    result = result.join(controls)
 
   if non_media_column_names is not None:
     non_media_treatments = (
@@ -1395,7 +1486,7 @@ def random_dataframe(
     n_geos,
     n_times,
     n_media_times,
-    n_controls,
+    n_controls=None,
     n_media_channels=None,
     n_rf_channels=None,
     seed=0,
@@ -1413,7 +1504,9 @@ def random_dataframe(
 
   return dataset_to_dataframe(
       dataset,
-      controls_column_names=_sample_names('control_', n_controls),
+      controls_column_names=(
+          _sample_names('control_', n_controls) if n_controls else None
+      ),
       media_column_names=_sample_names('media_', n_media_channels),
       media_spend_column_names=_sample_names('media_spend_', n_media_channels),
       reach_column_names=_sample_names('reach_', n_rf_channels),
@@ -1423,7 +1516,7 @@ def random_dataframe(
 
 
 def sample_coord_to_columns(
-    n_controls: int,
+    n_controls: int | None = None,
     n_media_channels: int | None = None,
     n_rf_channels: int | None = None,
     n_non_media_channels: int | None = None,
@@ -1474,7 +1567,7 @@ def sample_coord_to_columns(
       kpi=c.KPI,
       revenue_per_kpi=c.REVENUE_PER_KPI if include_revenue_per_kpi else None,
       population=c.POPULATION,
-      controls=_sample_names('control_', n_controls),
+      controls=(_sample_names('control_', n_controls) if n_controls else None),
       media=media,
       media_spend=media_spend,
       reach=reach,
@@ -1491,17 +1584,52 @@ def sample_input_data_from_dataset(
     dataset: xr.Dataset, kpi_type: str
 ) -> input_data.InputData:
   """Generates a sample `InputData` from a full xarray Dataset."""
+  media = dataset.media if c.MEDIA in dataset.data_vars.keys() else None
+  media_spend = (
+      dataset.media_spend if c.MEDIA_SPEND in dataset.data_vars.keys() else None
+  )
+  reach = dataset.reach if c.REACH in dataset.data_vars.keys() else None
+  frequency = (
+      dataset.frequency if c.FREQUENCY in dataset.data_vars.keys() else None
+  )
+  rf_spend = (
+      dataset.rf_spend if c.RF_SPEND in dataset.data_vars.keys() else None
+  )
+  organic_media = (
+      dataset.organic_media
+      if c.ORGANIC_MEDIA in dataset.data_vars.keys()
+      else None
+  )
+  organic_reach = (
+      dataset.organic_reach
+      if c.ORGANIC_REACH in dataset.data_vars.keys()
+      else None
+  )
+  organic_frequency = (
+      dataset.organic_frequency
+      if c.ORGANIC_FREQUENCY in dataset.data_vars.keys()
+      else None
+  )
+  non_media_treatments = (
+      dataset.non_media_treatments
+      if c.NON_MEDIA_TREATMENTS in dataset.data_vars.keys()
+      else None
+  )
   return input_data.InputData(
       kpi=dataset.kpi,
       kpi_type=kpi_type,
       revenue_per_kpi=dataset.revenue_per_kpi,
       population=dataset.population,
       controls=dataset.controls,
-      media=dataset.media,
-      media_spend=dataset.media_spend,
-      reach=dataset.reach,
-      frequency=dataset.frequency,
-      rf_spend=dataset.rf_spend,
+      media=media,
+      media_spend=media_spend,
+      reach=reach,
+      frequency=frequency,
+      rf_spend=rf_spend,
+      organic_media=organic_media,
+      organic_reach=organic_reach,
+      organic_frequency=organic_frequency,
+      non_media_treatments=non_media_treatments,
   )
 
 
@@ -1557,7 +1685,7 @@ def sample_input_data_non_revenue_revenue_per_kpi(
     n_geos: int = 10,
     n_times: int = 50,
     n_media_times: int = 53,
-    n_controls: int = 2,
+    n_controls: int | None = 2,
     n_non_media_channels: int | None = None,
     n_media_channels: int | None = None,
     n_rf_channels: int | None = None,
@@ -1583,10 +1711,10 @@ def sample_input_data_non_revenue_revenue_per_kpi(
       kpi_type=c.NON_REVENUE,
       revenue_per_kpi=dataset.revenue_per_kpi,
       population=dataset.population,
-      controls=dataset.controls,
-      non_media_treatments=dataset.non_media_treatments
-      if n_non_media_channels
-      else None,
+      controls=(dataset.controls if n_controls else None),
+      non_media_treatments=(
+          dataset.non_media_treatments if n_non_media_channels else None
+      ),
       media=dataset.media if n_media_channels else None,
       media_spend=dataset.media_spend if n_media_channels else None,
       reach=dataset.reach if n_rf_channels else None,
@@ -1594,9 +1722,9 @@ def sample_input_data_non_revenue_revenue_per_kpi(
       rf_spend=dataset.rf_spend if n_rf_channels else None,
       organic_media=dataset.organic_media if n_organic_media_channels else None,
       organic_reach=dataset.organic_reach if n_organic_rf_channels else None,
-      organic_frequency=dataset.organic_frequency
-      if n_organic_rf_channels
-      else None,
+      organic_frequency=(
+          dataset.organic_frequency if n_organic_rf_channels else None
+      ),
   )
 
 

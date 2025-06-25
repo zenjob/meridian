@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1515,13 +1515,13 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
         [
             1.991e02,
             5.116e02,
-            5.190e01,
+            5.191e01,
             6.623e02,
             1.969e02,
-            -7.194e05,
-            -1.927e04,
-            -1.809e03,
-            -3.006e04,
+            -2.250e05,
+            1.676e04,
+            1.058e04,
+            -4.475e03,
         ],
         [
             1.980e02,
@@ -1529,10 +1529,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.190e01,
             6.690e02,
             1.947e02,
-            -7.001e05,
-            -1.915e04,
-            -1.729e03,
-            -2.933e04,
+            -2.190e05,
+            1.669e04,
+            1.005e04,
+            -4.375e03,
         ],
         [
             1.984e02,
@@ -1540,10 +1540,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.186e01,
             6.678e02,
             1.950e02,
-            -7.005e05,
-            -1.901e04,
-            -1.737e03,
-            -3.111e04,
+            -2.191e05,
+            1.654e04,
+            1.011e04,
+            -4.644e03,
         ],
         [
             1.984e02,
@@ -1551,10 +1551,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.193e01,
             6.658e02,
             1.899e02,
-            -6.618e05,
-            -1.831e04,
-            -1.688e03,
-            -2.833e04,
+            -2.070e05,
+            1.575e04,
+            9.798e03,
+            -4.228e03,
         ],
         [
             1.980e02,
@@ -1562,10 +1562,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.196e01,
             6.697e02,
             1.898e02,
-            -6.748e05,
-            -1.849e04,
-            -1.660e03,
-            -3.077e04,
+            -2.111e05,
+            1.595e04,
+            9.621e03,
+            -4.596e03,
         ],
         [
             1.960e02,
@@ -1573,10 +1573,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.181e01,
             6.764e02,
             1.999e02,
-            -6.882e05,
-            -1.859e04,
-            -1.622e03,
-            -2.499e04,
+            -2.153e05,
+            1.596e04,
+            9.384e03,
+            -3.718e03,
         ],
         [
             1.988e02,
@@ -1584,10 +1584,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.180e01,
             6.780e02,
             1.979e02,
-            -6.667e05,
-            -1.809e04,
-            -1.600e03,
-            -2.555e04,
+            -2.085e05,
+            1.539e04,
+            9.246e03,
+            -3.802e03,
         ],
         [
             1.991e02,
@@ -1595,10 +1595,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.174e01,
             6.698e02,
             1.972e02,
-            -5.978e05,
-            -1.809e04,
-            -1.589e03,
-            -2.782e04,
+            -1.870e05,
+            1.525e04,
+            9.182e03,
+            -4.143e03,
         ],
         [
             1.986e02,
@@ -1606,10 +1606,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.175e01,
             6.669e02,
             1.948e02,
-            -6.080e05,
-            -1.806e04,
-            -1.619e03,
-            -2.830e04,
+            -1.902e05,
+            1.520e04,
+            9.380e03,
+            -4.212e03,
         ],
         [
             1.986e02,
@@ -1617,10 +1617,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             5.178e01,
             6.670e02,
             1.965e02,
-            -6.241e05,
-            -1.795e04,
-            -1.663e03,
-            -2.348e04,
+            -1.952e05,
+            1.512e04,
+            9.660e03,
+            -3.480e03,
         ],
     ],
     [
@@ -1630,10 +1630,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.222e02,
             2.692e02,
             1.240e02,
-            -6.622e05,
-            -3.899e04,
-            3.034e03,
-            -1.467e05,
+            -2.072e05,
+            4.133e04,
+            -2.037e04,
+            -2.202e04,
         ],
         [
             1.432e03,
@@ -1641,10 +1641,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.231e02,
             2.683e02,
             1.240e02,
-            -6.727e05,
-            -3.886e04,
-            3.040e03,
-            -1.444e05,
+            -2.105e05,
+            4.117e04,
+            -2.041e04,
+            -2.168e04,
         ],
         [
             1.430e03,
@@ -1652,10 +1652,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.248e02,
             2.675e02,
             1.235e02,
-            -6.444e05,
-            -3.858e04,
-            3.023e03,
-            -1.387e05,
+            -2.016e05,
+            4.092e04,
+            -2.030e04,
+            -2.085e04,
         ],
         [
             1.436e03,
@@ -1663,10 +1663,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.231e02,
             2.667e02,
             1.244e02,
-            -6.301e05,
-            -3.852e04,
-            3.006e03,
-            -1.275e05,
+            -1.972e05,
+            4.087e04,
+            -2.019e04,
+            -1.921e04,
         ],
         [
             1.447e03,
@@ -1674,10 +1674,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.226e02,
             2.650e02,
             1.254e02,
-            -5.698e05,
-            -3.717e04,
-            2.969e03,
-            -1.106e05,
+            -1.783e05,
+            3.951e04,
+            -1.994e04,
+            -1.672e04,
         ],
         [
             1.430e03,
@@ -1685,10 +1685,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.232e02,
             2.641e02,
             1.254e02,
-            -5.759e05,
-            -3.911e04,
-            2.974e03,
-            -1.045e05,
+            -1.802e05,
+            4.147e04,
+            -1.998e04,
+            -1.571e04,
         ],
         [
             1.457e03,
@@ -1696,10 +1696,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.258e02,
             2.621e02,
             1.247e02,
-            -5.770e05,
-            -3.842e04,
-            3.002e03,
-            -9.320e04,
+            -1.805e05,
+            4.070e04,
+            -2.015e04,
+            -1.398e04,
         ],
         [
             1.456e03,
@@ -1707,10 +1707,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.276e02,
             2.646e02,
             1.246e02,
-            -5.637e05,
-            -3.962e04,
-            2.988e03,
-            -8.621e04,
+            -1.764e05,
+            4.198e04,
+            -2.006e04,
+            -1.299e04,
         ],
         [
             1.484e03,
@@ -1718,10 +1718,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.252e02,
             2.668e02,
             1.241e02,
-            -5.527e05,
-            -4.099e04,
-            2.969e03,
-            -8.990e04,
+            -1.729e05,
+            4.340e04,
+            -1.995e04,
+            -1.352e04,
         ],
         [
             1.475e03,
@@ -1729,10 +1729,10 @@ INC_OUTCOME_NON_MEDIA_FIXED = np.array([
             2.238e02,
             2.669e02,
             1.244e02,
-            -5.546e05,
-            -4.105e04,
-            2.999e03,
-            -8.896e04,
+            -1.735e05,
+            4.349e04,
+            -2.014e04,
+            -1.338e04,
         ],
     ],
 ])
@@ -2565,9 +2565,12 @@ SAMPLE_BASELINE_PCT_OF_CONTRIBUTION_NON_PAID = np.array([
     [-1.204522e-02, -4.079909e02],
     [1.350970e-02, -2.750774e02],
 ])
-ADSTOCK_DECAY_CI_HI = np.array([1.0, 1.0, 0.8295, 0.9728, 0.6880])
-ADSTOCK_DECAY_CI_LO = np.array([1.0, 1.0, 0.8128, 0.6194, 0.6607])
-ADSTOCK_DECAY_MEAN = np.array([1.0, 1.0, 0.8214, 0.8359, 0.6748])
+ADSTOCK_DECAY_CI_HI = np.array([1.0, 1.0, 0.8658, 0.9709, 0.7496])
+ADSTOCK_DECAY_CI_LO = np.array([1.0, 1.0, 0.8328, 0.5749, 0.6936])
+ADSTOCK_DECAY_MEAN = np.array([1.0, 1.0, 0.8493, 0.8630, 0.7215])
+ORGANIC_ADSTOCK_DECAY_CI_HI = np.array([1.0, 0.9636, 0.9291, 0.8962, 0.8650])
+ORGANIC_ADSTOCK_DECAY_CI_LO = np.array([1.0, 0.6623, 0.4394, 0.2920, 0.1944])
+ORGANIC_ADSTOCK_DECAY_MEAN = np.array([1.0, 0.8076, 0.6633, 0.5537, 0.4693])
 HILL_CURVES_CI_HI = np.array([0.0, 0.0, 0.00098, 0.00895, 0.00195])
 HILL_CURVES_CI_LO = np.array([0.0, 0.0, 0.00085, 0.00322, 0.00169])
 HILL_CURVES_MEAN = np.array([0.0, 0.0, 0.00091, 0.00606, 0.00183])
@@ -2812,16 +2815,13 @@ def generate_predictive_accuracy_table(
   shape = [len(metric), len(geo_granularity)]
   dims = [c.METRIC, c.GEO_GRANULARITY]
   coords = {
-      c.METRIC: ([c.METRIC], metric),
-      c.GEO_GRANULARITY: ([c.GEO_GRANULARITY], geo_granularity),
+      c.METRIC: metric,
+      c.GEO_GRANULARITY: geo_granularity,
   }
   if with_holdout:
     shape.append(len(evaluation_set))
     dims.append(c.EVALUATION_SET_VAR)
-    coords[c.EVALUATION_SET_VAR] = (
-        [c.EVALUATION_SET_VAR],
-        evaluation_set,
-    )
+    coords[c.EVALUATION_SET_VAR] = evaluation_set
   np.random.seed(0)
   value = np.random.lognormal(0, 1, size=shape)
   ds = xr.Dataset(
@@ -2917,7 +2917,7 @@ def generate_paid_summary_metrics() -> xr.Dataset:
   )
 
 
-def generate_all_summary_metrics() -> xr.Dataset:
+def generate_all_summary_metrics(aggregate_times: bool = True) -> xr.Dataset:
   """Helper method to generate simulated summary metrics data."""
   channel = (
       [f"ch_{i}" for i in range(3)]
@@ -2929,33 +2929,38 @@ def generate_all_summary_metrics() -> xr.Dataset:
   channel.append(c.ALL_CHANNELS)
   metric = [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI]
   distribution = [c.PRIOR, c.POSTERIOR]
+  time = pd.date_range("2023-01-01", freq="W-SUN", periods=5).format(
+      formatter=lambda x: x.strftime("%Y-%m-%d")
+  )
 
   np.random.seed(0)
-  shape = (len(channel), len(metric), len(distribution))
+
+  if aggregate_times:
+    shape = (len(channel), len(metric), len(distribution))
+    dims = [c.CHANNEL, c.METRIC, c.DISTRIBUTION]
+  else:
+    shape = (len(time), len(channel), len(metric), len(distribution))
+    dims = [c.TIME, c.CHANNEL, c.METRIC, c.DISTRIBUTION]
+
   incremental_outcome = np.random.lognormal(10, 1, size=shape)
   effectiveness = np.random.lognormal(1, 1, size=shape)
   pct_of_contribution = np.random.randint(low=0, high=50, size=shape)
 
+  coords = {
+      c.CHANNEL: channel,
+      c.METRIC: metric,
+      c.DISTRIBUTION: distribution,
+  }
+  if not aggregate_times:
+    coords[c.TIME] = time
+
   return xr.Dataset(
       data_vars={
-          c.INCREMENTAL_OUTCOME: (
-              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              incremental_outcome,
-          ),
-          c.PCT_OF_CONTRIBUTION: (
-              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              pct_of_contribution,
-          ),
-          c.EFFECTIVENESS: (
-              [c.CHANNEL, c.METRIC, c.DISTRIBUTION],
-              effectiveness,
-          ),
+          c.INCREMENTAL_OUTCOME: (dims, incremental_outcome),
+          c.PCT_OF_CONTRIBUTION: (dims, pct_of_contribution),
+          c.EFFECTIVENESS: (dims, effectiveness),
       },
-      coords={
-          c.CHANNEL: channel,
-          c.METRIC: metric,
-          c.DISTRIBUTION: distribution,
-      },
+      coords=coords,
       attrs={c.CONFIDENCE_LEVEL: c.DEFAULT_CONFIDENCE_LEVEL},
   )
 
@@ -3011,14 +3016,8 @@ def generate_predictive_accuracy_data(holdout_id: bool = False) -> xr.Dataset:
 
   xr_dims = [c.METRIC, c.GEO_GRANULARITY]
   xr_coords = {
-      c.METRIC: (
-          [c.METRIC],
-          [c.R_SQUARED, c.MAPE, c.WMAPE],
-      ),
-      c.GEO_GRANULARITY: (
-          [c.GEO_GRANULARITY],
-          [c.GEO, c.NATIONAL],
-      ),
+      c.METRIC: [c.R_SQUARED, c.MAPE, c.WMAPE],
+      c.GEO_GRANULARITY: [c.GEO, c.NATIONAL],
   }
   rsquared_arr = [np.random.uniform(0.0, 1.0) for _ in range(2)]
   mape_arr = [np.random.uniform(0.0, 1.0) for _ in range(2)]
@@ -3043,10 +3042,7 @@ def generate_predictive_accuracy_data(holdout_id: bool = False) -> xr.Dataset:
     )
 
     xr_dims.append(c.EVALUATION_SET_VAR)
-    xr_coords[c.EVALUATION_SET_VAR] = (
-        [c.EVALUATION_SET_VAR],
-        list(c.EVALUATION_SET),
-    )
+    xr_coords[c.EVALUATION_SET_VAR] = list(c.EVALUATION_SET)
     xr_data = {c.VALUE: (xr_dims, stacked_total)}
 
   return xr.Dataset(data_vars=xr_data, coords=xr_coords)
@@ -3142,18 +3138,22 @@ def generate_optimal_frequency_data(
 
 def generate_hill_curves_dataframe() -> pd.DataFrame:
   """Helper method to generate simulated hill curve data."""
-  channel_names = [f"ch_{i}" for i in range(3)] + [
-      f"rf_ch_{i}" for i in range(2)
-  ]
+  channel_names = (
+      [f"ch_{i}" for i in range(3)]
+      + [f"rf_ch_{i}" for i in range(2)]
+      + [f"organic_ch_{i}" for i in range(2)]
+  )
   channel_array = []
   channel_type_array = []
-  for i, channel in enumerate(channel_names):
+  for channel_name in channel_names:
     for _ in range(100):
-      channel_array.append(channel)
-      if i <= 3:
+      channel_array.append(channel_name)
+      if channel_name.startswith("ch_"):
         channel_type_array.append(c.MEDIA)
-      else:
+      elif channel_name.startswith("rf_ch_"):
         channel_type_array.append(c.RF)
+      elif channel_name.startswith("organic_ch_"):
+        channel_type_array.append(c.ORGANIC_MEDIA)
 
   np.random.seed(0)
   media_units_array = [

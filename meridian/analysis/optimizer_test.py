@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -179,8 +179,8 @@ def _create_budget_data(
     )
 
   attributes = {
-      c.START_DATE: '2020-01-05',
-      c.END_DATE: '2020-06-28',
+      c.START_DATE: '2021-01-25',
+      c.END_DATE: '2021-12-27',
       c.BUDGET: sum(spend),
       c.PROFIT: sum(inc_outcome[:, 0]) - sum(spend),
       c.TOTAL_INCREMENTAL_OUTCOME: sum(inc_outcome[:, 0]),
@@ -193,8 +193,8 @@ def _create_budget_data(
   return xr.Dataset(
       data_vars=data_vars,
       coords={
-          c.CHANNEL: ([c.CHANNEL], channels),
-          c.METRIC: ([c.METRIC], [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI]),
+          c.CHANNEL: channels,
+          c.METRIC: [c.MEAN, c.MEDIAN, c.CI_LO, c.CI_HI],
       },
       attrs=attributes | (attrs or {}),
   )
@@ -222,6 +222,10 @@ def _verify_actual_vs_expected_budget_data(
     np.testing.assert_equal(actual_data.target_roi, expected_data.target_roi)
   if c.TARGET_MROI in expected_data.attrs:
     np.testing.assert_equal(actual_data.target_mroi, expected_data.target_mroi)
+  if c.START_DATE in expected_data.attrs:
+    np.testing.assert_equal(actual_data.start_date, expected_data.start_date)
+  if c.END_DATE in expected_data.attrs:
+    np.testing.assert_equal(actual_data.end_date, expected_data.end_date)
 
 
 _SAMPLE_NON_OPTIMIZED_DATA = _create_budget_data(
@@ -438,11 +442,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         'Running budget optimization scenarios requires fitting the model.',
     ):
       budget_optimizer.create_optimization_grid(
-          historical_spend=mock.Mock(),
-          spend_bound_lower=mock.Mock(),
-          spend_bound_upper=mock.Mock(),
-          selected_times=None,
-          round_factor=1,
           use_posterior=use_posterior,
       )
 
@@ -554,6 +553,34 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     ):
       self.budget_optimizer_media_and_rf.optimize(spend_constraint_upper=-0.3)
 
+  def test_modified_times_new_data_no_time_throws_exception(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'If the time dimension of a variable in `new_data` is modified, then '
+        'all variables must be provided in `new_data`. The following variables '
+        "are missing: `['time']`.",
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          new_data=analyzer.DataTensors(
+              media=self.meridian_media_and_rf.media_tensors.media[
+                  ..., -10:, :
+              ],
+              reach=self.meridian_media_and_rf.rf_tensors.reach[..., -10:, :],
+              frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                  ..., -10:, :
+              ],
+              media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                  ..., -10:, :
+              ],
+              rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                  ..., -10:, :
+              ],
+              revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                  ..., -10:
+              ],
+          )
+      )
+
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_default_selected_times_all_times(
       self,
@@ -589,7 +616,8 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     expected_times = self.input_data_media_and_rf.time.values.tolist()
     optimization_results = self.budget_optimizer_media_and_rf.optimize(
-        selected_times=None
+        start_date=None,
+        end_date=None,
     )
 
     self.assertEqual(
@@ -638,11 +666,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
           'selected_times_arg': [None, None],
           'expected_times': None,
       },
-      {
-          'testcase_name': 'none',
-          'selected_times_arg': None,
-          'expected_times': None,
-      },
   )
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_selected_times_used_correctly(
@@ -653,13 +676,99 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
     ))
+    start_time = selected_times_arg[0]
+    end_time = selected_times_arg[1]
 
     self.budget_optimizer_media_and_rf.optimize(
-        selected_times=selected_times_arg
+        start_date=start_time,
+        end_date=end_time,
     )
 
     _, mock_kwargs = mock_incremental_outcome.call_args
     self.assertEqual(mock_kwargs['selected_times'], expected_times)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'selected_times_range',
+          'start_date': '2025-04-07',
+          'end_date': '2025-04-21',
+          'expected_times': [False, True, True, True, False],
+          'expected_dates': ['2025-04-07', '2025-04-21'],
+      },
+      {
+          'testcase_name': 'end_none',
+          'start_date': '2025-04-14',
+          'end_date': None,
+          'expected_times': [False, False, True, True, True],
+          'expected_dates': ['2025-04-14', '2025-04-28'],
+      },
+      {
+          'testcase_name': 'start_none',
+          'start_date': None,
+          'end_date': '2025-04-14',
+          'expected_times': [True, True, True, False, False],
+          'expected_dates': ['2025-03-31', '2025-04-14'],
+      },
+      {
+          'testcase_name': 'none_tuple',
+          'start_date': None,
+          'end_date': None,
+          'expected_times': None,
+          'expected_dates': ['2025-03-31', '2025-04-28'],
+      },
+  )
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
+  def test_selected_times_new_data_used_correctly(
+      self,
+      mock_inc_outcome,
+      start_date,
+      end_date,
+      expected_times,
+      expected_dates,
+  ):
+    mock_inc_outcome.return_value = tf.ones((
+        _N_CHAINS,
+        _N_DRAWS,
+        _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
+    ))
+    new_times = [
+        '2025-03-31',
+        '2025-04-07',
+        '2025-04-14',
+        '2025-04-21',
+        '2025-04-28',
+    ]
+
+    optimization_results = self.budget_optimizer_media_and_rf.optimize(
+        start_date=start_date,
+        end_date=end_date,
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -5:, :],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -5:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -5:, :
+            ],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -5:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -5:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -5:
+            ],
+            time=new_times,
+        ),
+    )
+
+    _, mock_kwargs = mock_inc_outcome.call_args
+    self.assertEqual(mock_kwargs['selected_times'], expected_times)
+    self.assertEqual(
+        optimization_results.optimized_data.start_date, expected_dates[0]
+    )
+    self.assertEqual(
+        optimization_results.optimized_data.end_date, expected_dates[1]
+    )
 
   def test_default_hist_spend_with_time_geo_dims(self):
     expected_spend = np.round(
@@ -667,6 +776,43 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     )
 
     optimization_results = self.budget_optimizer_media_and_rf.optimize()
+
+    self.assertEqual(self.meridian_media_and_rf.total_spend.ndim, 3)
+    np.testing.assert_array_equal(
+        optimization_results.nonoptimized_data.spend,
+        expected_spend,
+    )
+    self.assertEqual(
+        optimization_results.nonoptimized_data.budget,
+        np.sum(expected_spend),
+    )
+
+  def test_hist_spend_new_data(self):
+    expected_spend = np.round(
+        np.sum(self.meridian_media_and_rf.total_spend[..., -5:, :], axis=(0, 1))
+    )
+
+    optimization_results = self.budget_optimizer_media_and_rf.optimize(
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -5:, :],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -5:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -5:, :
+            ],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -5:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -5:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -5:
+            ],
+            time=self.meridian_media_and_rf.input_data.time.values.tolist()[
+                -5:
+            ],
+        )
+    )
 
     self.assertEqual(self.meridian_media_and_rf.total_spend.ndim, 3)
     np.testing.assert_array_equal(
@@ -740,9 +886,9 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     budget_optimizer_media_and_rf = optimizer.BudgetOptimizer(
         meridian_media_and_rf
     )
-
     optimization_results = budget_optimizer_media_and_rf.optimize(
-        selected_times=('2021-01-25', '2021-03-08'),
+        start_date='2021-01-25',
+        end_date='2021-03-08',
         # TODO: set optimal frequency back to true once the bug is
         # fixed.
         use_optimal_frequency=False,
@@ -768,7 +914,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     budget_optimizer = self.budget_optimizer_media_and_rf
     with mock.patch.object(
         budget_optimizer._analyzer,
-        'get_historical_spend',
+        'get_aggregated_spend',
         return_value=mock.MagicMock(data=np.array([0, 0, 0, 0, 0])),
     ):
       optimization_results = budget_optimizer.optimize(
@@ -886,20 +1032,15 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             ),
         },
         coords={
-            c.GRID_SPEND_INDEX: (
-                [c.GRID_SPEND_INDEX],
-                np.arange(0, len(expected_spend_grid)),
-            ),
-            c.CHANNEL: (
-                [c.CHANNEL],
-                self.input_data_media_and_rf.get_all_channels(),
-            ),
+            c.GRID_SPEND_INDEX: np.arange(0, len(expected_spend_grid)),
+            c.CHANNEL: self.input_data_media_and_rf.get_all_channels(),
         },
     )
+    optimization_grid = (
+        self.budget_optimizer_media_and_rf.create_optimization_grid()
+    )
 
-    optimization_results = self.budget_optimizer_media_and_rf.optimize()
-
-    actual_data = optimization_results.optimization_grid
+    actual_data = optimization_grid.grid_dataset
     self.assertEqual(actual_data, expected_data)
     self.assertEqual(actual_data.spend_step_size, 100.0)
 
@@ -1156,11 +1297,11 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [2493.0112, 2461.1328, 645.39844, 4406.3643],
           ]),
           expected_effectiveness=np.array([
-              [0.16258691, 0.15976532, 0.03995359, 0.29265174],
-              [0.29862484, 0.29220626, 0.11884159, 0.48884866],
-              [0.0677588, 0.06702042, 0.0330507, 0.1048169],
-              [0.00220999, 0.00221848, 0.00077439, 0.00363578],
-              [0.00339354, 0.00335014, 0.00087853, 0.00599803],
+              [2.3188981e-01, 2.2786555e-01, 5.6983873e-02, 4.1739488e-01],
+              [2.9522523e-01, 2.8879675e-01, 1.1438438e-01, 4.8648083e-01],
+              [9.6809819e-02, 9.5754884e-02, 4.7220930e-02, 1.4975630e-01],
+              [9.5688112e-05, 9.5764321e-05, 3.9768369e-05, 1.5140821e-04],
+              [1.3106108e-04, 1.2957303e-04, 4.6303954e-05, 2.1905398e-04],
           ]),
           expected_mroi=np.array([
               [1.0190495, 1.001245, 0.24795413, 1.8372412],
@@ -1189,11 +1330,11 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
               [595.451, 588.6903, 210.37312, 995.23],
           ]),
           expected_effectiveness=np.array([
-              [1.6258691e-01, 1.5976532e-01, 3.9953593e-02, 2.9265174e-01],
-              [3.2418722e-01, 3.1713104e-01, 1.2571074e-01, 5.3409714e-01],
-              [6.7758799e-02, 6.7020416e-02, 3.3050705e-02, 1.0481690e-01],
-              [1.1391223e-04, 1.1400296e-04, 4.7342415e-05, 1.8024442e-04],
-              [1.7027026e-04, 1.6833706e-04, 6.0156573e-05, 2.8458779e-04],
+              [2.31889814e-01, 2.27865547e-01, 5.69838732e-02, 4.17394876e-01],
+              [3.01713377e-01, 2.95228422e-01, 1.20070666e-01, 4.93904650e-01],
+              [9.68098193e-02, 9.57548842e-02, 4.72209305e-02, 1.49756297e-01],
+              [3.80495272e-04, 3.81956954e-04, 1.33327194e-04, 6.25974324e-04],
+              [5.48721524e-04, 5.41704881e-04, 1.42054720e-04, 9.69857967e-04],
           ]),
           expected_mroi=np.array([
               [1.0190499, 1.0012858, 0.24795783, 1.837228],
@@ -1237,6 +1378,65 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     actual_data = optimization_results.optimized_data
     _verify_actual_vs_expected_budget_data(actual_data, expected_data)
 
+  def test_optimized_data_new_data(self):
+    max_lag = 15
+    n_new_times = 15
+    total_times = max_lag + n_new_times
+    times = self.meridian_media_and_rf.input_data.time.to_numpy().tolist()
+    start_date = times[-n_new_times]
+    end_date = times[-1]
+    new_data = analyzer.DataTensors(
+        media=self.meridian_media_and_rf.media_tensors.media[
+            ..., -total_times:, :
+        ],
+        media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+            ..., -total_times:, :
+        ],
+        reach=self.meridian_media_and_rf.rf_tensors.reach[
+            ..., -total_times:, :
+        ],
+        frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+            ..., -total_times:, :
+        ],
+        rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+            ..., -total_times:, :
+        ],
+        revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+            ..., -total_times:
+        ],
+        time=times[-total_times:],
+    )
+    actual = self.budget_optimizer_media_and_rf.optimize(
+        new_data=new_data,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    expected = self.budget_optimizer_media_and_rf.optimize(
+        start_date=start_date,
+        end_date=end_date,
+    )
+    _verify_actual_vs_expected_budget_data(
+        actual.nonoptimized_data, expected.nonoptimized_data
+    )
+    _verify_actual_vs_expected_budget_data(
+        actual._nonoptimized_data_with_optimal_freq,
+        expected._nonoptimized_data_with_optimal_freq,
+    )
+    _verify_actual_vs_expected_budget_data(
+        actual.optimized_data, expected.optimized_data
+    )
+    np.testing.assert_allclose(
+        actual.optimization_grid.spend_grid,
+        expected.optimization_grid.spend_grid,
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        actual.optimization_grid.incremental_outcome_grid,
+        expected.optimization_grid.incremental_outcome_grid,
+        equal_nan=True,
+        atol=0.01,
+    )
+
   def test_get_round_factor_gtol_raise_error(self):
     with self.assertRaisesWithLiteralMatch(
         expected_exception=ValueError,
@@ -1252,22 +1452,20 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       self.budget_optimizer_media_and_rf.optimize(budget=-10_000)
 
   def test_get_optimization_bounds_correct(self):
-    (lower_bound, upper_bound, _) = (
-        self.budget_optimizer_media_and_rf._get_optimization_bounds(
-            spend=np.array([10642.5, 22222.0, 33333.0, 44444.0, 55555.0]),
-            spend_constraint_lower=[0.5, 0.4, 0.3, 0.2, 0.1],
-            spend_constraint_upper=[0.2544, 0.4, 0.5, 0.6, 0.7],
-            round_factor=-2,
-            fixed_budget=True,
-        )
+    (lower_bound, upper_bound) = optimizer.get_optimization_bounds(
+        n_channels=5,
+        spend=np.array([10642.5, 22222.0, 33333.0, 44444.0, 55555.0]),
+        round_factor=-2,
+        spend_constraint_lower=[0.5, 0.4, 0.3, 0.2, 0.1],
+        spend_constraint_upper=[0.2544, 0.4, 0.5, 0.6, 0.7],
     )
     np.testing.assert_array_equal(
         lower_bound,
-        np.array([5300, 13300, 23300, 35600, 50000]),
+        np.array([5300, 13300, 23300, 35500, 50000]),
     )
     np.testing.assert_array_equal(
         upper_bound,
-        np.array([13300, 31100, 50000, 71100, 94400]),
+        np.array([13300, 31100, 50000, 71000, 94500]),
     )
 
   def test_optimization_grid_media_and_rf_correct(self):
@@ -1286,17 +1484,27 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_and_rf
     )
-    historical_spend = np.array([1000, 1000, 1000, 1000, 1000])
-    spend_bound_lower = np.array([500, 600, 700, 800, 900])
-    spend_bound_upper = np.array([1500, 1400, 1300, 1200, 1100])
-    selected_times = ('2021-01-25', '2021-02-01')
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(
+                data=np.array([1000, 1000, 1000, 1000, 1000])
+            ),
+        )
+    )
+    spend_constraint_lower = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    spend_constraint_upper = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    start_date = '2021-01-25'
+    end_date = '2021-02-01'
     optimization_grid = (
         self.budget_optimizer_media_and_rf.create_optimization_grid(
-            historical_spend=historical_spend,
-            spend_bound_lower=spend_bound_lower,
-            spend_bound_upper=spend_bound_upper,
-            selected_times=selected_times,
-            round_factor=-2,
+            start_date=start_date,
+            end_date=end_date,
+            spend_constraint_lower=spend_constraint_lower,
+            spend_constraint_upper=spend_constraint_upper,
+            gtol=0.01,
+            use_optimal_frequency=False,
         )
     )
     expected_spend_grid = np.array(
@@ -1332,7 +1540,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
-        selected_times=selected_times,
+        selected_times=[start_date, end_date],
         use_kpi=False,
         batch_size=c.DEFAULT_BATCH_SIZE,
         include_non_paid_channels=False,
@@ -1366,17 +1574,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_media_only
     )
-    historical_spend = np.array([1000, 1000, 1000])
-    spend_bound_lower = np.array([500, 600, 700])
-    spend_bound_upper = np.array([1500, 1400, 1300])
-    selected_times = ('2021-01-25', '2021-02-01')
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_only._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(data=np.array([1000, 1000, 1000])),
+        )
+    )
+    spend_constraint_lower = np.array([0.5, 0.4, 0.3])
+    spend_constraint_upper = np.array([0.5, 0.4, 0.3])
+    start_date = '2021-01-25'
+    end_date = '2021-02-01'
     optimization_grid = (
         self.budget_optimizer_media_only.create_optimization_grid(
-            historical_spend=historical_spend,
-            spend_bound_lower=spend_bound_lower,
-            spend_bound_upper=spend_bound_upper,
-            selected_times=selected_times,
-            round_factor=-2,
+            start_date=start_date,
+            end_date=end_date,
+            spend_constraint_lower=spend_constraint_lower,
+            spend_constraint_upper=spend_constraint_upper,
+            gtol=0.01,
         )
     )
     expected_spend_grid = np.array(
@@ -1412,7 +1627,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
-        selected_times=selected_times,
+        selected_times=[start_date, end_date],
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
         include_non_paid_channels=False,
@@ -1444,16 +1659,24 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_rf_only
     )
-    historical_spend = np.array([1000, 1000])
-    spend_bound_lower = np.array([500, 600])
-    spend_bound_upper = np.array([1500, 1400])
-    selected_times = ('2021-01-25', '2021-02-01')
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_rf_only._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(data=np.array([1000, 1000])),
+        )
+    )
+    spend_constraint_lower = np.array([0.5, 0.4])
+    spend_constraint_upper = np.array([0.5, 0.4])
+    start_date = '2021-01-25'
+    end_date = '2021-02-01'
     optimization_grid = self.budget_optimizer_rf_only.create_optimization_grid(
-        historical_spend=historical_spend,
-        spend_bound_lower=spend_bound_lower,
-        spend_bound_upper=spend_bound_upper,
-        selected_times=selected_times,
-        round_factor=-2,
+        start_date=start_date,
+        end_date=end_date,
+        spend_constraint_lower=spend_constraint_lower,
+        spend_constraint_upper=spend_constraint_upper,
+        gtol=0.01,
+        use_optimal_frequency=False,
     )
     expected_spend_grid = np.array(
         [
@@ -1488,7 +1711,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
-        selected_times=selected_times,
+        selected_times=[start_date, end_date],
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
         include_non_paid_channels=False,
@@ -1523,19 +1746,36 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
             )),
         )
     )
-    historical_spend = np.array([1000, 1000, 1000, 1000, 1000])
-    spend_bound_lower = np.array([500, 600, 700, 800, 900])
-    spend_bound_upper = np.array([1500, 1400, 1300, 1200, 1100])
-    selected_times = ('2021-01-25', '2021-02-01')
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(
+                data=np.array([1000, 1000, 1000, 1000, 1000])
+            ),
+        )
+    )
     optimal_frequency = xr.DataArray(data=[2.5, 3.1])
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf._analyzer,
+            'optimal_freq',
+            return_value=xr.Dataset(
+                data_vars=dict(optimal_frequency=optimal_frequency),
+            ),
+        )
+    )
+    spend_constraint_lower = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    spend_constraint_upper = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    start_date = '2021-01-25'
+    end_date = '2021-02-01'
     optimization_grid = (
         self.budget_optimizer_media_and_rf.create_optimization_grid(
-            historical_spend=historical_spend,
-            spend_bound_lower=spend_bound_lower,
-            spend_bound_upper=spend_bound_upper,
-            selected_times=selected_times,
-            round_factor=-2,
-            optimal_frequency=optimal_frequency,
+            start_date=start_date,
+            end_date=end_date,
+            spend_constraint_lower=spend_constraint_lower,
+            spend_constraint_upper=spend_constraint_upper,
+            gtol=0.01,
         )
     )
     expected_spend_grid = np.array(
@@ -1575,7 +1815,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
-        selected_times=selected_times,
+        selected_times=[start_date, end_date],
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
         include_non_paid_channels=False,
@@ -1583,85 +1823,6 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     # Using `assert_called_with` doesn't work with array comparison.
     _, mock_kwargs = mock_incremental_outcome.call_args
     np.testing.assert_allclose(mock_kwargs['new_data'].frequency, new_frequency)
-    self.assertEqual(optimization_grid.spend_step_size, 100)
-    np.testing.assert_allclose(
-        optimization_grid.spend_grid, expected_spend_grid, equal_nan=True
-    )
-    np.testing.assert_allclose(
-        optimization_grid.incremental_outcome_grid,
-        expected_incremental_outcome_grid,
-        equal_nan=True,
-        atol=0.01,
-    )
-
-  def test_optimization_grid_with_optimal_frequency_media_only_correct(
-      self,
-  ):
-    mock_incremental_outcome = self.enter_context(
-        mock.patch.object(
-            self.budget_optimizer_media_only._analyzer,
-            'incremental_outcome',
-            autospec=True,
-            return_value=tf.ones((_N_CHAINS, _N_DRAWS, _N_MEDIA_CHANNELS)),
-        )
-    )
-    model.Meridian.inference_data = mock.PropertyMock(
-        return_value=self.inference_data_media_only
-    )
-    historical_spend = np.array([1000, 1000, 1000])
-    spend_bound_lower = np.array([500, 600, 700])
-    spend_bound_upper = np.array([1500, 1400, 1300])
-    selected_times = ('2021-01-25', '2021-02-01')
-    optimal_frequency = xr.DataArray(data=[2.5, 3.1])
-
-    optimization_grid = (
-        self.budget_optimizer_media_only.create_optimization_grid(
-            historical_spend=historical_spend,
-            spend_bound_lower=spend_bound_lower,
-            spend_bound_upper=spend_bound_upper,
-            selected_times=selected_times,
-            round_factor=-2,
-            optimal_frequency=optimal_frequency,
-        )
-    )
-    expected_spend_grid = np.array(
-        [
-            [500.0, 600.0, 700.0],
-            [600.0, 700.0, 800.0],
-            [700.0, 800.0, 900.0],
-            [800.0, 900.0, 1000.0],
-            [900.0, 1000.0, 1100.0],
-            [1000.0, 1100.0, 1200.0],
-            [1100.0, 1200.0, 1300.0],
-            [1200.0, 1300.0, np.nan],
-            [1300.0, 1400.0, np.nan],
-            [1400.0, np.nan, np.nan],
-            [1500.0, np.nan, np.nan],
-        ],
-    )
-    expected_incremental_outcome_grid = np.array(
-        [
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-        ],
-    )
-    mock_incremental_outcome.assert_called_with(
-        use_posterior=True,
-        new_data=mock.ANY,
-        selected_times=selected_times,
-        batch_size=c.DEFAULT_BATCH_SIZE,
-        use_kpi=False,
-        include_non_paid_channels=False,
-    )
     self.assertEqual(optimization_grid.spend_step_size, 100)
     np.testing.assert_allclose(
         optimization_grid.spend_grid, expected_spend_grid, equal_nan=True
@@ -1687,18 +1848,33 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     model.Meridian.inference_data = mock.PropertyMock(
         return_value=self.inference_data_rf_only
     )
-    historical_spend = np.array([1000, 1000])
-    spend_bound_lower = np.array([500, 600])
-    spend_bound_upper = np.array([1500, 1400])
-    selected_times = ('2021-01-25', '2021-02-01')
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_rf_only._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(data=np.array([1000, 1000])),
+        )
+    )
     optimal_frequency = xr.DataArray(data=[2.5, 3.1])
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_rf_only._analyzer,
+            'optimal_freq',
+            return_value=xr.Dataset(
+                data_vars=dict(optimal_frequency=optimal_frequency),
+            ),
+        )
+    )
+    spend_constraint_lower = np.array([0.5, 0.4])
+    spend_constraint_upper = np.array([0.5, 0.4])
+    start_date = '2021-01-25'
+    end_date = '2021-02-01'
     optimization_grid = self.budget_optimizer_rf_only.create_optimization_grid(
-        historical_spend=historical_spend,
-        spend_bound_lower=spend_bound_lower,
-        spend_bound_upper=spend_bound_upper,
-        selected_times=selected_times,
-        round_factor=-2,
-        optimal_frequency=optimal_frequency,
+        start_date=start_date,
+        end_date=end_date,
+        spend_constraint_lower=spend_constraint_lower,
+        spend_constraint_upper=spend_constraint_upper,
+        gtol=0.01,
     )
     expected_spend_grid = np.array(
         [
@@ -1737,7 +1913,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
     mock_incremental_outcome.assert_called_with(
         use_posterior=True,
         new_data=mock.ANY,
-        selected_times=selected_times,
+        selected_times=[start_date, end_date],
         batch_size=c.DEFAULT_BATCH_SIZE,
         use_kpi=False,
         include_non_paid_channels=False,
@@ -1765,7 +1941,7 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
       {
           'testcase_name': 'fixed_budget_scenario_with_new_budget',
           'scenario': optimizer.FixedBudgetScenario(total_budget=6000),
-          'expected_optimal_spend': np.array([1200, 1200, 1300, 1200, 1100]),
+          'expected_optimal_spend': np.array([1000, 1100, 1200, 1400, 1300]),
       },
       {
           'testcase_name': 'flexible_budget_target_roi_scenario',
@@ -1794,79 +1970,705 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
         _N_DRAWS,
         _N_MEDIA_CHANNELS + _N_RF_CHANNELS,
     ))
-    historical_spend = np.array([1000, 1000, 1000, 1000, 1000])
-    spend_bound_lower = np.array([500, 600, 700, 800, 900])
-    spend_bound_upper = np.array([1500, 1400, 1300, 1200, 1100])
-    selected_times = (
-        self.budget_optimizer_media_and_rf._meridian.expand_selected_time_dims()
+    self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf._analyzer,
+            'get_aggregated_spend',
+            return_value=mock.MagicMock(
+                data=np.array([1000, 1000, 1000, 1000, 1000])
+            ),
+        )
     )
-    optimal_spend = self.budget_optimizer_media_and_rf.create_optimization_grid(
-        historical_spend=historical_spend,
-        spend_bound_lower=spend_bound_lower,
-        spend_bound_upper=spend_bound_upper,
-        round_factor=-2,
-        selected_times=selected_times,
-    ).optimize(scenario=scenario)
+    spend_constraint_lower = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    spend_constraint_upper = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    budget = (
+        scenario.total_budget
+        if isinstance(scenario, optimizer.FixedBudgetScenario)
+        else None
+    )
+    spend = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        budget=budget,
+        gtol=0.01,
+    ).optimize(
+        scenario=scenario,
+        spend_constraint_lower=spend_constraint_lower,
+        spend_constraint_upper=spend_constraint_upper,
+    )
 
-    np.testing.assert_array_equal(optimal_spend, expected_optimal_spend)
+    np.testing.assert_array_equal(spend.optimized, expected_optimal_spend)
+
+  def test_trim_grid(self):
+    grid = optimizer.OptimizationGrid(
+        historical_spend=mock.MagicMock(),
+        use_kpi=False,
+        use_posterior=True,
+        use_optimal_frequency=False,
+        start_date=None,
+        end_date=None,
+        gtol=0.1,
+        round_factor=-2,
+        optimal_frequency=None,
+        selected_times=mock.MagicMock(),
+        _grid_dataset=mock.MagicMock(
+            channel=mock.MagicMock(
+                data=np.array(['ch1', 'ch2', 'ch3', 'ch4', 'ch5'])
+            ),
+            spend_grid=np.array([
+                [100, 0, 300, 0, 200],
+                [200, 100, 400, 100, 300],
+                [300, 200, 500, 200, np.nan],
+                [400, 300, np.nan, np.nan, np.nan],
+            ]),
+            incremental_outcome_grid=np.array([
+                [1.1, 0.0, 3.3, 0.0, 5.2],
+                [1.2, 2.1, 3.4, 4.1, 5.3],
+                [1.3, 2.2, 3.5, 4.2, np.nan],
+                [1.4, 2.3, np.nan, np.nan, np.nan],
+            ]),
+        ),
+    )
+    (updated_spend, updated_incremental_outcome) = grid._trim_grid(
+        spend_bound_lower=np.array([100, 100, 400, 0, 200]),
+        spend_bound_upper=np.array([400, 300, 400, 100, 300]),
+    )
+    np.testing.assert_array_equal(
+        updated_spend,
+        np.array([
+            [100, 100, 400, 0, 200],
+            [200, 200, np.nan, 100, 300],
+            [300, 300, np.nan, np.nan, np.nan],
+            [400, np.nan, np.nan, np.nan, np.nan],
+        ]),
+    )
+    np.testing.assert_array_equal(
+        updated_incremental_outcome,
+        np.array([
+            [1.1, 2.1, 3.4, 0.0, 5.2],
+            [1.2, 2.2, np.nan, 4.1, 5.3],
+            [1.3, 2.3, np.nan, np.nan, np.nan],
+            [1.4, np.nan, np.nan, np.nan, np.nan],
+        ]),
+    )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'default_budget_scenario_pct_of_spend_exceeds_grid',
+          'scenario': optimizer.FixedBudgetScenario(),
+          'pct_of_spend': np.array([0.0, 0.1, 0.2, 0.3, 0.4]),
+          'spend_constraint_lower': None,
+          'spend_constraint_upper': None,
+          'error_details': (
+              'Lower bound 0 for channel ch_0 is below the mimimum spend of the'
+              ' grid 29.0.\nUpper bound 542 for channel rf_ch_0 is above the'
+              ' maximum spend of the grid 517.0.\nUpper bound 722 for channel'
+              ' rf_ch_1 is above the maximum spend of the grid 547.0.'
+          ),
+      },
+      {
+          'testcase_name': 'default_budget_scenario_constraints_exceed_grid',
+          'scenario': optimizer.FixedBudgetScenario(),
+          'pct_of_spend': None,
+          'spend_constraint_lower': np.array([1.0, 0.9, 0.8, 0.7, 0.6]),
+          'spend_constraint_upper': np.array([1.0, 0.9, 0.8, 0.7, 0.6]),
+          'error_details': (
+              'Lower bound 0 for channel ch_0 is below the mimimum spend of the'
+              ' grid 29.0.\nUpper bound 588 for channel ch_0 is above the'
+              ' maximum spend of the grid 559.0.'
+          ),
+      },
+      {
+          'testcase_name': 'fixed_budget_scenario_budget_too_large',
+          'scenario': optimizer.FixedBudgetScenario(total_budget=100_000),
+          'pct_of_spend': None,
+          'spend_constraint_lower': None,
+          'spend_constraint_upper': None,
+          'error_details': (
+              'Upper bound 27509 for channel ch_0 is above the maximum spend of'
+              ' the grid 559.0.\nUpper bound 26109 for channel ch_1 is above'
+              ' the maximum spend of the grid 530.0.\nUpper bound 23945 for'
+              ' channel ch_2 is above the maximum spend of the grid'
+              ' 486.0.\nUpper bound 25483 for channel rf_ch_0 is above the'
+              ' maximum spend of the grid 517.0.\nUpper bound 26954 for channel'
+              ' rf_ch_1 is above the maximum spend of the grid 547.0.'
+          ),
+      },
+      {
+          'testcase_name': 'fixed_budget_scenario_budget_too_small',
+          'scenario': optimizer.FixedBudgetScenario(total_budget=100),
+          'pct_of_spend': None,
+          'spend_constraint_lower': None,
+          'spend_constraint_upper': None,
+          'error_details': (
+              'Lower bound 15 for channel ch_0 is below the mimimum spend of'
+              ' the grid 29.0.\nLower bound 14 for channel ch_1 is below the'
+              ' mimimum spend of the grid 28.0.\nLower bound 13 for channel'
+              ' ch_2 is below the mimimum spend of the grid 26.0.\nLower bound'
+              ' 14 for channel rf_ch_0 is below the mimimum spend of the grid'
+              ' 27.0.\nLower bound 15 for channel rf_ch_1 is below the mimimum'
+              ' spend of the grid 29.0.'
+          ),
+      },
+      {
+          'testcase_name': (
+              'flexible_budget_target_roi_scenario_constraints_exceed_grid'
+          ),
+          'scenario': optimizer.FlexibleBudgetScenario(
+              target_metric=c.ROI, target_value=1.0
+          ),
+          'pct_of_spend': None,
+          'spend_constraint_lower': None,
+          'spend_constraint_upper': None,
+          'error_details': (
+              'Lower bound 0 for channel ch_0 is below the mimimum spend of the'
+              ' grid 29.0.\nLower bound 0 for channel ch_1 is below the mimimum'
+              ' spend of the grid 28.0.\nLower bound 0 for channel ch_2 is'
+              ' below the mimimum spend of the grid 26.0.\nLower bound 0 for'
+              ' channel rf_ch_0 is below the mimimum spend of the grid'
+              ' 27.0.\nLower bound 0 for channel rf_ch_1 is below the mimimum'
+              ' spend of the grid 29.0.\nUpper bound 588 for channel ch_0 is'
+              ' above the maximum spend of the grid 559.0.\nUpper bound 558 for'
+              ' channel ch_1 is above the maximum spend of the grid'
+              ' 530.0.\nUpper bound 512 for channel ch_2 is above the maximum'
+              ' spend of the grid 486.0.\nUpper bound 544 for channel rf_ch_0'
+              ' is above the maximum spend of the grid 517.0.\nUpper bound 576'
+              ' for channel rf_ch_1 is above the maximum spend of the grid'
+              ' 547.0.'
+          ),
+      },
+      {
+          'testcase_name': (
+              'flexible_budget_target_mroi_scenario_constraints_exceed_grid'
+          ),
+          'scenario': optimizer.FlexibleBudgetScenario(
+              target_metric=c.MROI, target_value=1.0
+          ),
+          'pct_of_spend': None,
+          'spend_constraint_lower': None,
+          'spend_constraint_upper': None,
+          'error_details': (
+              'Lower bound 0 for channel ch_0 is below the mimimum spend of the'
+              ' grid 29.0.\nLower bound 0 for channel ch_1 is below the mimimum'
+              ' spend of the grid 28.0.\nLower bound 0 for channel ch_2 is'
+              ' below the mimimum spend of the grid 26.0.\nLower bound 0 for'
+              ' channel rf_ch_0 is below the mimimum spend of the grid'
+              ' 27.0.\nLower bound 0 for channel rf_ch_1 is below the mimimum'
+              ' spend of the grid 29.0.\nUpper bound 588 for channel ch_0 is'
+              ' above the maximum spend of the grid 559.0.\nUpper bound 558 for'
+              ' channel ch_1 is above the maximum spend of the grid'
+              ' 530.0.\nUpper bound 512 for channel ch_2 is above the maximum'
+              ' spend of the grid 486.0.\nUpper bound 544 for channel rf_ch_0'
+              ' is above the maximum spend of the grid 517.0.\nUpper bound 576'
+              ' for channel rf_ch_1 is above the maximum spend of the grid'
+              ' 547.0.'
+          ),
+      },
+  )
+  def test_optimize_grid_exceeds_spend_constraint(
+      self,
+      scenario,
+      pct_of_spend,
+      spend_constraint_lower,
+      spend_constraint_upper,
+      error_details,
+  ):
+    grid = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        spend_constraint_lower=0.9, spend_constraint_upper=0.9
+    )
+    error_message = (
+        'Spend allocation is not within the grid coverage:\n' + error_details
+    )
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        error_message,
+    ):
+      grid.optimize(
+          scenario=scenario,
+          pct_of_spend=pct_of_spend,
+          spend_constraint_lower=spend_constraint_lower,
+          spend_constraint_upper=spend_constraint_upper,
+      )
+
+  def test_optimize_grid_accuracy_raises_warning(self):
+    grid = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        budget=1_000_000
+    )
+    with self.assertWarnsRegex(
+        UserWarning,
+        'Optimization accuracy may suffer owing to budget level differences.'
+        ' Consider creating a new grid with smaller `gtol` if you intend to'
+        ' shrink total budget significantly across optimization runs.'
+        ' It is only a problem when you use a much smaller budget, '
+        ' for which the intended step size is smaller. ',
+    ):
+      grid.optimize(
+          scenario=optimizer.FixedBudgetScenario(total_budget=12),
+      )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'only_selected_times',
+          'selected_times': ('2021-01-25', '2021-02-22'),
+          'start_date': None,
+          'end_date': None,
+          'expected_start_date': '2021-01-25',
+          'expected_end_date': '2021-02-22',
+      },
+      {
+          'testcase_name': 'selected_times_and_start_date_and_end_date',
+          'selected_times': ('2021-01-25', '2021-02-22'),
+          'start_date': '2021-02-01',
+          'end_date': '2021-02-15',
+          'expected_start_date': '2021-02-01',
+          'expected_end_date': '2021-02-15',
+      },
+  )
+  def test_create_optimization_grid_selected_times_deprecated_warning(
+      self,
+      selected_times,
+      start_date,
+      end_date,
+      expected_start_date,
+      expected_end_date,
+  ):
+    budget_optimizer = self.budget_optimizer_media_and_rf
+    mock_validate_selected_times = self.enter_context(
+        mock.patch.object(
+            budget_optimizer,
+            '_validate_selected_times',
+            side_effect=budget_optimizer._validate_selected_times,
+        )
+    )
+    with self.assertWarnsRegex(
+        DeprecationWarning,
+        '`selected_times` is deprecated. Please use `start_date` and'
+        ' `end_date` instead.',
+    ):
+      self.budget_optimizer_media_and_rf.create_optimization_grid(
+          selected_times=selected_times,
+          start_date=start_date,
+          end_date=end_date,
+          # Set larger gtol to avoid timeouts.
+          gtol=0.1,
+      )
+      mock_validate_selected_times.assert_called_with(
+          start_date=expected_start_date,
+          end_date=expected_end_date,
+          new_data=mock.ANY,
+      )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'only_selected_times',
+          'selected_times': ('2021-01-25', '2021-02-22'),
+          'start_date': None,
+          'end_date': None,
+          'expected_start_date': '2021-01-25',
+          'expected_end_date': '2021-02-22',
+      },
+      {
+          'testcase_name': 'selected_times_and_start_date_and_end_date',
+          'selected_times': ('2021-01-25', '2021-02-22'),
+          'start_date': '2021-02-01',
+          'end_date': '2021-02-15',
+          'expected_start_date': '2021-02-01',
+          'expected_end_date': '2021-02-15',
+      },
+  )
+  def test_optimize_selected_times_deprecated_warning(
+      self,
+      selected_times,
+      start_date,
+      end_date,
+      expected_start_date,
+      expected_end_date,
+  ):
+    budget_optimizer = self.budget_optimizer_media_only
+    mock_validate_selected_times = self.enter_context(
+        mock.patch.object(
+            budget_optimizer,
+            '_validate_selected_times',
+            side_effect=budget_optimizer._validate_selected_times,
+        )
+    )
+    with self.assertWarnsRegex(
+        DeprecationWarning,
+        '`selected_times` is deprecated. Please use `start_date` and'
+        ' `end_date` instead.',
+    ):
+      self.budget_optimizer_media_only.optimize(
+          selected_times=selected_times,
+          start_date=start_date,
+          end_date=end_date,
+          # Set larger gtol to avoid timeouts.
+          gtol=0.1,
+      )
+      mock_validate_selected_times.assert_called_with(
+          start_date=expected_start_date,
+          end_date=expected_end_date,
+          new_data=mock.ANY,
+      )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'default_fixed_budget_scenario',
+          'scenario': optimizer.FixedBudgetScenario(),
+          'fixed_budget': True,
+          'budget': None,
+          'target_roi': None,
+          'target_mroi': None,
+      },
+      {
+          'testcase_name': 'fixed_budget_scenario_with_new_budget',
+          'scenario': optimizer.FixedBudgetScenario(total_budget=6000),
+          'fixed_budget': True,
+          'budget': 6000,
+          'target_roi': None,
+          'target_mroi': None,
+      },
+      {
+          'testcase_name': 'flexible_budget_target_roi_scenario',
+          'scenario': optimizer.FlexibleBudgetScenario(
+              target_metric=c.ROI, target_value=1.0
+          ),
+          'fixed_budget': False,
+          'budget': None,
+          'target_roi': 1.0,
+          'target_mroi': None,
+      },
+      {
+          'testcase_name': 'flexible_budget_target_mroi_scenario',
+          'scenario': optimizer.FlexibleBudgetScenario(
+              target_metric=c.MROI, target_value=1.0
+          ),
+          'fixed_budget': False,
+          'budget': None,
+          'target_roi': None,
+          'target_mroi': 1.0,
+      },
+  )
+  def test_optimize_grid_matches_optimize(
+      self,
+      scenario,
+      fixed_budget,
+      budget,
+      target_roi,
+      target_mroi,
+  ):
+    spend_constraint_lower = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    spend_constraint_upper = np.array([0.5, 0.4, 0.3, 0.2, 0.1])
+    grid = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        budget=budget,
+    )
+    spend = grid.optimize(
+        scenario=scenario,
+        spend_constraint_lower=spend_constraint_lower,
+        spend_constraint_upper=spend_constraint_upper,
+    )
+    optimization_results = self.budget_optimizer_media_and_rf.optimize(
+        fixed_budget=fixed_budget,
+        budget=budget,
+        target_roi=target_roi,
+        target_mroi=target_mroi,
+        spend_constraint_lower=spend_constraint_lower,
+        spend_constraint_upper=spend_constraint_upper,
+    )
+
+    np.testing.assert_array_equal(
+        spend.optimized, optimization_results.optimized_data.spend
+    )
+    np.testing.assert_array_equal(
+        spend.non_optimized, optimization_results.nonoptimized_data.spend
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='start_date',
+          create_optimization_grid_args={'start_date': None},
+          optimize_args={'start_date': '2021-02-01'},
+          warning_regex=(
+              'Given optimization grid was created with `start_date` = None'
+              ' and `end_date` = None, but optimization was called with'
+              ' `start_date` = 2021-02-01 and `end_date` = None. A new grid'
+              ' will be created.'
+          ),
+      ),
+      dict(
+          testcase_name='end_date',
+          create_optimization_grid_args={'end_date': None},
+          optimize_args={'end_date': '2021-02-01'},
+          warning_regex=(
+              'Given optimization grid was created with `start_date` = None and'
+              ' `end_date` = None, but optimization was called with'
+              ' `start_date` = None and `end_date` = 2021-02-01. A new grid'
+              ' will be created.'
+          ),
+      ),
+      dict(
+          testcase_name='use_posterior',
+          create_optimization_grid_args={'use_posterior': False},
+          optimize_args={'use_posterior': True},
+          warning_regex=(
+              'Given optimization grid was created with `use_posterior` ='
+              ' False, but optimization was called with `use_posterior` = True.'
+              ' A new grid will be created.'
+          ),
+      ),
+      dict(
+          testcase_name='use_kpi',
+          create_optimization_grid_args={'use_kpi': True},
+          optimize_args={'use_kpi': False},
+          warning_regex=(
+              'Given optimization grid was created with `use_kpi` = True, but'
+              ' optimization was called with `use_kpi` = False. A new grid will'
+              ' be created.'
+          ),
+      ),
+      dict(
+          testcase_name='use_optimal_frequency',
+          create_optimization_grid_args={'use_optimal_frequency': False},
+          optimize_args={'use_optimal_frequency': True},
+          warning_regex=(
+              'Given optimization grid was created with `use_optimal_frequency`'
+              ' = False, but optimization was called with'
+              ' `use_optimal_frequency` = True. A new grid will be created.'
+          ),
+      ),
+      dict(
+          testcase_name='pct_of_spend',
+          create_optimization_grid_args={
+              'pct_of_spend': np.array([0.3, 0.3, 0.2, 0.1, 0.1])
+          },
+          optimize_args={'pct_of_spend': np.array([0.1, 0.2, 0.3, 0.3, 0.1])},
+          warning_regex=(
+              'Optimization called with bounds that are not within the grid.'
+          ),
+      ),
+  )
+  def test_optimize_with_wrong_grid_new_grid_created(
+      self, create_optimization_grid_args, optimize_args, warning_regex
+  ):
+    budget_optimizer = self.budget_optimizer_media_and_rf
+    mock_create_optimization_grid = self.enter_context(
+        mock.patch.object(
+            budget_optimizer,
+            'create_optimization_grid',
+            side_effect=budget_optimizer.create_optimization_grid,
+        )
+    )
+    # Set larger gtol to avoid timeouts.
+    gtol = 0.01
+    create_optimization_grid_args.update({'gtol': gtol})
+    optimize_args.update({'gtol': gtol})
+    grid = budget_optimizer.create_optimization_grid(
+        **create_optimization_grid_args
+    )
+    with self.assertWarnsRegex(UserWarning, warning_regex):
+      budget_optimizer.optimize(optimization_grid=grid, **optimize_args)
+    default_optimization_args = {
+        'new_data': None,
+        'start_date': None,
+        'end_date': None,
+        'budget': None,
+        'pct_of_spend': None,
+        'spend_constraint_lower': 0.3,
+        'spend_constraint_upper': 0.3,
+        'gtol': 0.0001,
+        'use_posterior': True,
+        'use_kpi': False,
+        'use_optimal_frequency': True,
+        'batch_size': 100,
+    }
+    default_optimization_args.update(optimize_args)
+
+    mock_create_optimization_grid.assert_has_calls([
+        # First call in the test intself.
+        mock.call(**create_optimization_grid_args),
+        # Second call from the `optimize` function.
+        mock.call(**default_optimization_args),
+    ])
+
+  def test_optimize_with_wrong_channels_grid_new_grid_created(self):
+    budget_optimizer_media_and_rf = self.budget_optimizer_media_and_rf
+    mock_create_optimization_grid_media_and_rf = self.enter_context(
+        mock.patch.object(
+            budget_optimizer_media_and_rf,
+            'create_optimization_grid',
+            side_effect=budget_optimizer_media_and_rf.create_optimization_grid,
+        )
+    )
+    grid = self.budget_optimizer_media_only.create_optimization_grid()
+    with self.assertWarnsRegex(
+        UserWarning,
+        'Given optimization grid was created with `channels`',
+    ):
+      budget_optimizer_media_and_rf.optimize(optimization_grid=grid)
+
+    mock_create_optimization_grid_media_and_rf.assert_called_once()
+
+  def test_optimize_with_wrong_new_data_grid_new_grid_created(self):
+    start_date = '2025-04-07'
+    end_date = '2025-04-28'
+    new_times = [
+        '2025-03-31',
+        '2025-04-07',
+        '2025-04-14',
+        '2025-04-21',
+        '2025-04-28',
+    ]
+    new_data = analyzer.DataTensors(
+        media=self.meridian_media_and_rf.media_tensors.media[..., -5:, :],
+        reach=self.meridian_media_and_rf.rf_tensors.reach[..., -5:, :],
+        frequency=self.meridian_media_and_rf.rf_tensors.frequency[..., -5:, :],
+        media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+            ..., -5:, :
+        ],
+        rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[..., -5:, :],
+        revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[..., -5:],
+        time=new_times,
+    )
+    budget_optimizer = self.budget_optimizer_media_and_rf
+    mock_create_optimization_grid = self.enter_context(
+        mock.patch.object(
+            budget_optimizer,
+            'create_optimization_grid',
+            side_effect=budget_optimizer.create_optimization_grid,
+        )
+    )
+    create_optimization_grid_args = {
+        'new_data': new_data,
+        'start_date': '2025-04-07',
+        'end_date': '2025-04-21',
+        'gtol': 0.01,
+    }
+    grid = budget_optimizer.create_optimization_grid(
+        **create_optimization_grid_args
+    )
+    optimization_args = {
+        'new_data': new_data,
+        'start_date': start_date,
+        'end_date': end_date,
+        'budget': None,
+        'pct_of_spend': None,
+        'spend_constraint_lower': 0.3,
+        'spend_constraint_upper': 0.3,
+        'gtol': 0.01,
+        'use_posterior': True,
+        'use_kpi': False,
+        'use_optimal_frequency': True,
+        'batch_size': 100,
+    }
+    with self.assertWarnsRegex(
+        UserWarning,
+        'Given optimization grid was created with `start_date` = 2025-04-07 and'
+        ' `end_date` = 2025-04-21, but optimization was called with'
+        ' `start_date` = 2025-04-07 and `end_date` = 2025-04-28. A new grid'
+        ' will be created.',
+    ):
+      budget_optimizer.optimize(optimization_grid=grid, **optimization_args)
+
+    mock_create_optimization_grid.assert_has_calls([
+        # First call in the test intself.
+        mock.call(**create_optimization_grid_args),
+        # Second call from the `optimize` function.
+        mock.call(**optimization_args),
+    ])
+
+  def test_optimize_with_none_grid_new_grid_created(self):
+    budget_optimizer = self.budget_optimizer_media_and_rf
+    mock_create_optimization_grid = self.enter_context(
+        mock.patch.object(
+            budget_optimizer,
+            'create_optimization_grid',
+            side_effect=budget_optimizer.create_optimization_grid,
+        )
+    )
+    # Set larger gtol to avoid timeouts.
+    gtol = 0.01
+    budget_optimizer.optimize(optimization_grid=None, gtol=gtol)
+
+    mock_create_optimization_grid.assert_called_once()
+
+  def test_optimize_with_correct_grid_new_grid_not_created(self):
+    budget_optimizer = self.budget_optimizer_media_and_rf
+    mock_create_optimization_grid = self.enter_context(
+        mock.patch.object(
+            self.budget_optimizer_media_and_rf,
+            'create_optimization_grid',
+            side_effect=budget_optimizer.create_optimization_grid,
+        )
+    )
+    # Set larger gtol to avoid timeouts.
+    gtol = 0.01
+    grid = budget_optimizer.create_optimization_grid(gtol=gtol)
+    budget_optimizer.optimize(optimization_grid=grid, gtol=gtol)
+
+    # Only called once in the test itself.
+    mock_create_optimization_grid.assert_called_once()
+
+  def test_optimize_with_grid_correct(self):
+    # Set larger gtol to avoid timeouts.
+    gtol = 0.01
+    grid = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        gtol=gtol
+    )
+    opt_result_1 = self.budget_optimizer_media_and_rf.optimize(
+        optimization_grid=grid, gtol=gtol
+    )
+    opt_result_2 = self.budget_optimizer_media_and_rf.optimize(gtol=gtol)
+
+    _verify_actual_vs_expected_budget_data(
+        opt_result_1.optimized_data, opt_result_2.optimized_data
+    )
+    _verify_actual_vs_expected_budget_data(
+        opt_result_1.nonoptimized_data, opt_result_2.nonoptimized_data
+    )
+    _verify_actual_vs_expected_budget_data(
+        opt_result_1.nonoptimized_data_with_optimal_freq,
+        opt_result_2.nonoptimized_data_with_optimal_freq,
+    )
+
+  def test_optimize_with_wrong_granularity_raises_warning(self):
+    grid = self.budget_optimizer_media_and_rf.create_optimization_grid(
+        budget=10_000
+    )
+    with self.assertWarnsRegex(
+        UserWarning,
+        'Optimization accuracy may suffer owing to budget level differences.'
+        ' Consider creating a new grid with smaller `gtol` if you intend to'
+        ' shrink total budget significantly across optimization runs.'
+        ' It is only a problem when you use a much smaller budget, '
+        ' for which the intended step size is smaller.',
+    ):
+      self.budget_optimizer_media_and_rf.optimize(
+          budget=100, optimization_grid=grid
+      )
 
   def test_optimization_grid_nans_match(self):
     self.enter_context(
         mock.patch.object(
             self.budget_optimizer_media_and_rf._analyzer,
-            'get_historical_spend',
+            'get_aggregated_spend',
             return_value=mock.MagicMock(data=np.array([100, 200, 0, 400, 0])),
         )
     )
 
-    opt_results = self.budget_optimizer_media_and_rf.optimize()
+    opt_results = self.budget_optimizer_media_and_rf.optimize(gtol=0.01)
     np.testing.assert_array_equal(
         np.isnan(opt_results.optimization_grid.spend_grid),
         np.isnan(opt_results.optimization_grid.incremental_outcome_grid),
     )
 
   def test_grid_search_with_target_roi_correct(self):
-    spend_grid = np.array([
-        [0, 0, 0, 0, 65900000, 40300000],
-        [100000, 100000, 100000, 100000, 66000000, 40400000],
-        [200000, 200000, 200000, 200000, 66100000, 40500000],
-        [300000, 300000, 300000, 300000, 66200000, 40600000],
-        [400000, 400000, 400000, 400000, 66300000, 40700000],
-        [500000, 500000, 500000, 500000, 66400000, 40800000],
-    ])
-    incremental_outcome_grid = np.array([
-        [0, 0, 0, 0, 31020000, 16160000],
-        [220000, 360000, 180000, 390000, 31070000, 16200000],
-        [430000, 710000, 350000, 780000, 31120000, 16240000],
-        [650000, 1060000, 530000, 1160000, 31170000, 16280000],
-        [860000, 1400000, 700000, 1520000, 31220000, 16320000],
-        [1060000, 1730000, 870000, 1880000, 31270000, 16360000],
-    ])
-
-    optimization_grid = optimizer.OptimizationGrid(
-        _grid_dataset=mock.MagicMock(
-            spend_grid=spend_grid,
-            incremental_outcome_grid=incremental_outcome_grid,
-        ),
-        historical_spend=mock.MagicMock(),
-        use_kpi=False,
-        use_posterior=True,
-        use_optimal_frequency=False,
-        round_factor=-2,
-        optimal_frequency=None,
-        selected_times=mock.MagicMock(),
+    spend = (
+        self.budget_optimizer_media_and_rf.create_optimization_grid().optimize(
+            scenario=optimizer.FlexibleBudgetScenario(
+                target_metric=c.ROI, target_value=1.0
+            )
+        )
     )
-    optimal_spend = optimization_grid.optimize(
-        scenario=optimizer.FlexibleBudgetScenario(
-            target_metric=c.ROI, target_value=1.0
-        ),
-    )
+    expected_optimal_spend = np.array([588, 558, 512, 544, 576])
 
-    expected_optimal_spend = np.array(
-        [500000, 500000, 500000, 500000, 66400000, 40300000]
-    )
-
-    np.testing.assert_array_equal(optimal_spend, expected_optimal_spend)
+    np.testing.assert_array_equal(spend.optimized, expected_optimal_spend)
 
   @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
   def test_optimizer_budget_with_specified_budget(
@@ -1917,6 +2719,67 @@ class OptimizerAlgorithmTest(parameterized.TestCase):
 
     optimization_results = self.budget_optimizer_media_and_rf.optimize(
         pct_of_spend=pct_of_spend, fixed_budget=True, budget=1000
+    )
+
+    actual_spend = optimization_results.nonoptimized_data.spend
+    actual_budget = optimization_results.nonoptimized_data.budget
+    np.testing.assert_almost_equal(
+        optimization_results.nonoptimized_data.pct_of_spend,
+        expected_pct_of_spend,
+        decimal=7,
+    )
+    np.testing.assert_array_equal(
+        optimization_results.nonoptimized_data.budget,
+        optimization_results.optimized_data.budget,
+    )
+    np.testing.assert_almost_equal(
+        expected_pct_of_spend,
+        actual_spend / actual_budget,
+        decimal=7,
+    )
+
+  @mock.patch.object(analyzer.Analyzer, 'incremental_outcome', autospec=True)
+  def test_budget_data_with_new_data_with_specified_pct_of_spend(
+      self, mock_incremental_outcome
+  ):
+    mock_incremental_outcome.return_value = tf.convert_to_tensor(
+        [[_NONOPTIMIZED_INCREMENTAL_OUTCOME]], tf.float32
+    )
+    expected_pct_of_spend = [0.1, 0.2, 0.3, 0.3, 0.1]
+
+    idata = self.budget_optimizer_media_and_rf._meridian.input_data
+    paid_channels = list(idata.get_all_paid_channels())
+    pct_of_spend = idata.get_paid_channels_argument_builder()(**{
+        paid_channels[0]: 0.1,
+        paid_channels[1]: 0.2,
+        paid_channels[2]: 0.3,
+        paid_channels[3]: 0.3,
+        paid_channels[4]: 0.1,
+    })
+
+    optimization_results = self.budget_optimizer_media_and_rf.optimize(
+        pct_of_spend=pct_of_spend,
+        new_data=analyzer.DataTensors(
+            media=self.meridian_media_and_rf.media_tensors.media[..., -10:, :],
+            reach=self.meridian_media_and_rf.rf_tensors.reach[..., -10:, :],
+            frequency=self.meridian_media_and_rf.rf_tensors.frequency[
+                ..., -10:, :
+            ],
+            media_spend=self.meridian_media_and_rf.media_tensors.media_spend[
+                ..., -10:, :
+            ],
+            rf_spend=self.meridian_media_and_rf.rf_tensors.rf_spend[
+                ..., -10:, :
+            ],
+            revenue_per_kpi=self.meridian_media_and_rf.revenue_per_kpi[
+                ..., -10:
+            ],
+            time=self.meridian_media_and_rf.input_data.time[
+                -10:
+            ].values.tolist(),
+        ),
+        fixed_budget=True,
+        budget=1000,
     )
 
     actual_spend = optimization_results.nonoptimized_data.spend
@@ -2062,6 +2925,9 @@ class OptimizerPlotsTest(absltest.TestCase):
         use_kpi=False,
         use_posterior=True,
         use_optimal_frequency=False,
+        start_date=None,
+        end_date=None,
+        gtol=0.1,
         round_factor=1,
         optimal_frequency=None,
         selected_times=self.meridian.expand_selected_time_dims(),
@@ -2629,8 +3495,10 @@ class OptimizerOutputTest(parameterized.TestCase):
     )
     meridian.input_data.kpi_type = c.REVENUE
     meridian.input_data.revenue_per_kpi = self.revenue_per_kpi
+    meridian.input_data.time_coordinates.interval_days = 7
     meridian_kpi_output.input_data.kpi_type = c.NON_REVENUE
     meridian_kpi_output.input_data.revenue_per_kpi = None
+    meridian_kpi_output.input_data.time_coordinates.interval_days = 7
 
     self.budget_optimizer = optimizer.BudgetOptimizer(meridian)
     self.budget_optimizer_kpi_output = optimizer.BudgetOptimizer(
@@ -2642,6 +3510,9 @@ class OptimizerOutputTest(parameterized.TestCase):
         use_kpi=False,
         use_posterior=True,
         use_optimal_frequency=False,
+        start_date=None,
+        end_date=None,
+        gtol=0.1,
         round_factor=1,
         optimal_frequency=None,
         selected_times=mock.MagicMock(),
@@ -2762,7 +3633,7 @@ class OptimizerOutputTest(parameterized.TestCase):
     self.assertSequenceEqual(
         [chip.text.strip() for chip in chip_nodes if chip.text is not None],
         [
-            'Time period: 2020-01-05 - 2020-06-28',
+            'Time period: Jan 25, 2021 - Jan 3, 2022',
         ],
     )
 
@@ -2795,7 +3666,7 @@ class OptimizerOutputTest(parameterized.TestCase):
         )
         + ' '
         + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
-            start_date='2020-01-05', end_date='2020-06-28'
+            start_date='2021-01-25', end_date='2021-12-27'
         ),
     )
 
@@ -2834,7 +3705,7 @@ class OptimizerOutputTest(parameterized.TestCase):
         )
         + ' '
         + summary_text.SCENARIO_PLAN_INSIGHTS_NEW_BUDGET.format(
-            start_date='2020-01-05', end_date='2020-06-28'
+            start_date='2021-01-25', end_date='2021-12-27'
         ),
     )
 
@@ -2860,8 +3731,8 @@ class OptimizerOutputTest(parameterized.TestCase):
         )
         + ' '
         + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
-            start_date='2020-01-05',
-            end_date='2020-06-28',
+            start_date='2021-01-25',
+            end_date='2021-12-27',
         ),
     )
 
@@ -2888,8 +3759,8 @@ class OptimizerOutputTest(parameterized.TestCase):
         )
         + ' '
         + summary_text.SCENARIO_PLAN_INSIGHTS_HISTORICAL_BUDGET.format(
-            start_date='2020-01-05',
-            end_date='2020-06-28',
+            start_date='2021-01-25',
+            end_date='2021-12-27',
         ),
     )
 

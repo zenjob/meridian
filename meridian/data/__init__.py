@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
 """Data handling API for Meridian."""
 
 from meridian.data import arg_builder
+from meridian.data import data_frame_input_data_builder
 from meridian.data import input_data
+from meridian.data import input_data_builder
 from meridian.data import load
+from meridian.data import nd_array_input_data_builder
 from meridian.data import time_coordinates

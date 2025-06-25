@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ MODEL_RESULTS_TITLE = 'Marketing Mix Modeling Report'
 MODEL_FIT_CARD_ID = 'model-fit'
 MODEL_FIT_CARD_TITLE = 'Model fit'
 MODEL_FIT_INSIGHTS_FORMAT = """Model fit is a measure of how well your MMM fits
-your current data used to train the model."""
+the data used to train the model. The best model for causal inference may differ
+from the best fitting model, because causal inference models must also estimate
+the unobserved baseline."""
 
 EXPECTED_ACTUAL_OUTCOME_CHART_ID = 'expected-actual-outcome-chart'
 EXPECTED_ACTUAL_OUTCOME_CHART_TITLE = 'Expected {outcome} vs. actual {outcome}'
@@ -41,6 +43,23 @@ CHANNEL_CONTRIB_CARD_TITLE = 'Channel contribution'
 CHANNEL_CONTRIB_INSIGHTS_FORMAT = """Your channel contributions help you
 understand what drove your {outcome}. {lead_channels} drove the most overall
 {outcome}."""
+
+CHANNEL_CONTRIB_BY_TIME_CHART_ID = 'channel-contrib-by-time-chart'
+CHANNEL_CONTRIB_BY_TIME_CHART_TITLE = (
+    'Contribution over time by baseline and marketing channels'
+)
+CHANNEL_CONTRIB_BY_TIME_CHART_DESCRIPTION = """Note: This chart shows the
+estimated incremental {outcome} attributed to each channel and the baseline over
+the selected time period. It helps visualize how contributions have changed."""
+
+CHANNEL_CONTRIB_RANK_CHART_ID = 'channel-contrib-rank-chart'
+CHANNEL_CONTRIB_RANK_CHART_TITLE = (
+    'Contribution rank over time by baseline and marketing channels'
+)
+CHANNEL_CONTRIB_RANK_CHART_DESCRIPTION = """Note: This chart shows the relative
+rank of each channel's contribution, including the baseline, based on
+incremental {outcome} at the end of each quarter. Rank 1 represents the highest
+contribution."""
 
 CHANNEL_DRIVERS_CHART_ID = 'channel-drivers-chart'
 CHANNEL_DRIVERS_CHART_TITLE = 'Contribution by baseline and marketing channels'

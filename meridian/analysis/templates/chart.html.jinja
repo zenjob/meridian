@@ -28,6 +28,7 @@ limitations under the License.
     const opt = {
       mode: 'vega-lite',
       width: 'container',
+      autosize: { type: 'fit', contains: 'padding' }
     };
     const spec = JSON.parse({{ chart_json|tojson }});
     const chartDiv = document.getElementById('{{ id }}');

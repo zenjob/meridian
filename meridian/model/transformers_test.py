@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -178,6 +178,20 @@ class CenteringAndScalingTransformerTest(absltest.TestCase):
           self._population[:, None]
           * (self._controls_transformed[:, :, c] * stdevs + means),
           self._controls4[:, :, c],
+      )
+
+  def test_output_population_scaled_no_population_scaling(self):
+    for c in [1, 3, 4]:
+      population_scaled_controls = (
+          self._controls4[..., c] / self._population[:, None]
+      )
+      tf.debugging.assert_near(
+          self._transformer.forward(
+              population_scaled_controls, apply_population_scaling=False
+          )[..., c],
+          self._transformer.forward(
+              self._controls4, apply_population_scaling=True
+          )[..., c],
       )
 
 

@@ -30,6 +30,7 @@ dependencies = [
   "altair >= 5",
   "immutabledict",
   "joblib",
+  "natsort >= 7.1.1, < 8",
   "numpy >= 2.0.2, < 3",
   "pandas >= 2.2.2, < 3",
   "scipy >= 1.13.1, < 2",
@@ -61,12 +62,16 @@ dev = [
 # Installed through `pip install -e .[colab]`
 colab = [
   "psutil",
+  "python-calamine",  # For parsing the included simulated .xlsx files.
 ]
 # GPU deps
 # Installed through `pip install -e .[and-cuda]`
 and-cuda = [
   "tensorflow[and-cuda] >= 2.18, < 2.19",
 ]
+# MLflow deps
+# Installed through `pip install -e .[mlflow]`
+mlflow = ["mlflow"]
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide
@@ -92,4 +97,4 @@ include = ["meridian*"]
 exclude = ["*test"]
 
 [tool.setuptools.dynamic]
-version = {attr = "meridian.__version__"}
+version = {attr = "meridian.version.__version__"}

@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ def _check_dim_collection(
     )
 
 
-def _check_dim_match(dim: str, arrays: Sequence[xr.DataArray]):
+def _check_dim_match(dim: str, arrays: Sequence[xr.DataArray | None]):
   """Verifies that the dimensions of the appropriate arrays match."""
   lengths = [len(array.coords[dim]) for array in arrays if array is not None]
   names = [array.name for array in arrays if array is not None]
@@ -83,6 +83,31 @@ def _check_coords_match(dim: str, arrays: Sequence[xr.DataArray]):
       )
 
 
+def _aggregate_spend(
+    spend: xr.DataArray, calibration_period: np.ndarray | None
+) -> np.ndarray | None:
+  """Aggregates spend for each channel over the calibration period.
+
+  Args:
+    spend: An array with shape `(n_geos, n_times, n_channels)` to aggregate.
+    calibration_period: An optional boolean array of shape `(n_media_times,
+      n_channels)`. If provided, spend is filtered according to this period.
+
+  Returns:
+    A 1-D array of aggregated media spend per channel, or `None` if `spend` is
+    `None`.
+  """
+  if spend is None:
+    return None
+
+  if calibration_period is None:
+    return np.sum(spend, axis=(0, 1))
+
+  # Select the last `n_times` from the `calibration_period`
+  factors = np.where(calibration_period[-spend.shape[1] :, :], 1, 0)
+  return np.einsum("gtm,tm->m", spend, factors)
+
+
 @dataclasses.dataclass
 class InputData:
   """A data container for advertising data in a format supported by Meridian.
@@ -96,11 +121,11 @@ class InputData:
       `revenue_per_kpi` exists, ROI calibration is used and the analysis is run
       on revenue. When the `revenue_per_kpi` doesn't exist for the same
       `kpi_type`, custom ROI calibration is used and the analysis is run on KPI.
-    controls: A DataArray of dimensions `(n_geos, n_times, n_controls)`
-      containing control variable values.
     population: A DataArray of dimensions `(n_geos,)` containing the population
       of each group. This variable is used to scale the KPI and media for
       modeling.
+    controls: An optional DataArray of dimensions `(n_geos, n_times,
+      n_controls)` containing control variable values.
     revenue_per_kpi: An optional DataArray of dimensions `(n_geos, n_times)`
       containing the average revenue amount per KPI unit. Although modeling is
       done on `kpi`, model analysis and optimization are done on `KPI *
@@ -120,8 +145,14 @@ class InputData:
       in the same order. If either of these arguments is passed, then the other
       is not optional.
     media_spend: An optional `DataArray` containing the cost of each media
-      channel. This is used as the denominator for ROI calculations. The
-      DataArray shape can be `(n_geos, n_times, n_media_channels)` or
+      channel. This is used as the denominator for ROI calculations. It is also
+      used to calculate an assumed cost per media unit for post-modeling
+      analysis such as response curves and budget optimization. Only the
+      aggregate spend (across geos and time periods) is required for these
+      calculations. However, a spend breakdown by geo and time period is
+      required if `roi_calibration_period` is specified or if conducting
+      post-modeling analysis on a specific subset of geos and/or time periods.
+      The DataArray shape can be `(n_geos, n_times, n_media_channels)` or
       `(n_media_channels,)` if the data is aggregated over `geo` and `time`
       dimensions. We recommend that the spend total aligns with the time window
       of the `kpi` and `controls` data, which is the time window over which
@@ -131,7 +162,9 @@ class InputData:
       time window of media executed during the time window. `media` and
       `media_spend` must contain the same number of media channels in the same
       order. If either of these arguments is passed, then the other is not
-      optional.
+      optional. If a tensor of shape `(n_media_channels,)` is passed as
+      `media_spend`, then it will be automatically allocated across geos and
+      times proportinally to `media`.
     reach: An optional `DataArray` of dimensions `(n_geos, n_media_times,
       n_rf_channels)` containing non-negative `reach` values. It is required
       that `n_media_times` ≥ `n_times`, and the final `n_times` time periods
@@ -164,18 +197,26 @@ class InputData:
       others are not optional.
     rf_spend: An optional `DataArray` containing the cost of each reach and
       frequency channel. This is used as the denominator for ROI calculations.
-      The DataArray shape can be `(n_rf_channels,)`, `(n_geos, n_times,
-      n_rf_channels)`, or `(n_geos, n_rf_channels)`. The spend should be
-      aggregated over geo and/or time dimensions that are not represented. We
-      recommend that the spend total aligns with the time window of the `kpi`
-      and `controls` data, which is the time window over which incremental
-      outcome of the ROI numerator is calculated. However, note that incremental
-      outcome is influenced by media execution prior to this time window,
-      through lagged effects, and excludes lagged effects beyond the time window
-      of media executed during the time window. If only `media` data is used,
-      `rf_spend` will be `None`. `reach`, `frequency`, and `rf_spend` must
-      contain the same number of media channels in the same order. If any of
-      these arguments is passed, then the others are not optional.
+      It is also used to calculate an assumed cost per media unit for
+      post-modeling analysis such as response curves and budget optimization.
+      Only the aggregate spend (across geos and time periods) is required for
+      these calculations. However, a spend breakdown by geo and time period is
+      required if `rf_roi_calibration_period` is specified or if conducting
+      post-modeling analysis on a specific subset of geos and/or time periods.
+      The DataArray shape can be `(n_rf_channels,)` or `(n_geos, n_times,
+      n_rf_channels)`. The spend should be aggregated over geo and/or time
+      dimensions that are not represented. We recommend that the spend total
+      aligns with the time window of the `kpi` and `controls` data, which is the
+      time window over which incremental outcome of the ROI numerator is
+      calculated. However, note that incremental outcome is influenced by media
+      execution prior to this time window, through lagged effects, and excludes
+      lagged effects beyond the time window of media executed during the time
+      window. If only `media` data is used, `rf_spend` will be `None`. `reach`,
+      `frequency`, and `rf_spend` must contain the same number of media channels
+      in the same order. If any of these arguments is passed, then the others
+      are not optional. If a tensor of shape `(n_rf_channels,)` is passed as
+      `rf_spend`, then it will be automatically allocated across geos and times
+      proportionally to `(reach * frequency)`.
     organic_media: An optional `DataArray` of dimensions `(n_geos,
       n_media_times, n_organic_media_channels)` containing non-negative organic
       media values. Organic media variables are media activities that have no
@@ -234,8 +275,8 @@ class InputData:
 
   kpi: xr.DataArray
   kpi_type: str
-  controls: xr.DataArray
   population: xr.DataArray
+  controls: xr.DataArray | None = None
   revenue_per_kpi: xr.DataArray | None = None
   media: xr.DataArray | None = None
   media_spend: xr.DataArray | None = None
@@ -264,6 +305,40 @@ class InputData:
       array = getattr(self, field.name)
       if isinstance(array, xr.DataArray) and constants.GEO in array.dims:
         array.coords[constants.GEO] = array.coords[constants.GEO].astype(str)
+
+  # TODO: b/416775065 - Combine with Analyzer._impute_and_aggregate_spend
+  @functools.cached_property
+  def allocated_media_spend(self) -> xr.DataArray | None:
+    """Returns the allocated media spend for each geo and time."""
+    if self.media_spend is not None and len(self.media_spend.shape) == 1:
+      return self._allocate_spend(self.media_spend, self.media)
+    else:
+      return self.media_spend
+
+  @property
+  def allocated_rf_spend(self) -> xr.DataArray | None:
+    """Returns the allocated RF spend for each geo and time."""
+    if self.rf_spend is not None and len(self.rf_spend.shape) == 1:
+      return self._allocate_spend(self.rf_spend, self.reach * self.frequency)
+    else:
+      return self.rf_spend
+
+  def aggregate_media_spend(
+      self, calibration_period: np.ndarray | None = None
+  ) -> np.ndarray | None:
+    """Aggregates media spend by channel over the calibration period."""
+    return _aggregate_spend(
+        spend=self.allocated_media_spend, calibration_period=calibration_period
+    )
+
+  def aggregate_rf_spend(
+      self, calibration_period: np.ndarray | None = None
+  ) -> np.ndarray | None:
+    """Aggregates RF spend by channel over the calibration period."""
+    return _aggregate_spend(
+        spend=self.allocated_rf_spend,
+        calibration_period=calibration_period,
+    )
 
   @property
   def geo(self) -> xr.DataArray:
@@ -334,9 +409,12 @@ class InputData:
       return None
 
   @property
-  def control_variable(self) -> xr.DataArray:
+  def control_variable(self) -> xr.DataArray | None:
     """Returns the control variable dimension."""
-    return self.controls[constants.CONTROL_VARIABLE]
+    if self.controls is not None:
+      return self.controls[constants.CONTROL_VARIABLE]
+    else:
+      return None
 
   @property
   def media_spend_has_geo_dimension(self) -> bool:
@@ -401,6 +479,7 @@ class InputData:
         )
 
   def _validate_kpi(self):
+    """Validates the KPI data."""
     if (
         self.kpi_type != constants.REVENUE
         and self.kpi_type != constants.NON_REVENUE
@@ -413,12 +492,21 @@ class InputData:
     if (self.kpi.values < 0).any():
       raise ValueError("KPI values must be non-negative.")
 
+    if (
+        self.revenue_per_kpi is not None
+        and (self.revenue_per_kpi.values <= 0).all()
+    ):
+      raise ValueError(
+          "Revenue per KPI values must not be all zero or negative."
+      )
+
   def _validate_names(self):
     """Verifies that the names of the data arrays are correct."""
-    arrays = [
+    # Must match the order of constants.POSSIBLE_INPUT_DATA_ARRAY_NAMES!
+    arrays = (
         self.kpi,
-        self.controls,
         self.population,
+        self.controls,
         self.revenue_per_kpi,
         self.organic_media,
         self.organic_reach,
@@ -429,7 +517,7 @@ class InputData:
         self.reach,
         self.frequency,
         self.rf_spend,
-    ]
+    )
 
     for array, name in zip(arrays, constants.POSSIBLE_INPUT_DATA_ARRAY_NAMES):
       if array is not None and array.name != name:
@@ -470,7 +558,6 @@ class InputData:
         [
             [constants.RF_CHANNEL],
             [constants.GEO, constants.TIME, constants.RF_CHANNEL],
-            [constants.GEO, constants.RF_CHANNEL],
         ],
     )
     _check_dim_collection(
@@ -534,15 +621,50 @@ class InputData:
   def _validate_media_channels(self):
     """Verifies Meridian media channel names invariants.
 
-    In the input data, media channel names across `media_channel` and
-    `rf_channel` must be unique.
+    In the input data, channel names across `media_channel`,
+    `rf_channel`, `organic_media_channel`, `organic_rf_channel`,
+    `non_media_channel` must be unique.
     """
     all_channels = self.get_all_channels()
     if len(np.unique(all_channels)) != all_channels.size:
-      raise ValueError(
-          "Media channel names across `media_channel` and `rf_channel` must be"
-          " unique."
+      error_msg = (
+          "Channel names across `media_channel`, `rf_channel`,"
+          " `organic_media_channel`, `organic_rf_channel`, and"
+          " `non_media_channel` must be unique."
       )
+      # For each channel, store all occurrences of the channel in particular
+      # channel type.
+      from_channel_to_type = {}
+      for channel in all_channels:
+        if channel not in from_channel_to_type:
+          from_channel_to_type[channel] = []
+
+      # pytype: disable=attribute-error
+      if self.media_channel is not None:
+        for channel in self.media_channel.values:
+          from_channel_to_type[channel].append(constants.MEDIA_CHANNEL)
+      if self.rf_channel is not None:
+        for channel in self.rf_channel.values:
+          from_channel_to_type[channel].append(constants.RF_CHANNEL)
+      if self.organic_media_channel is not None:
+        for channel in self.organic_media_channel.values:
+          from_channel_to_type[channel].append(constants.ORGANIC_MEDIA_CHANNEL)
+      if self.organic_rf_channel is not None:
+        for channel in self.organic_rf_channel.values:
+          from_channel_to_type[channel].append(constants.ORGANIC_RF_CHANNEL)
+      if self.non_media_channel is not None:
+        for channel in self.non_media_channel.values:
+          from_channel_to_type[channel].append(constants.NON_MEDIA_CHANNEL)
+      # pytype: enable=attribute-error
+
+      for channel, types in from_channel_to_type.items():
+        if len(types) > 1:
+          error_msg += (
+              f" Channel `{channel}` is present in multiple channel types:"
+              f" {types}."
+          )
+
+      raise ValueError(error_msg)
 
   def _validate_times(self):
     """Validates time coordinate values."""
@@ -667,9 +789,10 @@ class InputData:
     """Returns data as a single `xarray.Dataset` object."""
     data = [
         self.kpi,
-        self.controls,
         self.population,
     ]
+    if self.controls is not None:
+      data.append(self.controls)
     if self.revenue_per_kpi is not None:
       data.append(self.revenue_per_kpi)
     if self.media is not None:
@@ -804,3 +927,24 @@ class InputData:
       return self.media_spend.values
     else:
       raise ValueError("Both RF and Media are missing.")
+
+  def get_total_outcome(self) -> np.ndarray:
+    """Returns total outcome, aggregated over geos and times."""
+    if self.revenue_per_kpi is None:
+      return np.sum(self.kpi.values)
+    return np.sum(self.kpi.values * self.revenue_per_kpi.values)
+
+  def _allocate_spend(self, spend: xr.DataArray, media_units: xr.DataArray):
+    """Allocates spend across geo and time proportionally to media units."""
+    n_times = len(self.kpi.coords[constants.TIME])
+    selected_media_units = media_units.isel(media_time=slice(-n_times, None))
+    total_media_units_per_channel = selected_media_units.sum(
+        dim=["geo", "media_time"]
+    )
+    proportions = selected_media_units / total_media_units_per_channel
+    expanded_spend = spend.expand_dims({
+        "geo": selected_media_units["geo"],
+        "media_time": selected_media_units["media_time"],
+    })
+    allocated_spend = expanded_spend * proportions
+    return allocated_spend.rename({"media_time": "time"})

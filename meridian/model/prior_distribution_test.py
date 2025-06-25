@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -247,6 +247,98 @@ class PriorDistributionTest(parameterized.TestCase):
         n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
         n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
         n_controls=_N_CONTROLS,
+        n_non_media_channels=_N_NON_MEDIA_CHANNELS,
+        sigma_shape=_N_GEOS,
+        n_knots=_N_KNOTS,
+        is_national=False,
+        set_total_media_contribution_prior=False,
+        kpi=1.0,
+        total_spend=np.array([]),
+    )
+
+    scalar_distributions_list = [
+        distribution.knot_values,
+        distribution.tau_g_excl_baseline,
+        distribution.alpha_m,
+        distribution.alpha_rf,
+        distribution.alpha_om,
+        distribution.alpha_orf,
+        distribution.ec_m,
+        distribution.ec_rf,
+        distribution.ec_om,
+        distribution.ec_orf,
+        distribution.beta_m,
+        distribution.beta_rf,
+        distribution.beta_om,
+        distribution.beta_orf,
+        distribution.eta_m,
+        distribution.eta_rf,
+        distribution.eta_om,
+        distribution.eta_orf,
+        distribution.gamma_c,
+        distribution.gamma_n,
+        distribution.xi_c,
+        distribution.xi_n,
+        distribution.slope_m,
+        distribution.slope_rf,
+        distribution.slope_om,
+        distribution.slope_orf,
+        distribution.sigma,
+        distribution.roi_m,
+        distribution.roi_rf,
+        distribution.mroi_m,
+        distribution.mroi_rf,
+    ]
+
+    broadcast_distributions_list = [
+        broadcast_distribution.knot_values.parameters[c.DISTRIBUTION],
+        broadcast_distribution.tau_g_excl_baseline.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.alpha_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.ec_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.beta_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.eta_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.gamma_c.parameters[c.DISTRIBUTION],
+        broadcast_distribution.gamma_n.parameters[c.DISTRIBUTION],
+        broadcast_distribution.xi_c.parameters[c.DISTRIBUTION],
+        broadcast_distribution.xi_n.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_om.parameters[c.DISTRIBUTION],
+        broadcast_distribution.slope_orf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.sigma.parameters[c.DISTRIBUTION],
+        broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.roi_rf.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_m.parameters[c.DISTRIBUTION],
+        broadcast_distribution.mroi_rf.parameters[c.DISTRIBUTION],
+    ]
+
+    # Compare Distributions.
+    for scal, broad in zip(
+        scalar_distributions_list, broadcast_distributions_list
+    ):
+      self.assert_distribution_params_are_equal(scal, broad)
+
+  def test_broadcast_no_controls_preserves_distribution(self):
+    distribution = prior_distribution.PriorDistribution()
+    broadcast_distribution = distribution.broadcast(
+        n_geos=_N_GEOS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        n_organic_media_channels=_N_ORGANIC_MEDIA_CHANNELS,
+        n_organic_rf_channels=_N_ORGANIC_RF_CHANNELS,
+        n_controls=0,
         n_non_media_channels=_N_NON_MEDIA_CHANNELS,
         sigma_shape=_N_GEOS,
         n_knots=_N_KNOTS,
@@ -1096,34 +1188,11 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.sigma.batch_shape, (_N_GEOS_NATIONAL,)
     )
 
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='with_custom_roi_m',
-          roi_m=tfp.distributions.LogNormal(0.2, 0.8, name=c.ROI_M),
-          roi_rf=None,
-          number_of_warnings=1,
-      ),
-      dict(
-          testcase_name='with_custom_roi_rf',
-          roi_m=None,
-          roi_rf=tfp.distributions.LogNormal(0.2, 0.8, name=c.ROI_RF),
-          number_of_warnings=1,
-      ),
-      dict(
-          testcase_name='with_defaults',
-          roi_m=None,
-          roi_rf=None,
-          number_of_warnings=2,
-      ),
-  )
-  def test_roi_prior_distribution(
+  def test_correct_total_media_contribution_roi_prior_distribution(
       self,
-      roi_m: tfp.distributions.Distribution,
-      roi_rf: tfp.distributions.Distribution,
-      number_of_warnings: int,
   ):
-    roi_m_dist = self.sample_distributions[c.ROI_M] if not roi_m else roi_m
-    roi_rf_dist = self.sample_distributions[c.ROI_RF] if not roi_rf else roi_rf
+    roi_m_dist = self.sample_distributions[c.ROI_M]
+    roi_rf_dist = self.sample_distributions[c.ROI_RF]
 
     # Create prior distribution with given parameters.
     distribution = prior_distribution.PriorDistribution(
@@ -1131,37 +1200,23 @@ class PriorDistributionTest(parameterized.TestCase):
         roi_rf=roi_rf_dist,
     )
 
-    with warnings.catch_warnings(record=True) as warns:
-      # Cause all warnings to always be triggered.
-      warnings.simplefilter('always')
-      kpi = 1.0
-      total_spend = np.ones(_N_MEDIA_CHANNELS + _N_RF_CHANNELS)
-      broadcast_distribution = distribution.broadcast(
-          n_geos=_N_GEOS,
-          n_media_channels=_N_MEDIA_CHANNELS,
-          n_rf_channels=_N_RF_CHANNELS,
-          n_organic_media_channels=0,
-          n_organic_rf_channels=0,
-          n_controls=_N_CONTROLS,
-          n_non_media_channels=0,
-          sigma_shape=_N_GEOS,
-          n_knots=_N_KNOTS,
-          is_national=False,
-          set_total_media_contribution_prior=True,
-          kpi=kpi,
-          total_spend=total_spend,
-      )
-      self.assertLen(warns, number_of_warnings)
-      for w in warns:
-        self.assertTrue(issubclass(w.category, UserWarning))
-        self.assertIn(
-            'Consider setting custom ROI priors, as kpi_type was specified as'
-            ' `non_revenue` with no `revenue_per_kpi` being set. Otherwise, the'
-            ' total media contribution prior will be used with `p_mean=0.4` and'
-            ' `p_sd=0.2`. Further documentation available at '
-            ' https://developers.google.com/meridian/docs/advanced-modeling/unknown-revenue-kpi-custom#set-total-paid-media-contribution-prior',
-            str(w.message),
-        )
+    kpi = 1.0
+    total_spend = np.ones(_N_MEDIA_CHANNELS + _N_RF_CHANNELS)
+    broadcast_distribution = distribution.broadcast(
+        n_geos=_N_GEOS,
+        n_media_channels=_N_MEDIA_CHANNELS,
+        n_rf_channels=_N_RF_CHANNELS,
+        n_organic_media_channels=0,
+        n_organic_rf_channels=0,
+        n_controls=_N_CONTROLS,
+        n_non_media_channels=0,
+        sigma_shape=_N_GEOS,
+        n_knots=_N_KNOTS,
+        is_national=False,
+        set_total_media_contribution_prior=True,
+        kpi=kpi,
+        total_spend=total_spend,
+    )
 
     self.assertEqual(
         broadcast_distribution.roi_m.batch_shape, (_N_MEDIA_CHANNELS,)
@@ -1170,14 +1225,11 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
         tfp.distributions.LogNormal,
     )
-    if roi_m is not None:
-      expected_roi_m = roi_m
-    else:
-      expected_roi_m = prior_distribution._get_total_media_contribution_prior(
-          kpi=kpi,
-          total_spend=total_spend,
-          name=c.ROI_M,
-      )
+    expected_roi_m = prior_distribution._get_total_media_contribution_prior(
+        kpi=kpi,
+        total_spend=total_spend,
+        name=c.ROI_M,
+    )
     self.assert_distribution_params_are_equal(
         broadcast_distribution.roi_m.distribution, expected_roi_m
     )
@@ -1188,14 +1240,11 @@ class PriorDistributionTest(parameterized.TestCase):
         broadcast_distribution.roi_m.parameters[c.DISTRIBUTION],
         tfp.distributions.LogNormal,
     )
-    if roi_rf is not None:
-      expected_roi_rf = roi_rf
-    else:
-      expected_roi_rf = prior_distribution._get_total_media_contribution_prior(
-          kpi=kpi,
-          total_spend=total_spend,
-          name=c.ROI_RF,
-      )
+    expected_roi_rf = prior_distribution._get_total_media_contribution_prior(
+        kpi=kpi,
+        total_spend=total_spend,
+        name=c.ROI_RF,
+    )
     self.assert_distribution_params_are_equal(
         broadcast_distribution.roi_rf.distribution, expected_roi_rf
     )

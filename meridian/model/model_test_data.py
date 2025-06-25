@@ -1,4 +1,4 @@
-# Copyright 2024 The Meridian Authors.
+# Copyright 2025 The Meridian Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -70,6 +70,10 @@ class WithInputDataSamples:
       _TEST_DIR,
       "sample_prior_media_only.nc",
   )
+  _TEST_SAMPLE_PRIOR_MEDIA_ONLY_NO_CONTROLS_PATH = os.path.join(
+      _TEST_DIR,
+      "sample_prior_media_only_no_controls.nc",
+  )
   _TEST_SAMPLE_PRIOR_RF_ONLY_PATH = os.path.join(
       _TEST_DIR,
       "sample_prior_rf_only.nc",
@@ -81,6 +85,10 @@ class WithInputDataSamples:
   _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH = os.path.join(
       _TEST_DIR,
       "sample_posterior_media_only.nc",
+  )
+  _TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_NO_CONTROLS_PATH = os.path.join(
+      _TEST_DIR,
+      "sample_posterior_media_only_no_controls.nc",
   )
   _TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH = os.path.join(
       _TEST_DIR,
@@ -130,6 +138,17 @@ class WithInputDataSamples:
             seed=0,
         )
     )
+    self.input_data_media_and_rf_non_revenue_no_revenue_per_kpi = (
+        test_utils.sample_input_data_non_revenue_no_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
+    )
     self.input_data_with_media_only = (
         test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=self._N_GEOS,
@@ -161,12 +180,33 @@ class WithInputDataSamples:
             seed=0,
         )
     )
+    self.input_data_with_media_and_rf_no_controls = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES,
+            n_media_times=self._N_MEDIA_TIMES,
+            n_controls=None,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            n_rf_channels=self._N_RF_CHANNELS,
+            seed=0,
+        )
+    )
     self.short_input_data_with_media_only = (
         test_utils.sample_input_data_non_revenue_revenue_per_kpi(
             n_geos=self._N_GEOS,
             n_times=self._N_TIMES_SHORT,
             n_media_times=self._N_MEDIA_TIMES_SHORT,
             n_controls=self._N_CONTROLS,
+            n_media_channels=self._N_MEDIA_CHANNELS,
+            seed=0,
+        )
+    )
+    self.short_input_data_with_media_only_no_controls = (
+        test_utils.sample_input_data_non_revenue_revenue_per_kpi(
+            n_geos=self._N_GEOS,
+            n_times=self._N_TIMES_SHORT,
+            n_media_times=self._N_MEDIA_TIMES_SHORT,
+            n_controls=0,
             n_media_channels=self._N_MEDIA_CHANNELS,
             seed=0,
         )
@@ -220,6 +260,9 @@ class WithInputDataSamples:
     test_prior_media_only = xr.open_dataset(
         self._TEST_SAMPLE_PRIOR_MEDIA_ONLY_PATH
     )
+    test_prior_media_only_no_controls = xr.open_dataset(
+        self._TEST_SAMPLE_PRIOR_MEDIA_ONLY_NO_CONTROLS_PATH
+    )
     test_prior_rf_only = xr.open_dataset(self._TEST_SAMPLE_PRIOR_RF_ONLY_PATH)
     self.test_dist_media_and_rf = collections.OrderedDict({
         param: tf.convert_to_tensor(test_prior_media_and_rf[param])
@@ -232,6 +275,18 @@ class WithInputDataSamples:
         for param in constants.COMMON_PARAMETER_NAMES
         + constants.MEDIA_PARAMETER_NAMES
     })
+    self.test_dist_media_only_no_controls = collections.OrderedDict({
+        param: tf.convert_to_tensor(test_prior_media_only_no_controls[param])
+        for param in (
+            set(
+                constants.COMMON_PARAMETER_NAMES
+                + constants.MEDIA_PARAMETER_NAMES
+            )
+            - set(
+                constants.CONTROL_PARAMETERS + constants.GEO_CONTROL_PARAMETERS
+            )
+        )
+    })
     self.test_dist_rf_only = collections.OrderedDict({
         param: tf.convert_to_tensor(test_prior_rf_only[param])
         for param in constants.COMMON_PARAMETER_NAMES
@@ -243,6 +298,9 @@ class WithInputDataSamples:
     )
     test_posterior_media_only = xr.open_dataset(
         self._TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_PATH
+    )
+    test_posterior_media_only_no_controls = xr.open_dataset(
+        self._TEST_SAMPLE_POSTERIOR_MEDIA_ONLY_NO_CONTROLS_PATH
     )
     test_posterior_rf_only = xr.open_dataset(
         self._TEST_SAMPLE_POSTERIOR_RF_ONLY_PATH
@@ -262,6 +320,21 @@ class WithInputDataSamples:
         for param in constants.COMMON_PARAMETER_NAMES
         + constants.MEDIA_PARAMETER_NAMES
     }
+    posterior_params_to_tensors_media_only_no_controls = {
+        param: _convert_with_swap(
+            test_posterior_media_only_no_controls[param],
+            n_burnin=self._N_BURNIN,
+        )
+        for param in (
+            set(
+                constants.COMMON_PARAMETER_NAMES
+                + constants.MEDIA_PARAMETER_NAMES
+            )
+            - set(
+                constants.CONTROL_PARAMETERS + constants.GEO_CONTROL_PARAMETERS
+            )
+        )
+    }
     posterior_params_to_tensors_rf_only = {
         param: _convert_with_swap(
             test_posterior_rf_only[param], n_burnin=self._N_BURNIN
@@ -279,6 +352,18 @@ class WithInputDataSamples:
         "StructTuple",
         constants.COMMON_PARAMETER_NAMES + constants.MEDIA_PARAMETER_NAMES,
     )(**posterior_params_to_tensors_media_only)
+    self.test_posterior_states_media_only_no_controls = collections.namedtuple(
+        "StructTuple",
+        (
+            set(
+                constants.COMMON_PARAMETER_NAMES
+                + constants.MEDIA_PARAMETER_NAMES
+            )
+            - set(
+                constants.CONTROL_PARAMETERS + constants.GEO_CONTROL_PARAMETERS
+            )
+        ),
+    )(**posterior_params_to_tensors_media_only_no_controls)
     self.test_posterior_states_rf_only = collections.namedtuple(
         "StructTuple",
         constants.COMMON_PARAMETER_NAMES + constants.RF_PARAMETER_NAMES,

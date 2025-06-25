@@ -23,7 +23,81 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 
 ## [Unreleased]
 
+## [1.1.3] - 2025-06-23
+
+* Add MLflow autologging support.
+* Fix bug where channels were being mapped to the wrong column name.
+* Add the ability to set `max_frequency` to `optimal_freq()` and update the
+  `new_data` argument to take in `rf_impressions` rather than `reach` and
+  `frequency` separately.
+
+## [1.1.2] - 2025-06-11
+
+* Add new `InputDataBuilder` APIs.
+* `DataFrameDataLoader` to use new `DataFrameInputDataBuilder` API under the
+  hood. These changes are backwards compatible.
+* Keep rounded spend as int64 in optimizer.
+
+## [1.1.1] - 2025-05-28
+
+* Rename the directory of unit testing datasets from `sample` to
+  `unit_testing_data` and add a README.
+* Make `controls` data optional in the model.
+* Add a time variation error message for national models.
+
+## [1.1.0] - 2025-05-20
+
+* Add `media_prior_type`, `rf_prior_type`, `organic_media_prior_type`,
+  `organic_rf_prior_type`, `non_media_prior_type` parameters to `ModelSpec`.
+* Add `'contribution'` prior type option.
+* Add a data simulation demo notebook and update/add simulated datasets.
+* Change `VEGALITE_FACET_EXTRA_LARGE_WIDTH` from 900 to 700.
+* Prevent negative media effect priors when using lognormal distribution upon
+  model init.
+* Add an optional `optimization_grid` arg to the optimizer.
+* Fix `incremental_outcome` to accept unscaled `non_media_treatments_baseline`.
+* Add spend allocation per geo and time if per-channel spend is provided.
+* Validate no time variation for non-media treatments, organic media, and
+  organic reach.
+* Add optimizer parameters `start_date` and `end_date` to replace
+  `selected_times`.
+
+## [1.0.9] - 2025-04-17
+
+* Add support for optimization with forecasted data.
+* Deprecate `get_historical_spend` for `get_aggregated_spend` with `new_data`
+  support.
+* Raise an error when `kpi_scaled` is all zero and `paid_media_prior_type` is
+  anything other than "coefficient".
+* Prevent negative media effect priors when using lognormal distribution.
+* Add support for weekly time granularity to the contribution area and bump
+  charts.
+* Update channel contribution over time charts in Summarizer to toggle weekly vs
+  quarterly granularity based on the selected time period length.
+* Adjust the optimization summary to display dates in the same format as
+  "Marketing Mix Modeling Report".
+* Increase width of model fit and channel contribution over time charts in the
+  Visualizer.
+
+## [1.0.8] - 2025-04-08
+
+* Update contribution calculation methods in `MediaSummary` with
+  `aggregate_times` parameter to support granular time.
 * Add a `new_data` argument to `analyzer.optimal_freq()`.
+* Refactor args in `create_optimization_grid` to be consistent with
+  `optimize(...)`.
+* Fix response curves for KPI-based optimization.
+* Add `plot_channel_contribution_area_chart` method to `MediaSummary` in the
+  visualizer.
+* Add `plot_channel_contribution_bump_chart` method to `MediaSummary` in the
+  visualizer.
+* Add organic media support for adstock decay in analyzer.
+* Add channel contribution area chart and channel contribution bump chart to
+  model results summary report in the summarizer.
+* Add an extra check for zeros or negative values in `revenue_per_kpi`.
+* Add per-channel constraints parameters to `OptimizationGrid.optimize(...)`.
+* Add organic media support for hill curves in analyzer.
+* Add organic media support for `plot_hill_curves` in visualizer.
 
 ## [1.0.7] - 2025-03-19
 
@@ -246,4 +320,10 @@ To release a new version (e.g. from `1.0.0` -> `2.0.0`):
 [1.0.5]: https://github.com/google/meridian/releases/tag/v1.0.5
 [1.0.6]: https://github.com/google/meridian/releases/tag/v1.0.6
 [1.0.7]: https://github.com/google/meridian/releases/tag/v1.0.7
-[Unreleased]: https://github.com/google/meridian/compare/v1.0.7...HEAD
+[1.0.8]: https://github.com/google/meridian/releases/tag/v1.0.8
+[1.0.9]: https://github.com/google/meridian/releases/tag/v1.0.9
+[1.1.0]: https://github.com/google/meridian/releases/tag/v1.1.0
+[1.1.1]: https://github.com/google/meridian/releases/tag/v1.1.1
+[1.1.2]: https://github.com/google/meridian/releases/tag/v1.1.2
+[1.1.3]: https://github.com/google/meridian/releases/tag/v1.1.3
+[Unreleased]: https://github.com/google/meridian/compare/v1.1.3...HEAD
